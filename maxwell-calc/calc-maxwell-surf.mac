@@ -1,4 +1,4 @@
-load("lenardBernsteinOperator-calc/VmLBOconstNu-alpha-vol")$
+load("maxwell-calc/maxwell-calc-surf-mod")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term contributions. */
@@ -8,23 +8,17 @@ load(stringproc)$
 /* Serendipity basis. */
 maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$
-minVdim_Ser : 1$    /* see beginning of v loop below though. */
-maxVdim_Ser : 2$
+maxCdim_Ser : 3$
 
 /* Maximal order basis. */
 maxPolyOrder_Max : 3$
 minCdim_Max : 1$
-maxCdim_Max : 2$
-minVdim_Max : 1$    /* see begining of v loop below though. */
-maxVdim_Max : 2$
+maxCdim_Max : 3$
 
 /* Tensor product basis. */
 maxPolyOrder_Tensor : 3$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 2$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxVdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -36,16 +30,12 @@ maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Max, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
-  for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : c thru maxVdim[bInd] do (
-      disp(printf(false,sconcat("Creating volume VmLBOconstNu",bName[bInd]," ~ax~av"),c,v)),
-      fname : sconcat("~/max-out/VmLBOconstNu", bName[bInd], c, "x", v, "v", ".cpp"),
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
+      disp(printf(false,sconcat("Creating surface Maxwell",bName[bInd]," ~ax"),d)),
+      fname : sconcat("~/max-out/MaxwellSurf", bName[bInd], d, "x", ".cpp"),
       fh : openw(fname),
-      funcName : sconcat("VmLBOconstNuVol", c, "x", v, "v", bName[bInd]),
-      calcVmLBOconstNuVolUpdater(fh, funcName, c, v, bName[bInd], maxPolyOrder[bInd]),
+      funcName : sconcat("MaxwellSurf", d, "x", bName[bInd]),
+      calcMaxwellSurfUpdater(fh, funcName, d, bName[bInd], maxPolyOrder[bInd]),
       close(fh)
-    )
   )
 );
-
-
