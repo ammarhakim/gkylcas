@@ -79,7 +79,7 @@ writeCExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcCrossPrimMoms(fh, funcNm, cdim, vdim, basisFun, pMax) := block([],
+calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, pMax) := block([],
 
   kill(varsC, varsP, basisC, basisP),
 
