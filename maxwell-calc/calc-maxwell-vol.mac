@@ -1,4 +1,4 @@
-load("maxwell-calc/maxwell-calc-central-surf")$
+load("maxwell-calc/maxwell-calc-vol")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term contributions. */
@@ -6,18 +6,18 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-maxPolyOrder_Ser : 3$
-minCdim_Ser : 1$
+maxPolyOrder_Ser : 1$
+minCdim_Ser : 3$
 maxCdim_Ser : 3$
 
 /* Maximal order basis. */
-maxPolyOrder_Max : 3$
-minCdim_Max : 1$
+maxPolyOrder_Max : 2$
+minCdim_Max : 3$
 maxCdim_Max : 3$
 
 /* Tensor product basis. */
-maxPolyOrder_Tensor : 3$
-minCdim_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 2$
 maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
@@ -31,11 +31,11 @@ maxVdim      : [maxVdim_Ser, maxVdim_Max, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
-      disp(printf(false,sconcat("Creating surface Maxwell",bName[bInd]," ~ax"),d)),
-      fname : sconcat("~/max-out/MaxwellCentralSurf", bName[bInd], d, "x", ".cpp"),
+      disp(printf(false,sconcat("Creating volume Maxwell",bName[bInd]," ~ax"),d)),
+      fname : sconcat("~/max-out/MaxwellVol", bName[bInd], d, "x", ".cpp"),
       fh : openw(fname),
-      funcName : sconcat("MaxwellCentralSurf", d, "x", bName[bInd]),
-      calcMaxwellCentralSurfUpdater(fh, funcName, d, bName[bInd], maxPolyOrder[bInd]),
+      funcName : sconcat("MaxwellVol", d, "x", bName[bInd]),
+      calcMaxVolUpdater(fh, funcName, d, bName[bInd], maxPolyOrder[bInd]),
       close(fh)
   )
 );
