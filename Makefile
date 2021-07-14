@@ -28,7 +28,8 @@ libobjs = $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
 
 # Make targets: libraries
 all: build/libgkylcas.a \
-	$(patsubst %.cxx,build/%,$(wildcard unit/cxxtest_*.cxx))
+	$(patsubst %.cxx,build/%,$(wildcard unit/cxxtest_*.cxx)) \
+	$(patsubst %.cxx,build/%,$(wildcard codegen/codegen_*.cxx))
 
 # Library archive
 build/libgkylcas.a: ${libobjs} ${headers}
@@ -36,4 +37,8 @@ build/libgkylcas.a: ${libobjs} ${headers}
 
 # Unit tests
 build/unit/%: unit/%.cxx build/libgkylcas.a
+	${CXX} ${CXXFLAGS} ${LIBDIRS} ${LDFLAGS} -o $@ $< -I. $(INCLUDES) -Lbuild -lgkylcas -lginac -lcln -lgmp
+
+# Code generators
+build/codegen/%: codegen/%.cxx build/libgkylcas.a
 	${CXX} ${CXXFLAGS} ${LIBDIRS} ${LDFLAGS} -o $@ $< -I. $(INCLUDES) -Lbuild -lgkylcas -lginac -lcln -lgmp

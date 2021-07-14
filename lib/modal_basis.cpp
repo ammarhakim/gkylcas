@@ -15,11 +15,13 @@ static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } mo_lis
   { serendip_6x_p0, serendip_6x_p1, serendip_6x_p2, NULL },
 };
 
-Gkyl::ModalBasis::ModalBasis(const std::vector<GiNaC::symbol>& vars, int polyOrder)
-  : ndim(vars.size()), vars(vars), polyOrder(polyOrder)
+Gkyl::ModalBasis::ModalBasis(int ndim, const std::vector<GiNaC::symbol>& invars, int polyOrder)
+: ndim(ndim), polyOrder(polyOrder)
 {
   assert(ndim<=6 && polyOrder<=3);
   assert(mo_list[ndim].ev[polyOrder] != NULL);
+
+  for (int d=0; d<ndim; ++d) vars.push_back(invars[d]);
   bc = gsOrthoNorm(mo_list[ndim].ev[polyOrder](vars));
 }
 
@@ -36,7 +38,7 @@ GiNaC::ex
 Gkyl::ModalBasis::innerProd(const GiNaC::ex &f1, const GiNaC::ex &f2) const
 {
   GiNaC::ex out = f1*f2;
-  for (int i=0; i<vars.size(); ++i)
+  for (int i=0; i<ndim; ++i)
     out = GiNaC::integral(vars[i], -1, 1, out);
   return out.eval_integ();
 }

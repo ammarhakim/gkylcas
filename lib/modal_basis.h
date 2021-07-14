@@ -7,8 +7,12 @@ namespace Gkyl {
   class ModalBasis {
   public:
     /* Construct new modal basis object */
-    ModalBasis(const std::vector<GiNaC::symbol>& vars, int polyOrder);
-
+    ModalBasis(int ndim, const std::vector<GiNaC::symbol>& vars, int polyOrder);
+    
+    /* Dimensions and polyorder */
+    int get_ndim() const { return ndim; }
+    int get_polyOrder() const { return polyOrder; }
+    
     /* Get number of basis functions */
     int numBasis() const { return bc.nops(); }
     /* Get list of basis functions */

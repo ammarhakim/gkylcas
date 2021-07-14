@@ -8,7 +8,7 @@ test_ser_1d()
 
   symbol x("x");
   std::vector<symbol> vars { x };
-  Gkyl::ModalBasis mbasis(vars, 2);
+  Gkyl::ModalBasis mbasis(1, vars, 2);
 
   lst bc = mbasis.basis();
   TEST_CHECK( bc.nops() == 3 );
