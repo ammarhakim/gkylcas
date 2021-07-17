@@ -14,9 +14,11 @@ namespace Gkyl {
     int get_polyOrder() const { return polyOrder; }
     
     /* Get number of basis functions */
-    int numBasis() const { return bc.nops(); }
+    int get_numbasis() const { return bc.nops(); }
     /* Get list of basis functions */
-    GiNaC::lst basis() const { return bc; }
+    GiNaC::lst get_basis() const { return bc; }
+    /* Get variables */
+    GiNaC::lst get_vars() const;
 
     /* Get derivative of basis functions wrt to n-th indep. var */
     GiNaC::lst diffBasis(int n) const;

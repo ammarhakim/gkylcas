@@ -26,6 +26,15 @@ Gkyl::ModalBasis::ModalBasis(int ndim, const std::vector<GiNaC::symbol>& invars,
 }
 
 GiNaC::lst
+Gkyl::ModalBasis::get_vars() const
+{
+  GiNaC::lst v;
+  for (int i=0; i<ndim; ++i)
+    v.append( vars[i] );
+  return v;
+}
+
+GiNaC::lst
 Gkyl::ModalBasis::diffBasis(int n) const
 {
   GiNaC::lst db;

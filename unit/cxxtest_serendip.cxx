@@ -10,7 +10,7 @@ test_ser_1d()
   std::vector<symbol> vars { x };
   Gkyl::ModalBasis mbasis(1, vars, 2);
 
-  lst bc = mbasis.basis();
+  lst bc = mbasis.get_basis();
   TEST_CHECK( bc.nops() == 3 );
 }
 

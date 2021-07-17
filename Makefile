@@ -42,3 +42,8 @@ build/unit/%: unit/%.cxx build/libgkylcas.a
 # Code generators
 build/codegen/%: codegen/%.cxx build/libgkylcas.a
 	${CXX} ${CXXFLAGS} ${LIBDIRS} ${LDFLAGS} -o $@ $< -I. $(INCLUDES) -Lbuild -lgkylcas -lginac -lcln -lgmp
+
+.PHONY: clean
+
+clean:
+	rm -rf build/libgkylcas.a */*.o build/unit/cxxtest_* build/codegen/codegen_*
