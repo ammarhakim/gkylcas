@@ -4,6 +4,7 @@
 # make CC=mpicc 
 #
 
+CFLAGS = -O3 -g 
 CXXFLAGS = -O3 -g 
 
 GINAC_INC = ${HOME}/gkylsoft/ginac/include
@@ -12,10 +13,14 @@ CLN_INC = ${HOME}/gkylsoft/cln/include
 GINAC_LIB_DIR = ${HOME}/gkylsoft/ginac/lib
 CLN_LIB_DIR = ${HOME}/gkylsoft/cln/lib
 
-INCLUDES = -Iunit -Ilib -I${GINAC_INC} -I${CLN_INC}
+KERN_INCLUDES = -Ikernels -Ikernels/basis -Ikernels/bin_op
+INCLUDES = -Iunit -Ilib -I${GINAC_INC} -I${CLN_INC} 
 LIBDIRS = -L${GINAC_LIB_DIR} -L${CLN_LIB_DIR}
 PREFIX = ${HOME}/gkylsoft
 LDFLAGS = "-Wl,-rpath,${CLN_LIB_DIR}"
+
+%.o : %.c
+	${CC} -c $(CFLAGS) $(INCLUDES) ${KERN_INCLUDES} -o $@ $<
 
 %.o : %.cpp
 	${CXX} -c $(CXXFLAGS) $(INCLUDES) -o $@ $<
@@ -43,7 +48,12 @@ build/unit/%: unit/%.cxx build/libgkylcas.a
 build/codegen/%: codegen/%.cxx build/libgkylcas.a
 	${CXX} ${CXXFLAGS} ${LIBDIRS} ${LDFLAGS} -o $@ $< -I. $(INCLUDES) -Lbuild -lgkylcas -lginac -lcln -lgmp
 
-.PHONY: clean
+compile-kernels: $(patsubst %.c,%.o,$(wildcard kernels/*/*.c))
+
+.PHONY: clean clean-compile-kernels
 
 clean:
 	rm -rf build/libgkylcas.a */*.o build/unit/cxxtest_* build/codegen/codegen_*
+
+clean-compile-kernels:
+	rm -rf kernels/*/*.o

@@ -104,14 +104,14 @@ main(int argc, char **argv)
   symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
   std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
 
-  std::ofstream header("gkyl_basis_ser_kernels.h", std::ofstream::out);
+  std::ofstream header("kernels/basis/gkyl_basis_ser_kernels.h", std::ofstream::out);
   header << "// " << buff << std::endl;
   header << "#pragma once" << std::endl;
   header << "#include <gkyl_util.h>" << std::endl;
   header << "EXTERN_C_BEG" << std::endl;
   
-  std::ofstream eval_file("basis_eval_ser.c", std::ofstream::out);
-  std::ofstream flip_file("basis_flip_sign_ser.c", std::ofstream::out);
+  std::ofstream eval_file("kernels/basis/basis_eval_ser.c", std::ofstream::out);
+  std::ofstream flip_file("kernels/basis/basis_flip_sign_ser.c", std::ofstream::out);
 
   eval_file << "// " << buff << std::endl;
   eval_file << "#include <gkyl_basis_ser_kernels.h>" << std::endl;
