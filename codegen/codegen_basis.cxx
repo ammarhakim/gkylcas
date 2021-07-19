@@ -124,8 +124,8 @@ main(int argc, char **argv)
   for (int d=0; d<6; ++d) {
     int dim = dims[d];
     for (int p=0; p<=max_order[d]; ++p) {
+      std::cout << dim << "dp" << p << " ";      
       Gkyl::ModalBasis mbasis(dim, vars, p);
-      std::cout << dim << "dp" << p << " ";
       
       // generate eval method
       gen_ser_eval(header, eval_file, mbasis);

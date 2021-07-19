@@ -1,6 +1,7 @@
 #include <modal_basis.h>
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <util.h>
 
 using namespace GiNaC;
@@ -23,10 +24,14 @@ gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis
   fc << "{" << std::endl;  
 
   symbol f("f"), g("g");
-  auto mul = basis.calcInnerProdList(bc, basis.expand(f)*basis.expand(g));
+  auto fg = basis.expand(f)*basis.expand(g);
 
-  for (int i=0; i<basis.get_numbasis(); ++i)
-    fc << "  fg[" << i << "] = " << csrc << mul[i].expand().evalf() << ";" << std::endl;
+  for (int i=0; i<basis.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    auto out = basis.innerProd(bc[i], fg);
+    fc << "  fg[" << i << "] = " << csrc << out.expand().evalf() << ";" << std::endl;
+  }
+  std::cout << std::endl;
 
   // close function
   fc << "}" << std::endl << std::endl;
@@ -42,7 +47,7 @@ main(int argc, char **argv)
   strftime(buff, sizeof buff, "%c", &curr_tm);
   
   int dims[] = { 1, 2, 3, 4, 5, 6 };
-  int max_order[] = { 3, 3, 3, 3, 3, 2 };
+  int max_order[] = { 2, 2, 2, 2, 2, 1 };
 
   symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
   std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
@@ -53,17 +58,21 @@ main(int argc, char **argv)
   mul_file_h << "#include <gkyl_util.h>" << std::endl;
   mul_file_h << "EXTERN_C_BEG" << std::endl;
   
-  std::ofstream mul_file_c("kernels/bin_op/binop_mul_ser.c", std::ofstream::out);
-  mul_file_c << "// " << buff << std::endl;
-  mul_file_c << "#include <gkyl_binop_mul_ser.h>" << std::endl;
-
   struct timespec tstart = gkyl_wall_clock();
 
-  for (int d=0; d<3; ++d) {
+  for (int d=0; d<6; ++d) {
     int dim = dims[d];
     for (int p=0; p<=max_order[d]; ++p) {
+      std::cout << dim << "dp" << p << " " << std::flush;
       Gkyl::ModalBasis mbasis(dim, vars, p);
-      std::cout << dim << "dp" << p << " ";
+
+      // each function is written to its own file to allow building
+      // kernels in parallel
+      std::ostringstream fn;
+      fn << "kernels/bin_op/binop_mul_" << dim << "d_ser_" << "p" << p << ".c";
+      std::ofstream mul_file_c(fn.str().c_str(), std::ofstream::out);
+      mul_file_c << "// " << buff << std::endl;
+      mul_file_c << "#include <gkyl_binop_mul_ser.h>" << std::endl;
       
       // generate multiply method
       gen_ser_mul_op(mul_file_h, mul_file_c, mbasis);

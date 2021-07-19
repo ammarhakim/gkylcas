@@ -46,10 +46,12 @@ Gkyl::ModalBasis::diffBasis(int n) const
 GiNaC::ex
 Gkyl::ModalBasis::innerProd(const GiNaC::ex &f1, const GiNaC::ex &f2) const
 {
-  GiNaC::ex out = f1*f2;
+  //std::cout << "Inside innerProd " << ndim << "d polyOrder " << polyOrder << std::endl;
+  GiNaC::ex out = (f1*f2).expand();
+  //std::cout << out << std::endl;
   for (int i=0; i<ndim; ++i)
-    out = GiNaC::integral(vars[i], -1, 1, out);
-  return out.eval_integ();
+    out = GiNaC::integral(vars[i], -1, 1, out).eval_integ();
+  return out;
 }
 
 GiNaC::ex
