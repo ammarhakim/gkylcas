@@ -14,7 +14,21 @@ test_ser_1d()
   TEST_CHECK( bc.nops() == 3 );
 }
 
+void
+test_ser_inner_prod()
+{
+  using namespace GiNaC;
+
+  symbol x("x"), y("y"), z("z");
+  std::vector<symbol> vars { x, y, z };
+  Gkyl::ModalBasis mbasis(3, vars, 2);
+
+  lst bc = mbasis.get_basis();
+
+}
+
 TEST_LIST = {
   { "ser_1d", test_ser_1d },
+  { "ser_inner_prod", test_ser_inner_prod },
   { NULL, NULL },
 };
