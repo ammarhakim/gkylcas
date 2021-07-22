@@ -5,7 +5,7 @@
 #
 
 CFLAGS = -O3 -g 
-CXXFLAGS = -O3 -g 
+CXXFLAGS = -O3 -g -std=c++11
 
 GINAC_INC = ${HOME}/gkylsoft/ginac/include
 CLN_INC = ${HOME}/gkylsoft/cln/include
