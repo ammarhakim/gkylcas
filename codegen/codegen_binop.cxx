@@ -46,8 +46,8 @@ main(int argc, char **argv)
   struct tm curr_tm = *localtime(&t);
   strftime(buff, sizeof buff, "%c", &curr_tm);
   
-  int dims[] = { 1, 2, 3, 4, 5, 6 };
-  int max_order[] = { 2, 2, 2, 2, 2, 1 };
+  int dims[] = { 1, 2, 3 };
+  int max_order[] = { 3, 3, 3 };
 
   symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
   std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
@@ -60,7 +60,7 @@ main(int argc, char **argv)
   
   struct timespec tstart = gkyl_wall_clock();
 
-  for (int d=0; d<6; ++d) {
+  for (int d=0; d<3; ++d) {
     int dim = dims[d];
     for (int p=0; p<=max_order[d]; ++p) {
       std::cout << dim << "dp" << p << " " << std::flush;
