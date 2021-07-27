@@ -2,9 +2,21 @@
 #include <iostream>
 #include <fstream>
 #include <sstream>
-#include <util.h>
+#include <gkyl_util.h>
 
 using namespace GiNaC;
+
+static struct gkyl_kern_op_count
+total_op(const ex& expr)
+{
+  struct gkyl_kern_op_count count = { 0 };
+
+  count.num_sum = expr.nops()-1;
+  for (int i=0; i<expr.nops(); ++i)
+    count.num_prod += expr.op(i).nops()-1;
+
+  return count;
+}
 
 static void
 gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
@@ -13,8 +25,13 @@ gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis
   lst bc = basis.get_basis();
   
   // function declaration
-  fh << "GKYL_CU_DH void binop_mul_" << ndim << "d_ser_" << "p" << polyOrder
+  fh << std::endl
+     << "GKYL_CU_DH void binop_mul_" << ndim << "d_ser_" << "p" << polyOrder
      << "(const double *f, const double *g, double *fg );" << std::endl;
+
+  // declare function returning op counts
+  fh << "struct gkyl_kern_op_count op_count_binop_mul_" << ndim << "d_ser_" << "p" << polyOrder
+     << "(void);" << std::endl;
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
@@ -23,18 +40,31 @@ gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;  
 
+  int nsum = 0, nprod = 0;
   symbol f("f"), g("g");
   auto fg = basis.expand(f)*basis.expand(g);
 
   for (int i=0; i<basis.get_numbasis(); ++i) {
     std::cout << i << " " << std::flush;
-    auto out = basis.innerProd(bc[i], fg);
-    fc << "  fg[" << i << "] = " << csrc << out.expand().evalf() << ";" << std::endl;
+    auto out = basis.innerProd(bc[i], fg).expand().evalf();
+    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+    struct gkyl_kern_op_count count = total_op(out);
+    nsum += count.num_sum;
+    nprod += count.num_prod;
   }
   std::cout << std::endl;
 
+  fc << "  // nsum = " << nsum << ", nprod = " << nprod << std::endl;
   // close function
   fc << "}" << std::endl << std::endl;
+
+  // write out function to return op counts
+  fc << "struct gkyl_kern_op_count op_count_binop_mul_" << ndim << "d_ser_" << "p" << polyOrder
+     << "(void)" << std::endl;
+  fc << "{" << std::endl;
+  fc << "  return (struct gkyl_kern_op_count) { .num_sum = " << nsum << ", .num_prod = " << nprod
+     << " };" << std::endl;
+  fc << "}" << std::endl;
 }
 
 int

@@ -1,7 +1,7 @@
 #include <modal_basis.h>
 #include <iostream>
 #include <fstream>
-#include <util.h>
+#include <gkyl_util.h>
 
 using namespace GiNaC;
 

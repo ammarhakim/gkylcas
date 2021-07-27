@@ -29,7 +29,8 @@ LDFLAGS = "-Wl,-rpath,${CLN_LIB_DIR}"
 headers = $(wildcard lib/*.h)
 
 # Object files to compile in library
-libobjs = $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp))
+libobjs = $(patsubst %.cpp,%.o,$(wildcard lib/*.cpp)) \
+	$(patsubst %.c,%.o,$(wildcard lib/*.c))
 
 # Make targets: libraries
 all: build/libgkylcas.a \
