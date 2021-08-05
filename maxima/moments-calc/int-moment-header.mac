@@ -22,7 +22,7 @@ printf(fh, " ~%")$
 printf(fh, "extern \"C\" { ~%")$
 printf(fh, " ~%")$
 
-bName       : ["Ser","Max","Tensor"]$
+bName       : ["Ser","Tensor"]$
 momentsX    : ["one","xSq","xi"]$
 momentsXi   : ["x1", "x2", "x3", "x4", "x5", "x6"]$
 momentsXiSq : ["x1Sq", "x2Sq", "x3Sq", "x4Sq", "x5Sq", "x6Sq"]$

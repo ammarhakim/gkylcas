@@ -5,7 +5,7 @@
 
 cvars : [X, Y, Z]$
 
-bName   : ["Ser","Max","Tensor"]$
+bName   : ["Ser","Tensor"]$
 
 printPrototypes() := block([],
 for bInd : 1 thru length(bName) do (
