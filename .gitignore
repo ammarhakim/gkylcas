@@ -1,11 +1,11 @@
 cppcheck-err.txt
 install-deps/build-opts.sh
-kernels/*/*.h
-kernels/*/*.c
+ginac/kernels/*/*.h
+ginac/kernels/*/*.c
 *~
 *.sw*
 */.nfs*
-build/*
+ginac/build/*
 build-*/*
 *.gkyl
 .waf*
