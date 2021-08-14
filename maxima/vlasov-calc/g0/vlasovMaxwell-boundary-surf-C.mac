@@ -1,4 +1,4 @@
-load("vlasov-calc/vlasovMaxwellFuncs-boundary-surf-C")$
+load("vlasov-calc/g0/vlasovMaxwellFuncs-boundary-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term for the E + v x B term
@@ -54,11 +54,16 @@ for bInd : 1 thru length(bName) do (
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating boundary surface Vlasov",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
-        fname : sconcat("~/max-out/vlasov_boundary_surf_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("vlasov_boundary_surf"),
-        calcVlasovBoundarySurfUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)
+        for dir : 1 thru v do ( 
+          if (dir = 1) then fname : sconcat("~/max-out/vlasov_boundary_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 2) then fname : sconcat("~/max-out/vlasov_boundary_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 3) then fname : sconcat("~/max-out/vlasov_boundary_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_boundary_surf"),
+          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
+          close(fh)
+        )        
       )
     )
   )

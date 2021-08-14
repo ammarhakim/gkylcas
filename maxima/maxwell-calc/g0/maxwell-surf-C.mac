@@ -1,9 +1,7 @@
-load("maxwell-calc/maxwellFuncs-surf-C")$
+load("maxwell-calc/g0/maxwellFuncs-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to the streaming
-   term v.grad(f) in the Vlasov-Poisson and Vlasov-Maxwell
-   equations. */
+   updates for the surface terms from Maxwell's equations. */
 
 /* ...... USER INPUTS........ */
 
@@ -44,11 +42,16 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating surface Maxwell",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/maxwell_surf_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("maxwell_surf"),
-      calcMaxwellSurfUpdater(fh, funcName, d, bName[bInd], polyOrder),
-      close(fh)
+      for dir : 1 thru d do ( 
+        if (dir = 1) then fname : sconcat("~/max-out/maxwell_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/maxwell_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/maxwell_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("maxwell_surf"),
+        printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+        calcUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder), 
+        close(fh)
+      )
     )
   )
 );

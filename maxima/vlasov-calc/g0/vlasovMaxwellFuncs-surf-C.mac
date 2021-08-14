@@ -55,7 +55,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block([
   bP        : basisP[p],
   numBasisP : length(bP),
 
-  printf(fh, "void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fl, const double *fc, const double *fr, double* restrict out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, p),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fl, const double *fc, const double *fr, double* restrict out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, p),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells.~%"),
@@ -148,7 +148,7 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block(
   /* Specify a point to evaluate alpha at for use global Lax fluxes. */
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double amax, const double *qmem, const double *fl, const double *fc, const double *fr, double* restrict out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, p),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double amax, const double *qmem, const double *fl, const double *fc, const double *fr, double* restrict out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, p),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // amax:      amax in global lax flux.~%"),
@@ -290,9 +290,3 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block(
   printf(fh, "  return fabs(amid); ~%"),
   printf(fh, "} ~%")
 );
-
-calcVlasovSurfUpdater(fh, funcNm, cdim, vdim, basisFun, p) := block([dir],
-  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  for dir : 1 thru cdim do ( calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) ),
-  for dir : 1 thru vdim do ( calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) )
-)$

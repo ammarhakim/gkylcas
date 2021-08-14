@@ -32,7 +32,7 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block([],
   bC : if polyOrder = 0 then basisConstant else basisC[polyOrder],
   nbasis : length(bC),
   
-  printf(fh, "double ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double tau, const double *ql, const double *qc, const double *qr, double* restrict out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double tau, const double *ql, const double *qc, const double *qr, double* restrict out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
 
   printf(fh, "  const double c = meq->c, chi = meq->chi, gamma = meq->gamma; ~%"),
   printf(fh, "  const double c2 = c*c; ~%"),
