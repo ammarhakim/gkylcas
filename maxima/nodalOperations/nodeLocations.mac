@@ -97,7 +97,7 @@ getNodes(basisType, dim, polyOrder) := block([],
   nodes : 0,
   if (basisType = "Ser") or (basisType = "ser") then (
     /* Serendipity basis. */
-    nodes : eval_string(sconcat("nodes",basisType,dim,"xp",polyOrder))
+    nodes : eval_string(sconcat("nodesSer",dim,"xp",polyOrder))
   ) elseif (basisType = "Tensor") or (basisType = "tensor") then (
     /* Tensor product basis. */
     if (dim=1) or (dim=2 and polyOrder=1) then (
