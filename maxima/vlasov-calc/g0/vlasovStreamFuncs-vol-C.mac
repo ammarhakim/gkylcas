@@ -21,7 +21,7 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
 
   bP : basisP[polyOrder],
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *f, double* restrict out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]: Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // f: Input distribution function.~%"),

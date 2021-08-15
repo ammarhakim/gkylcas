@@ -1,8 +1,8 @@
 load("vlasov-calc/g0/vlasovMaxwellFuncs-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the surface term for the E + v x B term
-   in the Vlasov equation. */
+   updates from the surface term for the v . grad(f) and
+   E + v x B term in the Vlasov equation. */
 
 /* ...... USER INPUTS........ */
 
@@ -29,8 +29,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 1$
-maxVdim_Tensor : 1$
+maxCdim_Tensor : 2$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -49,8 +49,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-      if (c+v=6 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating surface Vlasov",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
@@ -71,7 +70,7 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_surf"),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-          calcVlasovLorentzUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          calcVlasovUpwindLorentzUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)
         )
       )

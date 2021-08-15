@@ -40,9 +40,9 @@ maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble maxwell_vol_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *q, double* restrict out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~adouble maxwell_vol_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *q, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~adouble maxwell_surf~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double tau, const double *ql, const double *qc, const double *qr, double* restrict out); ~%", deco, cvars[si], ci, bStr, pi)
+    printf(fh, "~avoid maxwell_surf~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
   ),
 
   printf(fh, "~%")
@@ -53,10 +53,12 @@ fh : openw("~/max-out/gkyl_maxwell_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "typedef struct { double c, chi, gamma; } gkyl_maxwell_inp; ~%")$
 printf(fh, "~%")$
 
-decorator : ""$
+decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
 
@@ -69,5 +71,6 @@ for bInd : 1 thru length(bName) do (
     )
   )
 );
+printf(fh, "EXTERN_C_END ~%")$
 close(fh)$
 /* ............ Finished writing out the C header file ............ */

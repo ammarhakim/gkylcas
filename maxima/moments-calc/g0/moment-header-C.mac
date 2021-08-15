@@ -41,31 +41,32 @@ maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Max, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
-  printf(fh, "~avoid vlasov_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_FiveMoments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict outM0, double* restrict outM1i, double* restrict outM2); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_FiveMoments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT outM0, double* GKYL_RESTRICT outM1i, double* GKYL_RESTRICT outM2); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%") 
 )$
 
 fh : openw("~/max-out/gkyl_vlasov_mom_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 
-decorator : ""$
+decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-      if (c+v=6 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
@@ -73,5 +74,6 @@ for bInd : 1 thru length(bName) do (
     )
   )
 );
+printf(fh, "EXTERN_C_END ~%")$
 close(fh)$
 /* ............ Finished writing out the C header file ............ */

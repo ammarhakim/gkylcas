@@ -1,4 +1,4 @@
-load("vlasov-calc/vlasovStreamFuncs-vol-C")$
+load("vlasov-calc/g0/vlasovStreamFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term due to the streaming
@@ -51,8 +51,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-      if (c+v=6 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume VlasovStream",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),

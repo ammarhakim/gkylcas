@@ -1,6 +1,6 @@
 /* Generate kernels that compute the integrated moments of the distribution function. */
 
-load("moments-calc/vlasovIntMomentsFuncs-C")$
+load("moments-calc/g0/vlasovIntMomentsFuncs-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -47,8 +47,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-      if (c+v=6 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
   
       /* Vlasov moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (

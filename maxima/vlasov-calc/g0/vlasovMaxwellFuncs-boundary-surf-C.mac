@@ -5,6 +5,7 @@ load("modal-basis");
 load("out-scripts");
 load(stringproc)$
 load("scifac")$
+load("nodalOperations/nodalFunctions")$
 fpprec : 24$
 
 varsV : [vx, vy, vz]$
@@ -204,5 +205,228 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) :
 
   /* Return a local estimate of amax. */
   printf(fh, "  return fabs(amid); ~%"),
+  printf(fh, "} ~%")
+);
+
+calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block([],
+  kill(varsC, varsP, basisC, basisP),
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP    : basisP[p],
+  bC    : basisC[p],
+  varsC : slcn(varsP, cdim),
+  numC  : length(bC),
+  numP  : length(bP),
+  pDim  : length(varsP),
+
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, p),
+  printf(fh, "  // w:           Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
+  printf(fh, "  // qmem:        q/m*EM fields.~%"),
+  printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
+  printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
+  printf(fh, "  // out:         Output distribution function in skin cell ~%"),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+
+  printf(fh, "  const double dv1~a = 2/dxv[~a]; ~%", dir-1, vid[dir]),
+  for d : 1 thru vdim do (
+    printf(fh, "  const double dv~a = dxv[~a], wv~a = w[~a]; ~%", d, vid[d], d, vid[d])
+  ),
+
+  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, numC*(dir-1)),
+  /* If vdim = 1, then no magnetic field. */
+  if vdim > 1 then (
+    if vdim = 2 then (
+      /* In 2 velocity dimensions, only Bz. */
+      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, numC*2+3*numC)
+    ),
+    if vdim = 3 then (
+      for d : 1 thru 3 do (
+        printf(fh, "  const double *B~a = &qmem[~a]; ~%", d-1, numC*(d-1)+3*numC)
+      )            
+    )
+  ),
+  printf(fh, "~%"),
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+
+  /* vv = variable in direction of surface update. */
+  vv : varsV[dir],
+
+  /* Surface variables to integrate over. */
+  surfVars : delete(vv,varsP),
+
+  /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
+  bSurf : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vv^2=var2,var2=1/3,vv=0],bP)))*bP),
+
+  /* Create expansions of f_skin, f_edge on volume basis. */
+  fSkin_e : doExpand1(fSkin, bP),
+  fEdge_e : doExpand1(fEdge, bP),
+
+  /* Ghat involves both the average and jump of the distribution function
+     across the surface boundary, favg, and fjump. 
+     Note, in cell-based update there is a Ghat on the right edge (f_c evaluated at 1)
+     and a Ghat on the left edge (f_c evaluated at -1) */
+  printf(fh, "  double Ghat[~a]; ~%", length(bSurf)),
+
+  /* alpha is the phase space flux at the surface. */
+  /* NOTE: Due to the form of the Vlasov-Maxwell system of equations, this phase space
+     flux is the same evaluated at the left edge and right edge in a given direction
+     (i.e., the flux does not explicitly depend on the coordinate in the surface direction)
+     For example, vx flux is q/m (Ex + vy*Bz - vz*By) */
+  printf(fh, "  double alpha[~a]; ~%", length(bSurf)),
+  printf(fh, "~%"),
+
+  /* alpha_v = q/m*(E + v x B) */
+  acc_e : calcAccel(dir, vdim, bC),
+  /* Project alpha_v onto surface basis, and print resulting coefficients. */
+  alphaV_c : calcInnerProdList(surfVars, 1, bSurf, subst(vv=1, acc_e)),
+  writeCExprsCollect1lhsc(alpha, radcan(alphaV_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  /* Zero out components of alpha which are empty. */
+  alphaNoZero : doMakeExprLst(alphaV_c, alpha),
+  alpha_e     : doExpandLst(alphaNoZero, bSurf),
+
+  /* Scale nodes of the nodal basis by corresponding factors to obtain the Gauss-Legendre quadrature points */
+  surfNodes : getNodes(basisFun, pDim-1, polyOrder),
+  if polyOrder=1 then (surfNodes:surfNodes*(1/sqrt(3))) elseif polyOrder=2 then (surfNodes:surfNodes*sqrt(3/5)),
+  if cdim=1 and vdim=2 and polyOrder=2 and basisFun="Ser" then (
+    /* We found that the 1x2v p=2 Ser LBO does not conserve energy if we used
+       sqrt(3/5) nodes. But it does with sqrt(1/3) nodes, or some an arrangement
+       where corner cells are sqrt(3/5) nodes, and the other four nodes are sqrt(1/3)
+       nodes. We use a similar trick here for the collisionless terms. */
+    p1Nodes : args(getNodes(basisFun, pDim-1, 1)),
+    p2Nodes : args(getNodes(basisFun, pDim-1, 2)),
+    extraNodeInd : [],  p1NodeInd : [],
+    for i : 1 thru length(p2Nodes) do (
+      idx : sublist_indices(p1Nodes,lambda([x], x=p2Nodes[i])),
+      if length(idx)=0 then (
+        extraNodeInd : endcons(i,extraNodeInd)
+      ) else (
+        p1NodeInd : endcons(i,p1NodeInd)
+      )
+    ),
+    surfNodes : copylist(p2Nodes),
+    for i : 1 thru length(p1NodeInd) do (
+      surfNodes[p1NodeInd[i]] : p2Nodes[p1NodeInd[i]]*sqrt(3/5)
+    ),
+    for i : 1 thru length(extraNodeInd) do (
+      surfNodes[extraNodeInd[i]] : p2Nodes[extraNodeInd[i]]*sqrt(1/3)
+    )
+  ),
+  numNodes : length(surfNodes),
+
+  /* Evaluate f_skin at surface quadrature nodes. */
+  /* Depending on which edge we are on, we either need at f_skin at +1 or -1 */
+  fOrdSkinL_n : gcfac(float(evAtNodes(subst(vv=-1,fSkin_e),surfNodes,surfVars))),
+  fOrdSkinR_n : gcfac(float(evAtNodes(subst(vv=+1,fSkin_e),surfNodes,surfVars))),
+
+  /* Evaluate f_edge at surface quadrature nodes. */
+  /* Depending on which edge we are on, we either need at f_edge at +1 or -1 */
+  fOrdEdgeL_n : gcfac(float(evAtNodes(subst(vv=-1,fEdge_e),surfNodes,surfVars))),
+  fOrdEdgeR_n : gcfac(float(evAtNodes(subst(vv=+1,fEdge_e),surfNodes,surfVars))),
+
+  /* Evaluate alpha at ordinates.
+     Note: alphaSurf_e is already a surface expansion. 
+     In addition, it is continuous and does not vary with respect to the surface variable.
+     Thus, there is no need for alpha_l and alpha_r. We only need alpha at the ordinates. */
+  alphaOrd_n : gcfac(float(evAtNodes(alpha_e,surfNodes,surfVars))),
+
+  /* Determine upwinding at each surface quadrature node. */
+  /* Note, we are moving the 1/2 factor to later in the computation to avoid 
+     Maxima defaulting to heavily nested parantheses */
+  /* We have two different fUpwind that are possible; 
+     either the far left edge and we need fSkin at +1 and fEdge at -1
+     or the far right edge and we need fSkin at -1 and fEdge at +1 */
+  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
+  fUpOrdL_n : gcfac((fOrdSkinR_n+fOrdEdgeL_n)+copysignf(1.0,alphaQuad)*(fOrdSkinR_n-fOrdEdgeL_n)),
+  fUpOrdR_n : gcfac((fOrdEdgeR_n+fOrdSkinL_n)+copysignf(1.0,alphaQuad)*(fOrdEdgeR_n-fOrdSkinL_n)),
+
+  printf(fh, "  double fUpwindQuad[~a];~%", numNodes),
+  printf(fh, "  double fUpwind[~a];~%", numNodes),
+  printf(fh, "~%"),
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  /* Write out fUpwindQuad for the far left edge */
+  for i : 1 thru length(alphaOrd_n) do (
+    /* This subst eliminates the need for another variable, and removes
+        the common factor (for p=1) which is not needed to determine
+        sign (not working for p>1). */
+    if polyOrder=1 then (
+      rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
+      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdL_n[i]))
+    ) else (
+      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdL_n[i]))
+    )
+  ),
+  printf(fh, "~%"),
+  /* Get modal surface expansion from nodal quadrature points. */
+  nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
+  fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
+  fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
+  /* Write coefficients of modal surface expansion fupwind. */
+  /* include 1/2 factor here for the upwind value */
+  writeCExprsNoExpand1(fUpwind, 0.5*fUp_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  fHatSurf_e : doExpand1(fUpwind,bSurf),
+
+  /* Print C exprs for Ghat across surface boundary */
+  Ghat_c : gcfac(fullratsimp(innerProd(surfVars, alpha_e, bSurf, fHatSurf_e))),
+  writeCExprsNoExpand1(Ghat, radcan(Ghat_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+
+  incr : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_e),
+  writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),  
+
+  /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
+  printf(fh, "~%  } else { ~%~%"),
+
+  /* Write out fUpwindQuad for the far right edge */
+  for i : 1 thru length(alphaOrd_n) do (
+    /* This subst eliminates the need for another variable, and removes
+        the common factor (for p=1) which is not needed to determine
+        sign (not working for p>1). */
+    if polyOrder=1 then (
+      rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
+      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdR_n[i]))
+    ) else (
+      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdR_n[i]))
+    )
+  ),
+  printf(fh, "~%"),
+  /* Get modal surface expansion from nodal quadrature points. */
+  nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
+  fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
+  fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
+  /* Write coefficients of modal surface expansion fupwind. */
+  /* include 1/2 factor here for the upwind value */
+  writeCExprsNoExpand1(fUpwind, 0.5*fUp_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  fHatSurf_e : doExpand1(fUpwind,bSurf),
+
+  /* Print C exprs for Ghat across surface boundary */
+  Ghat_c : gcfac(fullratsimp(innerProd(surfVars, alpha_e, bSurf, fHatSurf_e))),
+  writeCExprsNoExpand1(Ghat, radcan(Ghat_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+
+  incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
+  writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
+  printf(fh, "~%  } ~%"),
+
   printf(fh, "} ~%")
 );

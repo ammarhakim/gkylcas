@@ -15,9 +15,18 @@ out : [outEx, outEy, outEz, outBx, outBy, outBz, outPh, outPs]$
 /* Define variables and fluxes */
 V : [Ex, Ey, Ez, Bx, By, Bz, phi, psi]$
 
+/* flux used for computation of the numerical flux */
+/* G = 1/2 (F(Q_R) + F(Q_L)) - 1/2 (A^+ \Delta Q_{R,L} - A^- \Delta Q_{R,L}) */
+flux(Ex,Ey,Ez,Bx,By,Bz,phi,psi) := [
+ [c^2*chi*phi, c^2*Bz, -c^2*By, gamma*psi, -Ez, Ey, chi*Ex, c^2*gamma*Bx],
+ [-c^2*Bz, c^2*chi*phi, c^2*Bx, Ez, gamma*psi, -Ex, chi*Ey, c^2*gamma*By],
+ [c^2*By, -c^2*Bx, c^2*chi*phi, -Ey, Ex, gamma*psi, chi*Ez, c^2*gamma*Bz]
+]$
+
 /* Modified flux that scales B by r and E by 1/r. */
 /* This will reduce the diffusion in the induction equation, dB/dt = -curl(E) by r = tau/c */
 /* It will also increase the diffusion in the Ampere-Maxwell equation, dE/dt = c^2*curl(B) - J/epsilon_0 by r = tau/c */
+/* TO CHANGE KERNELS TO USE THIS FLUX, JUST CHANGE flux -> modFlux AND ADD TAU AS INPUT PARAMETER */
 modFlux : [
  [c^2*chi*phi, tau*c*Bz, -tau*c*By, gamma*psi, -c*Ez/tau, c*Ey/tau, chi*Ex, c^2*gamma*Bx],
  [-tau*c*Bz, c^2*chi*phi, tau*c*Bx, c*Ez/tau, gamma*psi, -c*Ex/tau, chi*Ey, c^2*gamma*By],
@@ -32,7 +41,7 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block([],
   bC : if polyOrder = 0 then basisConstant else basisC[polyOrder],
   nbasis : length(bC),
   
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double tau, const double *ql, const double *qc, const double *qr, double* restrict out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
 
   printf(fh, "  const double c = meq->c, chi = meq->chi, gamma = meq->gamma; ~%"),
   printf(fh, "  const double c2 = c*c; ~%"),
@@ -112,8 +121,8 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block([],
   subListCR : subst(cv=1, [ExL=Excl, EyL=Eycl, EzL=Ezcl, BxL=Bxcl, ByL=Bycl, BzL=Bzcl, phiL=phcl, psiL=pscl]),
   subListR : subst(cv=-1, [ExR=Exrl, EyR=Eyrl, EzR=Ezrl, BxR=Bxrl, ByR=Byrl, BzR=Bzrl, phiR=phrl, psiR=psrl]),
 
-  numFluxL : subst(append(subListL, subListCL), calcNumFlux(V, modFlux[dir], dir)),
-  numFluxR : subst(append(subListCR, subListR), calcNumFlux(V, modFlux[dir], dir)),
+  numFluxL : subst(append(subListL, subListCL), calcNumFlux(V, flux[dir], dir)),
+  numFluxR : subst(append(subListCR, subListR), calcNumFlux(V, flux[dir], dir)),
 
   surfVars : delete(cv,varsC),
 
@@ -137,12 +146,5 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block([],
     writeCIncrExprsCollect1lhsc(out[m], dx1*incr_sl + dx1*incr_sr),
     printf(fh, "~%")
   ),
-
-  printf(fh, "  return fmax(c, tau); ~%"),
   printf(fh, "} ~%")
-)$
-
-calcMaxwellSurfUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([],
-  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
-  for dir : 1 thru cdim do ( calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) )
 )$

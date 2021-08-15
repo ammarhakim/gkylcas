@@ -34,7 +34,7 @@ calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   fl : doExpand1(f, bP),
   M : calcInnerProdList(varsP, 1, bC, fl),
@@ -53,7 +53,7 @@ calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1)
@@ -82,7 +82,7 @@ calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -109,7 +109,7 @@ calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_FiveMoments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict outM0, double* restrict outM1i, double* restrict outM2) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_FiveMoments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT outM0, double* GKYL_RESTRICT outM1i, double* GKYL_RESTRICT outM2) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -166,7 +166,7 @@ calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -198,7 +198,7 @@ calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -230,7 +230,7 @@ calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
   
-  printf(fh, "void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* restrict out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
