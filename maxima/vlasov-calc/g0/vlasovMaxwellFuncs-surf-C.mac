@@ -414,27 +414,32 @@ calcVlasovUpwindLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := 
      Thus, there is no need for alpha_l and alpha_r. We only need alpha at the ordinates. */
   alphaOrd_n : gcfac(float(evAtNodes(alpha_e,surfNodes,surfVars))),
 
-  /* Determine upwinding at each surface quadrature node. */
-  /* For left side, this is f_l if alpha is positive, f_c if alpha is negative */
-  /* For right side, this is f_c if alpha is positive, f_r if alpha is negative */
-  /* Note, we are moving the 1/2 factor to later in the computation to avoid 
-     Maxima defaulting to heavily nested parantheses */
-  fUpOrdL_n : gcfac((fOrdL_n+fOrdCL_n)+copysignf(1.0,alphaQuad)*(fOrdL_n-fOrdCL_n)),
-  fUpOrdR_n : gcfac((fOrdCR_n+fOrdR_n)+copysignf(1.0,alphaQuad)*(fOrdCR_n-fOrdR_n)),
-
   printf(fh, "  double fUpwindQuad_l[~a];~%", numNodes),
   printf(fh, "  double fUpwindQuad_r[~a];~%", numNodes),
+  /* Check sign of each quadrature point and choose appropriate distribution function at 
+     quadrature points. If alpha > 0, need f_l (at +1) and f_c (at +1). If alpha < 0, 
+     need f_c (at -1) and f_r (at -1). */
   for i : 1 thru length(alphaOrd_n) do (
     /* This subst eliminates the need for another variable, and removes
         the common factor (for p=1) which is not needed to determine
         sign (not working for p>1). */
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
-      printf(fh, "  fUpwindQuad_l[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdL_n[i])),
-      printf(fh, "  fUpwindQuad_r[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdR_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a; ~%", i-1, fOrdL_n[i]),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a; ~%", i-1, fOrdCR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a; ~%", i-1, fOrdCL_n[i]),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a; ~%", i-1, fOrdR_n[i]),
+      printf(fh, "  } ~%")
     ) else (
-      printf(fh, "  fUpwindQuad_l[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdL_n[i])),
-      printf(fh, "  fUpwindQuad_r[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdR_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", alphaOrd_n[i]),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a; ~%", i-1, fOrdL_n[i]),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a; ~%", i-1, fOrdCR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a; ~%", i-1, fOrdCL_n[i]),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a; ~%", i-1, fOrdR_n[i]),
+      printf(fh, "  } ~%")
     )
   ),
 
@@ -445,7 +450,7 @@ calcVlasovUpwindLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := 
   /* Write coefficients of modal surface expansion fupwind. */
   printf(fh, "  double fUpwind_l[~a];~%", numNodes),
   /* include 1/2 factor here for the upwind value */
-  writeCExprsNoExpand1(fUpwind_l, 0.5*fUp_l_c),
+  writeCExprsNoExpand1(fUpwind_l, fUp_l_c),
   printf(fh, "~%"),
   flush_output(fh),
   fHatSurf_l_e : doExpand1(fUpwind_l,bSurf),
@@ -454,7 +459,7 @@ calcVlasovUpwindLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := 
   fUp_r_c : makelist(fUp_r_c[i][1],i,1,numNodes),
   /* Write coefficients of modal surface expansion fupwind. */
   printf(fh, "  double fUpwind_r[~a];~%", numNodes),
-  writeCExprsNoExpand1(fUpwind_r, 0.5*fUp_r_c),
+  writeCExprsNoExpand1(fUpwind_r, fUp_r_c),
   printf(fh, "~%"),
   flush_output(fh),
   fHatSurf_r_e : doExpand1(fUpwind_r,bSurf),

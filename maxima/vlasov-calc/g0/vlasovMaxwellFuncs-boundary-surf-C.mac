@@ -336,19 +336,10 @@ calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun
      Thus, there is no need for alpha_l and alpha_r. We only need alpha at the ordinates. */
   alphaOrd_n : gcfac(float(evAtNodes(alpha_e,surfNodes,surfVars))),
 
-  /* Determine upwinding at each surface quadrature node. */
-  /* Note, we are moving the 1/2 factor to later in the computation to avoid 
-     Maxima defaulting to heavily nested parantheses */
-  /* We have two different fUpwind that are possible; 
-     either the far left edge and we need fSkin at +1 and fEdge at -1
-     or the far right edge and we need fSkin at -1 and fEdge at +1 */
-  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
-  fUpOrdL_n : gcfac((fOrdSkinR_n+fOrdEdgeL_n)+copysignf(1.0,alphaQuad)*(fOrdSkinR_n-fOrdEdgeL_n)),
-  fUpOrdR_n : gcfac((fOrdEdgeR_n+fOrdSkinL_n)+copysignf(1.0,alphaQuad)*(fOrdEdgeR_n-fOrdSkinL_n)),
-
   printf(fh, "  double fUpwindQuad[~a];~%", numNodes),
   printf(fh, "  double fUpwind[~a];~%", numNodes),
   printf(fh, "~%"),
+  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
 
@@ -359,9 +350,17 @@ calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun
         sign (not working for p>1). */
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
-      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdL_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdSkinR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdEdgeL_n[i]),
+      printf(fh, "  } ~%")
     ) else (
-      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdL_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", alphaOrd_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdSkinR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdEdgeL_n[i]),
+      printf(fh, "  } ~%")
     )
   ),
   printf(fh, "~%"),
@@ -370,8 +369,7 @@ calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun
   fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
   fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
   /* Write coefficients of modal surface expansion fupwind. */
-  /* include 1/2 factor here for the upwind value */
-  writeCExprsNoExpand1(fUpwind, 0.5*fUp_c),
+  writeCExprsNoExpand1(fUpwind, fUp_c),
   printf(fh, "~%"),
   flush_output(fh),
   fHatSurf_e : doExpand1(fUpwind,bSurf),
@@ -398,9 +396,17 @@ calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun
         sign (not working for p>1). */
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
-      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=fullratsimp(alphaOrd_n[i]*rcoFac),fUpOrdR_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdEdgeR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdSkinL_n[i]),
+      printf(fh, "  } ~%")
     ) else (
-      printf(fh, "  fUpwindQuad[~a] = ~a; ~%", i-1, subst(alphaQuad=alphaOrd_n[i],fUpOrdR_n[i]))
+      printf(fh, "  if (~a > 0) { ~%~%", alphaOrd_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdEdgeR_n[i]),
+      printf(fh, "  } else { ~%~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a; ~%", i-1, fOrdSkinL_n[i]),
+      printf(fh, "  } ~%")
     )
   ),
   printf(fh, "~%"),
@@ -409,8 +415,7 @@ calcVlasovUpwindLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun
   fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
   fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
   /* Write coefficients of modal surface expansion fupwind. */
-  /* include 1/2 factor here for the upwind value */
-  writeCExprsNoExpand1(fUpwind, 0.5*fUp_c),
+  writeCExprsNoExpand1(fUpwind, fUp_c),
   printf(fh, "~%"),
   flush_output(fh),
   fHatSurf_e : doExpand1(fUpwind,bSurf),
