@@ -161,6 +161,24 @@ getNodalBasisWithNodes(basisType, dim, p, nodes) := block([basisModToNod],
   return(nodalBasis)
 )$
 
+/* Given a set of nodes and variable list. */
+getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block([basisModToNod],
+  dimIn : length(varsIn),
+  if (dim < 4) then (
+    load(sconcat("basis-precalc/basis", basisType, dim, "x")),
+    basis : basisC[p],
+    vars  : varsC
+  ) else (
+    load(sconcat("basis-precalc/basis", basisType, dim-3, "x3v")),
+    basis : basisP[p],
+    vars  : varsP
+  ),
+  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
+  basis : subst(replaceList,basis),
+  nodalBasis : getNodalBasisWithNodesAndBasis(nodes, basis, varsIn),
+  return(nodalBasis)
+)$
+
 /* For standard bases saved in modal-basis and nodes in nodeLocations. */
 getNodalBasis(basisType, dim, p) := block([basisModToNod],
   nodes      : getNodes(basisType, dim, p),

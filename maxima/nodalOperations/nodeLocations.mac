@@ -104,7 +104,7 @@ getNodes(basisType, dim, polyOrder) := block([],
       nodes : eval_string(sconcat("nodesSer",dim,"xp",polyOrder))
     ) else (
       nodes1D : eval_string(sconcat("nodesSer1xp",polyOrder)),
-      n1D     : length(nodes1D),
+      n1D     : length(nodes1D),
       nodes   : nodes1D,
       for d : 2 thru dim do (
         numNodesC : length(nodes),
