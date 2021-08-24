@@ -94,7 +94,7 @@ main(int argc, char **argv)
     int dim = dims[d];
     for (int p=0; p<=max_order[d]; ++p) {
       std::cout << dim << "dp" << p << " " << std::flush;
-      Gkyl::ModalBasis mbasis(dim, vars, p);
+      Gkyl::ModalBasis mbasis(Gkyl::MODAL_SER, dim, vars, p);
 
       // each function is written to its own file to allow building
       // kernels in parallel

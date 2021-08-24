@@ -8,7 +8,7 @@ test_ser_1d()
 
   symbol x("x");
   std::vector<symbol> vars { x };
-  Gkyl::ModalBasis mbasis(1, vars, 2);
+  Gkyl::ModalBasis mbasis(Gkyl::MODAL_SER, 1, vars, 2);
 
   lst bc = mbasis.get_basis();
   TEST_CHECK( bc.nops() == 3 );
@@ -21,7 +21,7 @@ test_ser_inner_prod()
 
   symbol x("x"), y("y"), z("z");
   std::vector<symbol> vars { x, y, z };
-  Gkyl::ModalBasis mbasis(3, vars, 2);
+  Gkyl::ModalBasis mbasis(Gkyl::MODAL_SER, 3, vars, 2);
 
   lst bc = mbasis.get_basis();
 

@@ -4,10 +4,13 @@
 #include <ginac/ginac.h>
 
 namespace Gkyl {
+  /* Basis type */
+  enum ModalBasisType { MODAL_SER, MODAL_TEN };
+  
   class ModalBasis {
   public:
     /* Construct new modal basis object */
-    ModalBasis(int ndim, const std::vector<GiNaC::symbol>& vars, int polyOrder);
+    ModalBasis(ModalBasisType type, int ndim, const std::vector<GiNaC::symbol>& vars, int polyOrder);
     
     /* Dimensions and polyorder */
     int get_ndim() const { return ndim; }

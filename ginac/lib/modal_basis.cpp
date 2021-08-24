@@ -2,10 +2,11 @@
 #include <cassert>
 
 #include "serendip_mono.h"
+#include "tensor_mono.h"
 #include <modal_basis.h>
 
-// Basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
-static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } mo_list[] = {
+// Serendipity basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
+static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } ser_mo_list[] = {
   { NULL, NULL, NULL, NULL }, // No 0D basis functions
   { serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3 },
   { serendip_2x_p0, serendip_2x_p1, serendip_2x_p2, serendip_2x_p3 },
@@ -15,14 +16,34 @@ static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } mo_lis
   { serendip_6x_p0, serendip_6x_p1, serendip_6x_p2, NULL },
 };
 
-Gkyl::ModalBasis::ModalBasis(int ndim, const std::vector<GiNaC::symbol>& invars, int polyOrder)
+// Tensor basis function monomial list for each dimension:
+// mo_list[ndim].ev[polyOrder]. Note that p=0,1 tensor basis are
+// identical to their serendipity counter-parts
+static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } ten_mo_list[] = {
+  { NULL, NULL, NULL, NULL }, // No 0D basis functions
+  { serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3 },
+  { serendip_2x_p0, serendip_2x_p1, tensor_2x_p2, NULL },
+  { serendip_3x_p0, serendip_3x_p1, tensor_3x_p2, NULL },
+  { serendip_4x_p0, serendip_4x_p1, tensor_4x_p2, NULL },
+  { serendip_5x_p0, serendip_5x_p1, tensor_5x_p2, NULL },
+  { serendip_6x_p0, serendip_6x_p1, NULL, NULL },
+};
+
+Gkyl::ModalBasis::ModalBasis(ModalBasisType type, int ndim, const std::vector<GiNaC::symbol>& invars, int polyOrder)
 : ndim(ndim), polyOrder(polyOrder)
 {
   assert(ndim<=6 && polyOrder<=3);
-  assert(mo_list[ndim].ev[polyOrder] != NULL);
 
   for (int d=0; d<ndim; ++d) vars.push_back(invars[d]);
-  bc = gsOrthoNorm(mo_list[ndim].ev[polyOrder](vars));
+
+  if (type == Gkyl::MODAL_SER) {
+    assert(ser_mo_list[ndim].ev[polyOrder] != NULL);
+    bc = gsOrthoNorm(ser_mo_list[ndim].ev[polyOrder](vars));
+  }
+  else if (type == Gkyl::MODAL_TEN) {
+    assert(ten_mo_list[ndim].ev[polyOrder] != NULL);
+    bc = gsOrthoNorm(ten_mo_list[ndim].ev[polyOrder](vars));
+  }
 }
 
 GiNaC::lst
