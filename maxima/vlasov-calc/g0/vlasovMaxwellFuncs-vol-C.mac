@@ -99,8 +99,8 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   printf(fh, "  double alpha_mid = 0.0; ~%"),
 
   /* alpha_cdim = v, alpha_vdim = q/m (E + v x B) */
-  printf(fh, "  double alpha_cdim[~a]; ~%", cdim*length(bP)),
-  printf(fh, "  double alpha_vdim[~a]; ~%~%", vdim*length(bP)),
+  printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*length(bP)),
+  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", vdim*length(bP)),
 
   /* Expand distribution function f in phase basis. */
   f_e : doExpand1(f, bP),
