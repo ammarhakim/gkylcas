@@ -1,7 +1,11 @@
 load("modal-basis")$
+
 load("out-scripts");
+
 load(stringproc)$
+
 load("nodalOperations/nodalFunctions")$
+
 load("recovery")$
 
 fpprec : 24$
@@ -12,7 +16,9 @@ fpprec : 24$
    a constant collisionality nu. */
 
 varsV : [vx, vy, vz]$
+
 cvars : [x, y, z]$
+
 vvars : [vx, vy, vz]$
 
 nuUSumx : [sumNuUx, sumNuUy, sumNuUz]$
@@ -58,7 +64,9 @@ writeCIncrExprs1s(lhs, rhs) := block([expr],
 
 calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
   [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
-
+  
+  if (basisFun="ser") then basisFun:"Ser",
+  if (basisFun="tensor") then basisFun:"Tensor",
   kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
   load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
@@ -90,12 +98,12 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
   ) else (
     hl_e : calcRecov2CellGen(basisFun,vv,varsP,polyOrder,dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP))),
     hr_e : calcRecov2CellGen(basisFun,vv,varsP,polyOrder,dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
-    /*REVISION: Maybe ask about this. Why rdv2_l (because if not nonuniform both should be equal so it shouldn't matter)? In any case, should probably use center cell size*/
-    /*rdv2DiffFac : rdv2_l*/
     rdv2DiffFac : rdv2
   ),
   hsol_l : cons(subst(vv=0,hl_e),makelist(subst(vv=0,diff(hl_e,vv,ord)/(ord!)),ord,1,hOrder)),
   hsol_r : cons(subst(vv=0,hr_e),makelist(subst(vv=0,diff(hr_e,vv,ord)/(ord!)),ord,1,hOrder)),
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
 
   /*............. RECOVERY DONE ..............................*/
 
@@ -110,7 +118,7 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[dir]),
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
   printf(fh, "~%"),
-
+    
   /* First compute the contribution coming from the second
      differentiation by parts to left and right cells. */
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
@@ -187,15 +195,15 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_l_n[1],alphaDrSurf_l[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     )
   ),
@@ -206,19 +214,21 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_r_n[1],alphaDrSurf_r[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     )
   ),
   if (basisFun = "Tensor") or (basisFun = "tensor") or (polyOrder = 1) then (
+    if (basisFun="ser") then basisFun:"Ser",
+    if (basisFun="tensor") then basisFun:"Tensor",
     /* Get modal surface expansion from nodal quadrature points. */
     nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
     fUp_l_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad_l[i-1],i,1,numNodes))),
@@ -345,6 +355,8 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
 calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
   [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
 
+  if (basisFun="ser") then basisFun:"Ser",
+  if (basisFun="tensor") then basisFun:"Tensor",
   kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
   load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
@@ -385,6 +397,8 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   ),
   hsol_l : cons(subst(vv=0,hl_e),makelist(subst(vv=0,diff(hl_e,vv,ord)/(ord!)),ord,1,hOrder)),
   hsol_r : cons(subst(vv=0,hr_e),makelist(subst(vv=0,diff(hr_e,vv,ord)/(ord!)),ord,1,hOrder)),
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
 
   /*............. RECOVERY DONE ..............................*/
 
@@ -497,20 +511,22 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_r_n[1],alphaDrSurf[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     )
   ),
   printf(fh, "~%"),
   if (basisFun = "Tensor") or (basisFun = "tensor") or (polyOrder = 1) then (
+    if (basisFun="ser") then basisFun:"Ser",
+    if (basisFun="tensor") then basisFun:"Tensor",
     /* Get modal surface expansion from nodal quadrature points. */
     nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
     fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),

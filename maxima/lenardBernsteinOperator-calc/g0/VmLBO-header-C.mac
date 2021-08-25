@@ -1,46 +1,72 @@
 /* Generate the header file for Vlasov LBO kernels. */
+
 /* Generate the header file for the Vlasov equation kernels. */
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
+
 minPolyOrder_Ser : 1$
+
 maxPolyOrder_Ser : 2$
+
 minCdim_Ser : 1$
+
 minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
+
 maxVdim_Ser : 3$
 
 /* Maximal order basis. */
+
 minPolyOrder_Max : 1$
+
 maxPolyOrder_Max : 3$
+
 minCdim_Max : 1$
+
 minVdim_Max : 1$    /* see begining of v loop below though. */
 maxCdim_Max : 0$
+
 maxVdim_Max : 0$
 
 /* Tensor product basis. */
+
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
+
 /* Thus no need to calculate p = 1 Tensor basis */
+
 minPolyOrder_Tensor : 2$
+
 maxPolyOrder_Tensor : 2$
+
 minCdim_Tensor : 1$
+
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 2$
+
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","max","tensor"]$
+
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
+
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
+
 minCdim      : [minCdim_Ser, minCdim_Max, minCdim_Tensor]$
+
 minVdim      : [minVdim_Ser, minVdim_Max, minVdim_Tensor]$
+
 maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
+
 maxVdim      : [maxVdim_Ser, maxVdim_Max, maxVdim_Tensor]$
 
 /* Is non-uniform booleans. */
+
 /* NOT CURRENTLY USED IN THIS HEADER GENERATION */
+
 if     grid="uni"    then (gridType : [false])
 elseif grid="nonuni" then (gridType : [true])
 elseif grid="both"   then (gridType : [false,true])$
@@ -49,26 +75,31 @@ cvars : [x, y, z]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble vlasov_lbo_const_nu_vol_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_lbo_vol_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru vi do (
-    printf(fh, "~avoid vlasov_lbo_const_nu_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~avoid vlasov_lbo_const_nu_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~avoid vlasov_lbo_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid vlasov_lbo_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, double nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
 
   printf(fh, "~%")
 )$
 
-
 /* ............ Write out the C header file ............ */
+
 fh : openw("~/max-out/gkyl_vlasov_lbo_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
+
 printf(fh, "#include <math.h> ~%")$
+
 printf(fh, "#include <gkyl_util.h> ~%")$
+
 printf(fh, "EXTERN_C_BEG ~%")$
+
 printf(fh, "~%")$
 
 decorator : "GKYL_CU_DH "$
+
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
@@ -83,6 +114,11 @@ for bInd : 1 thru length(bName) do (
     )
   )
 );
+
 printf(fh, "EXTERN_C_END ~%")$
+
 close(fh)$
+
 /* ............ Finished writing out the C header file ............ */
+
+
