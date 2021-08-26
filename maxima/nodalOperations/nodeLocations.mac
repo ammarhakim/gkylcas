@@ -1,3 +1,8 @@
+/* Location of Gauss-Legendre Quadrature nodes in logical [-1,1]^d space. */
+nodesQuadp1 : matrix([-1/sqrt(3)],[1/sqrt(3)])$
+nodesQuadp2 : matrix([-sqrt(3/5)],[0],[sqrt(3/5)])$
+nodesQuadp3 : matrix([-sqrt(3/7 + 2/7*sqrt(6/5))],[-sqrt(3/7 - 2/7*sqrt(6/5))],[sqrt(3/7 - 2/7*sqrt(6/5))],[sqrt(3/7 + 2/7*sqrt(6/5))])$
+nodesQuadp4 : matrix([-1/3*sqrt(5+2*sqrt(10/7))],[-1/3*sqrt(5-2*sqrt(10/7))],[0],[1/3*sqrt(5-2*sqrt(10/7))],[1/3*sqrt(5+2*sqrt(10/7))])$
 /* Location of Serendipity nodes in logical [-1,1]^d space,
    with d the number of dimensions.
    At least up to p=3 there's a basic algorithm that could be coded
@@ -125,6 +130,32 @@ getNodes(basisType, dim, polyOrder) := block([],
     )
   ) else (
     error(basisType="unknown")
+  ),
+  return(nodes)
+)$
+
+/* Function that returns the quadrature nodes for a given
+   dimensionality and polynomial order. */
+getQuadNodes(dim, polyOrder) := block([],
+  nodes : 0,
+  nodes1D : eval_string(sconcat("nodesQuadp",polyOrder)),
+  n1D     : length(nodes1D),
+  nodes   : nodes1D,
+  for d : 2 thru dim do (
+    numNodesC : length(nodes),
+    numNodes  : n1D^d,
+    iR : 0,
+    for n : 1 thru ((n1D^d-numNodesC)/n1D) do (
+      for i : 1 thru n1D do (
+        iR : iR+1,
+        nodes : addrow(nodes,nodes[iR])
+      )
+    ),
+    newCoord : [],
+    for n : 1 thru n1D do (
+      newCoord : append(newCoord,makelist(nodes1D[n][1],i,1,numNodes/n1D))
+    ),
+  nodes : addcol(nodes,newCoord)
   ),
   return(nodes)
 )$
