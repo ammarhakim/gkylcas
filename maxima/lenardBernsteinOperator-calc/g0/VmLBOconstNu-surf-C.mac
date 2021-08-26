@@ -603,6 +603,8 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
      NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
   writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_r_c),
   printf(fh, "~%"),
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
 
   /* Write out fUpwindQuad for the far left edge */
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
@@ -614,20 +616,22 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_l_n[1],alphaDrSurf[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", i-1, basisFun, cdim, vdim, p, vvars[dir], i-1),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
       printf(fh, "  } ~%")
     )
   ),
   printf(fh, "~%"),
   if (basisFun = "Tensor") or (basisFun = "tensor") or (polyOrder = 1) then (
+    if (basisFun="ser") then basisFun:"Ser",
+    if (basisFun="tensor") then basisFun:"Tensor",
     /* Get modal surface expansion from nodal quadrature points. */
     nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
     fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
