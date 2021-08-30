@@ -1,0 +1,81 @@
+/* Generate kernels for the various elements of a direct
+   solve of the simple Poisson equation
+       - L(phi) = rho
+   where L is the Laplacian, using the (continuous Galerkin)
+   finite element method (FEM). */
+
+load(stringproc)$
+load("fem-calc/g0/femNumNodes")$
+/*
+load("fem-calc/femLocalToGlobal")$
+load("fem-calc/femNonzeroEntries")$
+*/
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 2$
+
+/* Maximal order basis. */
+maxPolyOrder_Max : 1$
+minCdim_Max : 1$
+maxCdim_Max : 0$
+
+/* Tensor product basis. */
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["Ser","Max","Tensor"]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Max, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
+
+for bInd : 1 thru length(bName) do (
+
+  /**
+  fname : sconcat("~/max-out/FemPoissonSetup", bName[bInd], ".cpp"),
+  fh    : openw(fname),
+
+  printf(fh, "#include <FemPoissonModDecl.h> ~%"),
+  printf(fh, " ~%"),
+
+  /* Estimate the number of non-zero entries per row. */
+  funcName : sconcat("FemPoissonNonzeroEntries", bName[bInd]),
+  disp(printf(false,sconcat("Working on FemPoissonNonzeroEntries", bName[bInd]))),
+  calcFemPoissonNonzeroEntries(fh, funcName, maxCdim[bInd], bName[bInd], maxPolyOrder[bInd]),
+  close(fh),
+  **/
+
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    fname : sconcat("~/max-out/FemPoisson", bName[bInd], c, "x", ".cpp"),
+    fh    : openw(fname),
+  
+    disp(printf(false,sconcat("Creating ~ax ", bName[bInd]),c)),
+  
+    printf(fh, "#include <FemPoissonModDecl.h> ~%"),
+    printf(fh, " ~%"),
+    
+    /* Number of nodes in linear problem. */
+    funcName : sconcat("FemPoissonNumNodesGlobal", c, "x", bName[bInd]),
+    disp(printf(false,sconcat("Working on FemPoissonNumNodesGlobal", c, "x", bName[bInd]))),
+    calcFemPoissonNumNodes(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
+
+    /**
+    /* Inter-grid operators. */
+    funcName : sconcat("FemPoissonLocalToGlobal", c, "x", bName[bInd]),
+    disp(printf(false,sconcat("Working on FemPoissonLocalToGlobal", c, "x", bName[bInd]))),
+    calcLocalToGlobal(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
+    **/
+
+    close(fh)
+    
+  )
+  
+  
+)$
+

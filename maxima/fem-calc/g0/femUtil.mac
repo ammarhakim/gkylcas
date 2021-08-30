@@ -1,0 +1,54 @@
+/* Functions to manipulate nodal data/functions in FEM solvers. */
+
+deleteNodes(nodesIn,coordsIn,allTrueIn) := block([numNodes,dimCheck,remNodes,removeNode],
+  /* Given a list of nodes (nodesIn), delete the nodes that have the all
+     coordinates given by coordsIn (allTrueIn=true), or those that have
+     at least one coordinate equal to those in nodesIn (allTrueIn=false). */
+  numNodes : length(nodesIn),
+  dimCheck : length(coordsIn),
+  remNodes : copylist(nodesIn),
+  for i : 1 thru numNodes do (
+    if allTrueIn then ( removeNode : true ) else ( removeNode : false ),
+    for j : 1 thru dimCheck do (
+      if allTrueIn then (
+        if (nodesIn[i][coordsIn[j][1]]=coordsIn[j][2]) then (
+          removeNode : removeNode and true
+        ) else (
+          removeNode : removeNode and false
+        )
+      ) else (
+        if (nodesIn[i][coordsIn[j][1]]=coordsIn[j][2]) then (
+          removeNode : true
+        )
+      )
+    ),
+    if removeNode then ( remNodes : delete(nodesIn[i],remNodes) )
+  ),
+  return(remNodes)
+)$
+
+getNodeIndices(nodeSubsetIn,nodesIn) := block([nodeIdxs,idx],
+  /* Return the indices of a set of nodes (nodeSubsetIn) within the nodesIn list. */
+  nodeIdxs : [],
+  for k : 1 thru length(nodeSubsetIn) do (
+    idx      : sublist_indices(nodesIn,lambda([x],x=nodeSubsetIn[k]))[1],
+    nodeIdxs : append(nodeIdxs,[idx])
+  ),
+  return(nodeIdxs)
+)$
+
+getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes],
+  /* Given the nodes abutting a cell, return a list of the nodes
+     which this cell actually stores in memory. */
+  numNodes    : length(nodesIn),
+  dim         : length(nodesIn[1]),
+  storedNodes : copylist(nodesIn),
+  for i : 1 thru numNodes do (
+    removeNode : false,
+    for d : 1 thru dim do (
+      if (nodesIn[i][d]=1) and (cellLoc[d]<1) then ( removeNode : true )
+    ),
+    if removeNode then ( storedNodes : delete(nodesIn[i],storedNodes) )
+  ),
+  return(storedNodes)
+)$
