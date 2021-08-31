@@ -3,12 +3,12 @@
 
 load("modal-basis");
 load("out-scripts");
-load("nodalOperations/nodalFunctions");
-load("bvpUtilities/bvpUtil");
-load("fem-calc/g0/femUtil");
+load("nodal_operations/nodal_functions");
+load("bvp_utilities/bvp-util");
+load("fem/fem-util");
 fpprec : 24$
 
-calcFemPoissonNumNodes(fh, funcNm, dim, basisFun, pMax) := block([],
+generate_fem_poisson_num_nodes(fh, funcNm, dim, basisFun, pMax) := block([],
 
   kill(varsC, varsP, basisC, basisP),
 

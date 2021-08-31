@@ -5,9 +5,9 @@
    finite element method (FEM). */
 
 load(stringproc)$
-load("fem-calc/g0/femNumNodes")$
+load("fem/fem-num_nodes")$
+load("fem/fem-local_to_global")$
 /*
-load("fem-calc/femLocalToGlobal")$
 load("fem-calc/femNonzeroEntries")$
 */
 
@@ -63,13 +63,13 @@ for bInd : 1 thru length(bName) do (
     /* Number of nodes in linear problem. */
     funcName : sconcat("FemPoissonNumNodesGlobal", c, "x", bName[bInd]),
     disp(printf(false,sconcat("Working on FemPoissonNumNodesGlobal", c, "x", bName[bInd]))),
-    calcFemPoissonNumNodes(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
+    generate_fem_poisson_num_nodes(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
 
     /**
     /* Inter-grid operators. */
     funcName : sconcat("FemPoissonLocalToGlobal", c, "x", bName[bInd]),
     disp(printf(false,sconcat("Working on FemPoissonLocalToGlobal", c, "x", bName[bInd]))),
-    calcLocalToGlobal(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
+    generate_local_to_global(fh, funcName, c, bName[bInd], maxPolyOrder[bInd]),
     **/
 
     close(fh)
