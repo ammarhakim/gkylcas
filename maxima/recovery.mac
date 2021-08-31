@@ -35,7 +35,7 @@ getBasis(basisType, numDims, polyOrder) := block(
     basis : if (numDims<4) then basisC[polyOrder] else basisP[polyOrder]
   ) else (
     basis : basisConstant
-  ),
+    ),
   return(basis)
   ) $
 
