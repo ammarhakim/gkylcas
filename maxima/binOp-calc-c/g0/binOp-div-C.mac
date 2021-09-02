@@ -1,0 +1,182 @@
+/* Generate kernels that perform weak division of two
+   fields, say if Au .= B, (where .= means weak equality)
+   then this kernel computes u .= A\B. */
+
+/* To avoid the expensive algebraic matrix inversion in
+   Maxima we use Eigen to solve the system. */
+
+load("modal-basis");
+
+load("out-scripts");
+
+load(stringproc)$
+
+load("fem-calc/femMatrices");
+
+fpprec : 24$
+
+writeCExprsA(lhs, rhs, nSpaces) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then printf(fh,sconcat(smake(nSpaces," "),"  ~a,~a); ~%"), lhs[i], expr[i])
+  )
+)$
+
+writeCExprsRHS(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
+  )
+)$
+
+writeCExprs1s(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh, "    ~a = ~a; ~%", lhs[i-1], expr[i])
+  )
+)$
+
+writeCExprsRHS0(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh,"  gkyl_mat_set(rhs,~a,0,~a); ~%", i, expr[i])
+  )
+)$
+
+writeCExprs0s(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh, "  ~a = ~a; ~%", lhs[i-1], expr[i])
+  )
+)$
+
+/* Convert exponentials into hyperbolic function. */
+
+toHyper(expr,vars) := block([],
+  for iv : 1 thru length(vars) do (
+    expr : subst(vars[iv]=vars[iv]/%i,demoivre(subst(vars[iv]=%i*vars[iv],expr)))
+  )
+)$
+
+calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder, applyPos) := block([Elhs,Eflat,Ef,eq,E],
+
+  if (basisFun="ser") then basisFun:"Ser",
+  if (basisFun="tensor") then basisFun:"Tensor",
+    
+  kill(varsC, varsP, basisC, basisP),
+  if applyPos then (
+    load(sconcat("basis-precalc/basis", basisFun, 1, "x")),
+    bC1 : basisC[1]    /* Save 1D basis for later use. */
+  ),
+
+  kill(varsC, varsP, basisC, basisP),
+
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
+  load(modNm),
+  if polyOrder=0 then (
+        bW:[basisC[1][1]]
+        )
+    else (
+        bW:basisC[polyOrder]
+    ),
+  varsW : varsC,
+  wdim  : cdim,
+  N     : length(bW),
+    
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
+  
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *f, const double *g, double *fdivg) ~%{ ~%", funcNm),
+  printf(fh, "  // A:       preallocated LHS matrix. ~%"),
+  printf(fh, "  // rhs:     preallocated RHS vector. ~%"),  
+  printf(fh, "  // f:       numerator field (must be a scalar). ~%"),
+  printf(fh, "  // g:       denominator field (must be a scalar). ~%"),
+  printf(fh, "  // fdivg:   output field. ~%"),
+  printf(fh, " ~%"),
+
+  /* function to evaluate f on nodes */
+  nodesub(f, nodes):=fullratsimp(makelist(subst(makelist(varsW[j]=nodes[i][j],j,1,length(varsW)),f),i,1,length(nodes))),
+  cornerNodes : eval_string(sconcat("nodes", wdim, "xp", 1)),
+
+  /* List of A evaluated at the corners. */
+  cornerAs : nodesub(doExpand1(g,bW), cornerNodes),
+
+  /* List of A evaluated close to positivity control points. */
+  controlAs : nodesub(doExpand1(g,bW), cornerNodes*2/5),
+
+  /* In order to avoid dividing by very small, negative or zero numbers
+     use the cell average of g when g<0 at one of the corners. */
+  if notequal(polyOrder,0) then (
+    printf(fh, "  // If a corner value is below zero, use cell average g.~%"),
+    printf(fh, "  bool avgg = false;~%"),
+    for i : 1 thru length(cornerNodes) do (
+      printf(fh, "  if (~a < 0.0) { ~%",gcfac(float(expand(cornerAs[i])))),
+      printf(fh, "    avgg = true;~%"),
+      printf(fh, "  }~%")
+    ),
+    printf(fh, " ~%"),
+    flush_output(fh),
+
+    printf(fh, "  double lhs[~a]; ~%", N),
+    printf(fh, "  if (avgg) { ~%"),
+    rhs[i]:sconcat("gkyl_mat_set(rhs,0,",i),
+    writeCExprs1s(lhs,append([g[0]],makelist(0.0,i,1,N-1))),
+    writeCExprsRHS(rhs,append([f[0]],makelist(0.0,i,1,N-1))), 
+    printf(fh, "  } else { ~%"),
+    writeCExprs1s(lhs,makelist(g[i],i,0,N-1)),
+    writeCExprsRHS(rhs,makelist(f[i],i,0,N-1)),
+    printf(fh, "  } ~%"),
+    printf(fh, " ~%"),
+    flush_output(fh)
+ ) else (
+        printf(fh, "  double lhs[~a]; ~%", N),
+        rhs[i]:sconcat("gkyl_mat_set(rhs,0,",i),
+        writeCExprs0s(lhs,makelist(g[i],i,0,N-1)),
+        writeCExprsRHS0(rhs,makelist(f[i],i,0,N-1)),
+        printf(fh, " ~%")
+    ),
+
+  /* Expand fields A and B in weak basis. */
+  Ae : doExpand1(lhs, bW),
+  Be : doExpand1(rhs, bW),
+  /* Expand u function and create a list of expansion coefficients. */ 
+  ue : doExpand1(u,bW),
+  un : makelist(u[i],i,0,N-1),
+
+  kill(eq,E,Eflat,Ef,Elhs),
+
+  massMatrix(Amat,nSpaces) := block([],
+    /* Flatten E for WriteCExprsA. */
+    Eflat : list_matrix_entries(Amat),
+
+    /* Make a list of the LHS matrix assignments. */
+    /* Note: Eigen defaults to Column-major order. */
+    Ef[i,j] := sconcat("gkyl_mat_set(A,",i,",",j),
+    Elhs : list_matrix_entries(genmatrix(Ef,N-1,N-1,0,0)),
+
+    printf(fh,sconcat(smake(nSpaces," "),"  // Fill LHS matrix. ~%")),
+    writeCExprsA(Elhs,Eflat,nSpaces),
+    printf(fh,"~%")
+  ),
+
+  div(nSpaces) := block([],
+
+    printf(fh,sconcat(smake(nSpaces," "),"  // Solve the system of equations. ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"  long ipiv[",N,"]; ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"  gkyl_mat_linsolve_lu(A,rhs,ipiv); ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"  for(size_t i=0; i<",N,"; i++) ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"  { ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"    fdivg[i] = gkyl_mat_get(rhs,i,0); ~%")),
+    printf(fh,sconcat(smake(nSpaces," "),"  } ~%"))
+  ),
+
+  eq : calcInnerProdList(varsW,ue,bW,Ae),
+  E  : fullratsimp(coefmatrix(eq,un)),
+
+  massMatrix(E,0),
+  div(0),
+  printf(fh, "} ~%")
+)$
+
+
