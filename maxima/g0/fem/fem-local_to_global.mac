@@ -17,7 +17,6 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
   /* Associative list between stencil location (-1,0,1) and variable
      strings used in kernel names. */
   coordVarS : getCoordVarS(varsC),
-  print("coordVarS = ",coordVarS),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
@@ -37,7 +36,6 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
     bcCombos : listify(cartesian_product(setify(bcCombos),setify(bcTypes))),
     for i : 1 thru length(bcCombos) do ( bcCombos[i] : flatten(bcCombos[i]) )
   ),
-  print("bcCombos = ", bcCombos),
 
   /* We will create local->global kernels for each interior and upper
      boundary region of the domain. Each region must have different kernels
@@ -47,12 +45,10 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
     if (stencilLoc[sI]=makelist(0,d,1,dim)) or
        (length(sublist(stencilLoc[sI],lambda([x],x < 0)))=0) then (
 
-      print("stencilLoc = ",stencilLoc[sI]),
       /* Loop over BC combinations. Will create a separate kernel for each. */
       for bcI : 1 thru length(bcCombos) do (
   
         currBC : copylist(bcCombos[bcI]),
-        print("  currBC = ",currBC),
   
         /* String used in kernel name, identifying stencil location and BC. */
         stencilStr : "",
@@ -63,7 +59,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
 
         for polyOrder : 1 thru pMax do (
   
-          printf(fh, "void ~a_p~a~a(const int *numCells, const int *idx, int *globalIdxs) ~%{ ~%", funcNm, polyOrder, stencilStr),
+          printf(fh, "void ~a_p~a~a(const int *numCells, const int *idx, long *globalIdxs) ~%{ ~%", funcNm, polyOrder, stencilStr),
           printf(fh, "  // numCells:   number of cells in each direction.~%"),
           printf(fh, "  // idx:        multi-dimensional index of current cell.~%"),
           printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
@@ -76,6 +72,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
           numNodes : length(nodes),
 
           storedNodes    : getStoredNodes(nodes,stencilLoc[sI]),
+          storedNodesBC  : getStoredNodesWithBC(nodes,stencilLoc[sI],currBC),
           numStoredNodes : length(storedNodes),
 
           /* Create a list of possible locations and number of stored nodes
@@ -95,9 +92,6 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
               locToNumStoredNodes : endcons(newS,locToNumStoredNodes)
             )
           ),
-          /*
-          print("currBC=",currBC," | locToNumStoredNodes = ",locToNumStoredNodes),
-          */
 
           /* 
              In 1D need something like:
@@ -148,20 +142,17 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
             return(numNodesFac)
           ),
           storedNodesOffFac : getCellMemOff(stencilLoc[sI]),
-          print("    storedNodesOffFac = ",storedNodesOffFac),
 
           /* Compute the memory offset of the nodes in this cell (not just the nodes it owns). */
           upbDirs    : sublist_indices(stencilLoc[sI],lambda([x],x=1)),
           nodeMemOff : makelist(0,i,1,numNodes),
           for nI : 1 thru numNodes do (
             currNode   : copylist(nodes[nI]),
-            print("  currNode =", currNode),
             cellIdx    : makelist(idx[d-1],d,1,dim),
             nodeOffFac : storedNodesOffFac,
             nodeIdx    : nI,
             /* Modify cell index & node number for nodes on periodic boundary. */
             upNodeCoords : sublist_indices(currNode,lambda([x],x=1)),
-            print("    upNodeCoords, upbDirs, isOnBoundary = ",upNodeCoords,upbDirs,isOnBoundary),
             newNode : copylist(currNode),
             for d : 1 thru length(upNodeCoords) do (
               if (length(sublist_indices(upbDirs,lambda([x],x=upNodeCoords[d])))>0) then (
@@ -174,8 +165,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
                 cellIdx[upNodeCoords[d]] : idx[upNodeCoords[d]-1]+1
               )
             ),
-            nodeIdx : sublist_indices(storedNodes, lambda([x], x=newNode))[1],
-            print("    cellIdx, nodeIdx = ",cellIdx, nodeIdx),
+            nodeIdx : sublist_indices(storedNodesBC, lambda([x], x=newNode))[1],
             /* Modify cell index & node number for nodes not stored in this cell and not on a boundary. */
             isOnBoundary : false,
             for d : 1 thru length(upNodeCoords) do (
@@ -199,14 +189,6 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
                 for j : 1 thru length(checkCoords[hi]) do (
                   if (j>1) then ( condStr : sconcat(condStr," && ") ),
                   condStr : sconcat(condStr,"(idx[",checkCoords[hi][j]-1,"]+1==numCells[",checkCoords[hi][j]-1,"]-1)"),
-                  /*
-                  newCellIdx[checkCoords[hi][j]] : idx[checkCoords[hi][j]-1]+1,
-                  newCellIdx[checkCoords[hi][j]] : newCellIdx[checkCoords[hi][j]]+1,
-                  for d : 1 thru length(upNodeCoords) do (
-                    newCellIdx[upNodeCoords[d]] : idx[upNodeCoords[d]-1]+1
-                  ),
-                  newNode[checkCoords[hi][j]]    : -1
-                  */
                   newLoc[checkCoords[hi][j]]     : 1 /* Should be -1, but 0 works with getCellMemOff. */
                 ),
                 boundCellOffFac : getCellMemOff(newLoc),
