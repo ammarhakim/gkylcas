@@ -3,7 +3,7 @@
 
 /* String used for identifying nearest neighbor cells,
    and location of the stencil. */
-locStrKey : [[-1,"L"],[0,""],[1,"U"]]$
+locStrKey : [[-1,"lo"],[0,""],[1,"up"]]$
 
 invertAssocList(assLstIn) := block([i,k,invALst],
   /* Invert an associative list, making the first entry of each element
