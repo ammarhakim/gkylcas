@@ -50,25 +50,10 @@ writeCExprs0s(lhs, rhs) := block([expr],
   )
 )$
 
-/* Convert exponentials into hyperbolic function. */
-
-toHyper(expr,vars) := block([],
-  for iv : 1 thru length(vars) do (
-    expr : subst(vars[iv]=vars[iv]/%i,demoivre(subst(vars[iv]=%i*vars[iv],expr)))
-  )
-)$
-
-calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder, applyPos) := block([Elhs,Eflat,Ef,eq,E],
+calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,Ef,eq,E],
 
   if (basisFun="ser") then basisFun:"Ser",
   if (basisFun="tensor") then basisFun:"Tensor",
-    
-  kill(varsC, varsP, basisC, basisP),
-  if applyPos then (
-    load(sconcat("basis-precalc/basis", basisFun, 1, "x")),
-    bC1 : basisC[1]    /* Save 1D basis for later use. */
-  ),
-
   kill(varsC, varsP, basisC, basisP),
 
   modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),

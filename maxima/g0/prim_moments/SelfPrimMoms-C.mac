@@ -36,24 +36,6 @@ writeCExprsB(lhs, rhs) := block([expr],
   )
 )$
 
-writeEVExprs(lhs, rhs, vd, nc, p) := block([expr],
-  len   : length(rhs),
-/*  start : len*2+(len-1)+2*len+1, */
-/*  start : vd*NC*3+NC*2+(len-1)+2*len+1, */
-  if (p=1) then (
-    start : vd*nc*3+nc*4+(len-1)+2*len+1
-  ) else (
-    start : vd*nc*3+nc*3+(len-1)+2*len+1
-  ),
-  for k : 1 thru vd*nc do (
-    start : start+slength(string(k-1))
-  ),
-  for k : 1 thru nc do (
-    start : start+slength(string(k-1))
-  ),
-  printf(fh, "  ~a << ~a; ~%", lhs, sremove("]",sremovefirst("[",string(rhs)),sequal,start))
-)$
-
 writeCExprs1s(lhs, rhs) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (
@@ -71,7 +53,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
 
-  if (sequal(substring(funcNm,1,3),"Vm")) then (
+  if (sequal(substring(funcNm,1,7),"vlasov")) then (
     udim : vdim
   ) else (
     udim : 1
@@ -303,20 +285,6 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "  // ....... Block from correction to vtSq .......... // ~%"),
   writeCExprsA(Elhs,Eflat),
   printf(fh, " ~%"),
-
-  if udim=2 then (
-    printf(fh, "  // Set other entries to 0. // ~%"),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",NC,NC,0,NC),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",NC,NC,NC,0),
-    printf(fh, " ~%")
-  ) elseif udim=3 then (
-    printf(fh, "  // Set other entries to 0. // ~%"),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",NC,2*NC,0,NC),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",2*NC,NC,NC,0),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",NC,NC,NC,2*NC),
-    printf(fh, "  data->AEM_S.block<~a,~a>(~a,~a).setZero(); ~%",NC,NC,2*NC,NC),
-    printf(fh, " ~%")
-  ),
   
   printf(fh, "  long ipiv[~a] = {0.0}; ~%", udim*NC+NC),
   printf(fh, "  gkyl_mat_linsolve_lu(A,rhs,ipiv); ~%"),

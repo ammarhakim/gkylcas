@@ -6,7 +6,7 @@
    combinations of configuration and velocity space, and
    indicates the maximum polyOrder to generate code for. */
 
-load("binOp-calc-c/g0/binOp-div-C")$
+load("g0/bin_op/binOp-div-C")$
 
 load(stringproc)$
 
@@ -72,11 +72,10 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "#include <gkyl_mat.h> ~%"),
       printf(fh, "#include <gkyl_binop_div_ser.h> ~%"),      
       printf(fh, " ~%"),
-      
-      usePositivity : false,
+
       funcName : sconcat("binop_div_", c, "d_",bName[bInd],"_p", polyOrder),
       disp(printf(false,sconcat("Working on CartFieldBinOpDivide", c, "x", bName[bInd]))),
-      calcBinOpConfDivide(fh, funcName, c, bName[bInd], polyOrder, usePositivity),
+      calcBinOpConfDivide(fh, funcName, c, bName[bInd], polyOrder),
      
       close(fh)
     )
