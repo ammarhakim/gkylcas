@@ -24,7 +24,7 @@ generate_fem_poisson_num_nodes(fh, funcNm, dim, basisFun, pMax) := block([],
        =1 non-periodic
   */
   bcTypes : [0, 1],
-  bcStrs  : ["Periodic", "NonPeriodic"],
+  bcStrs  : ["periodic", "nonperiodic"],
   bcKey   : makelist([bcTypes[i],bcStrs[i]],i,1,length(bcTypes)),
 
   bcCombos : makelist([bcTypes[i]],i,1,length(bcTypes)),
@@ -41,12 +41,12 @@ generate_fem_poisson_num_nodes(fh, funcNm, dim, basisFun, pMax) := block([],
     /* String used in kernel name, identifying stencil location and BC. */
     stencilStr : "",
     for d : 1 thru dim do (
-      stencilStr : sconcat(stencilStr,assoc(currBC[d],bcKey),string(varsC[d]))
+      stencilStr : sconcat(stencilStr,"_",assoc(currBC[d],bcKey),string(varsC[d]))
     ),
 
     for polyOrder : 1 thru pMax do (
 
-      printf(fh, "int ~a_~aP~a(const int *numCells) ~%{ ~%", funcNm, stencilStr, polyOrder),
+      printf(fh, "int ~a_p~a~a(const int *numCells) ~%{ ~%", funcNm, polyOrder, stencilStr),
       printf(fh, "  // numCells:       number of cells in each direction.~%"),
       printf(fh, "~%"),
 

@@ -1,0 +1,5 @@
+/* A collection of useful functions to simplify life in Maxima world. */
+
+isInList(e, lst) := block([],
+  return(length(sublist_indices(lst,lambda([x],x=e)))>0)
+)$
