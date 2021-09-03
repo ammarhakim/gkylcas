@@ -155,7 +155,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
             upNodeCoords : sublist_indices(currNode,lambda([x],x=1)),
             newNode : copylist(currNode),
             for d : 1 thru length(upNodeCoords) do (
-              if (length(sublist_indices(upbDirs,lambda([x],x=upNodeCoords[d])))>0) then (
+              if isInList(upNodeCoords[d],upbDirs) then (
                 if (currBC[upNodeCoords[d]]=0) then ( /* Only for periodic boundaries. */
                   newNode[upNodeCoords[d]] : -1,
                   cellIdx[upNodeCoords[d]] :  0
@@ -169,11 +169,9 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
             /* Modify cell index & node number for nodes not stored in this cell and not on a boundary. */
             isOnBoundary : false,
             for d : 1 thru length(upNodeCoords) do (
-              if (length(sublist_indices(upbDirs,lambda([x],x=upNodeCoords[d])))>0) then (
-                isOnBoundary : true
-              )
+              if isInList(upNodeCoords[d],upbDirs) then ( isOnBoundary : true )
             ),
-            if (length(sublist(storedNodes, lambda([x],x=currNode)))=0) and (not isOnBoundary) then (
+            if (not isInList(currNode,storedNodes)) and (not isOnBoundary) then (
               compLength(a, b) := length(a) > length(b),
               checkCoords : sort(full_listify(powerset(setify(upNodeCoords))), 'compLength),
               ifStr : " ",
