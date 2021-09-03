@@ -1,16 +1,12 @@
 /* Generate kernels that perform weak division of two
    fields, say if Au .= B, (where .= means weak equality)
    then this kernel computes u .= A\B. */
-
 /* To avoid the expensive algebraic matrix inversion in
    Maxima we use Eigen to solve the system. */
 
 load("modal-basis");
-
 load("out-scripts");
-
 load(stringproc)$
-
 load("fem-calc/femMatrices");
 
 fpprec : 24$
@@ -146,7 +142,6 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
   ),
 
   div(nSpaces) := block([],
-
     printf(fh,sconcat(smake(nSpaces," "),"  // Solve the system of equations. ~%")),
     printf(fh,sconcat(smake(nSpaces," "),"  long ipiv[",N,"]; ~%")),
     printf(fh,sconcat(smake(nSpaces," "),"  gkyl_mat_linsolve_lu(A,rhs,ipiv); ~%")),

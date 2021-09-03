@@ -1,25 +1,18 @@
 /* Generate kernels for the updater that computes the primitive
    moments u and vt^2 given the moments and the distribution function.
    Weak division, multiplication and dot products are employed. */
-
 /* To avoid the expensive symbolic matrix inversion in
    Maxima we use Eigen to solve the system. */
-
 /* In the comments we refer to the rank 3 tensor E_M. This is
    E_{M,i,j,k} = InnerProd(varsC,bC[i],bC[j],bC[k]). */
 
 load("modal-basis");
-
 load("out-scripts");
-
 load(stringproc)$
-
 load("fem-calc/femMatrices");
 
 fpprec : 24$
-
 VarsC : [X, Y, Z]$
-
 varsV : [vx, vy, vz]$
 
 writeCExprsA(lhs, rhs) := block([expr],
