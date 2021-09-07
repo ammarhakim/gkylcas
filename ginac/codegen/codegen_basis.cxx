@@ -16,18 +16,24 @@ using namespace GiNaC;
 // fc: C file
 //
 static void
-gen_ser_eval(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+gen_eval(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";
+
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
   // function declaration
-  fh << "GKYL_CU_DH void eval_" << ndim << "d_ser_" << "p" << polyOrder
+  fh << "GKYL_CU_DH void eval_" << ndim << "d_" << bn << "_" << "p" << polyOrder
      << "(const double *z, double *b);" << std::endl;  
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
   fc << "void" << std::endl;
-  fc << "eval_" << ndim << "d_ser_" << "p" << polyOrder
+  fc << "eval_" << ndim << "d_" << bn << "_" << "p" << polyOrder
        << "(const double *z, double *b )" << std::endl;
   fc << "{" << std::endl;
 
@@ -56,18 +62,23 @@ gen_ser_eval(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 // fc: C file
 //
 static void
-gen_ser_flip_sign(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";  
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
   // function declarations
-  fh << "GKYL_CU_DH void flip_sign_" << ndim << "d_ser_" << "p" << polyOrder
+  fh << "GKYL_CU_DH void flip_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
        << "(int dir, const double *f, double *fout );" << std::endl;  
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
   fc << "void" << std::endl;
-  fc << "flip_sign_" << ndim << "d_ser_" << "p" << polyOrder
+  fc << "flip_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
        << "(int dir, const double *f, double *fout )" << std::endl;
   fc << "{" << std::endl;
   
@@ -89,8 +100,8 @@ gen_ser_flip_sign(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& ba
   fc << "}" << std::endl << std::endl;  
 }
 
-int
-main(int argc, char **argv)
+void
+gen_ser_basis()
 {
   // compute time-stamp
   char buff[70];
@@ -119,8 +130,6 @@ main(int argc, char **argv)
   flip_file << "// " << buff << std::endl;
   flip_file << "#include <gkyl_basis_ser_kernels.h>" << std::endl;
 
-  struct timespec tstart = gkyl_wall_clock();
-
   for (int d=0; d<6; ++d) {
     int dim = dims[d];
     for (int p=0; p<=max_order[d]; ++p) {
@@ -128,17 +137,73 @@ main(int argc, char **argv)
       Gkyl::ModalBasis mbasis(Gkyl::MODAL_SER, dim, vars, p);
       
       // generate eval method
-      gen_ser_eval(header, eval_file, mbasis);
+      gen_eval(Gkyl::MODAL_SER, header, eval_file, mbasis);
       // generate flip_sign method
-      gen_ser_flip_sign(header, flip_file, mbasis);
+      gen_flip_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);
     }
     std::cout << std::endl;
   }
-
   header << "EXTERN_C_END" << std::endl;
+}
 
+void
+gen_ten_basis()
+{
+  // compute time-stamp
+  char buff[70];
+  time_t t = time(NULL);
+  struct tm curr_tm = *localtime(&t);
+  strftime(buff, sizeof buff, "%c", &curr_tm);
+  
+  int dims[] = { 2, 3, 4, 5 };
+  int max_order[] = { 2, 2, 2, 2 };
+
+  symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
+  std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
+
+  std::ofstream header("kernels/basis/gkyl_basis_tensor_kernels.h", std::ofstream::out);
+  header << "// " << buff << std::endl;
+  header << "#pragma once" << std::endl;
+  header << "#include <gkyl_util.h>" << std::endl;
+  header << "EXTERN_C_BEG" << std::endl;
+  
+  std::ofstream eval_file("kernels/basis/basis_eval_tensor.c", std::ofstream::out);
+  std::ofstream flip_file("kernels/basis/basis_flip_sign_tensor.c", std::ofstream::out);
+
+  eval_file << "// " << buff << std::endl;
+  eval_file << "#include <gkyl_basis_tensor_kernels.h>" << std::endl;
+
+  flip_file << "// " << buff << std::endl;
+  flip_file << "#include <gkyl_basis_tensor_kernels.h>" << std::endl;
+
+  for (int d=0; d<4; ++d) {
+    int dim = dims[d];
+    for (int p=2; p<=max_order[d]; ++p) {
+      std::cout << dim << "dp" << p << " ";      
+      Gkyl::ModalBasis mbasis(Gkyl::MODAL_TEN, dim, vars, p);
+      
+      // generate eval method
+      gen_eval(Gkyl::MODAL_TEN, header, eval_file, mbasis);
+      // generate flip_sign method
+      gen_flip_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+    }
+    std::cout << std::endl;
+  }
+  header << "EXTERN_C_END" << std::endl;
+}
+
+int
+main(int argc, char **argv)
+{
+  struct timespec tstart = gkyl_wall_clock();
+  gen_ser_basis();
   double tm = gkyl_time_diff_now_sec(tstart);
-  std::cout << "Took " << tm << " seconds" << std::endl;
+  std::cout << "Generating of modal serendipity basis took " << tm << " seconds" << std::endl;
+  
+  tstart = gkyl_wall_clock();
+  gen_ten_basis();
+  tm = gkyl_time_diff_now_sec(tstart);
+  std::cout << "Generating of modal tensor basis took " << tm << " seconds" << std::endl;
   
   return 1;
 }
