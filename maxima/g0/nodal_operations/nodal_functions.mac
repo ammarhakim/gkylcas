@@ -1,6 +1,6 @@
 /* Functions to work with nodes and nodal expansions,
    and to interface modal algorithms with nodal ones. */
-load("nodal_operations/node_locations")$
+load("g0/nodal_operations/node_locations")$
 load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
