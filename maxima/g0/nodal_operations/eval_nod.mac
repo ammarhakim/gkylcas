@@ -19,7 +19,7 @@ maxDim_Ser : 6$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minDim_Tensor : 2$
-maxDim_Tensor : 5$
+maxDim_Tensor : 4$
 
 /* ...... END OF USER INPUTS........ */
 
