@@ -177,7 +177,7 @@ gen_nodal_to_modal(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc
 
   // function declaration
   fh << "GKYL_CU_DH void nodal_to_modal_" << ndim << "d_" << bn << "_" << "p" << polyOrder
-     << "(double *node_coords);" << std::endl;
+     << "(const double *fnodal, double *fmodal);" << std::endl;
 
   // C code is not generate here. Need to fix this eventually
 }
