@@ -146,6 +146,42 @@ gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, con
   fc << "}" << std::endl << std::endl;  
 }
 
+static void
+gen_node_coords(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";
+
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+
+  // function declaration
+  fh << "GKYL_CU_DH void node_coords_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+     << "(double *node_coords);" << std::endl;
+
+  // C code is not generate here. Need to fix this eventually
+}
+
+static void
+gen_nodal_to_modal(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";
+
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+
+  // function declaration
+  fh << "GKYL_CU_DH void nodal_to_modal_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+     << "(double *node_coords);" << std::endl;
+
+  // C code is not generate here. Need to fix this eventually
+}
+
 void
 gen_ser_basis()
 {
@@ -188,6 +224,10 @@ gen_ser_basis()
       gen_eval_expand(Gkyl::MODAL_SER, header, eval_file, mbasis);
       // generate flip_sign method
       gen_flip_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      // generate node_coords
+      gen_node_coords(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      // generate nodal to modal
+      gen_nodal_to_modal(Gkyl::MODAL_SER, header, flip_file, mbasis);
     }
     std::cout << std::endl;
   }
@@ -236,6 +276,10 @@ gen_ten_basis()
       gen_eval_expand(Gkyl::MODAL_TEN, header, eval_file, mbasis);
       // generate flip_sign method
       gen_flip_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      // generate node_coords
+      gen_node_coords(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      // generate nodal to modal
+      gen_nodal_to_modal(Gkyl::MODAL_TEN, header, flip_file, mbasis);
     }
     std::cout << std::endl;
   }
