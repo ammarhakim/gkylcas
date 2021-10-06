@@ -97,6 +97,59 @@ gen_eval_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, c
   fc << "}" << std::endl << std::endl;
 }
 
+// Generates function that evaluates gradient given an expansion at a
+// point. Generated function signature:
+//
+// static double foo(int dir, const double *z, const double *f)
+//
+// Restrict keyword and CUDA attributes are also added
+//
+// fh: header file
+// fc: C file
+//
+static void
+gen_eval_grad_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";
+
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+
+  // function declaration
+  fh << "GKYL_CU_DH double eval_grad_expand_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+     << "(int dir, const double *z, const double *f);" << std::endl;  
+
+  // function definition
+  fc << "GKYL_CU_DH" << std::endl;
+  fc << "double" << std::endl;
+  fc << "eval_grad_expand_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+       << "(int dir, const double *z, const double *f )" << std::endl;
+  fc << "{" << std::endl;
+
+  // local declarations
+  if (polyOrder > 0)
+    for (int d=0; d<ndim; ++d)
+      fc << "  const double z" << d << " = " << "z[" << d << "];" << std::endl;
+
+  lst vars = basis.get_vars();
+  symbol f("f");
+  auto f_expand = basis.expand(f);
+
+  for (int d=0; d<ndim; ++d) {
+    fc << "  if (dir == " << d << ")" << std::endl;
+    // expressions to compute expansion
+    auto df = GiNaC::diff(f_expand, basis.get_var(d));
+    fc << "    return " << df.expand().evalf() << ";" << std::endl;
+    fc << std::endl;
+  }
+  
+  // close function
+  fc << "}" << std::endl << std::endl;
+}
+
 // Generates function that flips sign of basis expansion. Generated
 // function signature:
 //
@@ -222,6 +275,7 @@ gen_ser_basis()
       gen_eval(Gkyl::MODAL_SER, header, eval_file, mbasis);
       // generate eval_expand method
       gen_eval_expand(Gkyl::MODAL_SER, header, eval_file, mbasis);
+      gen_eval_grad_expand(Gkyl::MODAL_SER, header, eval_file, mbasis);      
       // generate flip_sign method
       gen_flip_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);
       // generate node_coords
@@ -274,6 +328,7 @@ gen_ten_basis()
       gen_eval(Gkyl::MODAL_TEN, header, eval_file, mbasis);
       // generate eval expansion method
       gen_eval_expand(Gkyl::MODAL_TEN, header, eval_file, mbasis);
+      gen_eval_grad_expand(Gkyl::MODAL_TEN, header, eval_file, mbasis);
       // generate flip_sign method
       gen_flip_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
       // generate node_coords
