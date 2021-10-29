@@ -295,36 +295,35 @@ calcConstNuUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFlux
   Gdiff_r_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_r[2]),
   alst_l    : doMakeExprLst(Gdiff_l_c, Gdiff_l),
   alst_r    : doMakeExprLst(Gdiff_r_c, Gdiff_r),
-  Gdiff_l_e : doExpand(alst_l, bSurf),
-  Gdiff_r_e : doExpand(alst_r, bSurf),
+  Gdiff_l_e : doExpandLst(alst_l, bSurf),
+  Gdiff_r_e : doExpandLst(alst_r, bSurf),
+
   Gdiff2_l_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_l[1]),
   Gdiff2_r_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_r[1]),
   alst_l2    : doMakeExprLst(Gdiff2_l_c, Gdiff2_l),
   alst_r2    : doMakeExprLst(Gdiff2_r_c, Gdiff2_r),
-  Gdiff2_l_e : doExpand(alst_l2, bSurf),
-  Gdiff2_r_e : doExpand(alst_r2, bSurf),
+  Gdiff2_l_e : doExpandLst(alst_l2, bSurf),
+  Gdiff2_r_e : doExpandLst(alst_r2, bSurf),
 
   /* Calculate Ghat projected on the phase basis. */
-  Ghat_l_c  : fullratsimp(GhatDrag_l_c+rdv2DiffFac*calcInnerProdList(surfVars,1,bSurf,Gdiff_l_e)),
-  Ghat_r_c  : fullratsimp(GhatDrag_r_c+rdv2DiffFac*calcInnerProdList(surfVars,1,bSurf,Gdiff_r_e)),
+  Ghat_l_c : fullratsimp(GhatDrag_l_c+rdv2DiffFac*calcInnerProdList(surfVars,1,bSurf,Gdiff_l_e)),
+  Ghat_r_c : fullratsimp(GhatDrag_r_c+rdv2DiffFac*calcInnerProdList(surfVars,1,bSurf,Gdiff_r_e)),
 
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1_l      : doMakeExprLst(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpandLst(glst1_l, bSurf),
-  Ghat_l_final : subst(vv=1, Ghat_l_e),
   glst1_r      : doMakeExprLst(Ghat_r_c, Ghat_r),
   Ghat_r_e     : doExpandLst(glst1_r, bSurf),
-  Ghat_r_final : subst(vv=1, Ghat_r_e),
 
   /* Increments to the right cell (some dimensional factors missing).
   Here incr_r1 and incr_r2 have separate left/right symmetry. */
-  incr_r1 :  calcInnerProdList(surfVars, -1, subst(vv=1, bP), Ghat_r_final),
-  incr_r2 : -calcInnerProdList(surfVars, -1, subst(vv=1, bPp), Gdiff2_r_e),
+  incr_r1 :  calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
+  incr_r2 : -calcInnerProdList(surfVars, 1, subst(vv=1, bPp), Gdiff2_r_e),
 
   /* Increments to the left cell (some dimensional factors missing). */
-  incr_l1 :  calcInnerProdList(surfVars, 1, subst(vv=-1, bP), Ghat_l_final),
-  incr_l2 : -calcInnerProdList(surfVars, 1, subst(vv=-1, bPp), Gdiff2_l_e),
+  incr_l1 :  calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
+  incr_l2 : -calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), Gdiff2_l_e),
 
   tempVars : writeCExprs1(Gdiff2_l, radcan(Gdiff2_l_c)),
   printf(fh, "~%"),
@@ -471,14 +470,14 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   Gdiff_r_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_r[2]),
   alst_l    : doMakeExprLst(Gdiff_l_c, Gdiff),
   alst_r    : doMakeExprLst(Gdiff_r_c, Gdiff),
-  Gdiff_l_e : doExpand(alst_l, bSurf),
-  Gdiff_r_e : doExpand(alst_r, bSurf),
+  Gdiff_l_e : doExpandLst(alst_l, bSurf),
+  Gdiff_r_e : doExpandLst(alst_r, bSurf),
   Gdiff2_l_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_l[1]),
   Gdiff2_r_c : calcInnerProdList(surfVars,1,bSurf,nuVtSqSum_e*hsol_r[1]),
   alst_l2    : doMakeExprLst(Gdiff2_l_c, Gdiff2),
   alst_r2    : doMakeExprLst(Gdiff2_r_c, Gdiff2),
-  Gdiff2_l_e : doExpand(alst_l2, bSurf),
-  Gdiff2_r_e : doExpand(alst_r2, bSurf),
+  Gdiff2_l_e : doExpandLst(alst_l2, bSurf),
+  Gdiff2_r_e : doExpandLst(alst_r2, bSurf),
 
   printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double fUpwindQuad[~a] = {0.0};~%", numNodes),
@@ -567,20 +566,19 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     
   /* Calculate Ghat projected on the phase basis. */
   /* Need Gdiff_r because skin cell is evaluated at +1 */
-  Ghat_c  : fullratsimp(GhatDrag_c+rdv2DiffFac*calcInnerProdList(surfVars,-1,bSurf,Gdiff_r_e)),
+  Ghat_c  : fullratsimp(GhatDrag_c+rdv2DiffFac*calcInnerProdList(surfVars,1,bSurf,Gdiff_r_e)),
 
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
   Ghat_e     : doExpandLst(glst1, bSurf),
-  Ghat_final : subst(vv=1, Ghat_e),
 
   /* Increments to the right cell (some dimensional factors missing).
   ** Here incr_r1 and incr_r2 have separate left/right symmetry. */
-  incr_r1 :  calcInnerProdList(surfVars, -1, subst(vv=1, bP), Ghat_final),
-  incr_r2 : -calcInnerProdList(surfVars, -1, subst(vv=1, bPp), Gdiff2_r_e),
+  incr_r1 :  calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_e),
+  incr_r2 : -calcInnerProdList(surfVars, 1, subst(vv=1, bPp), Gdiff2_r_e),
   /* Additional term coming from second integration by parts at the zero-flux boundary */
-  incr_l3 : -calcInnerProdList(surfVars, 1, subst(vv=-1, bPp), subst(vv=-1,nuVtSqSum_e*fSkin_e)),
+  incr_l3 : -calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), subst(vv=-1,nuVtSqSum_e*fSkin_e)),
 
   tempVars : writeCExprs1(Gdiff2, Gdiff2_r_c),
   printf(fh, "~%"),
@@ -595,7 +593,7 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   flush_output(fh),
   
   /* Write out contribution right cell. */
-  writeCIncrExprs1(out, rdv2*incr_r1+rdvSq4*incr_r2+rdvSq4*incr_l3),
+  writeCIncrExprs1(out, rdv2*incr_r1 + rdvSq4*incr_r2 + rdvSq4*incr_l3),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
@@ -603,7 +601,7 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   /* Write out drag term for far right edge boundary.
      Need alpha evaluated at -1 for skin-edge interface.
      NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
-  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_r_c),
+  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_l_c),
   printf(fh, "~%"),
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
@@ -678,13 +676,12 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
   Ghat_e     : doExpandLst(glst1, bSurf),
-  Ghat_final : subst(vv=1, Ghat_e),
 
   /* Increments to the left cell (some dimensional factors missing). */
-  incr_l1 :  calcInnerProdList(surfVars, 1, subst(vv=-1, bP), Ghat_final),
-  incr_l2 : -calcInnerProdList(surfVars, 1, subst(vv=-1, bPp), Gdiff2_l_e),
+  incr_l1 :  calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_e),
+  incr_l2 : -calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), Gdiff2_l_e),
   /* Additional term coming from second integration by parts at the zero-flux boundary */
-  incr_r3 : -calcInnerProdList(surfVars, -1, subst(vv=1, bPp), subst(vv=1,nuVtSqSum_e*fSkin_e)),
+  incr_r3 : -calcInnerProdList(surfVars, 1, subst(vv=1, bPp), subst(vv=1,nuVtSqSum_e*fSkin_e)),
 
   tempVars : writeCExprs1(Gdiff2, Gdiff2_l_c),
   printf(fh, "~%"),
@@ -699,7 +696,7 @@ calcConstNuBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   flush_output(fh),
   
   /* Write out contribution right cell. */
-  writeCIncrExprs1(out, rdv2*incr_l1+rdvSq4*incr_l2 + rdvSq4*incr_r3),
+  writeCIncrExprs1(out, rdv2*incr_l1 + rdvSq4*incr_l2 + rdvSq4*incr_r3),
   printf(fh, "~%"),
 
   printf(fh, "  } ~%"),
