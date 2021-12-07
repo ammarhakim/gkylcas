@@ -201,7 +201,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
         makelist(qLo1D[i]=dimProjLo[i], i, 1, length(baCe1D))
       ),
       if length(args(lo)) > 1 then (
-        bcExp : subst(args(args(lo)[2]), ec),
+        bcExp : subst(args(args(lo)[2]), dg),
         if not atom(bcExp) then (
           projSubList : append(
             projSubList,
@@ -218,7 +218,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
         makelist(qUp1D[i]=dimProjUp[i], i, 1, length(baCe1D))
       ),
       if length(args(up)) > 1 then (
-        bcExp : subst(args(args(up)[2]), ec),
+        bcExp : subst(args(args(up)[2]), dg),
         if not atom(bcExp) then (
           projSubList : append(
             projSubList,
