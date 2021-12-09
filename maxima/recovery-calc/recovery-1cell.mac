@@ -35,7 +35,8 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   perpDirs, baCeNDw, bcExp
   ],
 
-  for i : 1 thru length(dirs) do (
+  for i : 1 thru length(dirs) do
+  (
     if recDir=dirs[i] then recDirIdx : i
   ),
 
@@ -50,20 +51,28 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   the other methods for clarity */
 
   DoF : polyOrder + 1,
-  if is(op(lo)=dg) then (
+  if is(op(lo)=dg) then
+  (
     DoF : DoF + 1 + C
-  ) elseif is(op(lo)=bc) then (
+    )
+  elseif is(op(lo)=bc) then
+  (
     DoF : DoF + 1
-  ) elseif is(op(lo)=bcs) then (
+    )
+  elseif is(op(lo)=bcs) then
+  (
     DoF : DoF + length(args(lo))
-  ),
-  if is(op(up)=dg) then (
+    ),
+  if is(op(up)=dg) then
+  (
     DoF : DoF + 1 + C
-  ) elseif is(op(up)=bc) then (
+    )
+  elseif is(op(up)=bc) then (
     DoF : DoF + 1
-  ) elseif is(op(up)=bcs) then (
+    )
+  elseif is(op(up)=bcs) then (
     DoF : DoF + length(args(up))
-  ),
+    ),
   
   /* Forming and solving the equation system */
   rExp : doExpand(r, makelist(recDir^i, i, 0, DoF-1)),
@@ -71,36 +80,46 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   recEqList : calcInnerProdList([recDir], 1, baCe1D,
     rExp-doExpand(qCe1D, baCe1D)),
   
-  if is(op(lo)=dg) then (
-    if length(args(lo)) > 1 then (
+  if is(op(lo)=dg) then
+  (
+    if length(args(lo)) > 1 then
+    (
       rLo : calcRecov2CellGenNonuniform(basisNm, recDir, [recDir], polyOrder,
         dxlo, dxce, dg(qLo1D, args(lo)[2]), dg(qCe1D))
-    ) else (
+      )
+    else
+    (
       rLo : calcRecov2CellGenNonuniform(basisNm, recDir, [recDir], polyOrder,
         dxlo, dxce, dg(qLo1D), dg(qCe1D))
-    ),
-    for i : 0 thru C do (
+      ),
+    for i : 0 thru C do
+    (
       recEqList : append(
         recEqList,
         [subst(recDir=0, diff(rLo, recDir, i))
           - subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir, i))]
+        )
       )
     )
-  ) elseif is(op(lo)=bc) then (
+  elseif is(op(lo)=bc) then
+  (
     recEqList : append(
       recEqList,
       [subst(args(lo), val - D*subst(recDir=-dxce[recDirIdx]/2, rExp)
         - N*subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir)))]
+      )
     )
-  ) elseif is(op(lo)=bcs) then (
-    for i : 1 thru length(args(lo)) do (
+  elseif is(op(lo)=bcs) then
+  (
+    for i : 1 thru length(args(lo)) do
+    (
       recEqList : append(
         recEqList,
         [subst(args(lo)[i], val)
           - subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir, subst(args(lo)[i], der)))]
+        )
       )
-    )
-  ),
+    ),
   
   if is(op(up)=dg) then (
     if length(args(up)) > 1 then (
@@ -160,14 +179,15 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
     
     projSubList : [],
     if is(op(lo)=dg) then (
-      dimProjLo : calcInnerProdListGen([recDir], [[-dxce[recDirIdx]/2-dxlo[recDirIdx], -dxce[recDirIdx]/2]],
+      dimProjLo : calcInnerProdListGen([recDir],
+        [[-dxce[recDirIdx]/2-dxlo[recDirIdx], -dxce[recDirIdx]/2]],
         1, baLo1D, doExpand(args(lo)[1], baLoND)),
       projSubList : append (
         projSubList,
         makelist(qLo1D[i]=dimProjLo[i], i, 1, length(baCe1D))
       )
     )
-    else (
+    elseif is(op(lo)=bc) then (
       bcExp : subst(args(lo), dg),
       if not atom(bcExp) then (
         projSubList : append(
@@ -191,8 +211,7 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
         projSubList,
         makelist(qUp1D[i]=dimProjUp[i], i, 1, length(baCe1D))
       )
-    )
-    else (
+    ) elseif is(op(up)=bc) then (
       bcExp : subst(args(up), dg),
       if not atom(bcExp) then (
         projSubList : append(

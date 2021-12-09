@@ -13,10 +13,6 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     lo : can be one of the following
       * dg(A) : A is an array of expansion coefficients corresponding
         to logical space basis functions
-      * bc(D=_, N=_, val=_) : a boundary condition definition
-        D*f(x)+N*df(x)/dx=val; note that this BC is definided at the
-        interface between the two cells, which makes this a quite
-        weird case that will most likely not see much use
       * dg(A, bc(D=_, N=_, val=_)) : a constrained recovery where
         expansion coefficients are used together with boundary
         conditions at the edge
