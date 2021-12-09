@@ -62,7 +62,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
   elseif is(op(lo)=bc) then (
     DoF : DoF + 1 /* only 1 DoF for BC */
   )
-  else (
+  elseif is(op(lo)=bcs) then (
     DoF : DoF + length(args(lo))
   ),
   if is(op(up)=dg) then (
@@ -79,7 +79,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
   elseif is(op(up)=bc) then (
     DoF : DoF + 1 /* only 1 DoF for BC */
   )
-  else (
+  elseif is(op(up)=bcs) then (
     DoF : DoF + length(args(up))
   ),
   rExp : doExpand(r, makelist(recDir^i, i, 0, DoF-1)), /* recovery polynomial */
@@ -99,7 +99,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
             - N*subst(recDir=-dxlo[recDirIdx], diff(rExp, recDir)))]
         )
       )
-      else (
+      elseif is(op(args(lo)[2])=bcs) then (
         for i : 1 thru length(args(args(lo)[2])) do (
           recEqList : append(
             recEqList,
@@ -141,7 +141,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
             - N*subst(recDir=dxup[recDirIdx], diff(rExp, recDir)))]
         )
       )
-      else (
+      elseif is(op(args(up)[2])=bcs) then (
         for i : 1 thru length(args(args(up)[2])) do (
           recEqList : append(
             recEqList,

@@ -31,7 +31,8 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   wx, wy, wz,
   recDirIdx,
   numDims,
-  shiftList
+  shiftList,
+  perpDirs, baCeNDw, bcExp
   ],
 
   for i : 1 thru length(dirs) do (
@@ -48,11 +49,20 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   still, they are still required in the same spot as in the case of
   the other methods for clarity */
 
-  DoF : polyOrder + 3,
-  for i : 1 thru C do (
-    /* Increase the final number of degrees of freedom for C_1 continuity */
-    if is(op(lo)=dg) then DoF : DoF + 1,
-    if is(op(up)=dg) then DoF : DoF + 1
+  DoF : polyOrder + 1,
+  if is(op(lo)=dg) then (
+    DoF : DoF + 1 + C
+  ) elseif is(op(lo)=bc) then (
+    DoF : DoF + 1
+  ) elseif is(op(lo)=bcs) then (
+    DoF : DoF + length(args(lo))
+  ),
+  if is(op(up)=dg) then (
+    DoF : DoF + 1 + C
+  ) elseif is(op(up)=bc) then (
+    DoF : DoF + 1
+  ) elseif is(op(up)=bcs) then (
+    DoF : DoF + length(args(up))
   ),
   
   /* Forming and solving the equation system */
@@ -76,11 +86,19 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
           - subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir, i))]
       )
     )
-  ) else (
+  ) elseif is(op(lo)=bc) then (
     recEqList : append(
       recEqList,
       [subst(args(lo), val - D*subst(recDir=-dxce[recDirIdx]/2, rExp)
         - N*subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir)))]
+    )
+  ) elseif is(op(lo)=bcs) then (
+    for i : 1 thru length(args(lo)) do (
+      recEqList : append(
+        recEqList,
+        [subst(args(lo)[i], val)
+          - subst(recDir=-dxce[recDirIdx]/2, diff(rExp, recDir, subst(args(lo)[i], der)))]
+      )
     )
   ),
   
@@ -99,11 +117,19 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
           - subst(recDir=dxce[recDirIdx]/2, diff(rExp, recDir, i))]
       )
     )
-  ) else (
+  ) elseif is(op(up)=bc) then (
     recEqList : append(
       recEqList,
       [subst(args(up), val - D*subst(recDir=dxce[recDirIdx]/2, rExp)
         - N*subst(recDir=dxce[recDirIdx]/2, diff(rExp, recDir)))]
+    )
+  ) elseif is(op(up)=bcs) then (
+    for i : 1 thru length(args(up)) do (
+      recEqList : append(
+        recEqList,
+        [subst(args(up)[i], val)
+          - subst(recDir=dxce[recDirIdx]/2, diff(rExp, recDir, subst(args(up)[i], der)))]
+      )
     )
   ),
 
