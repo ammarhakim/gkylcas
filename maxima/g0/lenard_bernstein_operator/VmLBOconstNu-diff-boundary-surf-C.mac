@@ -1,0 +1,96 @@
+/* [wxMaxima: hide output   ] */
+load("modal-basis")$
+
+load("out-scripts");
+
+load(stringproc)$
+
+load("nodalOperations/nodalFunctions")$
+
+load("recovery")$
+
+fpprec : 24$
+
+/* This script generates the kernels for the surface term
+   contribution from Lenard Bernstein operator using
+   two integrations by parts for the diffusive term and
+   a constant collisionality nu. */
+
+cvars : [x, y, z]$
+
+vvars : [vx, vy, vz]$
+
+vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
+
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+load ("scifac")$
+
+writeCIncrExprs1s(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then printf(fh, "  ~a += ~a; ~%", lhs[i-1], expr[i])
+  )
+)$
+
+calcConstNuBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
+  [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
+  if (basisFun="ser") then basisFun:"Ser",
+  if (basisFun="tensor") then basisFun:"Tensor",
+  kill(varsC, varsP, basisC, basisP),
+  /* Load basis of dimensionality requested. */
+  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  pDim : cdim+vdim,
+  /* Variables. */
+  vid  : vidx(cdim,vdim),
+  vid1 : vidx1(cdim,vdim),
+  vv   : vvars[dir],
+  /* Polynomial basis and its derivatives. */
+  bP  : basisP[polyOrder],  NP : length(bP),
+  bC  : basisC[polyOrder],  NC : length(bC),
+  bPp : diff(bP,vv),
+  fEdge_e : doExpand(makelist(fEdge[i-1],i,1,NP), bP),
+  fSkin_e : doExpand(makelist(fSkin[i-1],i,1,NP), bP),
+  /* Construct the recovery polynomial */
+  hl_e : calcRecov1CellGen(basisFun, vv, varsP, polyOrder, 1, bcs([val=subst(vv=-1,fSkin_e), der=1],[val=0, der=0]), dg(makelist(fSkin[i-1],i,1,NP)), dg(makelist(fEdge[i-1],i,1,NP))),
+  hr_e : calcRecov1CellGen(basisFun, vv, varsP, polyOrder, 1, dg(makelist(fEdge[i-1],i,1,NP)), dg(makelist(fSkin[i-1],i,1,NP)), bcs([val=subst(vv=1,fSkin_e), der=1],[val=0, der=0])),
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
+  /*............. RECOVERY DONE ..............................*/
+        
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]:         Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:       Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum:         collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuUSum[~a]:    sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
+  printf(fh, "  // nuVtSqSum[~a]: sum of thermal speeds squared time their respective collisionalities. ~%", NC),
+  printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
+  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
+  printf(fh, "~%"),
+  /* First compute the contribution coming from the second
+     differentiation by parts to left and right cells. */
+  nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
+
+  diff_incr_le : calcInnerProdList(varsP, 1, bP, nuVtSqSum_e*diff(hl_e, vv, 2)),
+  diff_incr_re : calcInnerProdList(varsP, 1, bP, nuVtSqSum_e*diff(hr_e, vv, 2)),
+  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", length(bP)),
+  printf(fh, "~%"),
+  printf(fh, "  if (edge == -1) { ~%~%"),
+    
+  tempVars : writeCExprs1(diff_incr, diff_incr_le),
+  printf(fh, "~%"),
+  
+  /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
+  printf(fh, "~%  } else { ~%~%"),
+  
+  tempVars : writeCExprs1(diff_incr, diff_incr_re),
+  printf(fh, "~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, "~%"),
+    
+  writeCIncrExprs1(out, rdvSq4*makelist(diff_incr[i-1],i,1,NP)),
+  printf(fh, "} ~%")
+);
+
+
