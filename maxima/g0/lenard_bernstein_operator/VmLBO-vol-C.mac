@@ -1,4 +1,4 @@
-load("lenardBernsteinOperator-calc/g0/VmLBOconstNu-vol-C")$
+load("g0/lenard_bernstein_operator/VmLBOconstNu-vol-C")$
 
 load(stringproc)$
 
@@ -8,6 +8,8 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
+
+minPolyOrder_Ser : 1$
 
 maxPolyOrder_Ser : 2$
 
@@ -20,6 +22,8 @@ maxVdim_Ser : 3$
 
 /* Maximal order basis. */
 
+minPolyOrder_Max : 1$
+
 maxPolyOrder_Max : 3$
 
 minCdim_Max : 1$
@@ -30,6 +34,8 @@ maxCdim_Max : 0$
 maxVdim_Max : 0$
 
 /* Tensor product basis. */
+
+minPolyOrder_Tensor : 2$
 
 maxPolyOrder_Tensor : 2$
 
@@ -42,7 +48,9 @@ maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","tensor"]$
+bName        : ["ser","max","tensor"]$
+
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
 
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
 
@@ -59,10 +67,10 @@ for bInd : 1 thru length(bName) do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
 
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-      if (c+v=6 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      minPolyOrderB : minPolyOrder[bInd],
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
-      for polyOrder : 1 thru maxPolyOrderB do (
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
 
         disp(printf(false,sconcat("Creating volume VmLBOconstNu",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
         funcName : sconcat("vlasov_lbo_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),

@@ -22,6 +22,8 @@ namespace Gkyl {
     GiNaC::lst get_basis() const { return bc; }
     /* Get variables */
     GiNaC::lst get_vars() const;
+    /* Return nth variable */
+    const GiNaC::symbol& get_var(int n) const { return vars[n]; }
 
     /* Get derivative of basis functions wrt to n-th indep. var */
     GiNaC::lst diffBasis(int n) const;

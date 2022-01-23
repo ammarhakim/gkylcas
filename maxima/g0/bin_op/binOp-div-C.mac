@@ -1,16 +1,12 @@
 /* Generate kernels that perform weak division of two
    fields, say if Au .= B, (where .= means weak equality)
    then this kernel computes u .= A\B. */
-
 /* To avoid the expensive algebraic matrix inversion in
    Maxima we use Eigen to solve the system. */
 
 load("modal-basis");
-
 load("out-scripts");
-
 load(stringproc)$
-
 load("fem-calc/femMatrices");
 
 fpprec : 24$
@@ -50,25 +46,10 @@ writeCExprs0s(lhs, rhs) := block([expr],
   )
 )$
 
-/* Convert exponentials into hyperbolic function. */
-
-toHyper(expr,vars) := block([],
-  for iv : 1 thru length(vars) do (
-    expr : subst(vars[iv]=vars[iv]/%i,demoivre(subst(vars[iv]=%i*vars[iv],expr)))
-  )
-)$
-
-calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder, applyPos) := block([Elhs,Eflat,Ef,eq,E],
+calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,Ef,eq,E],
 
   if (basisFun="ser") then basisFun:"Ser",
   if (basisFun="tensor") then basisFun:"Tensor",
-    
-  kill(varsC, varsP, basisC, basisP),
-  if applyPos then (
-    load(sconcat("basis-precalc/basis", basisFun, 1, "x")),
-    bC1 : basisC[1]    /* Save 1D basis for later use. */
-  ),
-
   kill(varsC, varsP, basisC, basisP),
 
   modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
@@ -161,7 +142,6 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder, applyPos) := block([E
   ),
 
   div(nSpaces) := block([],
-
     printf(fh,sconcat(smake(nSpaces," "),"  // Solve the system of equations. ~%")),
     printf(fh,sconcat(smake(nSpaces," "),"  long ipiv[",N,"]; ~%")),
     printf(fh,sconcat(smake(nSpaces," "),"  gkyl_mat_linsolve_lu(A,rhs,ipiv); ~%")),

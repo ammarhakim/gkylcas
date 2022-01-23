@@ -1,6 +1,6 @@
 /* Functions to work with nodes and nodal expansions,
    and to interface modal algorithms with nodal ones. */
-load("nodal_operations/node_locations")$
+load("g0/nodal_operations/node_locations")$
 load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
@@ -97,7 +97,7 @@ calcNodToMod(basisType, dim, p) := block([basisNodToMod],
 
 /* Given a 'modalBasis', in the variables 'vars'. */
 calcBasisModToNodWithNodesAndBasis(nodes, modalBasis, vars) := block([basisNodToMod],
-  basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars),
+  basisNodToMod : fullratsimp(calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars)),
   return(invert(basisNodToMod))
 )$
 
@@ -174,7 +174,7 @@ getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block([basisModT
     vars  : varsP
   ),
   replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
-  basis : subst(replaceList,basis),
+  basis : psubst(replaceList,basis),
   nodalBasis : getNodalBasisWithNodesAndBasis(nodes, basis, varsIn),
   return(nodalBasis)
 )$

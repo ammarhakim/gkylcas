@@ -13,10 +13,6 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     lo : can be one of the following
       * dg(A) : A is an array of expansion coefficients corresponding
         to logical space basis functions
-      * bc(D=_, N=_, val=_) : a boundary condition definition
-        D*f(x)+N*df(x)/dx=val; note that this BC is definided at the
-        interface between the two cells, which makes this a quite
-        weird case that will most likely not see much use
       * dg(A, bc(D=_, N=_, val=_)) : a constrained recovery where
         expansion coefficients are used together with boundary
         conditions at the edge
@@ -62,7 +58,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
   elseif is(op(lo)=bc) then (
     DoF : DoF + 1 /* only 1 DoF for BC */
   )
-  else (
+  elseif is(op(lo)=bcs) then (
     DoF : DoF + length(args(lo))
   ),
   if is(op(up)=dg) then (
@@ -79,7 +75,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
   elseif is(op(up)=bc) then (
     DoF : DoF + 1 /* only 1 DoF for BC */
   )
-  else (
+  elseif is(op(up)=bcs) then (
     DoF : DoF + length(args(up))
   ),
   rExp : doExpand(r, makelist(recDir^i, i, 0, DoF-1)), /* recovery polynomial */
@@ -99,7 +95,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
             - N*subst(recDir=-dxlo[recDirIdx], diff(rExp, recDir)))]
         )
       )
-      else (
+      elseif is(op(args(lo)[2])=bcs) then (
         for i : 1 thru length(args(args(lo)[2])) do (
           recEqList : append(
             recEqList,
@@ -141,7 +137,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
             - N*subst(recDir=dxup[recDirIdx], diff(rExp, recDir)))]
         )
       )
-      else (
+      elseif is(op(args(up)[2])=bcs) then (
         for i : 1 thru length(args(args(up)[2])) do (
           recEqList : append(
             recEqList,
@@ -201,7 +197,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
         makelist(qLo1D[i]=dimProjLo[i], i, 1, length(baCe1D))
       ),
       if length(args(lo)) > 1 then (
-        bcExp : subst(args(args(lo)[2]), ec),
+        bcExp : subst(args(args(lo)[2]), dg),
         if not atom(bcExp) then (
           projSubList : append(
             projSubList,
@@ -218,7 +214,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
         makelist(qUp1D[i]=dimProjUp[i], i, 1, length(baCe1D))
       ),
       if length(args(up)) > 1 then (
-        bcExp : subst(args(args(up)[2]), ec),
+        bcExp : subst(args(args(up)[2]), dg),
         if not atom(bcExp) then (
           projSubList : append(
             projSubList,
