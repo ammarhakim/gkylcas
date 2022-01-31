@@ -1,28 +1,19 @@
 load("modal-basis")$
-
 load("out-scripts");
-
 load(stringproc)$
-
 load("nodalOperations/nodalFunctions")$
-
 load("recovery")$
 
 fpprec : 24$
 
 /* This script generates the kernels for the surface term
-   contribution from Lenard Bernstein operator using
-   two integrations by parts for the diffusive term and
+   diffusion contribution from Lenard Bernstein operator using
    a constant collisionality nu. */
 
 varsV : [vx, vy, vz]$
-
 cvars : [x, y, z]$
-
 vvars : [vx, vy, vz]$
-
 vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
-
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 load ("scifac")$
@@ -67,14 +58,19 @@ calcConstNuDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, num
   printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
   printf(fh, "  // out:           incremented distribution function in cell ~%"),
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
+  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", length(bP)),
   printf(fh, "  double diff_incr[~a] = {0.0}; ~%", length(bP)),
   printf(fh, "~%"),
     
   /* First compute the contribution coming from the second
      differentiation by parts to left and right cells. */
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
- 
-  diff_incr_e : calcInnerProdList(varsP, 1, bP, nuVtSqSum_e*diff(h_e, vv, 2)),
+    
+  temp_diff_e : calcInnerProdList(varsP, 1, bP, diff(h_e, vv, 2)),
+  tempVars : writeCExprs1(temp_diff, temp_diff_e),
+  printf(fh, "~%"),
+    
+  diff_incr_e : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_diff,bP)),
   tempVars : writeCExprs1(diff_incr, diff_incr_e),
   printf(fh, "~%"),
   

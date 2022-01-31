@@ -1,32 +1,21 @@
 load("modal-basis")$
-
 load("out-scripts");
-
 load(stringproc)$
-
 load("nodalOperations/nodalFunctions")$
-
 load("recovery")$
 
 fpprec : 24$
 
 /* This script generates the kernels for the surface term
-   contribution from Lenard Bernstein operator using
-   two integrations by parts for the diffusive term and
+   drag contribution from Lenard Bernstein operator using
    a constant collisionality nu. */
 
 cvars : [x, y, z]$
-
 vvars : [vx, vy, vz]$
-
 nuUSumx : [sumNuUx, sumNuUy, sumNuUz]$
-
 vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
-
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 load ("scifac")$

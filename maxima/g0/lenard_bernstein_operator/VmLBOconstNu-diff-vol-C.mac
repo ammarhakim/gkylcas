@@ -1,34 +1,23 @@
 load("modal-basis")$
-
 load("out-scripts");
-
 load(stringproc)$
 
 fpprec : 24$
 
 /* This script generates the kernels for the volume term
-   contribution from Lenard Bernstein operator to the
-   Vlasov equation using two integrations by parts for
-   the diffusive term. */
+   diffusion contribution from Lenard Bernstein operator to the
+   Vlasov equation. */
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
-
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 cvars  : [x, y, z]$
-
 varsV  : [vx, vy, vz]$
-
 rdv2   : [rdvx2, rdvy2, rdvz2]$
-
 rdvSq4 : [rdvxSq4, rdvySq4, rdvzSq4]$
 
 /* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-
 /* For example, alpha, the phase space flow only depends on a few phase space coordinates. */
-
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
-
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcVmLBOconstNuDiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
