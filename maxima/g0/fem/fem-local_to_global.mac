@@ -14,8 +14,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
 
   load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
 
-  /* Associative list between stencil location (-1,0,1) and variable
-     strings used in kernel names. */
+  /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
@@ -192,7 +191,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
                 boundCellOffFac : getCellMemOff(newLoc),
                 newNodeIdx      : sublist_indices(nodes, lambda([x], x=newNode))[1],
                 nodeMemOff      : sum(newCellIdx[d]*boundCellOffFac[d],d,1,dim)+newNodeIdx-1,
-                printf(fh, " ~aif ~a {~%",ifStr,condStr),
+                printf(fh, " ~aif (~a) {~%",ifStr,condStr),
                 printf(fh, "    ~a = ~a; ~%", globalIdxs[nI-1], fullratsimp(nodeMemOff)),
                 printf(fh, "  }"),
                 ifStr : "else "

@@ -38,7 +38,7 @@ maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
 for bInd : 1 thru length(bName) do (
 
   /**
-  fname : sconcat("~/max-out/FemPoissonSetup", bName[bInd], ".cpp"),
+  fname : sconcat("~/max-out/FemPoissonSetup", bName[bInd], ".c"),
   fh    : openw(fname),
 
   printf(fh, "#include <FemPoissonModDecl.h> ~%"),
@@ -52,12 +52,12 @@ for bInd : 1 thru length(bName) do (
   **/
 
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    fname : sconcat("~/max-out/fem_poisson_", c, "x_", bName[bInd], ".cpp"),
+    fname : sconcat("~/max-out/fem_poisson_", c, "x_", bName[bInd], ".c"),
     fh    : openw(fname),
   
     disp(printf(false,sconcat("Creating ~ax ", bName[bInd]),c)),
   
-    printf(fh, "#include <FemPoissonModDecl.h> ~%"),
+    printf(fh, "#include <gkyl_fem_poisson.h> ~%"),
     printf(fh, " ~%"),
     
     /* Number of nodes in linear problem. */
