@@ -1,6 +1,6 @@
 /* Functions to work with nodes and nodal expansions,
    and to interface modal algorithms with nodal ones. */
-load("g0/nodal_operations/node_locations")$
+load("nodal_operations/node_locations")$
 load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
@@ -163,7 +163,7 @@ getNodalBasisWithNodes(basisType, dim, p, nodes) := block(
 )$
 
 /* Given a set of nodes and variable list. */
-getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block(,
+getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block(
   [basis,vars,replaceList,nodalBasis],
   dimIn : length(varsIn),
   if (dim < 4) then (
