@@ -1,0 +1,417 @@
+/* Generate kernels for the updater that computes the primitive
+   moments u and vt^2 given the moments and the distribution function.
+   Weak division, multiplication and dot products are employed. */
+
+/* Generate kernels for the updater that computes the primitive
+   moments u_ei and vtSq_ei (or u_ie and vtSq_ie) used in the cross
+   collision term, given the moments and and primitive moments
+   of the electrons and ions. Weak division and multiplication
+   are employed. */
+
+/* To avoid the expensive symbolic matrix inversion in
+   Maxima we use Eigen to solve the system. */
+
+/* In the comments we refer to the rank 3 tensor E_M. This is
+   E_{M,i,j,k} = InnerProd(varsC,bC[i],bC[j],bC[k]). */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+VarsC : [X, Y, Z]$
+varsV : [vx, vy, vz]$
+
+writeCExprsA(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then printf(fh, "  ~a,~a); ~%", lhs[i], expr[i])
+  )
+)$
+
+writeCExprsB(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", sremove("\\", ssubst(")","]",ssubst("(","[",string(lhs[i])))), expr[i])
+  )
+)$
+
+writeEVExprs(lhs, rhs, vd, nc, p) := block([expr],
+  len   : length(rhs),
+  /* vd*nc*8 is the number of coefficients from mnuM1sum. */
+  /* nc*8 is the number of coefficients from mnuM2sum. */
+  /* vd*nc*7 is the number of coefficients from m1Relax. */
+  /* nc*7 is the number of coefficients from m2Relax. */
+  /* (len-1) is the number of commas. */
+  /* 2*len is the number of square brackets. */
+  /* 1 is the number semi-colons? might just be an indexing thing.*/
+  start : vd*nc*8+nc*8+vd*nc*7+nc*7+(len-1)+2*len+1,
+  /* Number of characters indexing coefficients of mnuM1sum. */
+  for k : 1 thru vd*nc do (
+    start : start+slength(string(k-1))
+  ),
+  /* Number of characters indexing coefficients of mnuM2sum. */
+  for k : 1 thru nc do (
+    start : start+slength(string(k-1))
+  ),
+  /* Number of characters indexing coefficients of m1Relax. */
+  for k : 1 thru vd*nc do (
+    start : start+slength(string(k-1))
+  ),
+  /* Number of characters indexing coefficients of m2Relax. */
+  for k : 1 thru nc do (
+    start : start+slength(string(k-1))
+  ),
+  printf(fh, "  ~a << ~a; ~%", lhs, sremove("]",sremovefirst("[",string(rhs)),sequal,start))
+)$
+
+writeEVExprsDiv(lhs, rhs, vd, nc, p, nSlen) := block([expr],
+  len   : length(rhs),
+  /* nc*nSlen is the number of coefficients from variable w/ name of nSlen characters. */
+  /* (len-1) is the number of commas. */
+  /* 2*len is the number of square brackets. */
+  /* 1 is the number semi-colons? might just be an indexing thing.*/
+  start : nc*nSlen+(len-1)+2*len+1,
+  /* Number of characters indexing coefficients of mnuM1sum. */
+  for k : ((vd-1)*nc+0) thru (vd*nc-1) do (
+    start : start+slength(string(k))
+  ),
+  printf(fh, "  ~a << ~a; ~%", lhs, sremove("]",sremovefirst("[",string(rhs)),sequal,start))
+)$
+
+writeCExprs1s(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh, "    ~a = ~a; ~%", lhs[i-1], expr[i])
+  )
+)$
+
+calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+
+  kill(varsC, varsP, basisC, basisP),
+
+  if (basisFun="ser") then basisFun:"Ser",
+  if (basisFun="tensor") then basisFun:"Tensor",
+  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  if (basisFun="Ser") then basisFun:"ser",
+  if (basisFun="Tensor") then basisFun:"tensor",
+
+  if (sequal(substring(funcNm,1,7),"vlasov")) then (
+    udim        : vdim,   /* Number of configuration space components of the mean flow velocity. */
+    vDegFreedom : vdim    /* Number of velocity degrees of freedom. */
+  ) else (
+    udim        : 1,    /* Number of configuration space components of the mean flow velocity. */
+    vDegFreedom : 2*vdim-1    /* Number of velocity degrees of freedom. */
+  ),
+
+  bC  : basisC[polyOrder],
+  bP  : basisP[polyOrder],
+  NP  : length(bP),
+  NC  : length(bC),
+  
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double betaGreenep1, const double mSelf, const double nuSelf, const double *uSelf, const double *vtSqSelf, const double mOther, const double nuOther, const double *uOther, const double *vtSqOther, const double *m0, const double *m1, const double *m2, const double *cM, const double *cE, double *uCross, double *vtSqCross) ~%{ ~%", funcNm),
+  printf(fh, "  // betaGreenep1:       free parameter beta+1. This has to be >0. ~%"),
+  printf(fh, "  // nu, m:              collisionality and mass. ~%"),
+  printf(fh, "  // m0,m1,m2:           moments of the distribution function. ~%"),
+  printf(fh, "  // u,vtSq:             self primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, "  // cM,cE:              corrections to momentum and energy conservation due to finite velocity space. ~%"),
+  printf(fh, "  // uCross,vtSqCross:   cross primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, " ~%"),
+
+  /* Variables for doing things in loops to shorten Maxima code. */
+  specS    : ["Self"],
+  m0Spec   : [m0],
+  m1Spec   : [m1],
+  m2Spec   : [m2],
+  cMSpec   : [cM],
+  cESpec   : [cE],
+  m0rSpec  : [m0r],
+  m1rSpec  : [m1r],
+  m2rSpec  : [m2r],
+  cMrSpec  : [cMr],
+  cErSpec  : [cEr],
+
+  /* In order to avoid dividing by very small, negative or zero densities
+     use the cell average m0 when m0<0 at one of the corners. */
+  printf(fh, "  // If a corner value is below zero, use cell average m0.~%"),
+  printf(fh, "  bool cellAvg = false;~%"),
+  for iSpec : 1 thru 1 do (
+    for v1 : -1 step 2 thru 1 do (
+      cornerX : subst(varsC[1]=v1,doExpand1(m0Spec[iSpec],bC)),
+      if cdim > 1 then (
+        for v2 : -1 step 2 thru 1 do (
+          cornerY : subst(varsC[2]=v2,cornerX),
+          if cdim > 2 then (
+            for v3 : -1 step 2 thru 1 do (
+              cornerZ : subst(varsC[3]=v3,cornerY),
+              printf(fh, "  if (~a < 0) { ~%",float(expand(cornerZ))),
+              printf(fh, "    cellAvg = true;~%"),
+              printf(fh, "  }~%")
+            )
+          ) else (
+            printf(fh, "  if (~a < 0) { ~%",float(expand(cornerY))),
+            printf(fh, "    cellAvg = true;~%"),
+            printf(fh, "  }~%")
+          )
+        )
+      ) else (
+        printf(fh, "  if (~a < 0) { ~%",float(expand(cornerX))),
+        printf(fh, "    cellAvg = true;~%"),
+        printf(fh, "  }~%")
+      )
+    ),
+    printf(fh, " ~%"),
+
+    /* Declare new buffers where moments and star moments are stored. */
+    printf(fh, sconcat("  double m0r[~a]; ~%"), NC),
+    printf(fh, sconcat("  double m1r[~a]; ~%"), udim*NC),
+    printf(fh, sconcat("  double m2r[~a]; ~%"), NC),
+    printf(fh, sconcat("  double cMr[~a]; ~%"), udim*NC),
+    printf(fh, sconcat("  double cEr[~a]; ~%"), NC),
+
+    printf(fh, "  if (cellAvg) { ~%"),
+    /* Use the cell average of m0, m1 and m2. */
+    writeCExprs1s(m0rSpec[iSpec],append([m0Spec[iSpec][0]],makelist(0.0,i,1,NC-1))),
+    for vd : 1 thru udim do (
+      expr : float(expand(append([m1Spec[iSpec][(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
+      for i : 1 thru length(expr) do (
+        printf(fh, "    ~a = ~a; ~%", m1rSpec[iSpec][(vd-1)*NC+i-1], expr[i])
+      ),
+      expr : float(expand(append([cMSpec[iSpec][(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
+      for i : 1 thru length(expr) do (
+        printf(fh, "    ~a = ~a; ~%", cMrSpec[iSpec][(vd-1)*NC+i-1], expr[i])
+      )
+    ),
+    writeCExprs1s(m2rSpec[iSpec],append([m2Spec[iSpec][0]],makelist(0.0,i,1,NC-1))),
+    writeCExprs1s(cErSpec[iSpec],append([cESpec[iSpec][0]],makelist(0.0,i,1,NC-1))),
+    printf(fh, "  } else { ~%"),
+    /* Use the original expansion polynomial. */
+    writeCExprs1s(m0rSpec[iSpec],makelist(m0Spec[iSpec][i],i,0,NC-1)),
+    writeCExprs1s(m1rSpec[iSpec],makelist(m1Spec[iSpec][i],i,0,udim*NC-1)),
+    writeCExprs1s(m2rSpec[iSpec],makelist(m2Spec[iSpec][i],i,0,NC-1)),
+    writeCExprs1s(cMrSpec[iSpec],makelist(cMSpec[iSpec][i],i,0,udim*NC-1)),
+    writeCExprs1s(cErSpec[iSpec],makelist(cESpec[iSpec][i],i,0,NC-1)),
+    if (polyOrder=1) then (
+      writeCExprs1s(m0SrSpec[iSpec],makelist(m0SSpec[iSpec][i],i,0,NC-1)),
+      writeCExprs1s(m1SrSpec[iSpec],makelist(m1SSpec[iSpec][i],i,0,udim*NC-1)),
+      writeCExprs1s(m2SrSpec[iSpec],makelist(m2SSpec[iSpec][i],i,0,NC-1))
+    ),
+    printf(fh, "  } ~%"),
+    printf(fh, " ~%")
+  ),
+
+  /* Expansion in configuration space basis and coefficients of m0 and m2. */
+  m0_e  : doExpand1(m0r, bC),
+  m0_c  : makelist(m0r[i],i,0,NC-1),
+  m2_e  : doExpand1(m2r, bC),
+  m2_c  : makelist(m2r[i],i,0,NC-1),
+  /* Equivalently for  vtSq .*/
+  vtSqSelf_e  : doExpand1(vtSqSelf,bC),
+  vtSqSelf_c  : makelist(vtSqSelf[i],i,0,NC-1),
+  vtSqOther_e : doExpand1(vtSqOther,bC),
+  vtSqOther_c : makelist(vtSqOther[i],i,0,NC-1),
+  vtSqCross_e  : doExpand1(vtSqCrossSelf,bC),
+  vtSqCross_c  : makelist(vtSqCrossSelf[i],i,0,NC-1),
+  /* cM and cE are the corrections to u and vtSq
+     needed to preserve momentum and energy conservation. */
+  cE_e  : doExpand1(cEr, bC),
+  cE_c  : makelist(cEr[i],i,0,NC-1),
+
+  /* N is the size of the linear problem. LHS Eigen matrix is NxN. */
+  N : NC*2*(udim+1),
+
+  /* Make a list of the LHS matrix assignments. */
+  /* Note: Eigen defaults to Column-major order. */
+  Ef[i,j] := sconcat("gkyl_mat_set(A,",i,",",j),
+
+  /* Create variable w/ product of mass and collisionality. */  
+  printf(fh, "  double mnuSelf   = ~a; ~%", mSelf*nuSelf),
+  printf(fh, "  double mnuOther  = ~a; ~%", mOther*nuOther),
+
+  /* Variable holding addition of M1 moments for RHS vector. */
+  printf(fh, "  double momRHS[~a]; ~%", udim*NC),
+  printf(fh, "  // zero out momentum RHS array. ~%"),
+  printf(fh, "  for (int vd=0; vd<~a; vd++) ~%",udim*NC),
+  printf(fh, "  { ~%"),
+  printf(fh, "    momRHS[vd] = 0.0; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, " ~%"),
+
+  bRHS_c  : [],
+  for vd : 1 thru udim do (
+    /* Expand u function and create a list of expansion coefficients. */
+    uSelf_e   : doExpand1(uSelf,bC),
+    uSelf_c   : makelist(uSelf[i],i,0,NC-1),
+    uOther_e  : doExpand1(uOther,bC),
+    uOther_c  : makelist(uOther[i],i,0,NC-1),
+    m1_e  : doExpand1(m1r, bC),
+    m1_c  : makelist(m1r[i],i,0,NC-1),
+    cM_e  : doExpand1(cMr, bC),
+    cM_c  : makelist(cMr[i],i,0,NC-1),
+    uCross_e  : doExpand1(uCross,bC),
+    uCross_c  : makelist(uCross[i],i,0,NC-1),
+    /* Use the vd component of u, m1 and cM. */
+    uSelf_e   : subst(makelist(uSelf[i]=uSelf[(vd-1)*NC+i],i,0,NC-1),uSelf_e),
+    uSelf_c   : subst(makelist(uSelf[i]=uSelf[(vd-1)*NC+i],i,0,NC-1),uSelf_c),
+    uOther_e  : subst(makelist(uOther[i]=uOther[(vd-1)*NC+i],i,0,NC-1),uOther_e),
+    uOther_c  : subst(makelist(uOther[i]=uOther[(vd-1)*NC+i],i,0,NC-1),uOther_c),
+    m1_e  : subst(makelist(m1r[i]=m1r[(vd-1)*NC+i],i,0,NC-1),m1_e),
+    m1_c  : subst(makelist(m1r[i]=m1r[(vd-1)*NC+i],i,0,NC-1),m1_c),
+    cM_e  : subst(makelist(cMr[i]=cMr[(vd-1)*NC+i],i,0,NC-1),cM_e),
+    cM_c  : subst(makelist(cMr[i]=cMr[(vd-1)*NC+i],i,0,NC-1),cM_c),
+    uCross_e  : subst(makelist(uCross[i]=uCross[(vd-1)*NC+i],i,0,NC-1),uCross_e),
+    uCross_c  : subst(makelist(uCross[i]=uCross[(vd-1)*NC+i],i,0,NC-1),uCross_c),
+
+    /*........... Matrix block from weak multiply of mSelf, nuSelf, M0 and uCross .............*/
+    eq : calcInnerProdList(varsC,2*mnuSelf*uCross_e,bC,m0_e),
+    E  : fullratsimp(coefmatrix(eq,uCross_c)),
+    /* Flatten E for WriteCExprsA. */
+    Eflat : list_matrix_entries(E),
+  
+    Elhs  : list_matrix_entries(genmatrix(Ef,vd*NC-1,vd*NC-1,(vd-1)*NC,(vd-1)*NC)),
+  
+    printf(fh, "  // ... Block from weak multiply of mSelf, nuSelf, M0 and uCross~a ... // ~%", VarsC[vd]),
+    writeCExprsA(Elhs,Eflat),
+    printf(fh, " ~%"),
+  
+    /*........... Matrix block from correction to momentum conservation (self) .............*/
+    eq : -calcInnerProdList(varsC,2*mnuSelf*vtSqCross_e,bC,cM_e),
+    E  : fullratsimp(coefmatrix(eq,vtSqCross_c)),
+    /* Flatten E for WriteCExprsA. */
+    Eflat : list_matrix_entries(E),
+  
+    Elhs  : list_matrix_entries(genmatrix(Ef,vd*NC-1,(udim+1)*NC-1,(vd-1)*NC,udim*NC)),
+  
+    printf(fh, "  // ... Block from correction to momentum conservation (self) ... // ~%"),
+    writeCExprsA(Elhs,Eflat),
+    printf(fh, " ~%"),
+  
+    /*....... Matrix block from weak multiply of mSelf, nuSelf, M1 and uCross .......*/
+    eq  : calcInnerProdList(varsC,mnuSelf*uCross_e,bC,2*m1_e - (uSelf_e + uOther_e)*m0_e),
+    E     : fullratsimp(coefmatrix(eq,uCross_c)),
+    /* Flatten E for WriteCExprsA. */
+    Eflat : list_matrix_entries(E),
+  
+    Elhs  : list_matrix_entries(genmatrix(Ef,(udim+1)*NC-1,vd*NC-1,udim*NC,(vd-1)*NC)),
+
+    printf(fh, "  // ... Block from weak multiply of mSelf, nuSelf, m1~a and uCross~a ... // ~%", VarsC[vd], VarsC[vd]),
+    writeCExprsA(Elhs,Eflat),
+    printf(fh, " ~%"),
+ 
+    expr : calcInnerProdList(varsC,mnuSelf,bC,2*m1_e - m0_e*betaGreenep1*(uSelf_e - uOther_e)),
+    for i : 1 thru NC do (
+      printf(fh, "  ~a += ~a; ~%", momRHS[(vd-1)*NC+i-1], float(expr[i]))
+    ),
+    printf(fh, " ~%"),
+    momRHS_c  : makelist(momRHS[i],i,0,NC-1),
+    momRHS_c  : subst(makelist(momRHS[i]=momRHS[(vd-1)*NC+i],i,0,NC-1),momRHS_c),
+    bRHS_c : append(bRHS_c,momRHS_c)
+  ),
+
+/*........... Matrix block from correction to (self) 2nd moment of collision operator .............*/
+  /* Need the weak dot product of uSelf and cM. */
+  uSelf_e    : doExpand1(uSelf,bC),
+  uSelf_e    : psubst(makelist(uSelf[i]=uSelf[a0+i],i,0,NC-1),uSelf_e),
+  uOther_e    : doExpand1(uOther,bC),
+  uOther_e    : psubst(makelist(uOther[i]=uOther[a0+i],i,0,NC-1),uOther_e),
+  cM_e   : doExpand1(cMr, bC),
+  cM_e   : psubst(makelist(cMr[i]=cMr[a0+i],i,0,NC-1),cM_e),
+  ucMSelf_c  : calcInnerProdList(varsC,uSelf_e,bC,cM_e),
+  ucMSelf_e  : doExpand1(ucMSelf,bC),
+  ucMOther_c  : calcInnerProdList(varsC,uOther_e,bC,cM_e),
+  ucMOther_e  : doExpand1(ucMOther,bC),
+  printf(fh, "  double ucMSelf[~a]; ~%", NC),
+  printf(fh, "  double ucMOther[~a]; ~%", NC),
+  printf(fh, "  // Zero out array with dot product of uSelf and cMSelf. ~%"),
+  printf(fh, "  for (int vd=0; vd<~a; vd++) ~%",NC),
+  printf(fh, "  { ~%"),
+  printf(fh, "    ucMSelf[vd] = 0.0; ~%"),
+  printf(fh, "    ucMOther[vd] = 0.0; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, "  for (int vd=0; vd<~a; vd++) ~%", udim),
+  printf(fh, "  { ~%"),
+  printf(fh, "    int a0 = ~a; ~%",NC*vd),
+  printf(fh, "    // Contribution to dot-product from weak multiplication of ~a component. ~%",vd),
+  expr : float(expand(ucMSelf_c)),
+  for i : 1 thru NC do (
+    printf(fh, "    ~a += ~a; ~%", ucMSelf[i-1], expr[i])
+  ),
+  expr : float(expand(ucMOther_c)),
+  for i : 1 thru NC do (
+    printf(fh, "    ~a += ~a; ~%", ucMOther[i-1], expr[i])
+  ),
+  printf(fh, "  } ~%"),
+  printf(fh, " ~%"),
+
+  eq : calcInnerProdList(varsC,mnuSelf*vtSqCross_e,bC,2*vdim*m0_e - 2*cE_e + ucMSelf_e + ucMOther_e),
+
+  E : fullratsimp(coefmatrix(eq,vtSqCross_c)),
+  /* Flatten E for WriteCExprsA. */
+  Eflat : list_matrix_entries(E),
+  
+  Elhs  : list_matrix_entries(genmatrix(Ef,N-1,(udim+1)*NC-1,(2*udim+1)*NC,udim*NC)),
+  
+  printf(fh, "  // ... Block from correction to (self) 2nd moment of collision operator ... // ~%"),
+  writeCExprsA(Elhs,Eflat),
+  printf(fh, " ~%"),
+
+  /* Need the weak dot product of uSelf + uOther and M1. */
+  uM1Self_c  : calcInnerProdList(varsC,uSelf_e,bC,m1_e),
+  uM1Self_e  : doExpand1(uM1Self,bC),
+  uM1Other_c  : calcInnerProdList(varsC,uOther_e,bC,m1_e),
+  uM1Other_e  : doExpand1(uM1Other,bC),
+  uSumSq_c  : calcInnerProdList(varsC,uSelf_e - uOther_e,bC,uSelf_e - uOther_e),
+  uSumSq_e  : doExpand1(uSumSq,bC),
+  printf(fh, "  double uM1Self[~a]; ~%", NC),
+  printf(fh, "  double uM1Other[~a]; ~%", NC),
+  printf(fh, "  double uSumSq[~a]; ~%", NC),
+  printf(fh, "  // Zero out array with dot product of uSelf and cMSelf. ~%"),
+  printf(fh, "  for (int vd=0; vd<~a; vd++) ~%",NC),
+  printf(fh, "  { ~%"),
+  printf(fh, "    uM1Self[vd] = 0.0; ~%"),
+  printf(fh, "    uM1Other[vd] = 0.0; ~%"),
+  printf(fh, "    uSumSq[vd] = 0.0; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, "  for (int vd=0; vd<~a; vd++) ~%", udim),
+  printf(fh, "  { ~%"),
+  printf(fh, "    int a0 = ~a; ~%",NC*vd),
+  printf(fh, "    // Dot product terms in energy equation RHS. ~%"),
+  expr : float(expand(uM1Self_c)),
+  for i : 1 thru NC do (
+    printf(fh, "    ~a += ~a; ~%", uM1Self[i-1], expr[i])
+  ),
+  expr : float(expand(uM1Other_c)),
+  for i : 1 thru NC do (
+    printf(fh, "    ~a += ~a; ~%", uM1Other[i-1], expr[i])
+  ),
+  expr : float(expand(uSumSq_c)),
+  for i : 1 thru NC do (
+    printf(fh, "    ~a += ~a; ~%", uSumSq[i-1], expr[i])
+  ),
+  printf(fh, "  } ~%"),
+  printf(fh, " ~%"),
+
+  enRHS1_c  : calcInnerProdList(varsC,mnuSelf*betaGreenep1*m0_e/(mSelf + mOther),bC,vdim*(mOther*vtSqOther_e - mSelf*vtSqSelf_e) + 0.5*(mOther - mSelf)*uSumSq_e),
+  enRHS2_c  : calcInnerProdList(varsC,mnuSelf,bC,2*m2_e - uM1Self_e - uM1Other_e),
+  enRHS_c : enRHS1_c + enRHS2_c,
+  printf(fh, "  double enRHS[~a]; ~%", NC),
+  expr : float(expand(enRHS_c)),
+  for i : 1 thru NC do (
+    printf(fh, "  ~a = ~a; ~%", enRHS[i-1], expr[i])
+  ),
+  printf(fh, " ~%"),
+
+  expr : float(expand(makelist(momRHS[i],i,0,udim*NC-1))),
+  for i : 1 thru length(expr) do (
+    printf(fh,"  gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
+  ),
+  expr : float(expand(makelist(enRHS[i],i,0,NC-1))),
+  for i : 1 thru length(expr) do (
+    printf(fh,"  gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
+  ),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
