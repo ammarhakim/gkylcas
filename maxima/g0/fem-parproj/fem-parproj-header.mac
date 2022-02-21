@@ -21,6 +21,7 @@ fh    : openw(fname)$
 
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 
@@ -32,7 +33,17 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : 1 thru maxPolyOrder[bInd] do (
       /* Number of nodes in linear problem. */
-      printf(fh, "long fem_parproj_num_nodes_global_~ax_~a_p~a(const int numCellsPar);~%", c, bName[bInd], polyOrder)
+      printf(fh, "long fem_parproj_num_nodes_global_~ax_~a_p~a(const int numCellsPar);~%", c, bName[bInd], polyOrder),
+
+      /* Local mass matrix of FEM basis. */
+      printf(fh, "void fem_parproj_mass_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
+      /* Local mass matrix of FEM basis times the modal-to-nodal matrix. */
+      printf(fh, "void fem_parproj_mass_times_modtonod_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
+      /* Local nodal-to-modal matrix. */
+      printf(fh, "void fem_parproj_nodtomod_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
+
+      /* Local to global mapping. */
+      printf(fh, "void fem_parproj_local_to_global_~ax_~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs);~%", c, bName[bInd], polyOrder)
     ),
 
     printf(fh, "~%")
