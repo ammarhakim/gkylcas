@@ -16,7 +16,7 @@ maxCdim_Ser : 1$
 /* Tensor order basis. */
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 1$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
@@ -67,7 +67,7 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         printf(fh, "#include <gkyl_gyrokinetic_kernels.h>~%"),
 
-        funcName : sconcat("gyrokinetic_surf",clabels[1],"_", c, "x", v, "v_", bName[bInd], "_", polyOrder),
+        funcName : sconcat("gyrokinetic_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         calcGKSurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
         close(fh),
 
@@ -78,7 +78,7 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         printf(fh, "#include <gkyl_gyrokinetic_kernels.h>~%"),
 
-        funcName : sconcat("gyrokinetic_boundary_surf",clabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        funcName : sconcat("gyrokinetic_boundary_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         calcGKBoundarySurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
         close(fh)
       )

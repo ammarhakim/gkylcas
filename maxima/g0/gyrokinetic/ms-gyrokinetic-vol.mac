@@ -11,7 +11,7 @@ load("gyrokinetic/gkFuncs-vol")$
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor order basis. */
 maxPolyOrder_Tensor : 2$
@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
       v : gkVdims[c][gkV],
 
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
       for polyOrder : 1 thru maxPolyOrderB do (
 
@@ -54,7 +54,7 @@ for bInd : 1 thru length(bName) do (
         buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
 
         /* Generate the kernel for the second step of GK with Apar. */
-        funcName : sconcat("gyrokinetic_vol_step2_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        funcName : sconcat("gyrokinetic_step2_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         buildGKStep2VolKernel(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
