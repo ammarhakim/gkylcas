@@ -1,6 +1,6 @@
 /*
   Generate the volume kernels for electromagnetic (with Apar)
-  gyrokinetics with general geometry */
+  gyrokinetics with general geometry.
 
   The functions called in this file are in gkFuncs-vol.mac.
 */
@@ -11,12 +11,12 @@ load("gyrokinetic/gkFuncs-vol")$
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$
+maxCdim_Ser : 1$
 
 /* Tensor order basis. */
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 1$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$

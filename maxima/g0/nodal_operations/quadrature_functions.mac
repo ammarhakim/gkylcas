@@ -51,5 +51,50 @@ gaussOrdWeight(n,dim) := block([ordWeight1D,ord1D,weight1D,ord,labWeight1D,
       weight[i] : bfloat(apply("*",float(flatFac)))
     )
   ),
-  [ord,weight]
+  return([ord,weight])
+)$
+
+/* Obtain the ordinates (nodes) for n-point
+   Gaussian quadrature in one dimension. */
+gaussOrd1D(n) := block([p, v],
+   p: expand(legendre_p(n, x)),
+   v: map(rhs, bfallroots(p)),
+   return(map(bfloat, v))
+)$
+
+/* Obtain the ordinates (nodes) for Gaussian
+   quadrature in dim dimensions using points and weights
+   made of Cartesian products of those for n-point quadrature in 1D. */
+gaussOrd(n,dim) := block([ordWeight1D,ord1D,ord,labOrd1D,labOrd,d,i,flatOrd],
+  ord1D : gaussOrd1D(n),
+
+  ord : copylist(ord1D),
+    
+  if dim=1 then(
+    ord : makelist([ord[i]],i,1,length(ord))
+  ) else (
+    /* MF: this may seem more complicated than it needs to be, but I
+           kept it this way to ensure nodes are ordered in the same
+           way as those returned by gaussOrdWeight above. */ 
+    
+    /* In order to use cartesian_product below we need to make
+      the weights distinct. Use a distinct label.
+      Unfortunately this doesn't guarantee the weights are ordered
+      so they match the ordinates. Try labeling the ordinates too. */
+    labOrd1D : makelist([string(i),ord1D[i]],i,1,length(ord1D)),        
+        
+    labOrd : copylist(labOrd1D),
+    
+    labOrd1D : setify(labOrd1D),
+    for d : 2 thru dim do (
+      labOrd : listify(cartesian_product(setify(labOrd),labOrd1D))
+    ),
+
+    ord : makelist(0,i,1,length(labOrd)),
+    for i : 1 thru length(labOrd) do (
+      flatOrd : makelist(flatten(labOrd[i])[2*j],j,1,length(flatten(labOrd[i]))/2),
+      ord[i]  : copylist(flatOrd)
+    )
+  ),
+  return(ord)
 )$

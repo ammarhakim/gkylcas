@@ -1,0 +1,76 @@
+/* Compute the header file for gyrokinetic kernels. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 2$
+
+/* Tensor order basis. */
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+minVdim_Tensor : 1$
+maxCdim_Tensor : 1$
+maxVdim_Tensor : 2$
+
+/* Number of velocity dimensions allowed for each
+   configuration-space dimension. */
+gkVdims : [[1,2], [2], [2]]$
+
+/* ...... END OF USER INPUTS........ */
+
+varsC : [x, y, z]$
+varsV : [vpar, mu]$
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+bVarsList : [x,z]$
+
+printPrototypes() := block([],
+  for bInd : 1 thru length(bName) do (
+    for c : minCdim[bInd] thru maxCdim[bInd] do (
+      for gkV : 1 thru length(gkVdims[c]) do (
+        v : gkVdims[c][gkV],
+  
+        maxPolyOrderB : maxPolyOrder[bInd],
+        if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
+  
+        for polyOrder : 1 thru maxPolyOrderB do (
+
+          printf(fh, "GKYL_CU_DH double gyrokinetic_vol_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double* dApardt, const double *f, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
+          printf(fh, "  double gyrokinetic_vol_step2_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const double *dApardt, const double *f, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
+  
+          for surfDir : 1 thru c+1 do (
+            if surfDir<=c then (dirlabel : varsC[surfDir]) else (dirlabel : varsV[surfDir-c]),
+  
+            printf(fh, "GKYL_CU_DH double gyrokinetic_surf~a_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out); ~%", dirlabel, c, v, bName[bInd], polyOrder)
+          ),
+          printf(fh, "~%")
+
+        )
+      )
+    )
+  )
+)$
+
+fh : openw("~/max-out/gkyl_gyrokinetic_kernels.h")$
+printf(fh, "#pragma once~%")$
+printf(fh, "~%")$
+printf(fh, "#include <math.h>~%")$
+printf(fh, "#include <gkyl_util.h>~%")$
+printf(fh, "~%")$
+printf(fh, "EXTERN_C_BEG~%")$
+printf(fh, "~%")$
+printPrototypes()$
+printf(fh, "~%")$
+printf(fh, "EXTERN_C_END~%")$
+close(fh)$
