@@ -70,9 +70,9 @@ expandInputFields(bC,bmagBasis) := block(
   /* Expand background magnetic field and potentials. */
   bmag_e    : doExpand1(bmag,bmagBasis),
   phi_e     : doExpand1(phi,bC),
-  Apar_e        : doExpand1(Apar,bC),
-  dApardt_e     : doExpand1(dApardt,bC),
-  dApardtPrev_e : doExpand1(dApardtPrev,bC),
+  Apar_e        : doExpand1(apar,bC),
+  dApardt_e     : doExpand1(apardot,bC),
+  dApardtPrev_e : doExpand1(apardot_prev,bC),
   /* NOTE: even though Apar and dApar/dt are allowed to be discontinuous
      in the parallel (z) direction, the surface term in the z direction
      does not involve Apar. Since Apar is continuous in the other directions,
@@ -85,7 +85,7 @@ expandInputFields(bC,bmagBasis) := block(
   b_x_e : doExpand1(b_x, bmagBasis),
   b_y_e : doExpand1(b_y, bmagBasis),
   b_z_e : doExpand1(b_z, bmagBasis),
-  jacobTotInv_e : doExpand1(jacobTotInv, bmagBasis),
+  jacobTotInv_e : doExpand1(jacobtot_inv, bmagBasis),
 
   expOut : append(expOut,[b_x_e,b_y_e,b_z_e,jacobTotInv_e]),
 

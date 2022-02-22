@@ -29,18 +29,18 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double* dApardt, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // Apar: parallel component of magnetic vector potential.~%"),
-  printf(fh, "  // dApardt: time derivative of Apar.~%"),
-  printf(fh, "  // jacobTotInv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
-  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
-  printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double* apardot, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // q_,m_: species charge and mass.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
+  printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
   printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
+  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
   printf(fh, "  // phi: electrostatic potential .~%"),
-  printf(fh, "  // f: Distribution function.~%"),
+  printf(fh, "  // apar: parallel component of magnetic vector potential.~%"),
+  printf(fh, "  // apardot: time derivative of Apar.~%"),
+  printf(fh, "  // fin: Distribution function.~%"),
   printf(fh, "  // out: output increment.~%"),
   printf(fh, "~%"),
 
@@ -135,7 +135,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   ),
 
   /* Expand distribution function on basis. */
-  f_e : doExpand1(f,bP),
+  f_e : doExpand1(fin,bP),
 
   volTerm_c : fullratsimp(innerProd(varsP, 1, f_e, alphaSum_e)),
   writeCIncrExprsNoExpand(gcfac(float(subst(replaceList, facsum(volTerm_c,append(rdx2vec,rdv2vec)))))),
@@ -160,22 +160,22 @@ buildGKStep2VolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numC : length(bC), numP : length(bP),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double q_, const double m_, const double *w, const double *dxv, const double *dApardt, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double q_, const double m_, const double *apardot, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
-  printf(fh, "  // dApardt: time derivative of Apar.~%"),
-  printf(fh, "  // f: Distribution function.~%"),
+  printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "  // apardot: time derivative of Apar.~%"),
+  printf(fh, "  // fIn: Distribution function.~%"),
   printf(fh, "  // out: output increment.~%"),
   printf(fh, "~%"),
 
   printf(fh, "  double rdvpar2 = 2.0/dxv[~a]; ~%", cdim),
 
   /* Expand distribution function on basis. */
-  f_e : doExpand1(f,bP),
+  f_e : doExpand1(fin,bP),
 
   /* Expand dApar/dt. */
-  dApardt_e : doExpand1(dApardt,bC),
+  dApardt_e : doExpand1(apardot,bC),
 
   /* Calculate volume term, which is inner product
      < - f (q/m) dApar/dt d/dvpar(bP) > */
