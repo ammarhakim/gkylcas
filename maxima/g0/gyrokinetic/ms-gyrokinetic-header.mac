@@ -52,8 +52,9 @@ printPrototypes() := block([],
           for surfDir : 1 thru c+1 do (
             if surfDir<=c then (dirlabel : varsC[surfDir]) else (dirlabel : varsV[surfDir-c]),
   
-            printf(fh, "GKYL_CU_DH double gyrokinetic_surf~a_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out); ~%", dirlabel, c, v, bName[bInd], polyOrder)
+            printf(fh, "GKYL_CU_DH void gyrokinetic_surf~a_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out); ~%", dirlabel, c, v, bName[bInd], polyOrder)
           ),
+          printf(fh, "GKYL_CU_DH void gyrokinetic_boundary_surf~a_~ax~av_~a_p~a(const double q_, const double m_, const double *w, const double *dxv, const int edge, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out); ~%", varsV[1], c, v, bName[bInd], polyOrder),
           printf(fh, "~%")
 
         )

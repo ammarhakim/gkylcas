@@ -30,7 +30,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   for i : 1 thru length(varsInB) do (BvarsLabel : sconcat(BvarsLabel,varsInB[i])),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double q_, const double m_, const double *w, const double *dxv, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // Apar: parallel component of magnetic vector potential.~%"),
   printf(fh, "  // dApardt: time derivative of Apar.~%"),
   printf(fh, "  // jacobTotInv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
@@ -101,9 +101,9 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
 
   /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
   incrL_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
-                                                   alphaSurfL_e,alphaUpSurfL_e,false),
+                                                   alphaSurfL_e,alphaUpSurfL_e,[fL,fC],false),
   incrR_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
-                                                   alphaSurfR_e,alphaUpSurfR_e,false),
+                                                   alphaSurfR_e,alphaUpSurfR_e,[fC,fR],false),
   flush_output(fh),
 
   /* Write the actual increments to the left and right cells, which are
@@ -111,6 +111,136 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   writeCIncrExprsNoExpand1(out, rdSurfVar2*(incrL_c+incrR_c)),
   printf(fh, "~%"),
   flush_output(fh),
+
+  printf(fh, "} ~%"),
+  flush_output(fh)
+
+)$
+
+calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
+  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,vSubInv,numC,numP,surfVar,varLabel,dirLabel,
+   BvarsLabel,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
+   bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
+   alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
+   incrL_c,incrR_c],
+
+  kill(varsC, varsP, basisC, basisP),
+
+  pDim : cdim+vdim,
+
+  [varsC,bC,varsP,bP,vSub,vSubInv] : loadBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC), numP : length(bP), 
+
+  surfVar  : varsP[surfDir],             /* Surface variable. */
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  BvarsLabel : "",
+  for i : 1 thru length(varsInB) do (BvarsLabel : sconcat(BvarsLabel,varsInB[i])),
+
+  print("Working on ", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double q_, const double m_, const double *w, const double *dxv, const int edge, const double *bmag, const double *jacobTotInv, const double *cmag, const double *b_i, const double *phi, const double *Apar, const double *dApardt, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // Apar: parallel component of magnetic vector potential.~%"),
+  printf(fh, "  // dApardt: time derivative of Apar.~%"),
+  printf(fh, "  // jacobTotInv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
+  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
+  printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // edge: determines if the update is for the left edge (-1) or right edge (+1).~%"),
+  printf(fh, "  // bmag: magnetic field amplitude.~%"),
+  printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
+  printf(fh, "  // phi: electrostatic potential .~%"),
+  printf(fh, "  // fSkin,fEdge: distribution function in skin cell/last edge cell.~%"),
+  printf(fh, "  // out: output increment in center cell.~%"),
+  printf(fh, "~%"),
+
+  /* Declare cell-center variables and variables multiplying gradients. */
+  for d : 1 thru pDim do (
+    printf(fh, "  double w~a = w[~a];~%", varLabel[d], d-1),
+    printf(fh, "  double rd~a2 = 2.0/dxv[~a];~%", varLabel[d], d-1)
+  ),
+  printf(fh, "~%"),
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+
+  /* Declare variables with squared of cell centers and rdx2 variables. */
+  for d : 1 thru pDim do (
+    printf(fh, "  double w~aSq = w[~a]*w[~a];~%", varLabel[d], d-1, d-1),
+    printf(fh, "  double rd~a2Sq = rd~a2*rd~a2;~%", varLabel[d], varLabel[d], varLabel[d])
+  ),
+  printf(fh, "~%"),
+
+  /* Create pointers to the components of b_i. */
+  allVarLabelsC : ["x","y","z"],
+  for d : 1 thru 3 do (
+    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1))
+  ),
+  printf(fh, "~%"),
+
+  /* Load a basis that only has the variables B depends on, but has the right
+     normalization and dimensionality for the dimensionality of interest. */
+  bmagBasis  : copylist(bC),
+  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
+  for i : 1 thru numC do (
+    for v : 1 thru length(ignoreVars) do (
+      if not freeof(ignoreVars[v],bC[i]) then (
+        bmagBasis[i] : 0
+  ))),
+
+  inFlds_e : expandInputFields(bC,bmagBasis),
+
+  /* Compute electrostatic Hamiltonian and write it out. Since alpha.n is
+     continuous we need only deal with the left or right alpha. */
+  hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
+
+  /* Compute B* divided by B and write it out. */
+  BstardBmag_e : calcAndWrite_BstardBmag(fh,cdim,bP,bmagBasis,surfDir,m_,q_,
+                                         wvpar,rdx2vec,rdv2vec,inFlds_e,""),
+
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  /* Calculate phase space velocity alpha in direction of surfVar. */
+  /* We assume alpha.n is continuous across boundary, although H may not be. */
+  /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
+     determine upwind direction. */
+  [alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e] : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",false),
+
+  /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
+  incrR_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
+                                                   alphaSurfR_e,alphaUpSurfR_e,[fSkin,fEdge],false),
+  flush_output(fh),
+
+  /* Write the actual increments to the left and right cells, which are
+     built with incr, dxv factors and some sign changes. */
+  writeCIncrExprsNoExpand1(out, rdSurfVar2*incrR_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } else { ~%~%"), /* Upper domain boundary. */
+
+  /* Calculate phase space velocity alpha in direction of surfVar. */
+  /* We assume alpha.n is continuous across boundary, although H may not be. */
+  /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
+     determine upwind direction. */
+  [alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e] : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"L",false),
+
+  /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
+  incrL_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
+                                                   alphaSurfL_e,alphaUpSurfL_e,[fEdge,fSkin],false),
+  flush_output(fh),
+
+  /* Write the actual increments to the left and right cells, which are
+     built with incr, dxv factors and some sign changes. */
+  writeCIncrExprsNoExpand1(out, rdSurfVar2*incrL_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  printf(fh, "  } ~%~%"), /* Upper domain boundary. */
 
   printf(fh, "} ~%"),
   flush_output(fh)

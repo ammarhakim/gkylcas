@@ -69,6 +69,17 @@ for bInd : 1 thru length(bName) do (
 
         funcName : sconcat("gyrokinetic_surf",clabels[1],"_", c, "x", v, "v_", bName[bInd]),
         calcGKSurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
+        close(fh),
+
+        /* Advection in velocity space in the skin cell along vpar.*/
+        fname : sconcat("~/max-out/gyrokinetic_boundary_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
+        disp(printf(false,"Creating surface file: ~a",fname)),
+  
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_gyrokinetic_kernels.h>~%"),
+
+        funcName : sconcat("gyrokinetic_boundary_surf",clabels[1],"_", c, "x", v, "v_", bName[bInd]),
+        calcGKBoundarySurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
         close(fh)
       )
     )

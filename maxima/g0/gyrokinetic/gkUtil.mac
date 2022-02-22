@@ -438,7 +438,7 @@ calcAndWrite_upwindIncr_wSurfAvgAlpha(fH,bP,polyOrder,surfDir,sideStr,alphaSurf_
 )$
 
 calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr,
-                                       alphaSurf_e,alphaUpSurf_e,isStep2) := block(
+                                       alphaSurf_e,alphaUpSurf_e,fLR,isStep2) := block(
   [varsP,numP,pDim,surfIntVars,surfNodes,numNodes,fL_e,fR_e,fOrdL_n,fOrdR_n,alphaOrd_n,
    fUpOrd_n,fUp_c,fHatSurf_e,replaceList,Ghat_c,evPoint],
   /* Compute the common increment to left/right cells with upwinding based on
@@ -456,8 +456,8 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
   numNodes  : length(surfNodes),
 
   /* Expand distribution function. */
-  if (sideStr="L") then (fL_e : doExpand1(fL,bP),  fR_e : doExpand1(fC,bP))
-  elseif (sideStr="R") then (fL_e : doExpand1(fC,bP),  fR_e : doExpand1(fR,bP)),
+  fL_e : doExpand1(fLR[1],bP),
+  fR_e : doExpand1(fLR[2],bP),
 
   /* Evaluate fL, fR, and alpha at surface quadrature nodes. */
   fOrdL_n : gcfac(float(evAtNodes(subst(surfVar=+1,fL_e),surfNodes,surfIntVars))),
