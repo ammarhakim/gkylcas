@@ -20,7 +20,7 @@ rdvSq4 : [rdvxSq4, rdvySq4, rdvzSq4]$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
-calcVmLBOconstNuDiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
 
   kill(varsC, varsP, basisC, basisP),

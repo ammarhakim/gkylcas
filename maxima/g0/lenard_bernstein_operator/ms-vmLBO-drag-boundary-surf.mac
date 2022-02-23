@@ -59,7 +59,7 @@ for bInd : 1 thru length(bName) do (
         for gridInd : 1 thru length(gridType) do (
           isNonuniform : gridType[gridInd],
           if isNonuniform then (gridStr : "nonuniform") else (gridStr : ""),
-          disp(printf(false,sconcat("Creating boundary surface constant nu Vlasov LBO ~a",bName[bInd]," ~ax~avP~a"),gridStr,c,v,polyOrder)),
+          disp(printf(false,sconcat("Creating boundary surface Vlasov LBO ~a",bName[bInd]," ~ax~avP~a"),gridStr,c,v,polyOrder)),
           for dir:1 thru v do (
             fname : sconcat("~/max-out/lbo_vlasov_drag_boundary_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
             fh : openw(fname),
@@ -67,7 +67,7 @@ for bInd : 1 thru length(bName) do (
             printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
             printf(fh, "#include <gkyl_basis_~a_~ax~av_p~a_surf~a_quad.h> ~%", bName[bInd], c, v, polyOrder, varsV[dir]),
             numFluxOp : 1,
-            calcConstNuBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, numFluxOp, isNonuniform),
+            calcBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, numFluxOp, isNonuniform),
             close(fh)
           )
         )
