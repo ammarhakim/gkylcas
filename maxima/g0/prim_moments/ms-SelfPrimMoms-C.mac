@@ -27,9 +27,9 @@ minCdim_Tensor : 1$
 
 minVdim_Tensor : 1$
 
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 2$
 
-maxVdim_Tensor : 0$
+maxVdim_Tensor : 3$
 
 gkVdims      : [[1,2], [2], [2]]$
 

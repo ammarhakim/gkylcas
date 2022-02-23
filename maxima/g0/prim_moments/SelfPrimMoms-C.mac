@@ -1,9 +1,9 @@
 /* Generate kernels for the updater that computes the primitive
    moments u and vt^2 given the moments and the distribution function.
-   Weak division, multiplication and dot products are employed. */
+   Weak division, multiplication and dot products are employed.
 
-/* To avoid the expensive symbolic matrix inversion in
-   Maxima we use Eigen to solve the system. */
+   Note that this Maxima only sets the requisite matrices for the linear
+   system to solve and an external *batched* linear solve is performed. */
 
 /* In the comments we refer to the rank 3 tensor E_M. This is
    E_{M,i,j,k} = InnerProd(varsC,bC[i],bC[j],bC[k]). */
@@ -65,11 +65,11 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   NC  : length(bC),
   
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *m0, const double *m1, const double *m2, const double *cM, const double *cE) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // m0,m1,m2: moments of the distribution function. ~%"),
-  printf(fh, "  // cM, cE:   vtSq*cM and vtSq*cE are corrections to u and vtSq, respectively. ~%"),
-  printf(fh, "  // u:        velocity. ~%"),
-  printf(fh, "  // vtSq:     squared thermal speed, sqrt(T/m). ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // A:                    Matrix to be inverted to solve Ax = rhs (set by this function). ~%"),
+  printf(fh, "  // rhs:                  right-hand side of Ax = rhs (set by this function). ~%"),
+  printf(fh, "  // moms:                 moments of the distribution function (Zeroth, First, and Second in single array). ~%"),
+  printf(fh, "  // boundary_corrections: boundary corrections to u and vtSq. ~%"),
   printf(fh, " ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities
@@ -78,13 +78,9 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   printf(fh, "  bool cellAvg = false;~%"),
   nodes : eval_string(sconcat("nodes", cdim, "xp", 1)),
   nodesub(f):=makelist(subst(makelist(varsC[j]=nodes[i][j],j,1,length(varsC)),f),i,1,length(nodes)),
-  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(m0,bC))))),
+  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(moms,bC))))),
   for i : 1 thru length(nodes) do (
     printf(fh, "  if (~a < 0) cellAvg = true; ~%", m0Corners[i])
-  ),
-  m2Corners : gcfac(float(fullratsimp(nodesub(doExpand1(m2,bC))))),
-  for i : 1 thru length(nodes) do (
-    printf(fh, "  if (~a < 0) cellAvg = true; ~%", m2Corners[i])
   ),
   printf(fh, " ~%"),
 
@@ -96,58 +92,40 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
 
   printf(fh, "  if (cellAvg) { ~%"),
   /* Use the cell average of m0 and m1. */
-  writeCExprs1s(m0r,append([m0[0]],makelist(0.0,i,1,NC-1))),
+  writeCExprs1s(m0r,append([moms[0]],makelist(0.0,i,1,NC-1))),
   for vd : 1 thru udim do (
-    expr : float(expand(append([m1[(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
+    expr : float(expand(append([moms[(vd)*NC]],makelist(0.0,i,1,NC-1)))),
     for i : 1 thru length(expr) do (
       printf(fh, "    ~a = ~a; ~%", m1r[(vd-1)*NC+i-1], expr[i])
     ),
     for i : 1 thru length(expr) do (
       printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
     ),
-    expr : float(expand(append([cM[(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
+    expr : float(expand(append([boundary_corrections[(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
     for i : 1 thru length(expr) do (
       printf(fh, "    ~a = ~a; ~%", cMr[(vd-1)*NC+i-1], expr[i])
     )
   ),
-  writeCExprs1s(cEr,append([cE[0]],makelist(0.0,i,1,NC-1))),
-  if (polyOrder=1) then (
-    /* Piecewise linear: use cell average of star moments. */
-    writeCExprs1s(m0Sr,append([m0S[0]],makelist(0.0,i,1,NC-1))),
-    for vd : 1 thru udim do (
-      expr : float(expand(append([m1S[(vd-1)*NC]],makelist(0.0,i,1,NC-1)))),
-      for i : 1 thru length(expr) do (
-        printf(fh, "    ~a = ~a; ~%", m1Sr[(vd-1)*NC+i-1], expr[i])
-      )
-    ),
-    writeCExprs1s(m2Sr,append([m2S[0]],makelist(0.0,i,1,NC-1)))
-  ) else (
-    /* For higher polynomial order use cell average of 2nd moment. */
-    expr : float(expand(append([m2[0]],makelist(0.0,i,1,NC-1)))),
-    for i : 1 thru length(expr) do (
-      printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
-    )
+  writeCExprs1s(cEr,append([boundary_corrections[udim*NC]],makelist(0.0,i,1,NC-1))),
+  /* For higher polynomial order use cell average of 2nd moment. */
+  expr : float(expand(append([moms[(udim+1)*NC]],makelist(0.0,i,1,NC-1)))),
+  for i : 1 thru length(expr) do (
+    printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
   ),
   printf(fh, "  } else { ~%"),
   /* Use the original expansion polynomial. */
-  writeCExprs1s(m0r,makelist(m0[i],i,0,NC-1)),
-  writeCExprs1s(m1r,makelist(m1[i],i,0,udim*NC-1)),
- expr : float(expand(makelist(m1[i],i,0,udim*NC-1))),
+  writeCExprs1s(m0r,makelist(moms[i],i,0,NC-1)),
+  writeCExprs1s(m1r,makelist(moms[i+NC],i,0,udim*NC-1)),
+  expr : float(expand(makelist(moms[i+NC],i,0,udim*NC-1))),
   for i : 1 thru length(expr) do (
     printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
   ),
-  writeCExprs1s(cMr,makelist(cM[i],i,0,udim*NC-1)),
-  writeCExprs1s(cEr,makelist(cE[i],i,0,NC-1)),
-  if (polyOrder=1) then (
-    writeCExprs1s(m0Sr,makelist(m0S[i],i,0,NC-1)),
-    writeCExprs1s(m1Sr,makelist(m1S[i],i,0,udim*NC-1)),
-    writeCExprs1s(m2Sr,makelist(m2S[i],i,0,NC-1))
-  ) else (
-    /* For higher polynomial order use original M2 expansion. */
-    expr : float(expand(makelist(m2[i],i,0,NC-1))),
-    for i : 1 thru length(expr) do (
-      printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
-    )
+  writeCExprs1s(cMr,makelist(boundary_corrections[i],i,0,udim*NC-1)),
+  writeCExprs1s(cEr,makelist(boundary_corrections[i+udim*NC],i,0,NC-1)),
+  /* For higher polynomial order use original M2 expansion. */
+  expr : float(expand(makelist(moms[i+NC*(udim+1)],i,0,NC-1))),
+  for i : 1 thru length(expr) do (
+    printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
   ),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
