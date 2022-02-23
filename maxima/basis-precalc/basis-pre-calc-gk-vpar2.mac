@@ -1,0 +1,55 @@
+load("basis-precalc/basis-pre-calc");
+
+/* Special basis functions that retain vpar^2 in the expansion */
+
+vars : [x,y,z,vx,vy,vz]$
+
+makevarsC(cdim) := makelist(vars[i],i,cdim)$
+makevarsP(cdim,vdim) := append(makelist(vars[i],i,cdim), makelist(vars[i],i,4,3+vdim))$
+
+/* 1x1v */
+varsC : makevarsC(1)$
+varsP : makevarsP(1, 1)$
+basisC : [ gsOrthoNorm(varsC, makeSerendipBasis(varsC, 1)) ]$
+basisP : [ gsOrthoNorm(varsP, append(
+    makeSerendipBasis(varsP, 1), vx^2*makeSerendipBasis(delete(vx, varsP), 1)
+    )
+  )
+]$
+save("~/max-out/basisHybrid1x1v.lisp", varsC, varsP, basisC, basisP)$
+
+/* 1x2v */
+varsC : makevarsC(1)$
+varsP : makevarsP(1, 2)$
+basisC : [ gsOrthoNorm(varsC, makeSerendipBasis(varsC, 1)) ]$
+basisP : [ gsOrthoNorm(varsP, append(
+    makeSerendipBasis(varsP, 1), vx^2*makeSerendipBasis(delete(vx, varsP), 1)
+    )
+  )
+]$
+save("~/max-out/basisHybrid1x2v.lisp", varsC, varsP, basisC, basisP)$
+
+/* 2x2v */
+varsC : makevarsC(2)$
+varsP : makevarsP(2, 2)$
+basisC : [ gsOrthoNorm(varsC, makeSerendipBasis(varsC, 1)) ]$
+basisP : [ gsOrthoNorm(varsP, append(
+    makeSerendipBasis(varsP, 1), vx^2*makeSerendipBasis(delete(vx, varsP), 1)
+    )
+  )
+]$
+save("~/max-out/basisHybrid2x2v.lisp", varsC, varsP, basisC, basisP)$
+  
+/* 3x2v */
+varsC : makevarsC(3)$
+varsP : makevarsP(3, 2)$
+basisC : [ gsOrthoNorm(varsC, makeSerendipBasis(varsC, 1)) ]$
+basisP : [ gsOrthoNorm(varsP, append(
+    makeSerendipBasis(varsP, 1), vx^2*makeSerendipBasis(delete(vx, varsP), 1)
+    )
+  )
+]$
+save("~/max-out/basisHybrid3x2v.lisp", varsC, varsP, basisC, basisP)$
+
+
+

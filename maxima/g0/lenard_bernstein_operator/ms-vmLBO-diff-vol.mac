@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume VmLBOconstNu",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
-        funcName : sconcat("vlasov_lbo_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
+        funcName : sconcat("lbo_vlasov_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
         fname : sconcat("~/max-out/",funcName, ".c"),
         fh : openw(fname),
         calcVmLBOconstNuDiffVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
