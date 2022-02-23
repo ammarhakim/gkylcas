@@ -145,7 +145,8 @@ gen_eval_grad_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& 
     fc << "    return " << df.expand().evalf() << ";" << std::endl;
     fc << std::endl;
   }
-  
+
+  fc << "  return 0.0; // can't happen, suppresses warning" << std::endl << std::endl;
   // close function
   fc << "}" << std::endl << std::endl;
 }
