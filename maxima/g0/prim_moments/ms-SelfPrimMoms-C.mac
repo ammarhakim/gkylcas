@@ -1,4 +1,4 @@
-load("g0/prim_moments/SelfPrimMoms-C")$
+load("prim_moments/SelfPrimMoms-C")$
 
 load(stringproc)$
 

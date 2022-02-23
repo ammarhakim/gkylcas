@@ -43,7 +43,7 @@ writeCExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP,NC,udim,nodes,m0corners,m2corners, expr],
+calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,E,Eflat,Elhs,m1RHS_c],
 
   kill(varsC, varsP, basisC, basisP),
 

@@ -86,7 +86,7 @@ writeCExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim,vDegFreedom,bC,bP,NP,NC,specS,m0Spec,m1Spec,m2Spec,cMSpec,cESpec,m0rSpec,m1rSpec,m2rSpec,cMrSpec,cErSpec,cornerX,expr,m0_e,m0_c,m2_e,m2_c,vtSqSelf_e,vtSqSelf_c,vtSqOther_e,vtSqOther_c,vtSqCross_e,vtSqCross_c,cE_e,cE_c,N,bRHS_c,uSelf_e,uSelf_c,uOther_e,uOther_c,m1_e,m1_c,cM_e,cM_c,uCross_e,uCross_c,eq,E,Eflat,Elhs,momRHS_c,ucMSelf_c,ucMSelf_e,ucMOther_c,ucMOther_e,uM1Self_c,uM1Self_e,uM1Other_c,uM1Other_e,uSumSq_c,uSumSq_e,enRHS1_c,enRHS2_c,enRHS_c,cornerY,cornerZ,tempVars,sqCoeffs],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -96,21 +96,16 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
 
-  if (sequal(substring(funcNm,1,7),"vlasov")) then (
-    udim        : vdim,   /* Number of configuration space components of the mean flow velocity. */
-    vDegFreedom : vdim    /* Number of velocity degrees of freedom. */
-  ) else (
-    udim        : 1,    /* Number of configuration space components of the mean flow velocity. */
-    vDegFreedom : 2*vdim-1    /* Number of velocity degrees of freedom. */
-  ),
-
+  udim        : vdim,   /* Number of configuration space components of the mean flow velocity. */
+  vDegFreedom : vdim,    /* Number of velocity degrees of freedom. */
+    
   bC  : basisC[polyOrder],
   bP  : basisP[polyOrder],
   NP  : length(bP),
   NC  : length(bC),
   
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double betaGreenep1, const double mSelf, const double nuSelf, const double *uSelf, const double *vtSqSelf, const double mOther, const double nuOther, const double *uOther, const double *vtSqOther, const double *m0, const double *m1, const double *m2, const double *cM, const double *cE, double *uCross, double *vtSqCross) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double betaGreenep1, const double mSelf, const double nuSelf, const double *uSelf, const double *vtSqSelf, const double mOther, const double nuOther, const double *uOther, const double *vtSqOther, const double *m0, const double *m1, const double *m2, const double *cM, const double *cE) ~%{ ~%", funcNm),
   printf(fh, "  // betaGreenep1:       free parameter beta+1. This has to be >0. ~%"),
   printf(fh, "  // nu, m:              collisionality and mass. ~%"),
   printf(fh, "  // m0,m1,m2:           moments of the distribution function. ~%"),

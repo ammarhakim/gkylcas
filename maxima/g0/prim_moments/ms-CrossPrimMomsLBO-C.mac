@@ -6,7 +6,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 
-minPolyOrder_Ser : 1$
+minPolyOrder_Ser : 2$
 maxPolyOrder_Ser : 2$
 
 minCdim_Ser : 1$
