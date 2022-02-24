@@ -2,8 +2,23 @@
 #include <iostream>
 #include <fstream>
 #include <gkyl_util.h>
+#include <string>
 
 using namespace GiNaC;
+
+std::string
+get_basis_name(Gkyl::ModalBasisType type)
+{
+  std::string bn;
+  if (type == Gkyl::MODAL_SER)
+    bn = "ser";
+  else if (type == Gkyl::MODAL_TEN)
+    bn = "tensor";
+  else if (type == Gkyl::MODAL_GK_HYB)
+    bn = "hyb";
+
+  return bn;
+}
 
 // Generates function that evaluates the basis functions. Generated
 // function signature:
@@ -19,10 +34,7 @@ static void
 gen_eval(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";
+  bn = get_basis_name(type);
 
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
@@ -65,10 +77,7 @@ static void
 gen_eval_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";
+  bn = get_basis_name(type);
 
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
@@ -111,10 +120,7 @@ static void
 gen_eval_grad_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";
+  bn = get_basis_name(type);
 
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
@@ -165,10 +171,8 @@ static void
 gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";  
+  bn = get_basis_name(type);
+  
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
   // function declarations
@@ -204,10 +208,7 @@ static void
 gen_node_coords(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";
+  bn = get_basis_name(type);
 
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
@@ -222,10 +223,7 @@ static void
 gen_nodal_to_modal(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
-  if (type == Gkyl::MODAL_SER)
-    bn = "ser";
-  else if (type == Gkyl::MODAL_TEN)
-    bn = "tensor";
+  bn = get_basis_name(type);
 
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
@@ -284,6 +282,58 @@ gen_ser_basis()
       // generate nodal to modal
       gen_nodal_to_modal(Gkyl::MODAL_SER, header, flip_file, mbasis);
     }
+    std::cout << std::endl;
+  }
+  header << "EXTERN_C_END" << std::endl;
+}
+
+void
+gen_gk_hyb_basis()
+{
+  // compute time-stamp
+  char buff[70];
+  time_t t = time(NULL);
+  struct tm curr_tm = *localtime(&t);
+  strftime(buff, sizeof buff, "%c", &curr_tm);
+  
+  int dims[] = { 1, 2, 3, 4, 5, 6 };
+  int max_order[] = { 1, 1, 1, 1, 1, 1 };
+
+  symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
+  std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
+
+  std::ofstream header("kernels/basis/gkyl_basis_gk_hyb_kernels.h", std::ofstream::out);
+  header << "// " << buff << std::endl;
+  header << "#pragma once" << std::endl;
+  header << "#include <gkyl_util.h>" << std::endl;
+  header << "EXTERN_C_BEG" << std::endl;
+  
+  std::ofstream eval_file("kernels/basis/basis_eval_gk_hyb.c", std::ofstream::out);
+  std::ofstream flip_file("kernels/basis/basis_flip_sign_gk_hyb.c", std::ofstream::out);
+
+  eval_file << "// " << buff << std::endl;
+  eval_file << "#include <gkyl_basis_gk_hyb_kernels.h>" << std::endl;
+
+  flip_file << "// " << buff << std::endl;
+  flip_file << "#include <gkyl_basis_gk_hyb_kernels.h>" << std::endl;
+
+  for (int d=1; d<5; ++d) {
+    int dim = dims[d];
+    int p =1;
+    std::cout << dim << "dp" << p << " ";      
+    Gkyl::ModalBasis mbasis(Gkyl::MODAL_GK_HYB, dim, vars, p);
+      
+    // generate eval method
+    gen_eval(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
+    // generate eval_expand method
+    gen_eval_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
+    gen_eval_grad_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
+    // generate flip_sign method
+    gen_flip_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
+    // generate node_coords
+    gen_node_coords(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
+    // generate nodal to modal
+    gen_nodal_to_modal(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
     std::cout << std::endl;
   }
   header << "EXTERN_C_END" << std::endl;
@@ -354,6 +404,11 @@ main(int argc, char **argv)
   gen_ten_basis();
   tm = gkyl_time_diff_now_sec(tstart);
   std::cout << "Generating of modal tensor basis took " << tm << " seconds" << std::endl;
+
+  tstart = gkyl_wall_clock();
+  gen_gk_hyb_basis();
+  tm = gkyl_time_diff_now_sec(tstart);
+  std::cout << "Generating of modal hybrid basis took " << tm << " seconds" << std::endl;
   
   return 1;
 }
