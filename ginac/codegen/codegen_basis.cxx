@@ -15,7 +15,7 @@ get_basis_name(Gkyl::ModalBasisType type)
   else if (type == Gkyl::MODAL_TEN)
     bn = "tensor";
   else if (type == Gkyl::MODAL_GK_HYB)
-    bn = "hyb";
+    bn = "gk_hyb";
 
   return bn;
 }
