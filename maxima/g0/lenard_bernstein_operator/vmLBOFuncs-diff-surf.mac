@@ -7,8 +7,7 @@ load("recovery")$
 fpprec : 24$
 
 /* This script generates the kernels for the surface term
-   diffusion contribution from Lenard Bernstein operator using
-   a constant collisionality nu. */
+   diffusion contribution from Lenard Bernstein operator. */
 
 varsV : [vx, vy, vz]$
 cvars : [x, y, z]$
@@ -25,7 +24,7 @@ writeCIncrExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcConstNuDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
+calcDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
   [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   
   if (basisFun="ser") then basisFun:"Ser",
