@@ -1,6 +1,7 @@
-/* Generate kernels that compute the moments of the distribution function. */
+/* Generate kernels that compute the moments of the gyrocenter distribution function
+     for use by the gyrokinetic solver. */
 
-load("g0/moments/vlasovMomentsFuncs-C")$
+load("g0/moments/gkMomentsFuncs-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -9,9 +10,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
-maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -19,35 +18,37 @@ maxVdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 3$
+maxCdim_Tensor : 3$
+
+/* Vdim possibilities for each of Cdim=[1,2,3]. */
+gkVdims : [[1,2], [2], [2]]$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","tensor"]$
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
-minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
-maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
+/* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    for gkV : 1 thru length(gkVdims[c]) do (
+      v : gkVdims[c][gkV],
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
-      /* Vlasov moment calculators. */
+      /* gyrokinetic moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating Vlasov Moments ~ax~av", bName[bInd]),c,v)),
-        fname : sconcat("~/max-out/vlasov_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,sconcat("Creating Gyrokinetic Moments ~ax~av", bName[bInd]),c,v)),
+        fname : sconcat("~/max-out/gyrokinetic_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov"),
-        calcMoments(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("gyrokinetic"),
+        calcGkMoments(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )
