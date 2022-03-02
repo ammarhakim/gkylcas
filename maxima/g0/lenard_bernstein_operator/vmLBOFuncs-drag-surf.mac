@@ -49,7 +49,7 @@ writeCIncrExprs1s(lhs, rhs) := block([expr],
 )$
 
 calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
-  [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
+  [modNm,vid,vid1,vv,surfVars,surfNodes,surfNodesConfig,numNodes,numNodesConfig,numNodesVel,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   
   if (basisFun="ser") then basisFun:"Ser",
   if (basisFun="tensor") then basisFun:"Tensor",
@@ -65,11 +65,10 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp,
   /* Polynomial basis and its derivatives. */
   bP  : basisP[polyOrder],  NP : length(bP),
   bC  : basisC[polyOrder],  NC : length(bC),
-  bPp : diff(bP,vv),
 
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
-  /*............. RECOVERY DONE ..............................*/
+
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
@@ -79,16 +78,9 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp,
   printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
   printf(fh, "  // out:           incremented distribution function in cell ~%"),
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[dir]),
-  printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
   printf(fh, "~%"),
-    
-  /* First compute the contribution coming from the second
-     differentiation by parts to left and right cells. */
-  nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
+
   nuSum_e : doExpand1(nuSum,bC),
-  /* Now do the contribution from the generalized flux Ghat. */
-  basisFlip : subst(vv=-1*vv, bP),
-  signs : fullratsimp(basisFlip/bP),
   /* Expand the mean flow speed in the configuration basis. */
   nuUSum_e : doExpand1(nuUSumx[dir],bC),
   /* Create pointer to component of u relevant to this surface. */
@@ -122,55 +114,73 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp,
   /* We always use tensor basis for the quadrature and resulting nodal basis, regardless of base basis type */
   surfNodes : getNodes("Tensor", pDim-1, polyOrder),
   if polyOrder=1 then (surfNodes:surfNodes*(1/sqrt(3))) elseif polyOrder=2 then (surfNodes:surfNodes*sqrt(3/5)),
-  numNodes : length(surfNodes),
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 
      In addition, it is continuous and does not vary with respect to the surface variable.
      We still require a alpha_l (w - dv/2) and alpha_r (w + dv/2) for the two sides of the cell */
   alphaOrd_l_n : gcfac(float(evAtNodes(alphaDrSurf_l_e,surfNodes,surfVars))),
   alphaOrd_r_n : gcfac(float(evAtNodes(alphaDrSurf_r_e,surfNodes,surfVars))),
+  /* Drag term flux does not depend on configuration space
+     so sort quadrature points between configuration space and velocity space */
+  /* Get number of configuration space nodes */
+  surfNodesConfig : getNodes("Tensor", cdim, polyOrder),
+  numNodesConfig : length(surfNodesConfig),
+  numNodes : length(surfNodes),
+  numNodesVel : length(surfNodes)/numNodesConfig,
   printf(fh, "  double fUpwindQuad_l[~a] = {0.0};~%", numNodes),
   printf(fh, "  double fUpwindQuad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double fUpwind_l[~a] = {0.0};;~%", length(bSurf)),
+  printf(fh, "  double fUpwind_l[~a] = {0.0};~%", length(bSurf)),
   printf(fh, "  double fUpwind_r[~a] = {0.0};~%", length(bSurf)),
   printf(fh, "  double Gdrag_l[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Gdrag_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
-  for i : 1 thru length(alphaOrd_l_n) do (
-    /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
+  for i : 1 thru numNodesConfig do (
     if polyOrder=1 then (
-      rcoFac : 1./(content(alphaOrd_l_n[1],alphaDrSurf_l[0])[1]),
-      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
+      /* This subst eliminates the need for another variable, and removes
+         the common factor (for p=1) which is not needed to determine
+         sign (not working for p>1). */
+      rcoFac_l : 1./(content(alphaOrd_l_n[1],alphaDrSurf_l[0])[1]),
+      rcoFac_r : 1./(content(alphaOrd_r_n[1],alphaDrSurf_r[0])[1]),
+      /* Drag term on left side of interface */
+      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac_l)),  
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
+      printf(fh, "  } ~%"),
+      /* Drag term on right side of interface */
+      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac_r)),  
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
+      printf(fh, "  } else { ~%"),
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
       printf(fh, "  } ~%")
+    /* If polyOrder > 1, we just evaluate alpha at the quadrature points with no further substitutions */
     ) else (
       printf(fh, "  if (~a < 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fl); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
-      printf(fh, "  } ~%")
-    )
-  ),
-  for i : 1 thru length(alphaOrd_r_n) do (
-    /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
-    if polyOrder=1 then (
-      rcoFac : 1./(content(alphaOrd_r_n[1],alphaDrSurf_r[0])[1]),
-      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fc); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
+      printf(fh, "  } ~%"),
+      /* Drag term on right side of interface */
+      printf(fh, "  if (~a < 0) { ~%", alphaOrd_r_n[i]),  
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
-      printf(fh, "  } ~%")
-    ) else (
-      printf(fh, "  if (~a < 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fc); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", i-1, basisFun, cdim, vdim, polyOrder, vvars[dir], i-1),
+      for j : 1 thru numNodesVel do (
+        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fr); ~%", (j-1)*numNodesVel^cdim+(i-1), basisFun, cdim, vdim, polyOrder, vvars[dir], (j-1)*numNodesVel^cdim+(i-1))
+      ),
       printf(fh, "  } ~%")
     )
   ),
@@ -255,5 +265,4 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp,
   writeCIncrExprs1(out, rdv2*drag_incr_r + rdv2*drag_incr_l), 
   printf(fh, "} ~%")
 );
-
 
