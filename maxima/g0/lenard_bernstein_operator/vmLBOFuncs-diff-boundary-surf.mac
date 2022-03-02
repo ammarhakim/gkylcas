@@ -1,31 +1,22 @@
 load("modal-basis")$
 load("out-scripts");
 load(stringproc)$
-load("nodalOperations/nodalFunctions")$
 load("recovery")$
 
 fpprec : 24$
 
 /* This script generates the kernels for the boundary surface term
-   diffusion contribution from Lenard Bernstein operator using
-   a constant collisionality nu. */
+   diffusion contribution from Lenard Bernstein operator. */
 
-cvars : [x, y, z]$
 vvars : [vx, vy, vz]$
-vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-load ("scifac")$
+/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
+doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
-writeCIncrExprs1s(lhs, rhs) := block([expr],
-  expr : float(expand(rhs)),
-  for i : 1 thru length(expr) do (
-    if expr[i] # 0.0 then printf(fh, "  ~a += ~a; ~%", lhs[i-1], expr[i])
-  )
-)$
-
-calcConstNuBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxOp, isNonuniform) := block(
-  [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
+calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+  [modNm,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   if (basisFun="ser") then basisFun:"Ser",
   if (basisFun="tensor") then basisFun:"Tensor",
   kill(varsC, varsP, basisC, basisP),
@@ -33,7 +24,6 @@ calcConstNuBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
   load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
   pDim : cdim+vdim,
   /* Variables. */
-  vid  : vidx(cdim,vdim),
   vid1 : vidx1(cdim,vdim),
   vv   : vvars[dir],
   surfVars : delete(vv,varsP),
@@ -70,7 +60,6 @@ calcConstNuBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
      
   /* facDiff = < psi, nuVtSqSum >. */
   facDiff_c : calcInnerProdList(varsC, 1, bC, nuVtSqSum_e),
-  zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
   if polyOrder>1 then (
     /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
@@ -91,11 +80,9 @@ calcConstNuBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
   ),
 
   facDiff_NoZero_e : doExpandLst(facDiff_NoZero, bC),
-  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/dv_i */
-  polyFact : ((polyOrder+1)^2)/(2*polyOrder+1),
 
   /* Volume increment from configuration space. */
-  vol_incr_e : rdvSq4*subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsV[dir],2), facDiff_NoZero_e*fSkin_e)),
+  vol_incr_e : rdvSq4*subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,vv,2), facDiff_NoZero_e*fSkin_e)),
     
   Gdiff_l_c : calcInnerProdList(surfVars,1,bSurf,hsol_l[2]),
   Gdiff_r_c : calcInnerProdList(surfVars,1,bSurf,hsol_r[2]),

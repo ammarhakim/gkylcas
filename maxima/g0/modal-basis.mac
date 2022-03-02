@@ -268,3 +268,37 @@ find_min_idx(lst) := block([cidx : 1],
     ),
   return (cidx)
   )$
+
+/* Load a basis of type 'basisType' and polynomial order 'pIn'
+   in the variables given by the list 'varsIn'. */
+basisFromVars(basisType, varsIn, pIn) := block(
+  [dimIn,oldVarsC,oldVarsP,basis,vars,replaceList],
+
+  dimIn : length(varsIn),
+
+  /* In case varsP and varsC were already loaded, save them
+     and restore them at the end of this function. */
+  if listp(varsC) then (oldVarsC : copylist(varsC)),
+  if listp(varsP) then (oldVarsP : copylist(varsP)),
+
+  if dimIn > 3 then (
+    load(sconcat("basis-precalc/basis", basisType, dimIn-3, "x", 3, "v")),
+    basis : basisP[pIn],
+    vars  : varsP
+  ) elseif dimIn > 0 then (
+    load(sconcat("basis-precalc/basis", basisType, dimIn, "x")),
+    basis : basisC[pIn],
+    vars  : varsC
+  ) else (
+    basis : [],
+    vars  : []
+  ),
+  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
+  basis : psubst(replaceList,basis),
+
+  /* Restore varsC and varsP. */
+  if listp(oldVarsC) then (varsC : copylist(oldVarsC)),
+  if listp(oldVarsP) then (varsP : copylist(oldVarsP)),
+
+  return(basis)
+)$
