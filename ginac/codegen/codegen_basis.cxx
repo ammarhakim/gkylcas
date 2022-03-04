@@ -157,8 +157,8 @@ gen_eval_grad_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& 
   fc << "}" << std::endl << std::endl;
 }
 
-// Generates function that flips sign of basis expansion. Generated
-// function signature:
+// Generates function that flips sign of odd monomial powers in basis
+// expansion. Generated function signature:
 //
 // static void foo(int dir, const double *fin, double *fout)
 //
@@ -168,7 +168,8 @@ gen_eval_grad_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& 
 // fc: C file
 //
 static void
-gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+gen_flip_odd_sign(Gkyl::ModalBasisType type,
+  std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
 {
   std::string bn;
   bn = get_basis_name(type);
@@ -176,13 +177,13 @@ gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, con
   int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
 
   // function declarations
-  fh << "GKYL_CU_DH void flip_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+  fh << "GKYL_CU_DH void flip_odd_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
        << "(int dir, const double *f, double *fout );" << std::endl;  
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
   fc << "void" << std::endl;
-  fc << "flip_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+  fc << "flip_odd_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
        << "(int dir, const double *f, double *fout )" << std::endl;
   fc << "{" << std::endl;
   
@@ -195,6 +196,54 @@ gen_flip_sign(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, con
     fc << "  if (dir == " << d << ") {" << std::endl;
     for (int i=0; i<basis.get_numbasis(); ++i) {
       auto sign = bcflip[i]/bc[i];
+      fc << "    fout[" << i << "] = " << sign << "*" << "f[" << i <<  "];" << std::endl;
+    }
+    fc << "  }" << std::endl;
+  }
+
+  // close function
+  fc << "}" << std::endl << std::endl;
+}
+
+// Generates function that flips sign of even monomial powers in basis
+// expansion. Generated function signature:
+//
+// static void foo(int dir, const double *fin, double *fout)
+//
+// Restrict keyword and CUDA attributes are also added
+//
+// fh: header file
+// fc: C file
+//
+static void
+gen_flip_even_sign(Gkyl::ModalBasisType type,
+  std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  bn = get_basis_name(type);
+  
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+
+  // function declarations
+  fh << "GKYL_CU_DH void flip_even_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+       << "(int dir, const double *f, double *fout );" << std::endl;  
+
+  // function definition
+  fc << "GKYL_CU_DH" << std::endl;
+  fc << "void" << std::endl;
+  fc << "flip_even_sign_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+       << "(int dir, const double *f, double *fout )" << std::endl;
+  fc << "{" << std::endl;
+  
+  lst vars = basis.get_vars(), bc = basis.get_basis();
+
+  for (int d=0; d<ndim; ++d) {
+    exmap m; m[vars[d]] = -vars[d];
+    auto bcflip = bc.subs(m);
+    lst signs;
+    fc << "  if (dir == " << d << ") {" << std::endl;
+    for (int i=0; i<basis.get_numbasis(); ++i) {
+      auto sign = -bcflip[i]/bc[i];
       fc << "    fout[" << i << "] = " << sign << "*" << "f[" << i <<  "];" << std::endl;
     }
     fc << "  }" << std::endl;
@@ -276,7 +325,8 @@ gen_ser_basis()
       gen_eval_expand(Gkyl::MODAL_SER, header, eval_file, mbasis);
       gen_eval_grad_expand(Gkyl::MODAL_SER, header, eval_file, mbasis);      
       // generate flip_sign method
-      gen_flip_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      gen_flip_odd_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      gen_flip_even_sign(Gkyl::MODAL_SER, header, flip_file, mbasis);      
       // generate node_coords
       gen_node_coords(Gkyl::MODAL_SER, header, flip_file, mbasis);
       // generate nodal to modal
@@ -328,8 +378,9 @@ gen_gk_hyb_basis()
     // generate eval_expand method
     gen_eval_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
     gen_eval_grad_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
-    // generate flip_sign method
-    gen_flip_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
+    // generate flip_sign methods
+    gen_flip_odd_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
+    gen_flip_even_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
     // generate node_coords
     gen_node_coords(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
     // generate nodal to modal
@@ -381,7 +432,8 @@ gen_ten_basis()
       gen_eval_expand(Gkyl::MODAL_TEN, header, eval_file, mbasis);
       gen_eval_grad_expand(Gkyl::MODAL_TEN, header, eval_file, mbasis);
       // generate flip_sign method
-      gen_flip_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      gen_flip_odd_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      gen_flip_even_sign(Gkyl::MODAL_TEN, header, flip_file, mbasis);
       // generate node_coords
       gen_node_coords(Gkyl::MODAL_TEN, header, flip_file, mbasis);
       // generate nodal to modal
