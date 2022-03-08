@@ -1,4 +1,4 @@
-load("lenard_bernstein_operator/vmLBOFuncs-diff-vol")$
+load("g0/lenard_bernstein_operator/vmLBOFuncs-diff-vol")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -37,7 +37,7 @@ for bInd : 1 thru length(bName) do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       minPolyOrderB : minPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume VmLBO",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
         funcName : sconcat("lbo_vlasov_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),

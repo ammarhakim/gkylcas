@@ -141,63 +141,35 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxO
       rcoFac : 1./(content(alphaOrd_r_n[1],alphaDrSurf[0])[1]),
       printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac)),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_r(fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } else { ~%"),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_l(fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } ~%")
     /* If polyOrder > 1, we just evaluate alpha at the quadrature points with no further substitutions */
     ) else (
       printf(fh, "  if (~a < 0) { ~%", alphaOrd_r_n[i]),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_r(fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } else { ~%"),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_l(fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } ~%")
     )
   ),
+
   printf(fh, "~%"),
-  if (basisFun = "Tensor") or (basisFun = "tensor") or (polyOrder = 1) then (
-    if (basisFun="ser") then basisFun:"Ser",
-    if (basisFun="tensor") then basisFun:"Tensor",
-    /* Get modal surface expansion from nodal quadrature points. */
-    nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
-    fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
-    fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
-    /* Write coefficients of modal surface expansion fupwind. */
-    /* Clever factorization is possible for polyOrder = 1, but for higher
-       polynomial orders, factorization is *too* clever and can lead to 
-       deeply nested parentheses, not ideal for compiler optimizations */
-    if (polyOrder = 1) then (
-      writeCExprsNoExpand1(fUpwind, fUp_c)
-    ) else (
-      writeCExprs1(fUpwind, fUp_c)
-    ),
-    printf(fh, "~%"),
-    flush_output(fh),
-    fHatSurf_e : doExpand1(fUpwind,bSurf)
-  ) else (
-    /* Make nodal expansions in nodal basis */
-    /* Only required if basis type is not tensor */
-    /* If basis type is tensor (or polyOrder = 1 Serendipity), then well-defined intermediate
-       transformation back from nodal basis to modal basis, otherwise need nodal basis for 
-       final computation of Ghat */
-    basisNodal : getVarsNodalBasisWithNodes("Tensor", pDim-1, polyOrder, surfVars, surfNodes),
-    fHatNodal_e : sum(fUpwindQuad[i-1]*basisNodal[i], i, 1, length(basisNodal)),
-    fHatModProj_e : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, fHatNodal_e)),
-    
-    /* Write out projection of tensor nodal basis onto modal basis (usually Serendipity here) */
-    writeCExprs1(fUpwind, fHatModProj_e),
-    printf(fh, "~%"),
-    /* Zero out components of fUpwind which are empty and make new lists with right variable name. */
-    fHatModProj_NoZero : doMakeExprLst(fHatModProj_e, fUpwind),
-    fHatSurf_e : doExpandLst(fHatModProj_NoZero, bSurf)
-  ),
+  printf(fh, "  // Project nodal basis back onto modal basis. ~%"),
+  printf(fh, "  ~a_~ax_p~a_upwind(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  printf(fh, "~%"),
+
+  /* Create expansions of f_hat (upwinded f) on the left and right in the surface basis. */
+  fHatSurf_e : doExpand1(fUpwind, bSurf),
+
   GhatDrag_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
@@ -224,7 +196,7 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxO
   printf(fh, "~%"),
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
-  /* Write out fUpwindQuad for the far left edge */
+  /* Write out fUpwindQuad for the far right edge */
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
      just like how the skin cell is evaluated at -1 */
   for i : 1 thru numNodesConfig do (
@@ -235,63 +207,35 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, numFluxO
       rcoFac : 1./(content(alphaOrd_l_n[1],alphaDrSurf[0])[1]),
       printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac)),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_r(fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } else { ~%"),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_l(fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } ~%")
     /* If polyOrder > 1, we just evaluate alpha at the quadrature points with no further substitutions */
     ) else (
       printf(fh, "  if (~a < 0) { ~%", alphaOrd_l_n[i]),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(1, fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_r(fEdge); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } else { ~%"),
       for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax~av_p~a_surf~a_quad_~a(-1, fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim, vdim, polyOrder, vvars[1], (j-1)*numNodesConfig+(i-1))
+        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_quad_~a_l(fSkin); ~%", (j-1)*numNodesConfig+(i-1), basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)*numNodesConfig+(i-1))
       ),
       printf(fh, "  } ~%")
     )
   ),
+
   printf(fh, "~%"),
-  if (basisFun = "Tensor") or (basisFun = "tensor") or (polyOrder = 1) then (
-    if (basisFun="ser") then basisFun:"Ser",
-    if (basisFun="tensor") then basisFun:"Tensor",
-    /* Get modal surface expansion from nodal quadrature points. */
-    nodToMod : calcNodToModWithNodes(basisFun, pDim-1, polyOrder, surfNodes),
-    fUp_c : gcfac(fullratsimp(nodToMod . makelist(fUpwindQuad[i-1],i,1,numNodes))),
-    fUp_c : makelist(fUp_c[i][1],i,1,numNodes),
-    /* Write coefficients of modal surface expansion fupwind. */
-    /* Clever factorization is possible for polyOrder = 1, but for higher
-       polynomial orders, factorization is *too* clever and can lead to 
-       deeply nested parentheses, not ideal for compiler optimizations */
-    if (polyOrder = 1) then (
-      writeCExprsNoExpand1(fUpwind, fUp_c)
-    ) else (
-      writeCExprs1(fUpwind, fUp_c)
-    ),
-    printf(fh, "~%"),
-    flush_output(fh),
-    fHatSurf_e : doExpand1(fUpwind,bSurf)
-  ) else (
-    /* Make nodal expansions in nodal basis */
-    /* Only required if basis type is not tensor */
-    /* If basis type is tensor (or polyOrder = 1 Serendipity), then well-defined intermediate
-       transformation back from nodal basis to modal basis, otherwise need nodal basis for 
-       final computation of Ghat */
-    basisNodal : getVarsNodalBasisWithNodes("Tensor", pDim-1, polyOrder, surfVars, surfNodes),
-    fHatNodal_e : sum(fUpwindQuad[i-1]*basisNodal[i], i, 1, length(basisNodal)),
-    fHatModProj_e : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, fHatNodal_e)),
-    
-    /* Write out projection of tensor nodal basis onto modal basis (usually Serendipity here) */
-    writeCExprs1(fUpwind, fHatModProj_e),
-    printf(fh, "~%"),
-    /* Zero out components of fUpwind which are empty and make new lists with right variable name. */
-    fHatModProj_NoZero : doMakeExprLst(fHatModProj_e, fUpwind),
-    fHatSurf_e : doExpandLst(fHatModProj_NoZero, bSurf)
-  ),
+  printf(fh, "  // Project nodal basis back onto modal basis. ~%"),
+  printf(fh, "  ~a_~ax_p~a_upwind(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  printf(fh, "~%"),
+
+  /* Create expansions of f_hat (upwinded f) on the left and right in the surface basis. */
+  fHatSurf_e : doExpand1(fUpwind, bSurf),
+
   GhatDrag_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
