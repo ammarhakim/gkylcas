@@ -3,30 +3,45 @@
 
 #include "serendip_mono.h"
 #include "tensor_mono.h"
+#include "gk_hyb_mono.h"
 #include <modal_basis.h>
 
 // Serendipity basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
-static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } ser_mo_list[] = {
-  { NULL, NULL, NULL, NULL }, // No 0D basis functions
-  { serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3 },
-  { serendip_2x_p0, serendip_2x_p1, serendip_2x_p2, serendip_2x_p3 },
-  { serendip_3x_p0, serendip_3x_p1, serendip_3x_p2, serendip_3x_p3 },
-  { serendip_4x_p0, serendip_4x_p1, serendip_4x_p2, serendip_4x_p3 },
-  { serendip_5x_p0, serendip_5x_p1, serendip_5x_p2, serendip_5x_p3 },
-  { serendip_6x_p0, serendip_6x_p1, serendip_6x_p2, NULL },
+static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&);
+} ser_mo_list[] = {
+  {NULL, NULL, NULL, NULL}, // No 0D basis functions
+  {serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3},
+  {serendip_2x_p0, serendip_2x_p1, serendip_2x_p2, serendip_2x_p3},
+  {serendip_3x_p0, serendip_3x_p1, serendip_3x_p2, serendip_3x_p3},
+  {serendip_4x_p0, serendip_4x_p1, serendip_4x_p2, serendip_4x_p3},
+  {serendip_5x_p0, serendip_5x_p1, serendip_5x_p2, serendip_5x_p3},
+  {serendip_6x_p0, serendip_6x_p1, serendip_6x_p2, NULL},
 };
 
 // Tensor basis function monomial list for each dimension:
 // mo_list[ndim].ev[polyOrder]. Note that p=0,1 tensor basis are
 // identical to their serendipity counter-parts
-static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&); } ten_mo_list[] = {
-  { NULL, NULL, NULL, NULL }, // No 0D basis functions
-  { serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3 },
-  { serendip_2x_p0, serendip_2x_p1, tensor_2x_p2, NULL },
-  { serendip_3x_p0, serendip_3x_p1, tensor_3x_p2, NULL },
-  { serendip_4x_p0, serendip_4x_p1, tensor_4x_p2, NULL },
-  { serendip_5x_p0, serendip_5x_p1, tensor_5x_p2, NULL },
-  { serendip_6x_p0, serendip_6x_p1, NULL, NULL },
+static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&);
+} ten_mo_list[] = {
+  {NULL, NULL, NULL, NULL}, // No 0D basis functions
+  {serendip_1x_p0, serendip_1x_p1, serendip_1x_p2, serendip_1x_p3},
+  {serendip_2x_p0, serendip_2x_p1, tensor_2x_p2, NULL},
+  {serendip_3x_p0, serendip_3x_p1, tensor_3x_p2, NULL},
+  {serendip_4x_p0, serendip_4x_p1, tensor_4x_p2, NULL},
+  {serendip_5x_p0, serendip_5x_p1, tensor_5x_p2, NULL},
+  {serendip_6x_p0, serendip_6x_p1, NULL, NULL},
+};
+
+// Serendipity basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
+static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&);
+} gk_hyb_mo_list[] = {
+  {NULL, NULL, NULL, NULL}, // No 0D basis functions
+  {NULL, NULL, NULL, NULL}, // No 1D basis functions
+  {NULL, gk_hyb_2x_p1, NULL, NULL },
+  {NULL, gk_hyb_3x_p1, NULL, NULL },
+  {NULL, gk_hyb_4x_p1, NULL, NULL },
+  {NULL, gk_hyb_5x_p1, NULL, NULL },
+  {NULL, NULL, NULL, NULL}, // No 6D basis functions
 };
 
 Gkyl::ModalBasis::ModalBasis(ModalBasisType type, int ndim, const std::vector<GiNaC::symbol>& invars, int polyOrder)
@@ -44,6 +59,10 @@ Gkyl::ModalBasis::ModalBasis(ModalBasisType type, int ndim, const std::vector<Gi
     assert(ten_mo_list[ndim].ev[polyOrder] != NULL);
     bc = gsOrthoNorm(ten_mo_list[ndim].ev[polyOrder](vars));
   }
+  else if (type == Gkyl::MODAL_GK_HYB) {
+    assert(gk_hyb_mo_list[ndim].ev[polyOrder] != NULL);
+    bc = gsOrthoNorm(gk_hyb_mo_list[ndim].ev[polyOrder](vars));
+  }  
 }
 
 GiNaC::lst

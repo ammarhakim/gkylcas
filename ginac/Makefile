@@ -4,7 +4,7 @@
 # make CC=mpicc 
 #
 
-CFLAGS = -O3 -g 
+CFLAGS = -O3 -g -Wall
 CXXFLAGS = -O3 -g -std=c++11
 
 GINAC_INC = ${HOME}/gkylsoft/ginac/include
