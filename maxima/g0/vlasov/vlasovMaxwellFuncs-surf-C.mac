@@ -47,7 +47,8 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
-calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block([bP,numBasisP,cid,vid,wvl,wvr,dvl,dvr,cv,vv,surfVars,fL_e,fR_e,fhat,surfTerm,incr_r,clst,incr_s],
+calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block(
+  [bP,numBasisP,cid,vid,wvl,wvr,dvl,dvr,cv,vv,surfVars,fL_e,fR_e,fhat,surfTerm,incr_r,clst,incr_s],
 
   kill(varsC, varsP, basisC, basisP),
 
