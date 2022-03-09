@@ -90,6 +90,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   printf(fh, "  double cflFreq = 0.0; ~%"),
   printf(fh, "  double alphaL = 0.0; ~%"),
   printf(fh, "  double alphaR = 0.0; ~%"),
+  printf(fh, "~%"),
 
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
 
@@ -114,7 +115,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
     alpha_e : poissonBracket(wDir+dirVar/rdDirVar2,hamil_e,m_,q_,rdx2vec,rdv2vec,pbAuxFlds),
 
     /* Project alpha on basis and write to array. */
-    printf(fh, "  double alpha~a[~a]; ~%", dirLabel, numP),
+    printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
     alpha_c    : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)*rdDirVar2),
     alphaLabel : eval_string(sconcat(alpha, dirLabel)),
     writeCExprsNoExpand1(alphaLabel, gcfac(expand(facsum(subst(replaceList, alpha_c),append(rdx2vec,rdv2vec))))),

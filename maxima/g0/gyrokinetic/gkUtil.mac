@@ -111,7 +111,7 @@ calcAndWrite_HamilES(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr) := block(
   hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
 
   /* Write Hamiltonian. */
-  printf(fh, "  double hamil~a[~a]; ~%", sideStr, numP),
+  printf(fh, "  double hamil~a[~a] = {0.}; ~%", sideStr, numP),
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
   hamilCvar : eval_string(sconcat("hamil",sideStr)),
   writeCExprsNoExpand1(hamilCvar, gcfac(subst(replaceList, hamil_c))),
@@ -165,7 +165,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
   if cdim > 1 then (
     BstarXdBmag_c : calcInnerProdList(varsP, 1, bP, BstarXdBmag_e),
     if (surfDir = 0 or surfDir = 1 or surfDir = cdim+1) then (
-      printf(fh, "  double BstarXdBmag~a[~a]; ~%", sideStr,numP),
+      printf(fh, "  double BstarXdBmag~a[~a] = {0.}; ~%", sideStr,numP),
       writeCExprsNoExpand1(eval_string(sconcat("BstarXdBmag",sideStr)), gcfac(subst(replaceList, BstarXdBmag_c))),
       printf(fh, "~%"),
       flush_output(fh)
@@ -175,7 +175,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
 
     BstarYdBmag_c : calcInnerProdList(varsP, 1, bP, BstarYdBmag_e),
     if (surfDir = 0 or surfDir = 2 or surfDir = cdim+1) then (
-      printf(fh, "  double BstarYdBmag~a[~a]; ~%", sideStr, numP),
+      printf(fh, "  double BstarYdBmag~a[~a] = {0.}; ~%", sideStr, numP),
       writeCExprsNoExpand1(eval_string(sconcat("BstarYdBmag",sideStr)), gcfac(subst(replaceList, BstarYdBmag_c))),
       printf(fh, "~%"),
       flush_output(fh)
@@ -186,7 +186,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
   if cdim # 2 then (
     BstarZdBmag_c : calcInnerProdList(varsP, 1, bP, BstarZdBmag_e),
     if (surfDir=0 or surfDir>=cdim) then (
-      printf(fh, "  double BstarZdBmag~a[~a]; ~%", sideStr, numP),
+      printf(fh, "  double BstarZdBmag~a[~a] = {0.}; ~%", sideStr, numP),
       writeCExprsNoExpand1(eval_string(sconcat("BstarZdBmag",sideStr)), gcfac(subst(replaceList, BstarZdBmag_c))),
       printf(fh, "~%"),
       flush_output(fh)
@@ -321,7 +321,7 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */
   alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha_e)),
-  printf(fh, "  double alpha~a[~a]; ~%", sideStr, numSurf),
+  printf(fh, "  double alpha~a[~a] = {0.}; ~%", sideStr, numSurf),
   alphaCvar : eval_string(sconcat("alpha",sideStr)),
   writeCExprsNoExpand1(alphaCvar, subst(replaceList,alpha_c)),
   printf(fh, "~%"),
@@ -466,7 +466,7 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
      Note: alphaSurf_e is already a surface expansion. */
   alphaOrd_n : gcfac(float(evAtNodes(alphaUpSurf_e,surfNodes,surfIntVars))),
   /* Determine upwinding at each surface quadrature node. */
-  printf(fH, "  double fUpOrd~a[~a];~%", sideStr, numNodes),
+  printf(fH, "  double fUpOrd~a[~a] = {0.};~%", sideStr, numNodes),
   for i : 1 thru numNodes do (
     printf(fH, "  if (~a > 0.) {~%",float(expand(fullratsimp(alphaOrd_n[i]/abs(content(args(alphaOrd_n[i])[1])[1]))))),
     printf(fH, "    fUpOrd~a[~a] = ~a; ~%", sideStr, i-1, fOrdL_n[i]),
@@ -501,7 +501,7 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
   Ghat_c : calcInnerProdList(surfIntVars, alphaSurf_e, bSurf, fHatSurf_e),
   Ghat_e : doExpand(Ghat_c, bSurf),
   printf(fH, "  double Ghat~a[~a] = {0.}; ~%", sideStr, numP),
-  writeCIncrExprs1(eval_string(sconcat("Ghat",sideStr)), Ghat_c),
+  writeCExprs1(eval_string(sconcat("Ghat",sideStr)), Ghat_c),
   printf(fH, "~%"),
   flush_output(fH),
   /* Zero out components of Ghat which are empty. */
