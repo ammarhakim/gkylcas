@@ -84,7 +84,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   ),
   printf(fh, " ~%"),
 
-  /* Declare new buffers where moments, star moments and boundary corrections are stored. */
+  /* Declare new buffers where moments and boundary corrections are stored. */
   printf(fh, "  double m0r[~a] = {0.0}; ~%", NC),
   printf(fh, "  double m1r[~a] = {0.0}; ~%", udim*NC),
   printf(fh, "  double cMr[~a] = {0.0}; ~%", udim*NC),
