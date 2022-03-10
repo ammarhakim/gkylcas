@@ -9,7 +9,7 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("nodalOperations/nodalFunctions")$
+load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
 vvars : [vx, vy, vz]$
