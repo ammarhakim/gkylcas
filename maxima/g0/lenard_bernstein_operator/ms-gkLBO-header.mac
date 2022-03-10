@@ -17,8 +17,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 2$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 gkVdims : [[1,2], [2], [2]]$
 
@@ -81,11 +81,11 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototypeDrag(decorator, c, v, bName[bInd], polyOrder),
-	printPrototypeDiff(decorator, c, v, bName[bInd], polyOrder)
+        printPrototypeDiff(decorator, c, v, bName[bInd], polyOrder)
       )
     )
   )

@@ -53,7 +53,7 @@ for bInd : 1 thru length(bName) do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       
         for gridInd : 1 thru length(gridType) do (
@@ -65,9 +65,9 @@ for bInd : 1 thru length(bName) do (
             fh : openw(fname),
             funcName : sconcat("lbo_vlasov_drag_boundary_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
-            printf(fh, "#include <gkyl_basis_~a_~ax~av_p~a_surf~a_quad.h> ~%", bName[bInd], c, v, polyOrder, varsV[dir]),
-            numFluxOp : 1,
-            calcBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, numFluxOp, isNonuniform),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
+            calcBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, isNonuniform),
             close(fh)
           )
         )
