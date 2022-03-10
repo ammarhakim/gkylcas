@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c+v,polyOrder)),
-        kill(bP, surfVars, surfNodes, numNodes, f_e, bSurf),
+        kill(bP, surfVars, surfNodes, numNodes, f_e, bSurf, basisNodal, fHatNodal_e, fHatModProj_e),
         load(sconcat("basis-precalc/basis", bName[bInd], c, "x", v, "v")),
         bP    : basisP[polyOrder],
         pDim  : length(varsP),
