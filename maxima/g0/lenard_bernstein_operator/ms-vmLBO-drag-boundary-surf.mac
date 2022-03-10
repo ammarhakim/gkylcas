@@ -1,4 +1,4 @@
-load("g0/lenard_bernstein_operator/vmLBOFuncs-drag-boundary-surf")$
+load("lenard_bernstein_operator/vmLBOFuncs-drag-boundary-surf")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -65,10 +65,9 @@ for bInd : 1 thru length(bName) do (
             fh : openw(fname),
             funcName : sconcat("lbo_vlasov_drag_boundary_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
-            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
-            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind.h> ~%", bName[bInd], c+v, polyOrder),
-            numFluxOp : 1,
-            calcBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, numFluxOp, isNonuniform),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
+            calcBoundaryDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, isNonuniform),
             close(fh)
           )
         )

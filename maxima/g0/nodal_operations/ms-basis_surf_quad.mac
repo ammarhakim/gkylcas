@@ -37,7 +37,7 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating configuration space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c,polyOrder)),
-      kill(bC,surfNodes,numNodes,surfVars),
+      kill(bC,surfNodes,numNodes,f_e,cv,surfVars,fOrdR_n,fOrdL_n),
       load(sconcat("basis-precalc/basis", bName[bInd], c, "x")),
       bC : basisC[polyOrder],
 
@@ -71,7 +71,7 @@ for bInd : 1 thru length(bName) do (
         close(fh)
       ),
       disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax3v_p~a"),c,polyOrder)),
-      kill(bP,surfNodes,numNodes,surfVars),
+      kill(bP,surfNodes,numNodes,f_e,xv,surfVars,fOrdR_n,fOrdL_n),
       load(sconcat("basis-precalc/basis", bName[bInd], c, "x", "3v")),
       bP    : basisP[polyOrder],
       pDim  : length(varsP),

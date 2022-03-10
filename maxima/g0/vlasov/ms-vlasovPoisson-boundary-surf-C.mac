@@ -1,4 +1,4 @@
-load("g0/vlasov/vlasovPoissonFuncs-boundary-surf-C")$
+load("vlasov/vlasovPoissonFuncs-boundary-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the velocity surface term contributions in the
@@ -57,6 +57,8 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_poisson_boundary_surf"),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
           /* Kernels without an external magnetic field. */
           calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)
@@ -68,6 +70,8 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_poisson_extem_boundary_surf"),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
           /* Kernels without an external magnetic field. */
           calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)

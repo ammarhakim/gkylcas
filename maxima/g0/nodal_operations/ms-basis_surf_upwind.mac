@@ -42,7 +42,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c+v,polyOrder)),
         kill(bP, surfVars, surfNodes, numNodes, f_e, bSurf, basisNodal, fHatNodal_e, fHatModProj_e),
