@@ -2,7 +2,7 @@
 /* Obtain the ordinates (nodes) for n-point
    Gaussian quadrature in one dimension. */
 gaussOrd1D(n) := block([p, v, ords, sords],
-  /* Some precision error in legendre_p, switching to analytic formula for the moment for small n */
+  /* Some precision error in root-finder, switching to analytic formula for the moment for small n */
   if (n = 2) then (
     sords : [-1/sqrt(3),1/sqrt(3)]
   )
@@ -17,6 +17,7 @@ gaussOrd1D(n) := block([p, v, ords, sords],
   )
   else (
     p : expand(legendre_p(n, x)),
+    /* NOTE: Best to use realroots() function here instead and set precision to 1e-50 */
     v : map(rhs, bfallroots(p)),
     ords : map(bfloat, v),
     /* Sort ords so ords are in ascending order. Have to
