@@ -296,7 +296,7 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
   /* Flatten E for WriteCExprsA. */
   Eflat : list_matrix_entries(E),
   
-  Elhs  : list_matrix_entries(genmatrix(Ef,N-1,(udim+1)*NC-1,(2*udim+1)*NC,udim*NC)),
+  Elhs  : list_matrix_entries(genmatrix(Ef,(udim+1)*NC-1,(udim+1)*NC-1,udim*NC,udim*NC)),
   
   printf(fh, "  // ... Block from correction to (self) 2nd moment of collision operator ... // ~%"),
   writeCExprsA(Elhs,Eflat),
