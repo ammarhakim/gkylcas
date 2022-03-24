@@ -1,6 +1,6 @@
 load("modal-basis");
 load("out-scripts");
-load("maxwell-calc/maxwell-rp-mod");
+load("maxwell/maxwell-rp-mod");
 load(stringproc)$
 fpprec : 24$
 

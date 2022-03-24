@@ -1,7 +1,7 @@
-load("maxwell/maxwellFuncs-surf-C")$
+load("advection/advectionFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates for the surface terms from Maxwell's equations. */
+   updates from the volume term due to an advection equation. */
 
 /* ...... USER INPUTS........ */
 
@@ -27,7 +27,6 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
@@ -35,17 +34,12 @@ for bInd : 1 thru length(bName) do (
     if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating surface Maxwell",bName[bInd]," ~axp~a"),d,polyOrder)),
-      for dir : 1 thru d do ( 
-        if (dir = 1) then fname : sconcat("~/max-out/maxwell_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 2) then fname : sconcat("~/max-out/maxwell_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 3) then fname : sconcat("~/max-out/maxwell_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("maxwell_surf"),
-        printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
-        calcUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder), 
-        close(fh)
-      )
+      disp(printf(false,sconcat("Creating volume Advection",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/advection_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("advection_vol_", d, "x_", bName[bInd]),
+      calcAdvectionVolUpdater(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh)
     )
   )
 );
