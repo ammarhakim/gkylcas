@@ -1,6 +1,6 @@
-/* Generate kernels that compute the integrated moments of the distribution function. */
+/* Generate kernels that compute the moments of the distribution function. */
 
-load("moments/vlasovIntMomentsFuncs-C")$
+load("moments/vlasovSRMomentsFuncs-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -20,8 +20,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 3$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -40,14 +40,14 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-  
+
       /* Vlasov moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating Integrated Vlasov Moments ~ax~av", bName[bInd]),c,v)),
-        fname : sconcat("~/max-out/vlasov_int_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,sconcat("Creating Vlasov Moments ~ax~av", bName[bInd]),c,v)),
+        fname : sconcat("~/max-out/vlasov_sr_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov_int_mom"),
-        calcIntMoments(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("vlasov_sr"),
+        calcSRMoments(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

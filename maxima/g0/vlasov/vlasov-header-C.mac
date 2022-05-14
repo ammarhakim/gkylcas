@@ -10,14 +10,6 @@ minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
-/* Maximal order basis. */
-minPolyOrder_Max : 1$
-maxPolyOrder_Max : 3$
-minCdim_Max : 1$
-minVdim_Max : 1$    /* see begining of v loop below though. */
-maxCdim_Max : 0$
-maxVdim_Max : 0$
-
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
@@ -32,28 +24,33 @@ maxVdim_Tensor : 3$
 
 cvars : [x, y, z]$
 
-bName        : ["ser","max","tensor"]$
-minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
-maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
-minCdim      : [minCdim_Ser, minCdim_Max, minCdim_Tensor]$
-minVdim      : [minVdim_Ser, minVdim_Max, minVdim_Tensor]$
-maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
-maxVdim      : [maxVdim_Ser, maxVdim_Max, maxVdim_Tensor]$
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
   printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_poisson_extem_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_sr_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_sr_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru ci do (
     printf(fh, "~avoid vlasov_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid vlasov_sr_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~avoid vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~avoid vlasov_poisson_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   for si : 1 thru vi do (
     printf(fh, "~avoid vlasov_poisson_extem_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~avoid vlasov_poisson_extem_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fac_phi, const double *vecA, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid vlasov_sr_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid vlasov_sr_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~avoid vlasov_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~avoid vlasov_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),

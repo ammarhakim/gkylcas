@@ -61,6 +61,6 @@ calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 calcIntMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  printf(fh, "#include <gkyl_vlasov_mom_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
   calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$
