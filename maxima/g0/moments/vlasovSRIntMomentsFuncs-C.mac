@@ -1,0 +1,68 @@
+/* Functions to generate integrated moments for SR Vlasov. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+pVsub : [x=vx,y=vy,z=vz]$
+
+vTrans  : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
+wTrans  : [wx1, wx2, wx3]$
+dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
+p_over_gamma_fld : [p0_over_gamma, p1_over_gamma, p2_over_gamma]$
+
+volExpr(totDim) := prod(dxv[i-1], i, 1, totDim)$
+calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  /* Computes the integral of M0, M1i and M2 at the same time. */
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  bV : subst(pVsub,basisC[polyOrder]),
+  NV : length(bV),
+  
+  kill(varsC, varsP, basisC, basisP),
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP : basisP[polyOrder],
+  bC : basisC[polyOrder],
+    
+  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a*~a; ~%", volExpr(cdim+vdim), float(1/(2^(cdim+vdim))) ),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", i-1, NV*(i-1))
+  ),
+
+  printf(fh, " ~%"),
+
+  f_e : doExpand1(f, bP),
+
+  M : [],
+
+  /* Integrated M0. */
+  m0 : fullratsimp(innerProd(varsP, 1, 1, f_e)),
+  M  : endcons(m0,M),
+
+  /* Integrated momentum. */
+  for v : 1 thru vdim do (
+    m1 : fullratsimp(innerProd(varsP, 1, doExpand1(p_over_gamma_fld[v], bV), f_e)),
+    M  : endcons(m1,M)
+  ),
+
+  /* Integrated particle energy. */
+  m2 : sum(innerProd(varsP, 1, doExpand1(p_over_gamma_fld[d], bV)*vTrans[d], f_e), d, 1, vdim),
+  M  : endcons(m2, M),
+
+  M : map(letsimp, M),
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+
+  printf(fh, "} ~%")
+)$
+
+calcSRIntMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+)$

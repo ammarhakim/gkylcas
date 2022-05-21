@@ -1,8 +1,7 @@
-load("maxwell-calc/g0/maxwellFuncs-vol-C")$
+load("maxwell/maxwellFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to the streaming
-   term v.grad(f) in the Vlasov-Poisson and Vlasov-Maxwell
+   updates from the volume term for updating Maxwell's
    equations. */
 
 /* ...... USER INPUTS........ */
@@ -12,12 +11,6 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
-
-/* Maximal order basis. */
-minPolyOrder_Max : 1$
-maxPolyOrder_Max : 2$
-minCdim_Max : 1$
-maxCdim_Max : 0$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -29,12 +22,11 @@ maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","max","tensor"]$
-minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
-maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
-minCdim      : [minCdim_Ser, minCdim_Max, minCdim_Tensor]$
-maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
-
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (

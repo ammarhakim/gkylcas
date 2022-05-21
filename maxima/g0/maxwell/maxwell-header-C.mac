@@ -6,17 +6,7 @@
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
-maxVdim_Ser : 3$
-
-/* Maximal order basis. */
-minPolyOrder_Max : 1$
-maxPolyOrder_Max : 3$
-minCdim_Max : 1$
-minVdim_Max : 1$    /* see begining of v loop below though. */
-maxCdim_Max : 0$
-maxVdim_Max : 0$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -24,19 +14,17 @@ maxVdim_Max : 0$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 2$
-maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
 cvars : [x, y, z]$
 
-bName        : ["ser","max","tensor"]$
-minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
-maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
-minCdim      : [minCdim_Ser, minCdim_Max, minCdim_Tensor]$
-maxCdim      : [maxCdim_Ser, maxCdim_Max, maxCdim_Tensor]$
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 

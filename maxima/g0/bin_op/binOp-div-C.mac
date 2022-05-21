@@ -68,12 +68,11 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
   if (basisFun="Tensor") then basisFun:"tensor",
   
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *f, const double *g, double *fdivg) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *f, const double *g) ~%{ ~%", funcNm),
   printf(fh, "  // A:       preallocated LHS matrix. ~%"),
   printf(fh, "  // rhs:     preallocated RHS vector. ~%"),  
   printf(fh, "  // f:       numerator field (must be a scalar). ~%"),
   printf(fh, "  // g:       denominator field (must be a scalar). ~%"),
-  printf(fh, "  // fdivg:   output field. ~%"),
   printf(fh, " ~%"),
 
   /* function to evaluate f on nodes */
@@ -139,16 +138,6 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
     printf(fh,sconcat(smake(nSpaces," "),"  // Fill LHS matrix. ~%")),
     writeCExprsA(Elhs,Eflat,nSpaces),
     printf(fh,"~%")
-  ),
-
-  div(nSpaces) := block([],
-    printf(fh,sconcat(smake(nSpaces," "),"  // Solve the system of equations. ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"  long ipiv[",N,"]; ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"  gkyl_mat_linsolve_lu(A,rhs,ipiv); ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"  for(size_t i=0; i<",N,"; i++) ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"  { ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"    fdivg[i] = gkyl_mat_get(rhs,i,0); ~%")),
-    printf(fh,sconcat(smake(nSpaces," "),"  } ~%"))
   ),
 
   eq : calcInnerProdList(varsW,ue,bW,Ae),
