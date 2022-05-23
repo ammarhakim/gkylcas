@@ -73,7 +73,7 @@ calcBasisNodToMod(basisType, dim, p) := block([basis, vars, nodes, numNodes, bas
 
 /* Given a 'modalBasis', in the variables 'vars'. */
 calcNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block([basisNodToMod],
-  basisNodToMod : calcNodToModWithNodesAndBasis(nodes, modalBasis, vars),
+  basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars),
   return(invert(transpose(basisNodToMod)))
 )$
 
