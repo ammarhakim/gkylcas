@@ -39,7 +39,7 @@ getNodeIndices(nodeSubsetIn,nodesIn) := block([nodeIdxs,idx],
   return(nodeIdxs)
 )$
 
-getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes],
+getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes,removeNode],
   /* Given the nodes in a cell, return a list of the nodes which this cell
      actually stores in memory. This is not BC-aware, it basically only
      returns the lower-left nodes for interior cells and adds upper nodes

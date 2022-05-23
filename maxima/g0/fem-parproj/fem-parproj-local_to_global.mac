@@ -16,7 +16,11 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_parproj_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
+generate_fem_parproj_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
+  [coordVarS,stencilLocCurr,currBC,numCells,idx,polyOrder,
+   bN,numB,nodes,numNodes,storedNodes,storedNodesBC,numStoredNodes,locToNumStoredNodes,numPS,
+   newS,newNodes,storedNodesOffFac,upbDirs,nodeMemOff,currNode,cellIdx,nodeOffFac,nodeIdx,upNodeCoords,newNode,
+   isOnBoundary,dI,pS,nI,d,hi,j],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -33,7 +37,7 @@ generate_fem_parproj_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([
        =0 periodic
        =1 non-periodic
   */
-  currBC : makelist(bcTypes[1],d,1,dim),
+  currBC : makelist(1,d,1,dim),
 
   /* Assume there's only one cell in perpendicular directions, and that
      the parallel direction is the last one. */

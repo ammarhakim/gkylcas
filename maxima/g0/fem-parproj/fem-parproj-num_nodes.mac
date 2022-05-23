@@ -15,7 +15,9 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMax) := block([],
+generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
+  [stencilLoc,numCells,polyOrder,col,bN,numB,nodes,numNodes,
+   storedNodes,numStoredNodes,numNodesOut,sI,d,numBoundCells],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -25,12 +27,6 @@ generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMax) := block([],
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
      0 away from boundaries in that direction. */
   stencilLoc : getStencilCoords(dim),
-
-  /* Types of boundary conditions for which to generate kernels.
-       =0 periodic
-       =1 non-periodic
-  */
-  currBC : makelist(bcTypes[1],d,1,dim),
 
   /* Assume there's only one cell in perpendicular directions, and that
      the parallel direction is the last one. */
