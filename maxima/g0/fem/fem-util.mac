@@ -39,7 +39,7 @@ getNodeIndices(nodeSubsetIn,nodesIn) := block([nodeIdxs,idx],
   return(nodeIdxs)
 )$
 
-getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes,removeNode],
+getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes,i,removeNode,d],
   /* Given the nodes in a cell, return a list of the nodes which this cell
      actually stores in memory. This is not BC-aware, it basically only
      returns the lower-left nodes for interior cells and adds upper nodes
@@ -57,7 +57,8 @@ getStoredNodes(nodesIn,cellLoc) := block([numNodes,dim,storedNodes,removeNode],
   return(storedNodes)
 )$
 
-getStoredNodesWithBC(nodesIn,cellLoc,bcIn) := block([storedNodes],
+getStoredNodesWithBC(nodesIn,cellLoc,bcIn) := block(
+  [dim,storedNodes,periodicDirs,n,removeNode,d],
   /* Given the nodes in a cell, return a list of the nodes which this cell
      actually stores in memory taking into account its location and BC. bcIn
      is a list of the BC along each direction, =0 periodic else nonperiodic. */
@@ -84,6 +85,18 @@ calcMassUnweighted(dim, basisType, pOrder) := block(
   vars    : listofvars(basis_n),
   massNod : calcMassMatrix(vars, 1, basis_n),
   return(massNod)
+)$
+
+calcStiffUnweighted(dim, basisType, pOrder, rdx2vec) := block(
+  /* Calculate unweighted nodal stiffness matrix. */
+  [basis_n,vars,stiffMod,d],
+  basis_n : getNodalBasis(basisType, dim, pOrder),
+  vars    : listofvars(basis_n),
+  stiffNod : rdx2vec[1]*calcStiffMatrix(vars[1], vars, basis_n),
+  for d : 2 thru dim do(
+    stiffNod : stiffNod+rdx2vec[2]*calcStiffMatrix(vars[d], vars, basis_n)
+  ),
+  return(stiffNod)
 )$
 
 calcParMassUnweighted(dim, basisType, pOrder) := block([n, mass],
