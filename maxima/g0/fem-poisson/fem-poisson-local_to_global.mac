@@ -8,7 +8,8 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
+generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
+  [],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -52,7 +53,7 @@ generate_local_to_global(fh, funcNm, dim, basisFun, pMax) := block([],
         /* String used in kernel name, identifying stencil location and BC. */
         stencilStr : "",
         for d : 1 thru dim do (
-          stencilStr : sconcat(stencilStr,assoc(stencilLoc[sI][d],[[-1,"_lo"],[0,""],[1,"_up"]]),
+          stencilStr : sconcat(stencilStr,assoc(stencilLoc[sI][d],[[-1,"_lo"],[0,"_in"],[1,"_up"]]),
                        assoc(stencilLoc[sI][d],coordVarS)[d],"_",assoc(currBC[d],bcKey),string(varsC[d]))
         ),
 
