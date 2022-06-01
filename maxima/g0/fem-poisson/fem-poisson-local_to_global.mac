@@ -71,8 +71,8 @@ generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
           nodes    : args(getNodes(basisFun, dim, polyOrder)),
           numNodes : length(nodes),
 
-          storedNodes    : getStoredNodes(nodes,stencilLoc[sI]),
-          storedNodesBC  : getStoredNodesWithBC(nodes,stencilLoc[sI],currBC),
+          storedNodes    : getStoredNodes(nodes,stencilLoc[sI]), /* lower nodes only, see notes. */
+          storedNodesBC  : getStoredNodesWithBC(nodes,stencilLoc[sI],currBC), /* BC-aware (includes some upper nodes for nonperiodic BC). */
           numStoredNodes : length(storedNodes),
 
           /* Create a list of possible locations and number of stored nodes
@@ -141,18 +141,16 @@ generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
             ),
             return(numNodesFac)
           ),
-          storedNodesOffFac : getCellMemOff(stencilLoc[sI]),
+          cellMemOffFac : getCellMemOff(stencilLoc[sI]),
 
           /* Compute the memory offset of the nodes in this cell (not just the nodes it owns). */
           upbDirs    : sublist_indices(stencilLoc[sI],lambda([x],x=1)),
           nodeMemOff : makelist(0,i,1,numNodes),
           for nI : 1 thru numNodes do (
-            currNode   : copylist(nodes[nI]),
-            cellIdx    : makelist(idx[d-1],d,1,dim),
-            nodeOffFac : storedNodesOffFac,
-            nodeIdx    : nI,
+            currNode : copylist(nodes[nI]),
+            cellIdx  : makelist(idx[d-1],d,1,dim),
             /* Modify cell index & node number for nodes on periodic boundary. */
-            upNodeCoords : sublist_indices(currNode,lambda([x],x=1)),
+            upNodeCoords : sublist_indices(currNode,lambda([x],x=1)), /* Node coordinates that =1. */
             newNode : copylist(currNode),
             for d : 1 thru length(upNodeCoords) do (
               if isInList(upNodeCoords[d],upbDirs) then (
@@ -173,9 +171,9 @@ generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
             ),
             if (not isInList(currNode,storedNodes)) and (not isOnBoundary) then (
               compLength(a, b) := length(a) > length(b),
-              checkCoords : sort(full_listify(powerset(setify(upNodeCoords))), 'compLength),
+              checkCoords : delete([],sort(full_listify(powerset(setify(upNodeCoords))), 'compLength)), /* Excludes the null set. */
               ifStr : " ",
-              for hi : 1 thru length(checkCoords)-1 do (
+              for hi : 1 thru length(checkCoords) do (
                 newLoc     : copylist(stencilLoc[sI]),
                 newCellIdx : copylist(cellIdx),
                 newNode    : copylist(currNode),
@@ -186,11 +184,11 @@ generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
                 ),
                 for j : 1 thru length(checkCoords[hi]) do (
                   if (j>1) then ( condStr : sconcat(condStr," && ") ),
-                  condStr : sconcat(condStr,"(idx[",checkCoords[hi][j]-1,"]+1==numCells[",checkCoords[hi][j]-1,"]-1)"),
-                  newLoc[checkCoords[hi][j]]     : 1 /* Should be -1, but 0 works with getCellMemOff. */
+                  condStr : sconcat(condStr,"(idx[",checkCoords[hi][j]-1,"]+1==numCells[",checkCoords[hi][j]-1,"]-1)"), /* If in 2nd to last cell. */
+                  newLoc[checkCoords[hi][j]] : 1 /* Should be -1, but 0 works with getCellMemOff. */
                 ),
                 boundCellOffFac : getCellMemOff(newLoc),
-                newNodeIdx      : sublist_indices(nodes, lambda([x], x=newNode))[1],
+                newNodeIdx      : sublist_indices(storedNodesBC, lambda([x], x=newNode))[1],
                 nodeMemOff      : sum(newCellIdx[d]*boundCellOffFac[d],d,1,dim)+newNodeIdx-1,
                 printf(fh, " ~aif (~a) {~%",ifStr,condStr),
                 printf(fh, "    ~a = ~a; ~%", globalIdxs[nI-1], fullratsimp(nodeMemOff)),
@@ -202,16 +200,16 @@ generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
               newNode : copylist(currNode),
               for d : 1 thru length(upNodeCoords) do (
                 newNode[upNodeCoords[d]] : -1,
-                newNodeIdx : sublist_indices(nodes, lambda([x], x=newNode))[1],
                 cellIdx[upNodeCoords[d]] : idx[upNodeCoords[d]-1]+1
               ),
-              nodeMemOff : sum(cellIdx[d]*nodeOffFac[d],d,1,dim)+newNodeIdx-1,
+              newNodeIdx : sublist_indices(storedNodesBC, lambda([x], x=newNode))[1],
+              nodeMemOff : sum(cellIdx[d]*cellMemOffFac[d],d,1,dim)+newNodeIdx-1,
               printf(fh, " else {~%"),
               printf(fh, "    ~a = ~a; ~%", globalIdxs[nI-1], fullratsimp(nodeMemOff)),
               printf(fh, "  }~%"),
               printf(fh, "~%")
             ) else (
-              nodeMemOff : sum(cellIdx[d]*nodeOffFac[d],d,1,dim)+nodeIdx-1,
+              nodeMemOff : sum(cellIdx[d]*cellMemOffFac[d],d,1,dim)+nodeIdx-1,
               printf(fh, "  ~a = ~a; ~%", globalIdxs[nI-1], fullratsimp(nodeMemOff))
             )
           ),
