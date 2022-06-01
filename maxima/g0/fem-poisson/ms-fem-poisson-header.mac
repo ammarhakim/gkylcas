@@ -1,0 +1,125 @@
+/* Create header file for multigrid Poisson solver. */
+polyOrderMax : 2$
+load("bvp_utilities/bvp-util")$
+
+bName : ["ser"]$
+
+/* Types of boundary conditions for which to generate kernels.
+     =0 periodic
+     =1 Dirichlet
+     =2 Neumann
+     =3 Robin
+     =9 non-periodic
+   For periodic we'll assume ghost cells are filled accordingly
+   and use an interior stencil. */
+bcTypesFEM : [0, 1, 2, 3]$
+bcStrsFEM  : ["", "dirichlet", "neumann", "robin"]$
+bcKeyFEM   : makelist([bcTypesFEM[i],bcStrsFEM[i]],i,1,length(bcTypesFEM))$
+
+bcTypesNP : [0, 9]$ 
+bcStrsNP  : ["periodic", "nonperiodic"]$
+bcKeyNP   : makelist([bcTypesNP[i],bcStrsNP[i]],i,1,length(bcTypesNP))$
+
+fh : openw("~/max-out/gkyl_fem_poisson_kernels.h")$
+printf(fh, "// Gkyl ------------------------------------------------------------------------~%")$
+printf(fh, "//~%")$
+printf(fh, "// Header file for FEM Poisson solver.~%")$
+printf(fh, "//~%")$
+printf(fh, "//    _______     ___~%")$
+printf(fh, "// + 6 @ |||| # P ||| +~%")$
+printf(fh, "//------------------------------------------------------------------------------~%")$
+printf(fh, "~%")$
+
+printf(fh, "#pragma once~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, " ~%")$
+
+findIUCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder, bcKey, posDependent) := block([coordVarS,stencilLoc,sI,bcCombos,bcI,currBC,stencilStr,i],
+  /* Obtain the various string combinations for the names of the
+     kernels, only differentiating interior and upper-boundary cells. */
+
+  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+
+  /* Associative list between stencil location (-1,0,1) and variable
+     strings used in kernel names. */
+  coordVarS : getCoordVarS(varsC),
+  
+  /* List of stencil locations. Each entry is a dim-dimensional list
+   with -1 meaning it is at a lower boundary, 1 upper boundary, or
+   0 away from boundaries in that direction. */
+  stencilLoc : getStencilCoords(dim),
+
+  numStencils : 1,
+  if posDependent then ( numStencils : length(stencilLoc) ),
+  for sI : 1 thru numStencils do (
+
+    /* This if-statement excludes lower boundary kernels (without an upper boundary). */
+    if (stencilLoc[sI]=makelist(0,d,1,dim)) or
+       (length(sublist(stencilLoc[sI],lambda([x],x < 0)))=0) then (
+  
+      bcTypes  : makelist(bcKey[i][1],i,1,length(bcKey)),
+      bcCombos : makelist([bcTypes[i]],i,1,length(bcTypes)),
+      for d : 2 thru dim do (
+        bcCombos : listify(cartesian_product(setify(bcCombos),setify(bcTypes))),
+        for i : 1 thru length(bcCombos) do ( bcCombos[i] : flatten(bcCombos[i]) )
+      ),
+
+      /* Loop over BC combinations. Will create a separate kernel for each. */
+      for bcI : 1 thru length(bcCombos) do (
+
+        currBC : copylist(bcCombos[bcI]),
+
+        /* String used in kernel name, identifying stencil location and BC. */
+        stencilStr : "",
+        for d : 1 thru dim do (
+          if posDependent then (
+            stencilStr : sconcat(stencilStr,"_",assoc(stencilLoc[sI][d],[[-1,"lo"],[0,"in"],[1,"up"]]),
+                         assoc(stencilLoc[sI][d],coordVarS)[d],"_",assoc(currBC[d],bcKey),string(varsC[d]))
+          ) else (
+            stencilStr : sconcat(stencilStr,"_",assoc(currBC[d],bcKey),string(varsC[d]))
+          )
+        ),
+
+        printf(fhIn, sconcat(funcTypeStr," ",funcNameStr,"_~ax_~a_p~a~a(",funcArgsStr,");~%"), dim, bName[bInd], polyOrder, stencilStr)
+      )
+    )
+  )
+)$
+
+for bInd : 1 thru length(bName) do (
+
+  for polyOrder : 1 thru polyOrderMax do (
+    for ci : 1 thru 3 do (
+
+      /* Compute the number of nodes in the whole domain. */
+      findIUCombos(fh, "long", "fem_poisson_num_nodes_global", "const int *numCells", bName[bInd], ci, polyOrder, bcKeyNP, false),
+      printf(fh, "~%"),
+
+      /* Local mass matrix of FEM basis. */
+      printf(fh, "void fem_poisson_stiff_~ax_~a_p~a(const double *dx, struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
+      /* Local mass matrix of FEM basis times the modal-to-nodal matrix. */
+      printf(fh, "void fem_poisson_mass_times_modtonod_~ax_~a_p~a(struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
+      /* Local nodal-to-modal matrix. */
+      printf(fh, "void fem_poisson_nodtomod_~ax_~a_p~a(struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
+      printf(fh, "~%"),
+
+      /* Create the local to global map for the nodes in a single cell. */
+      findIUCombos(fh, "void", "fem_poisson_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], ci, polyOrder, bcKeyNP, true),
+      printf(fh, "~%"),
+
+      /* Kernels which add contributions to stiffness matrix. */
+      /*
+      findAllCombos(fh, "FemPoissonStiffnessTripletList", "clFemPoisson *femPoiData, const int *globalIdxs, const double *dx", bName[bInd], ci, polyOrder, bcKeyFEM),
+      */
+      printf(fh, "~%")
+
+    ),
+    printf(fh, "~%")
+  )
+
+)$
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
