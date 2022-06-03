@@ -9,7 +9,11 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_poisson_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
-  [],
+  [d,i,sI,bcI,polyOrder,dI,pS,nI,j,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,
+   bN,numB,nodes,numNodes,storedNodes,storedNodesBC,numStoredNodes,locToNumStoredNodes,numPS,newS,
+   newNodes,cellMemOffFac,upbDirs,nodeMemOff,currNode,cellIdx,upNodeCoords,newNode,nodeIdx,isOnBoundary,
+   checkCoords,ifStr,newLoc,newCellIdx,condStr,boundCellOffFac,newNodeIdx],
+
 
   kill(varsC, varsP, basisC, basisP),
 
