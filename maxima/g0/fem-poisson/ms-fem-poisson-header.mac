@@ -127,7 +127,7 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* RHS source stencil kernels to populate the right side vector. */
-      findCombos(fh, "void", "fem_poisson_src_stencil", "const double *rho, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "void", "fem_poisson_src_stencil", "const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%")
 
     ),
