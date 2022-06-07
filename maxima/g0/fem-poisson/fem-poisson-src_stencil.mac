@@ -105,8 +105,18 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
         /* Write out the coefficients of each basis_i*sum_j basis_j*rho_j
            (modified by BCS) to RHS vector via triples object.*/
         for k : 1 thru numB do (
-          if insertVal[k] then (opStr : "ASSIGN") else (opStr : "ACCUMULATE"),
-          printf(fh, "  ~a(bsrc[globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
+          printf(fh, "  #ifdef __CUDA_ARCH__~%"),
+          if insertVal[k] then (
+            opStr : "atomicExch",
+            printf(fh, "  ~a((float*) &bsrc[globalIdxs[~a]],(float)~a);~%",opStr,k-1,expand(float(src_c[k])))
+          ) else (
+            opStr : "atomicAdd",
+            printf(fh, "  ~a(&bsrc[globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
+          ),
+          printf(fh, "  #else~%"),
+          if insertVal[k] then (opStr : "=") else (opStr : "+="),
+          printf(fh, "  bsrc[globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
+          printf(fh, "  #endif~%")
         ),
         printf(fh, "~%"),
 

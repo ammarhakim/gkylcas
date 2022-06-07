@@ -111,14 +111,6 @@ fname : "~/max-out/fem_poisson_src_stencil.c"$
 fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
 printf(fh, " ~%")$
-printf(fh, "#ifdef GKYL_HAVE_CUDA~%")$
-printf(fh, "#define ACCUMULATE(x, y) atomicAdd(x, y)~%")$
-printf(fh, "#define ASSIGN(x, y) atomicExch(x, y)~%")$
-printf(fh, "#else~%")$
-printf(fh, "#define ACCUMULATE(x, y) x += y~%")$
-printf(fh, "#define ASSIGN(x, y) x = y~%")$
-printf(fh, "#endif~%")$
-printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     funcName : sconcat("fem_poisson_src_stencil_", c, "x_", bName[bInd]),
