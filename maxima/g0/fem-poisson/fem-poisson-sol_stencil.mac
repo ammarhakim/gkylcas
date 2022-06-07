@@ -17,8 +17,7 @@ generate_fem_poisson_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
   for polyOrder : 1 thru pMax do (
 
-    printf(fh, "GKYL_CU_D ~%"),
-    printf(fh, "void ~a_p~a(const double *sol_nodal_global, const long *globalIdxs, double *sol_modal_local) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(const double *sol_nodal_global, const long *globalIdxs, double *sol_modal_local) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // sol_nodal_global: global nodal solution vector.~%"),
     printf(fh, "  // sol_modal_local: local modal solution vector.~%"),
     printf(fh, "~%"),
