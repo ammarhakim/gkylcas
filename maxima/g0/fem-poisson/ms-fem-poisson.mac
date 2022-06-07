@@ -10,6 +10,7 @@ load("fem-poisson/fem-poisson-local_matrices")$
 load("fem-poisson/fem-poisson-local_to_global")$
 load("fem-poisson/fem-poisson-lhs_stencil")$
 load("fem-poisson/fem-poisson-src_stencil")$
+load("fem-poisson/fem-poisson-sol_stencil")$
 
 /* ...... USER INPUTS........ */
 
@@ -30,6 +31,7 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
+/*
 /* Kernels computing the number of nodes in the global problem. */
 disp(printf(false,"Creating fem_poisson_num_nodes.c"))$
 fname : "~/max-out/fem_poisson_num_nodes.c"$
@@ -115,4 +117,18 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+*/
 
+/* Solution nodal-to-modal kernels. */
+disp(printf(false,"Creating fem_poisson_sol_stencil.c"))$
+fname : "~/max-out/fem_poisson_sol_stencil.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    funcName : sconcat("fem_poisson_sol_stencil_", c, "x_", bName[bInd]),
+    generate_fem_poisson_sol_stencil(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
