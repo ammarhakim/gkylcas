@@ -92,6 +92,50 @@ generate_fem_poisson_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
         for d : 1 thru dim do (
           vol_c : vol_c+epsilon*rdx2Sq[d-1]*calcInnerProdList(vars,1,diff(bN,vars[d]),diff(phi_e,vars[d]))
         ),
+        
+        /* Calculate the surface term (for Neumann and Robin BCs). Some of
+           these contributions don't affect the LHS matrix and instead add
+           contributions to the RHS vector (see RHS source stencils too). */
+        /* Only domain surface terms with non-periodic and non-Dirichlet BCs contribute a surface term. */
+        domSurfs : sublist_indices(currBC, lambda([x],x # 0 and x # 1)),
+        if length(domSurfs)>0 then ( 
+          /* This volume factors appears in front of the right-side source term. */
+          volumeFac : (1/2)^dim,
+          for d : 1 thru dim do ( volumeFac : volumeFac*dx[d-1] ),
+          printf(fh, "  double volFac = ~a; ~%", float(volumeFac)),
+          printf(fh, "~%"),
+  
+          /* Surface factors based on cell lengths. */
+          printf(fh, "  double rdx2SqVol[~a]; ~%", dim),
+          for d : 1 thru dim do (
+            printf(fh, "  rdx2SqVol[~a] = volFac*rdx2Sq[~a]; ~%", d-1, d-1)
+          ),
+          printf(fh, "~%")
+        ),
+        surf_c : makelist(0,k,1,numB),
+        for dI : 1 thru length(domSurfs) do (
+          dir      : domSurfs[dI],
+          dirVar   : vars[dir],
+          surfVars : delete(dirVar,vars),
+          phip_e   : diff(phi_e,dirVar),
+
+          off3 : 3*((stencilLoc[sI][dir]+1)/2),
+          if currBC[dir]=2 then (
+            /* Neumman. */
+            bcValues : [0, 1, bcVals[6*(dir-1)+2+off3]]
+          ) elseif currBC[dir]=3 then (
+            /* Robin. */
+            bcValues : [bcVals[6*(dir-1)+off3], bcVals[6*(dir-1)+off3+1], bcVals[6*(dir-1)+off3+2]]
+          ),
+
+          dphidnBC : (bcValues[3] - bcValues[1]*phi_e)/bcValues[2],
+
+          surf_c : surf_c-epsilon*stencilLoc[sI][dir]*rdx2SqVol[dir-1]
+                  *calcInnerProdList(surfVars,1,subst(dirVar=stencilLoc[sI][dir],bN),
+                                                subst(dirVar=stencilLoc[sI][dir],dphidnBC))
+        ),
+
+        lhs_c : surf_c + vol_c,
 
         /* For Dirichlet BCs we'll simply set the equation corresponding to the
            k-th node to phi_k = bcVals[2]. */
@@ -102,7 +146,7 @@ generate_fem_poisson_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
           dirichletBoundaryNodes :  copylist(sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir]))),
           dirichletBoundaryNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletBoundaryNodes) do (
-            vol_c[dirichletBoundaryNodesI[k]] : phi_c[dirichletBoundaryNodesI[k]],
+            lhs_c[dirichletBoundaryNodesI[k]] : phi_c[dirichletBoundaryNodesI[k]],
             insertVal[dirichletBoundaryNodesI[k]] : true
           )
         ),
@@ -110,7 +154,7 @@ generate_fem_poisson_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
         /* Write out the coefficients of each basis_i*basis_j pair to matrix
            via triples object.*/
         for k : 1 thru numB do (
-          vals_k : coefmatrix([vol_c[k]],phi_c),
+          vals_k : coefmatrix([lhs_c[k]],phi_c),
           if insertVal[k] then (triplesStr : "insert") else (triplesStr : "accum"),
           for m : 1 thru numB do (
             val : vals_k[1][m],

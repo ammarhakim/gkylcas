@@ -64,7 +64,8 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
       for polyOrder : 1 thru pMax do (
 
-        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(double epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "  // epsilon: permittivity.~%"),
         printf(fh, "  // rho: right side source.~%"),
         printf(fh, "  // bcVals[3*2*dim]: values to impose as BCs, i.e. bcVals[0]*phi+bcVals[1]*d(phi)/dx=bcVals[2].~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
@@ -87,6 +88,52 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
         src   : massMod2nod . rho_c,
         src_c : makelist(fullratsimp(src[i][1]),i,1,numB),
+
+        /* Calculate contributions to the surface term, since some of them have
+           to be moved to the RHS source vector (e.g. they are not proportional
+           to an unkown phi). */
+        /* Only domain surface terms with non-periodic and non-Dirichlet BCs contribute a surface term. */
+        domSurfs : sublist_indices(currBC, lambda([x],x # 0 and x # 1)),
+        if length(domSurfs)>0 then (
+          /* This volume factors appears in front of the right-side source term. */
+          volumeFac : (1/2)^dim,
+          for d : 1 thru dim do ( volumeFac : volumeFac*dx[d-1] ),
+          printf(fh, "  double volFac = ~a; ~%", float(volumeFac)),
+          printf(fh, "~%"),
+
+          /* Surface factors based on cell lengths. */
+          printf(fh, "  double rdx2SqVol[~a]; ~%", dim),
+          for d : 1 thru dim do (
+            printf(fh, "  rdx2SqVol[~a] = volFac*4.0/(dx[~a]*dx[~a]); ~%", d-1, d-1, d-1)
+          ),
+          printf(fh, "~%")
+        ),
+        phi_e : doExpand1(phi,bN),
+        surf_c : makelist(0,k,1,numB),
+        for dI : 1 thru length(domSurfs) do (
+          dir      : domSurfs[dI],
+          dirVar   : vars[dir],
+          surfVars : delete(dirVar,vars),
+          phip_e   : diff(phi_e,dirVar),
+
+          off3 : 3*((stencilLoc[sI][dir]+1)/2),
+          if currBC[dir]=2 then (
+            /* Neumman. */
+            bcValues : [0, 1, bcVals[6*(dir-1)+2+off3]]
+          ) elseif currBC[dir]=3 then (
+            /* Robin. */
+            bcValues : [bcVals[6*(dir-1)+off3], bcVals[6*(dir-1)+off3+1], bcVals[6*(dir-1)+off3+2]]
+          ),
+
+          dphidnBC : (bcValues[3] - bcValues[1]*phi_e)/bcValues[2],
+
+          surf_c : surf_c-epsilon*stencilLoc[sI][dir]*rdx2SqVol[dir-1]
+                  *calcInnerProdList(surfVars,1,subst(dirVar=stencilLoc[sI][dir],bN),
+                                                subst(dirVar=stencilLoc[sI][dir],dphidnBC))
+        ),
+        /* Set phi[i]=0 since we don't want to add those that are proportional
+           to unknown phi's (which are accounted for in the LHS matrix. */
+        src_c : src_c - subst(makelist(phi[k-1]=0,k,1,numB),surf_c),
 
         /* For Dirichlet BCs we'll simply set the equation corresponding to the
            k-th node to phi_k = bcVals[2]. So we need to replace the source at

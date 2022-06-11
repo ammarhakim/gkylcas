@@ -33,8 +33,10 @@ printf(fh, "~%")$
 printf(fh, "#pragma once~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "#include <gkyl_mat.h> ~%")$
-printf(fh, "#include <gkyl_mat_triples.h>~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, " ~%")$
+printf(fh, "// This needs to be inside EXTERN_C ~%")$
+printf(fh, "#include <gkyl_mat_triples.h>~%")$
 printf(fh, " ~%")$
 
 findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder, bcKey, posDependent, inloOnly) := block([coordVarS,stencilLoc,sI,bcCombos,bcI,currBC,stencilStr,i],
@@ -127,7 +129,7 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* RHS source stencil kernels to populate the right side vector. */
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil", "const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil", "double epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%"),
 
       /* Solution stencil kernels. */
