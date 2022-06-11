@@ -112,14 +112,6 @@ for bInd : 1 thru length(bName) do (
       findCombos(fh, "long", "fem_poisson_num_nodes_global", "const int *numCells", bName[bInd], ci, polyOrder, bcKeyNP, false, true),
       printf(fh, "~%"),
 
-      /* Local mass matrix of FEM basis. */
-      printf(fh, "GKYL_CU_DH void fem_poisson_stiff_~ax_~a_p~a(const double *dx, struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
-      /* Local mass matrix of FEM basis times the modal-to-nodal matrix. */
-      printf(fh, "GKYL_CU_DH void fem_poisson_mass_times_modtonod_~ax_~a_p~a(struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
-      /* Local nodal-to-modal matrix. */
-      printf(fh, "GKYL_CU_DH void fem_poisson_nodtomod_~ax_~a_p~a(struct gkyl_mat *matout);~%", ci, bName[bInd], polyOrder),
-      printf(fh, "~%"),
-
       /* Create the local to global map for the nodes in a single cell. */
       findCombos(fh, "GKYL_CU_DH void", "fem_poisson_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], ci, polyOrder, bcKeyNP, true, true),
       printf(fh, "~%"),
