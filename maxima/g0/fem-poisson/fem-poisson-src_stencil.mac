@@ -64,7 +64,7 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
       for polyOrder : 1 thru pMax do (
 
-        printf(fh, "void ~a_p~a~a(const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // rho: right side source.~%"),
         printf(fh, "  // bcVals[3*2*dim]: values to impose as BCs, i.e. bcVals[0]*phi+bcVals[1]*d(phi)/dx=bcVals[2].~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
@@ -105,8 +105,18 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
         /* Write out the coefficients of each basis_i*sum_j basis_j*rho_j
            (modified by BCS) to RHS vector via triples object.*/
         for k : 1 thru numB do (
+          printf(fh, "  #ifdef __CUDA_ARCH__~%"),
+          if insertVal[k] then (
+            opStr : "atomicExch",
+            printf(fh, "  ~a((float*) &bsrc[globalIdxs[~a]],(float)~a);~%",opStr,k-1,expand(float(src_c[k])))
+          ) else (
+            opStr : "atomicAdd",
+            printf(fh, "  ~a(&bsrc[globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
+          ),
+          printf(fh, "  #else~%"),
           if insertVal[k] then (opStr : "=") else (opStr : "+="),
-          printf(fh, "  bsrc[globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k])))
+          printf(fh, "  bsrc[globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
+          printf(fh, "  #endif~%")
         ),
         printf(fh, "~%"),
 

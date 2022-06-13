@@ -13,7 +13,7 @@ generate_fem_poisson_stiff(fh, funcNm, dim, basisFun, pMax) := block(
   [polyOrder, massM, i, j],
 
   for polyOrder : 1 thru pMax do (
-    printf(fh, "void ~a_p~a(const double *dx, struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(const double *dx, struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // dx: cell length in each direction.~%"),
     printf(fh, "  // matout: local stiffness matrix.~%"),
     printf(fh, "~%"),
@@ -43,7 +43,7 @@ generate_fem_poisson_mass_times_modtonod(fh, funcNm, dim, basisFun, pMax) := blo
   [polyOrder, massM, i, j, mod2nod, out],
 
   for polyOrder : 1 thru pMax do (
-    printf(fh, "void ~a_p~a(struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // matout: mass matrix times modal to nodal matrix.~%"),
     printf(fh, "~%"),
 
@@ -68,7 +68,7 @@ generate_fem_poisson_nodtomod(fh, funcNm, dim, basisFun, pMax) := block(
   [polyOrder, massM, i, j, mod2nod, out],
 
   for polyOrder : 1 thru pMax do (
-    printf(fh, "void ~a_p~a(struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(struct gkyl_mat *matout) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // matout: nodal to modal matrix.~%"),
     printf(fh, "~%"),
 
