@@ -37,13 +37,16 @@ for bInd : 1 thru length(bName) do (
 
       /* Local mass matrix of FEM basis. */
       printf(fh, "void fem_parproj_mass_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
-      /* Local mass matrix of FEM basis times the modal-to-nodal matrix. */
-      printf(fh, "void fem_parproj_mass_times_modtonod_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
-      /* Local nodal-to-modal matrix. */
-      printf(fh, "void fem_parproj_nodtomod_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
 
       /* Local to global mapping. */
-      printf(fh, "void fem_parproj_local_to_global_~ax_~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs);~%", c, bName[bInd], polyOrder)
+      printf(fh, "GKYL_CU_DH void fem_parproj_local_to_global_~ax_~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs);~%", c, bName[bInd], polyOrder),
+
+      /* Right side source stencil (mass matrix . modal_to_nodal matrix). */
+      printf(fh, "GKYL_CU_DH void fem_parproj_src_stencil_~ax_~a_p~a(const double *rho, long nodeOff, const long *globalIdxs, double *bsrc);~%", c, bName[bInd], polyOrder),
+
+      /* Solution stencil kernels. */
+      printf(fh, "GKYL_CU_DH void fem_parproj_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long nodeOff, const long *globalIdxs, double *sol_modal_local);~%", c, bName[bInd], polyOrder),
+      printf(fh, "~%")
     ),
 
     printf(fh, "~%")

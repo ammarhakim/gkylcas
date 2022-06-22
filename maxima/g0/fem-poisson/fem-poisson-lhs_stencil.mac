@@ -12,7 +12,10 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_poisson_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
-  [],
+  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,phi_c,
+   phi_e,vol_c,domSurfs,surf_c,lhs_c,insertVal,dirichletDirs,vals_k,triplesStr,val,dir,dirichletBoundaryNodes,
+   dirichletBoundaryNodesI,volumeFac,dirVar,surfVars,phip_e,off3,bcValues,dphidnBC,
+   sI,d,i,bcI,polyOrder,bcsInDir,dI,k,m],
 
   kill(varsC, varsP, basisC, basisP),
 

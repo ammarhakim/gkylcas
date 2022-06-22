@@ -13,7 +13,10 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
-  [],
+  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,
+   massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,domSurfs,phi_e,surf_c,insertVal,dirichletDirs,opStr,dir,
+   dirichletNodesI,volumeFac,dirVar,surfVars,phip_e,off3,bcValues,dphidnBC,
+   sI,d,bcsInDir,i,bcI,polyOrder,dI,k],
 
   kill(varsC, varsP, basisC, basisP),
 

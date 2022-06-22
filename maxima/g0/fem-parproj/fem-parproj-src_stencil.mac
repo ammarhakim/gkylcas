@@ -1,0 +1,63 @@
+/*
+   Generate kernels computing the RHS of the parallel FEM projection operator,
+     \int psi_k*T*rho dV
+   where T is a modal-to-nodal operation and rho is the source.
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("nodal_operations/nodal_functions");
+load("bvp_utilities/bvp-util");
+load("fem/fem-util");
+fpprec : 24$
+
+generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
+  [bN,numB,vars,nodes,numNodes,massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,polyOrder,k],
+
+  kill(varsC, varsP, basisC, basisP),
+
+  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+
+
+  for polyOrder : 1 thru pMax do (
+
+    printf(fh, "GKYL_CU_DH void ~a_p~a(const double *rho, long nodeOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "  // rho: right side source.~%"),
+    printf(fh, "  // nodeOff: node offset (prob idx * global number of nodes).~%"),
+    printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
+    printf(fh, "  // bsrc: global right side source vector.~%"),
+    printf(fh, "~%"),
+
+    bN   : getNodalBasis(basisFun, dim, polyOrder),
+    numB : length(bN),
+    vars : listofvars(bN),
+
+    nodes    : args(getNodes(basisFun, dim, polyOrder)),
+    numNodes : length(nodes),
+
+    massM   : calcMassUnweighted(dim, basisFun, polyOrder),
+    mod2nod : calcModToNod(basisFun, dim, polyOrder),
+
+    massMod2nod : massM . mod2nod,
+
+    rho_c : makelist(rho[k-1],k,1,numB),
+
+    src   : massMod2nod . rho_c,
+    src_c : makelist(fullratsimp(src[i][1]),i,1,numB),
+
+    /* Write out the coefficients of each basis_i*sum_j basis_j*rho_j
+       (modified by BCS) to RHS vector via triples object.*/
+    for k : 1 thru numB do (
+      printf(fh, "  #ifdef __CUDA_ARCH__~%"),
+      printf(fh, "  atomicAdd(&bsrc[nodeOff+globalIdxs[~a]],~a);~%",k-1,expand(float(src_c[k]))),
+      printf(fh, "  #else~%"),
+      printf(fh, "  bsrc[nodeOff+globalIdxs[~a]] += ~a;~%",k-1,expand(float(src_c[k]))),
+      printf(fh, "  #endif~%")
+    ),
+    printf(fh, "~%"),
+
+    printf(fh, "}~%")
+
+  )
+
+)$

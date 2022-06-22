@@ -1,5 +1,6 @@
 /*
-   Generate kernels computing the global-nodal-to-local-modal mapping of the Poisson equation.
+   Generate kernels computing the global-nodal-to-local-modal
+   mapping of the FEM parallel projeciton operator.
 */
 
 load("modal-basis");
@@ -8,7 +9,7 @@ load("nodal_operations/nodal_functions");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
+generate_fem_parproj_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
   [bN,numB,vars,stencil,sol,sol_c,
    polyOrder,k],
 
@@ -18,8 +19,10 @@ generate_fem_poisson_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
   for polyOrder : 1 thru pMax do (
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a(const double *sol_nodal_global, const long *globalIdxs, double *sol_modal_local) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(const double *sol_nodal_global, long nodeOff, const long *globalIdxs, double *sol_modal_local) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // sol_nodal_global: global nodal solution vector.~%"),
+    printf(fh, "  // nodeOff: node offset (prob idx * global number of nodes).~%"),
+    printf(fh, "  // globalIdxs: map between local nodes and global nodes.~%"),
     printf(fh, "  // sol_modal_local: local modal solution vector.~%"),
     printf(fh, "~%"),
 
@@ -29,7 +32,7 @@ generate_fem_poisson_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
     stencil : calcNodToMod(basisFun, dim, polyOrder),
 
-    sol   : stencil . makelist(sol_nodal_global[globalIdxs[k-1]], k, 1, numB),
+    sol   : stencil . makelist(sol_nodal_global[nodeOff+globalIdxs[k-1]], k, 1, numB),
     sol_c : makelist(fullratsimp(sol[i][1]),i,1,numB),
 
     /* Write out the coefficients. */
