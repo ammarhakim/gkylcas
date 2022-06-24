@@ -37,7 +37,7 @@ generate_fem_parproj_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
     /* Write out the coefficients. */
     for k : 1 thru numB do (
-      printf(fh, "  sol_modal_local[~a] += ~a;~%",k-1,expand(float(sol_c[k])))
+      printf(fh, "  sol_modal_local[~a] = ~a;~%",k-1,expand(float(sol_c[k])))
     ),
     printf(fh, "~%"),
 

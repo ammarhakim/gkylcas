@@ -45,7 +45,7 @@ generate_fem_parproj_local_to_global(fh, funcNm, dim, basisFun, pMax) := block(
 
   for polyOrder : 1 thru pMax do (
   
-    printf(fh, "void ~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void ~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // numCellsPar: number of cells in parallel direction.~%"),
     printf(fh, "  // parIdx:     index of current cell in parallel direction.~%"),
     printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
