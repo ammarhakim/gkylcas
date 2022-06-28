@@ -11,12 +11,12 @@ load("gyrokinetic/gkFuncs-vol")$
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor order basis. */
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 0$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
       v : gkVdims[c][gkV],
 
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
+      if (c+v>5 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
       for polyOrder : 1 thru maxPolyOrderB do (
 
