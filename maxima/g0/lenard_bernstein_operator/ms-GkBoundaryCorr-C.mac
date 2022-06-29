@@ -1,6 +1,6 @@
 /* Generate kernels that compute the moments of the distribution
    function in Vlasov and gyrokinetic models. */
-load("g0/lenard_bernstein_operator/GkBoundaryCorr-C")$
+load("lenard_bernstein_operator/GkBoundaryCorr-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -39,7 +39,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (  
 	/* Create a separate file w/ boundary corrections. */
