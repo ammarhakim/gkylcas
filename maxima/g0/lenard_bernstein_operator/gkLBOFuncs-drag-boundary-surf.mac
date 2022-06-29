@@ -237,8 +237,8 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuni
   printf(fh, "} ~%")
 );
 
-calcBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := 
-block([modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
+calcBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+  [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
 
   if (basisFun="ser") then basisFun:"Ser",
   if (basisFun="tensor") then basisFun:"Tensor",
@@ -273,10 +273,8 @@ block([modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
     
   nuSum_e : doExpand1(nuSum,bC),
-  /* Expand the mean flow speed in the configuration basis. */
-  nuUSum_e : doExpand1(nuUSum,bC),
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : nuSum_e*((1/2)*dxv[vid1[1]]*vv+w[vid1[1]])-nuUSum_e,
+  alphaDr : 2.0*nuSum_e*((1/2)*dxv[vid1[2]]*vv+w[vid1[2]]),
 
   /* Create expansions of f_skin, f_edge on volume basis. */
   fSkin_e : doExpand1(fSkin, bP),

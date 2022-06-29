@@ -2,7 +2,6 @@ load("modal-basis")$
 load("out-scripts");
 load(stringproc)$
 load("nodal_operations/nodal_functions")$
-load("recovery")$
 
 fpprec : 24$
 
@@ -171,8 +170,8 @@ calcDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) :=
   Ghat_l_e : doExpandLst(glst1_l, bSurf),
   glst1_r : doMakeExprLst(Ghat_r_c, Ghat_r),
   Ghat_r_e : doExpandLst(glst1_r, bSurf),
-  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
   drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
+  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
 
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -296,8 +295,8 @@ block([modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   flush_output(fh),
   
   /* Compute surface contribution integral(phi^- Ghat) on the right. */
-  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
-  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
+  incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, 1, subst(vv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, rdv2*incr_l + rdv2*incr_r),
   printf(fh, "} ~%")
 );
