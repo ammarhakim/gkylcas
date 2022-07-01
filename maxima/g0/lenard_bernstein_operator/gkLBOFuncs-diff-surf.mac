@@ -66,7 +66,7 @@ calcDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   printf(fh, "~%"),
 
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
-  BmagInv_e : doExpand1(bmag_inv,bC),
+  BmagInv_e   : doExpand1(bmag_inv,bC),
     
   if dir=1 then (
     diffFac_e : nuVtSqSum_e 

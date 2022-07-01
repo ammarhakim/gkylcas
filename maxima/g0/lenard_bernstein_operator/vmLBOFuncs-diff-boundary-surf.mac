@@ -83,36 +83,35 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
 
   /* Volume increment from configuration space. */
   vol_incr_e : rdvSq4*subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,vv,2), facDiff_NoZero_e*fSkin_e)),
+  printf(fh, "  double vol_incr[~a] = {0.0}; ~%", length(bP)),
+  writeCExprs1(vol_incr, vol_incr_e),
+  printf(fh, "~%"),
     
   Gdiff_l_c : calcInnerProdList(surfVars,1,bSurf,hsol_l[2]),
   Gdiff_r_c : calcInnerProdList(surfVars,1,bSurf,hsol_r[2]),
-  alst_l    : doMakeExprLst(Gdiff_l_c, Gdiff),
-  alst_r    : doMakeExprLst(Gdiff_r_c, Gdiff),
   Gdiff_l_e : doExpandLst(Gdiff_l_c, bSurf),
   Gdiff_r_e : doExpandLst(Gdiff_r_c, bSurf),
 
   Gdiff2_l_c : calcInnerProdList(surfVars,1,bSurf,hsol_l[1]),
   Gdiff2_r_c : calcInnerProdList(surfVars,1,bSurf,hsol_r[1]),
-  alst_l2    : doMakeExprLst(Gdiff2_l_c, Gdiff2),
-  alst_r2    : doMakeExprLst(Gdiff2_r_c, Gdiff2),
   Gdiff2_l_e : doExpandLst(Gdiff2_l_c, bSurf),
   Gdiff2_r_e : doExpandLst(Gdiff2_r_c, bSurf),
 
-  temp_diff_le : fullratsimp(calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Gdiff_l_e) - calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), Gdiff2_l_e)),
-  temp_diff_re : fullratsimp(calcInnerProdList(surfVars, 1, subst(vv=1, bP), Gdiff_r_e) - calcInnerProdList(surfVars, 1, subst(vv=1, bPp), Gdiff2_r_e)),
+  temp_diff_le : fullratsimp(calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Gdiff_l_e)
+                            -calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), Gdiff2_l_e)),
+  temp_diff_re : fullratsimp(calcInnerProdList(surfVars, 1, subst(vv=1, bP), Gdiff_r_e)
+                            -calcInnerProdList(surfVars, 1, subst(vv=1, bPp), Gdiff2_r_e)),
   temp_edge_le : -calcInnerProdList(surfVars, -1, subst(vv=-1, bPp), subst(vv=-1, fSkin_e)),
   temp_edge_re : -calcInnerProdList(surfVars, 1, subst(vv=1, bPp), subst(vv=1, fSkin_e)),
   diff_incr_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_diff, bP)),
   diff_incr_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_diff, bP)),
   edge_incr_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_edge, bP)),
   edge_incr_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_edge, bP)),
+
   printf(fh, "  double temp_diff[~a] = {0.0}; ~%", length(bP)),
   printf(fh, "  double temp_edge[~a] = {0.0}; ~%", length(bP)),
   printf(fh, "  double diff_incr[~a] = {0.0}; ~%", length(bP)),
   printf(fh, "  double edge_incr[~a] = {0.0}; ~%", length(bP)),
-  printf(fh, "  double vol_incr[~a] = {0.0}; ~%", length(bP)),
-  printf(fh, "~%"),
-  tempVars : writeCExprs1(vol_incr, vol_incr_e),
   printf(fh, "~%"),
   printf(fh, "  if (edge == -1) { ~%~%"),
     

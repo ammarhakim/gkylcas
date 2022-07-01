@@ -13,7 +13,6 @@ vvars : [vx, vy, vz]$
 vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
   [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
@@ -167,9 +166,9 @@ calcDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) :=
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e : doExpandLst(glst1_l, bSurf),
+  Ghat_l_e : doExpand(glst1_l, bSurf),
   glst1_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e : doExpandLst(glst1_r, bSurf),
+  Ghat_r_e : doExpand(glst1_r, bSurf),
   drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
   drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
 
@@ -267,13 +266,13 @@ block([modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
   Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)),
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpandLst(GhatNoZero_r, bSurf),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = 2*nu*mu_l f_c. */
   Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=-1, fc_e)),
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpandLst(GhatNoZero_l, bSurf),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 

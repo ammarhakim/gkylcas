@@ -1,4 +1,4 @@
-load("g0/prim_moments/SelfPrimMoms-C")$
+load("prim_moments/SelfPrimMoms-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -15,7 +15,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 2$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
@@ -36,7 +36,7 @@ for bInd : 1 thru length(bName) do (
       v : gkVdims[c][gkV],
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating GkSelfPrimMoments ~ax~av ", bName[bInd], " P~a"),c,v, polyOrder)),
         fname : sconcat("~/max-out/gyrokinetic_self_prim_moments_", c, "x", v, "v_", bName[bInd],"_p",polyOrder, ".c"),

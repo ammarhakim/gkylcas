@@ -10,24 +10,6 @@ fpprec : 24$
 varsV : [vx, vy, vz]$
 VarsV : [VX, VY, VZ]$
 
-/* These variables make it possible for the function
-   calcBoundaryIntegral to generate the code for both
-   the function that evaluates the surface integral of
-   f|^(vmax)_(vmin) and that of vf|^(vmax)_(vmin). */
-Fsuffix : [f, vf]$
-Bfac    : [ 1 , vBoundary ]$
-
-writeCIncrExprsCollect1s(lhs, rhs, clst) := block([i,e,expr,param],
-  expr : float(expand(rhs)),
-  for i : 1 thru length(expr) do (
-    if expr[i] # 0.0 then (
-      param : cons(expr[i], clst),
-      e : apply(collectterms, param),
-      printf(fh, "    ~a += ~a; ~%", lhs[i-1], e)
-    )
-  )
-)$
-
 calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [i,e,modNm,bC,bP,NP,NC,vv,surfVars,dv,fbIn_lower_e,fbIn_upper_e,mBlo_e,mBup_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
     
@@ -105,7 +87,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 	if expr[i] # 0.0 then (
 	  param : cons(expr[i], [dS]),
 	  e : apply(collectterms, param),
-	  printf(fh, "    ~a += ~a; ~%", out[(dir-1)*NC+i-1], e)
+	  printf(fh, "    ~a += ~a; ~%", out[i-1], e)
 	)
       ),
       expr_v : float(expand(dS*(vBoundary[dir-1]*fBlo_c))),
@@ -135,7 +117,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 	if expr[i] # 0.0 then (
 	  param : cons(expr[i], [dS]),
 	  e : apply(collectterms, param),
-	  printf(fh, "    ~a += ~a; ~%", out[(dir-1)*NC+i-1], e)
+	  printf(fh, "    ~a += ~a; ~%", out[i-1], e)
 	)
       ),
       expr_v : float(expand(dS*(vBoundary[dir+vdim-1]*fBup_c))),

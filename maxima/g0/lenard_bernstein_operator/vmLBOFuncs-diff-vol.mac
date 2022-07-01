@@ -58,10 +58,10 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([]
   printf(fh, "~%"),
 
   /* Expand distribution function f in phase basis.            */
-  f_e    : doExpand1(f, bP),
+  f_e : doExpand1(f, bP),
 
   /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
-  nuSum_e    : doExpand1(nuSum, bC),
+  nuSum_e     : doExpand1(nuSum, bC),
   nuUSum_e    : doExpand1(nuUSum, bC),
   nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
 
