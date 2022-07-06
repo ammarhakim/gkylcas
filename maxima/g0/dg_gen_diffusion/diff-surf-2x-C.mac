@@ -4,7 +4,7 @@ load ("modal-basis") $
 load(stringproc)$
 
 minPolyOrder : 1 $
-maxPolyOrder : 1 $
+maxPolyOrder : 2 $
 
 dirs : [x,y] $
 bName : "ser" $
