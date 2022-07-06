@@ -68,7 +68,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
 
-  /* vv = variable in direction of surface update. */
+  /* cv = variable in direction of surface update. */
   cv : varsP[dir],
   vv : varsV[dir],
 

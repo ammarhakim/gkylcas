@@ -1,0 +1,109 @@
+/* Generate kernels for the various elements of a direct
+   solve of the FEM projection in the parallel direction
+       w * phi = rho
+   where w is a wright, phi is a continuous FEM field we
+   wish to find, and rho is the RHS discontinuous DG field. */
+
+load(stringproc)$
+load("fem-parproj/fem-parproj-num_nodes")$
+load("fem-parproj/fem-parproj-local_matrices")$
+load("fem-parproj/fem-parproj-local_to_global")$
+load("fem-parproj/fem-parproj-src_stencil")$
+load("fem-parproj/fem-parproj-sol_stencil")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+maxPolyOrder_Ser : 3$
+
+/* Tensor product basis. */
+maxPolyOrder_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+
+dims : [1,3]$
+
+    /**
+/* Kernels computing the number of nodes in the global problem. */
+disp(printf(false,"Creating fem_parproj_num_nodes.c"))$
+fname : "~/max-out/fem_parproj_num_nodes.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for d : 1 thru length(dims) do (
+    c : dims[d],
+    /* Number of nodes in linear problem. */
+    funcName : sconcat("fem_parproj_num_nodes_global_", c, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_parproj_num_nodes_global_", c, "x_", bName[bInd]))),
+    generate_fem_parproj_num_nodes(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
+
+/* Kernels computing various nodal matrices. */
+disp(printf(false,"Creating fem_parproj_nodal_matrices.c"))$
+fname : "~/max-out/fem_parproj_nodal_matrices.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for d : 1 thru length(dims) do (
+    c : dims[d],
+    /* Mass matrices. */
+    funcName : sconcat("fem_parproj_mass_", c, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_parproj_mass_matrix_", c, "x_", bName[bInd]))),
+    generate_fem_parproj_mass(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
+
+/* Translation from local indices to global matrix indices. */
+disp(printf(false,"Creating fem_parproj_local_to_global.c"))$
+fname : "~/max-out/fem_parproj_local_to_global.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for d : 1 thru length(dims) do (
+    c : dims[d],
+    funcName : sconcat("fem_parproj_local_to_global_", c, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_parproj_local_to_global_", c, "x_", bName[bInd]))),
+    generate_fem_parproj_local_to_global(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
+    **/
+
+/* RHS source stencil kernels. */
+disp(printf(false,"Creating fem_parproj_src_stencil.c"))$
+fname : "~/max-out/fem_parproj_src_stencil.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for d : 1 thru length(dims) do (
+    c : dims[d],
+    funcName : sconcat("fem_parproj_src_stencil_", c, "x_", bName[bInd]),
+    generate_fem_parproj_src_stencil(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
+
+/* Solution nodal-to-modal kernels. */
+disp(printf(false,"Creating fem_parproj_sol_stencil.c"))$
+fname : "~/max-out/fem_parproj_sol_stencil.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for d : 1 thru length(dims) do (
+    c : dims[d],
+    funcName : sconcat("fem_parproj_sol_stencil_", c, "x_", bName[bInd]),
+    generate_fem_parproj_sol_stencil(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$

@@ -1,0 +1,61 @@
+/* Compute the volume term for scalar advection equation df/dt + div(u f) = 0. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+dx2   : [dx2, dy2, dz2]$
+cidx(cdim) := makelist(i,i,0,cdim-1)$
+
+calcAdvectionVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([bP,cid,vid,wDdx,dvDdx,dir,volTerm,clst,strOut],
+
+  kill(varsC, basisC),
+
+  load(sconcat("basis-precalc/basis", basisFun, cdim, "x")),
+
+  printf(fh, "#include <gkyl_advection_kernels.h> ~%"),
+
+  bC : basisC[polyOrder],
+  NC : length(bC),
+
+  /* specify a point to evaluate alpha at for use in computing CFL */
+  cflPt : makelist(varsC[d]=0, d, 1, length(varsC)),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *u, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // u[NDIM]:   Advection velocity.~%"),
+  printf(fh, "  // f:         Input function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+  cid : cidx(cdim),
+  for dir : 1 thru cdim do (
+      printf(fh, "  const double d~a2 = 2.0/dxv[~a]; ~%", varsC[dir], cid[dir])
+  ),
+  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
+  printf(fh, "  double alpha_mid = 0.0; ~%"),
+
+  /* Advection velocity in each direction of configuration space. */
+  u_e : doExpand1(u, bC),
+  /* To allow for multiple components change the cofficient indices in u. */
+  u_e : psubst(makelist(u[i]=u[a0+i],i,0,NC-1),u_e),
+  /* Expand distribution function in phase basis. */
+  f_e : doExpand1(f, bC),
+
+  /* Inner product of grad(psi) . u f, where psi is a basis function. */
+  volTerm : 0,
+  for dir : 1 thru cdim do (
+    /* evaluate alpha_vdim at cflPt to approximate max(abs(alpha_vdim))/dv_i */
+    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NC*(dir-1),u_e))))),
+    printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+
+    volTerm : volTerm + subst(a0=NC*(dir-1),calcInnerProdList(varsC, dx2[dir]*u_e, diff(bC,varsC[dir]), f_e))
+  ),
+  printf(fh, "~%"),
+
+  writeCExprsCollect1c(volTerm),
+  printf(fh, "~%"),
+
+  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "} ~%")
+)$

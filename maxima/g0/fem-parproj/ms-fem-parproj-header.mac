@@ -1,0 +1,59 @@
+/* Create the header file for the fem_parproj kernels. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+maxPolyOrder_Ser : 3$
+
+/* Tensor product basis. */
+maxPolyOrder_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+
+dims : [1,3]$
+
+disp(printf(false,"Creating gkyl_fem_parproj_kernels.h"))$
+fname : "~/max-out/gkyl_fem_parproj_kernels.h"$
+fh    : openw(fname)$
+
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+for bInd : 1 thru length(bName) do (
+
+  for d : 1 thru length(dims) do (
+
+    c : dims[d],
+
+    for polyOrder : 1 thru maxPolyOrder[bInd] do (
+      /* Number of nodes in linear problem. */
+      printf(fh, "long fem_parproj_num_nodes_global_~ax_~a_p~a(const int numCellsPar);~%", c, bName[bInd], polyOrder),
+
+      /* Local mass matrix of FEM basis. */
+      printf(fh, "void fem_parproj_mass_~ax_~a_p~a(struct gkyl_mat *matout);~%", c, bName[bInd], polyOrder),
+
+      /* Local to global mapping. */
+      printf(fh, "GKYL_CU_DH void fem_parproj_local_to_global_~ax_~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs);~%", c, bName[bInd], polyOrder),
+
+      /* Right side source stencil (mass matrix . modal_to_nodal matrix). */
+      printf(fh, "GKYL_CU_DH void fem_parproj_src_stencil_~ax_~a_p~a(const double *rho, long nodeOff, const long *globalIdxs, double *bsrc);~%", c, bName[bInd], polyOrder),
+
+      /* Solution stencil kernels. */
+      printf(fh, "GKYL_CU_DH void fem_parproj_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long nodeOff, const long *globalIdxs, double *sol_modal_local);~%", c, bName[bInd], polyOrder),
+      printf(fh, "~%")
+    ),
+
+    printf(fh, "~%")
+
+  )
+
+)$
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$

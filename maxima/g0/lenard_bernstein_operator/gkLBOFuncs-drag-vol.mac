@@ -15,7 +15,6 @@ gkVsub : [vx=vpar,vy=mu]$
 
 /* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,bC,NP,NC,vidx,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr],
@@ -82,7 +81,7 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   /* Zero out components of alpha which are empty. */
   alphaDrag_NoZero   : doMakeExprLst(alphaDrag_e, alphaDrag),
-  alphaDrag_NoZero_e : doExpandLst(alphaDrag_NoZero, bP),
+  alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
   /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
   alphaDrag_mid[1] : gcfac(float(expand(subst(zr,0.5*subst(a0=0,alphaDrag_NoZero_e))))),
   /* Volume increment from configuration space. */
@@ -100,7 +99,7 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
     alphaDrag_NoZero   : doMakeExprLst(alphaDrag_e, alphaDrag),
-    alphaDrag_NoZero_e : doExpandLst(alphaDrag_NoZero, bP),
+    alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
     /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
     alphaDrag_mid[2] : gcfac(float(expand(subst(zr,0.5*subst(a0=NP,alphaDrag_NoZero_e))))),
     /* Volume increment from configuration space. */

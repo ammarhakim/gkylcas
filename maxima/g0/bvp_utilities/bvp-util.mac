@@ -45,7 +45,7 @@ getCoordVarS(varsIn) := block([dim,sVars,d,coordVarS],
   dim         : length(varsIn),
   sVars       : copylist(varsIn),
   for d : 1 thru dim do ( sVars[d] : string(varsIn[d]) ),
-  coordVarS : [[-1,sVars],[0,makelist("",i,1,dim)],[1,sVars]],
+  coordVarS : [[-1,sVars],[0,sVars],[1,sVars]],
   return(coordVarS)
 )$
 

@@ -10,24 +10,6 @@ fpprec : 24$
 varsV : [vx, vy, vz]$
 VarsV : [VX, VY, VZ]$
 
-/* These variables make it possible for the function
-   calcBoundaryIntegral to generate the code for both
-   the function that evaluates the surface integral of
-   f|^(vmax)_(vmin) and that of vf|^(vmax)_(vmin). */
-Fsuffix : [f, vf]$
-Bfac    : [ 1 , vBoundary ]$
-
-writeCIncrExprsCollect1s(lhs, rhs, clst) := block([i,e,expr,param],
-  expr : float(expand(rhs)),
-  for i : 1 thru length(expr) do (
-    if expr[i] # 0.0 then (
-      param : cons(expr[i], clst),
-      e : apply(collectterms, param),
-      printf(fh, "    ~a += ~a; ~%", lhs[i-1], e)
-    )
-  )
-)$
-
 calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [i,e,modNm,bC,bP,NP,NC,vv,surfVars,dv,fbIn_lower_e,fbIn_upper_e,mBlo_e,mBup_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
     
@@ -84,18 +66,28 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
     /* Surface integral above was done in [-1,1] computational space. Surface
        factor needs to be multiplied to obtain result from physical grid. */
+
+    /* extra factor in integration */
+    if (vdim=1) then (
+      printf(fh, "  dS = ~a; ~%", float(1/(2.0^(vdim-1)))*surfExpr)
+    ) else (
+      if (dir = 1) then (
+        printf(fh, "  dS = ~a/_m; ~%", float(2.0*%pi*1/(2.0^(vdim-1)))*surfExpr)
+      ) else (
+        printf(fh, "  dS = ~a/_m; ~%", float(4.0*%pi*1/(2.0^(vdim-1)))*surfExpr)
+      )
+    ),
+    printf(fh, " ~%"),
     
     printf(fh, "  if (edge == GKYL_~a_LOWER) {~%", VarsV[dir]),
     printf(fh, " ~%"),
     if (dir = 1) then (
-      /* extra factor in integration = 2pi/m */
-      printf(fh, "    dS = ~a*M_PI/_m; ~%", float(2.0*1/(2.0^(vdim-1)))*surfExpr),
       expr : float(expand(dS*fBlo_c)),
       for i : 1 thru length(expr) do (
 	if expr[i] # 0.0 then (
 	  param : cons(expr[i], [dS]),
 	  e : apply(collectterms, param),
-	  printf(fh, "    ~a += ~a; ~%", out[(dir-1)*NC+i-1], e)
+	  printf(fh, "    ~a += ~a; ~%", out[i-1], e)
 	)
       ),
       expr_v : float(expand(dS*(vBoundary[dir-1]*fBlo_c))),
@@ -106,10 +98,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 	  printf(fh, "    ~a += ~a; ~%", out[NC+i-1], e)
 	)
       )
-    )
-    else if (dir = 2) then (
-      /* extra factor in integration = 4pi/m */
-      printf(fh, "    dS = ~a*M_PI/_m; ~%", float(4.0*1/(2.0^(vdim-1)))*surfExpr),
+    ) else if (dir = 2) then (
       expr_v : float(expand(dS*(vBoundary[dir-1]*fBlo_c))),
       for i : 1 thru length(expr) do (
 	if expr[i] # 0.0 then (
@@ -123,14 +112,12 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  } else if (edge == GKYL_~a_UPPER) {~%", VarsV[dir]),
     printf(fh, " ~%"),
     if (dir = 1) then (
-      /* extra factor in integration = 2pi/m */
-      printf(fh, "    dS = ~a*M_PI/_m; ~%", float(2.0*1/(2.0^(vdim-1)))*surfExpr),
       expr : float(expand(dS*fBup_c)),
       for i : 1 thru length(expr) do (
 	if expr[i] # 0.0 then (
 	  param : cons(expr[i], [dS]),
 	  e : apply(collectterms, param),
-	  printf(fh, "    ~a += ~a; ~%", out[(dir-1)*NC+i-1], e)
+	  printf(fh, "    ~a += ~a; ~%", out[i-1], e)
 	)
       ),
       expr_v : float(expand(dS*(vBoundary[dir+vdim-1]*fBup_c))),
@@ -141,10 +128,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 	  printf(fh, "    ~a += ~a; ~%", out[NC+i-1], e)
 	)
       )
-    )
-    else if (dir = 2) then (
-      /* extra factor in integration = 4pi/m */
-      printf(fh, "    dS = ~a*M_PI/_m; ~%", float(4.0*1/(2.0^(vdim-1)))*surfExpr),
+    ) else if (dir = 2) then (
       expr_v : float(expand(dS*(vBoundary[dir+vdim-1]*fBup_c))),
       for i : 1 thru length(expr) do (
 	if expr[i] # 0.0 then (

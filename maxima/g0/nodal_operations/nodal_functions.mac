@@ -27,7 +27,8 @@ evAtNodes(exprIn, nodesIn, varsIn) := block([dim,numNodes],
    .................................................................................................... */
 
 /* Given a 'modalBasis', in the variables 'vars'. */
-calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block([numNodes, dim, basisNodToMod],
+calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block(
+  [numNodes, dim, basisNodToMod, i, col, d],
   numNodes : length(nodes),
   dim      : length(vars),
   basisNodToMod : (
@@ -73,7 +74,7 @@ calcBasisNodToMod(basisType, dim, p) := block([basis, vars, nodes, numNodes, bas
 
 /* Given a 'modalBasis', in the variables 'vars'. */
 calcNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block([basisNodToMod],
-  basisNodToMod : calcNodToModWithNodesAndBasis(nodes, modalBasis, vars),
+  basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars),
   return(invert(transpose(basisNodToMod)))
 )$
 
