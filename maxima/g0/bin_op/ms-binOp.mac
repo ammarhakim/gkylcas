@@ -6,7 +6,7 @@
    combinations of configuration and velocity space, and
    indicates the maximum polyOrder to generate code for. */
 
-load("g0/bin_op/binOp-div-C")$
+load("bin_op/binOp-div-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */

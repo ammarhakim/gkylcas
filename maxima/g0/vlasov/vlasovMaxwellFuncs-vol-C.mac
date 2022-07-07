@@ -45,15 +45,12 @@ doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,incr_cdim,incr_vdim,cdir,vdir,expr,alpha_cdim_c,alpha_vdim_c,amid],
 
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
   /* Polynomial basis and its derivatives. */
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
   NP : length(bP),
   NC : length(bC),
 

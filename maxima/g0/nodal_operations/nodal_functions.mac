@@ -9,7 +9,6 @@ load("eigen")$
 load("scifac")$
 
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 /* Given a set of an expression and a set of nodes, evaluate the expression at the nodes.
    Must also provide the variables of the functional space exprIn is defined in. */
@@ -59,6 +58,16 @@ calcBasisNodToModWithNodes(basisType, dim, p, nodes) := block([basis, vars, numN
   basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, basis, vars),
   return(basisNodToMod)
 )$
+calcBasisNodToModWithNodesHyb(basisType, cdim, vdim, nodes) := block(
+  [varsC,bC,basis,vars,basisNodToMod],
+  if basisType = "hyb" then (
+    [varsC,bC,vars,basis] : loadPhaseBasis("ser", cdim, vdim, 1)
+  ) elseif basisType = "gk_hyb" then (
+    [varsC,bC,vars,basis,vSub] : loadGkBasis("ser", cdim, vdim, 1)
+  ),
+  basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, basis, vars),
+  return(basisNodToMod)
+)$
 
 /* For standard bases saved in modal-basis and nodes in nodeLocations. */
 calcBasisNodToMod(basisType, dim, p) := block([basis, vars, nodes, numNodes, basisNodToMod, varsC, varsP, basisC, basisP],
@@ -81,6 +90,10 @@ calcNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block([basisNodToMod],
 /* Given a set of nodes. */
 calcNodToModWithNodes(basisType, dim, p, nodes) := block([basisNodToMod],
   basisNodToMod : calcBasisNodToModWithNodes(basisType, dim, p, nodes),
+  return(invert(transpose(basisNodToMod)))
+)$
+calcNodToModWithNodesHyb(basisType, cdim, vdim, nodes) := block([basisNodToMod],
+  basisNodToMod : calcBasisNodToModWithNodesHyb(basisType, cdim, vdim, nodes),
   return(invert(transpose(basisNodToMod)))
 )$
 
@@ -175,6 +188,54 @@ getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block(
     load(sconcat("basis-precalc/basis", basisType, dim-3, "x3v")),
     basis : basisP[p],
     vars  : varsP
+  ),
+  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
+  basis : psubst(replaceList,basis),
+  nodalBasis : getNodalBasisWithNodesAndBasis(nodes, basis, varsIn),
+  return(nodalBasis)
+)$
+getVarsNodalBasisWithNodesHyb(basisType, cdim, vdim, varsIn, nodes) := block(
+  /* Same as getVarsNodalBasisWithNodes but for hybrid bases. */
+  [basis,vars,replaceList,nodalBasis],
+  dimIn : length(varsIn),
+  if vdim=0 then (
+    load(sconcat("basis-precalc/basisSer", cdim,"x")),
+    basis : basisC[1],  vars : varsC
+  ) else (
+    if basisType="hyb" then (
+      if cdim=0 then (
+        load(sconcat("basis-precalc/basisTensor", vdim, "x")),
+        basis : subst([x=vx,y=vy,z=vz],basisC[2]),  vars : subst([x=vx,y=vy,z=vz],varsC)
+      ) else (
+        load(sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")),
+        basis : basisP[1],  vars : varsP
+      )
+    ) elseif basisType="gk_hyb" then ( (
+      /* gk_hyb is tricker because it's p=2 only in vpar. */      
+      hasvpar : isInList(vpar,varsIn),
+      if hasvpar then (
+        if cdim=0 then (
+          if vdim=1 then (
+            load(sconcat("basis-precalc/basisSer", vdim, "x")),
+            basis : subst(x=vpar,basisC[1]),  vars : subst(x=vpar,varsC)
+          ) elseif vdim=2 then (
+            load(sconcat("basis-precalc/basis", vdim, "x")),
+            basis : subst(x=vpar,basisC[1]),  vars : subst(x=vpar,varsC)
+          )
+        ) else (
+        )
+          load(sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")),
+          basis : basisP[1],  vars : varsP
+      ) else (
+        if cdim=0 then (
+          load(sconcat("basis-precalc/basisSer", 1, "x")),
+          basis : subst(x=mu,basisC[1]),  vars : subst(x=mu,varsC)
+        ) else (
+          [vars, basis] : loadBasis("ser", cdim+1, 1),
+          basis : subst(vars[cdim+1]=mu,basis),  vars : subst(vars[cdim+1]=mu,vars)
+        )
+      )
+    )
   ),
   replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
   basis : psubst(replaceList,basis),

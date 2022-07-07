@@ -2,7 +2,7 @@ load("modal-basis");
 load("out-scripts");
 load(stringproc)$
 load("scifac")$
-load("g0/nodal_operations/nodal_functions")$
+load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
 /* ...... USER INPUTS........ */
@@ -19,17 +19,77 @@ maxDim_Ser : 6$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minDim_Tensor : 2$
-maxDim_Tensor : 4$
+maxDim_Tensor : 5$
+
+/* Hybrid basis. */
+minCdim_hyb : 1$
+maxCdim_hyb : 3$
+vDims_hyb : [[1,2,3], [2,3], [3]]$  /* Vdim for each of Cdim. */
+
+/* GK hybrid basis. */
+minCdim_gk_hyb : 1$
+maxCdim_gk_hyb : 3$
+vDims_gk_hyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
-minDim      : [minDim_Ser, minDim_Tensor]$
-maxDim      : [maxDim_Ser, maxDim_Tensor]$
+minDim       : [minDim_Ser, minDim_Tensor]$
+maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
-/* Compute the surface contribution in velocity space from the acceleration term */
+bNameHyb   : ["hyb","gk_hyb"]$
+minCdimHyb : [minCdim_hyb, minCdim_gk_hyb]$
+maxCdimHyb : [maxCdim_hyb, maxCdim_gk_hyb]$
+vDims      : [vDims_hyb, vDims_gk_hyb]$
+
+writeNodeCoordsKernel(dim, basisName, pOrder) := block([nodes,numNodes,n,dir],
+  printf(fh, "GKYL_CU_DH~%"),
+  printf(fh, "void~%"),
+  printf(fh, "node_coords_~ad_~a_p~a(double *node_coords)~%", dim, basisName, pOrder),
+  printf(fh, "{~%"),
+  /* Get equi-distant node locations */
+  if (dim = 6 and pOrder = 1) then (
+    nodes : getNodes("tensor", dim, pOrder)
+  ) else (
+    nodes : getNodes(basisName, dim, pOrder)
+  ),
+  numNodes : length(nodes),
+
+  for n : 1 thru numNodes do (
+    for dir : 1 thru dim do (
+      printf(fh, "  node_coords[~a] = ~a;~%", (n-1)*dim + dir-1, nodes[n][dir])
+    )
+  ),
+  printf(fh, "}~%~%")
+)$
+
+writeNodeCoordsKernelHyb(cdim, vdim, basisName) := block([nodes,numNodes,n,dir],
+  printf(fh, "GKYL_CU_DH~%"),
+  printf(fh, "void~%"),
+  printf(fh, "node_coords_~ax~av_~a_p1(double *node_coords)~%", cdim, vdim, basisName),
+  printf(fh, "{~%"),
+
+  /* Get equi-distant node locations */
+  if basisName = "hyb" then (
+    nodes : getNodesHyb(cdim, vdim)
+  ) elseif basisName = "gk_hyb" then (
+    nodes : getNodesGkHyb(cdim, vdim)
+  ),
+  numNodes : length(nodes),
+
+  pdim : cdim+vdim,
+
+  for n : 1 thru numNodes do (
+    for dir : 1 thru pdim do (
+      printf(fh, "  node_coords[~a] = ~a;~%", (n-1)*pdim + dir-1, nodes[n][dir])
+    )
+  ),
+  printf(fh, "}~%~%")
+)$
+
+/* Generate a file for regular bases. */
 for bInd : 1 thru length(bName) do (
   fname : sconcat("~/max-out/basis_node_coords_",bName[bInd], ".c"),
   fh : openw(fname),
@@ -40,26 +100,23 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
     if (d>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      kill(vars, basis),
-      printf(fh, "GKYL_CU_DH~%"),
-      printf(fh, "void~%"),
-      printf(fh, "node_coords_~ad_~a_p~a(double *node_coords)~%", d, bName[bInd], polyOrder),
-      printf(fh, "{~%"),
-      /* Get equi-distant node locations */
-      if (d = 6 and polyOrder = 1) then (
-        nodes : getNodes("tensor", d, polyOrder)
-      )
-      else (
-        nodes : getNodes(bName[bInd], d, polyOrder)
-      ),
-      numNodes : length(nodes),
+      writeNodeCoordsKernel(d, bName[bInd], polyOrder)
+    )
+  ),
+  close(fh)
+);
 
-      for n : 1 thru numNodes do (
-        for dir : 1 thru d do (
-          printf(fh, "  node_coords[~a] = ~a;~%", (n-1)*d + dir-1, nodes[n][dir])
-        )
-      ),
-      printf(fh, "}~%~%")
+/* Generate a file for hybrid basis. */
+for bInd : 1 thru length(bNameHyb) do (
+  fname : sconcat("~/max-out/basis_node_coords_",bNameHyb[bInd], ".c"),
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_basis_~a_kernels.h>~%", bNameHyb[bInd]),
+
+  for c : minCdimHyb[bInd] thru maxCdimHyb[bInd] do (
+    vmin : xreduce(min,vDims[bInd][c]),
+    vmax : xreduce(max,vDims[bInd][c]),
+    for v : vmin thru vmax do (
+      writeNodeCoordsKernelHyb(c, v, bNameHyb[bInd])
     )
   ),
   close(fh)

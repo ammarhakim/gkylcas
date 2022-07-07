@@ -269,25 +269,151 @@ find_min_idx(lst) := block([cidx : 1],
   return (cidx)
   )$
 
-/* Load a basis of type 'basisType' and polynomial order 'pIn'
+loadBasis(basisType, dim, pOrder) := block([basis,vars,btype],
+  /* Load a basis based on dimensionality, basis type and polyOrder alone.
+     For kinetic models please use loadPhaseBasis or loadGkBasis. */
+  btype : basisType,
+  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+
+  kill(varsC, varsP, basisC, basisP),
+  if (dim < 4) then (
+    load(sconcat("basis-precalc/basis", btype, dim, "x"))
+  ) else (
+    load(sconcat("basis-precalc/basis", btype, dim-3, "x", 3, "v"))
+  ),
+
+  if (dim < 4) then (
+    basis : copylist(basisC[pOrder]),
+    vars  : copylist(varsC)
+  ) else (
+    basis : copylist(basisP[pOrder]),
+    vars  : copylist(varsP)
+  ),
+  return([vars,basis])
+)$
+
+loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
+  [modNm,varsC,bC,bP,varsP,btype],
+  /* Load phase-space basis. */
+  btype : basisType,
+  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+
+  kill(varsC, varsP, basisC, basisP),
+  if vdim > 0 then (
+    if cdim=0 then (
+      if basisType = "tensor" then 
+        modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
+      else
+        modNm : sconcat("basis-precalc/basisSer", vdim, "x")
+    ) else (
+      if pOrder = 1 then 
+        modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
+      else
+        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
+    )
+  ) else (
+    modNm : sconcat("basis-precalc/basis", btype, cdim, "x")
+  ),
+  load(modNm),
+
+  if cdim>0 then (
+    bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
+
+    if vdim=0 then (
+      bP : bC,  varsP : varsC
+    ) else (
+      bP : copylist(basisP[pOrder]),  varsP : copylist(varsP)
+    )
+  ) else (
+    bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[pOrder])),
+    varsP : subst([x=vx,y=vy,z=vz],copylist(varsC)),
+    bC : [],  varsC : []
+  ),
+
+  return([varsC,bC,varsP,bP])
+)$
+
+loadGkBasis(basisType, cdim, vdim, pOrder) := block(
+  [modNm,vSub,vSubInv,varsC,bC,bP,varsP,btype],
+  /* Load basis of approapriate dimension. */
+  btype : basisType,
+  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+
+  kill(varsC, varsP, basisC, basisP),
+  if vdim > 0 then (
+    if cdim=0 then (
+      if basisType = "tensor" then 
+        modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
+      else
+        modNm : sconcat("basis-precalc/basisSer", vdim, "x")
+    ) else (
+      if pOrder = 1 then
+        modNm : sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")
+      else
+        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
+    )
+  ) else (
+    modNm : sconcat("basis-precalc/basis", btype, cdim, "x")
+  ),
+  load(modNm),
+
+  /* Save configuration and phase space basis and switch to GK variables. */
+  vSub : [vx=vpar, vy=mu],
+
+  if cdim>0 then (
+    bC    : subst(vSub, copylist(basisC[pOrder])),
+    varsC : subst(vSub, copylist(varsC)),
+
+    if vdim=0 then (
+      bP : bC,  varsP : varsC
+    ) else (
+      bP : subst(vSub, copylist(basisP[pOrder])),  varsP : subst(vSub, copylist(varsP))
+    )
+  ) else (
+    bP    : subst(vSub,copylist(basisC[pOrder])),
+    varsP : subst(vSub,copylist(varsC)),
+    bC : [],  varsC : []
+  ),
+
+  return([varsC,bC,varsP,bP,vSub])
+)$
+
+/* Load a basis of type 'basisType' and polynomial order 'pOrder'
    in the variables given by the list 'varsIn'. */
-basisFromVars(basisType, varsIn, pIn) := block(
-  [dimIn,oldVarsC,oldVarsP,basis,vars,replaceList],
+basisFromVars(basisType, varsIn, pOrder) := block(
+  [dimIn,vdim,cdim,oldVarsC,oldVarsP,varsc,bc,basis,vars,vsub,replaceList,btype],
+
+  btype : basisType,
+  if basisType="ser" then btype : "Ser"
+  elseif basisType="tensor" then btype : "Tensor"
+  elseif basisType="hyb" then btype : "Hybrid"
+  elseif basisType="gk_hyb" then btype : "GkHybrid",
 
   dimIn : length(varsIn),
+  if basisType="hyb" then (
+    vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v"))),
+    cdim : dimIn - vdim
+  ) elseif basisType="gk_hyb" then (
+    vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
+    cdim : dimIn - vdim
+  ),
 
   /* In case varsP and varsC were already loaded, save them
      and restore them at the end of this function. */
   if listp(varsC) then (oldVarsC : copylist(varsC)),
   if listp(varsP) then (oldVarsP : copylist(varsP)),
 
-  if dimIn > 3 then (
-    load(sconcat("basis-precalc/basis", basisType, dimIn-3, "x", 3, "v")),
-    basis : basisP[pIn],
+  if basisType = "hyb" then (
+    [varsc,bc,vars,basis] : loadPhaseBasis(basisType, cdim, vdim, 1)
+  ) elseif basisType = "gk_hyb" then (
+    [varsc,bc,vars,basis,vsub] : loadGkBasis(basisType, cdim, vdim, 1)
+  ) elseif dimIn > 3 then (
+    load(sconcat("basis-precalc/basis", btype, dimIn-3, "x", 3, "v")),
+    basis : basisP[pOrder],
     vars  : varsP
   ) elseif dimIn > 0 then (
-    load(sconcat("basis-precalc/basis", basisType, dimIn, "x")),
-    basis : basisC[pIn],
+    load(sconcat("basis-precalc/basis", btype, dimIn, "x")),
+    basis : basisC[pOrder],
     vars  : varsC
   ) else (
     basis : [],

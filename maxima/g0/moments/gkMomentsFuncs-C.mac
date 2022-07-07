@@ -21,20 +21,19 @@ let(dv2^3, dv2_cu)$
 let(dv3^3, dv3_cu)$
 
 volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
-vTrans : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
+vTrans : [vpar*dv1/2+wx1, mu*dv2/2+wx2]$
 wTrans : [wx1, wx2, wx3]$
 
 /* Number density */
 /* M0 = < f > */
 calcGkM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,fl,M],
+  [varsC,bC,varsP,bP,vSub,fl,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   fl : doExpand1(f, bP),
@@ -47,15 +46,15 @@ calcGkM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* step 1: integrate over vpar only */
 /* M0_step1 = int dvpar f  */
 calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bP_dvpar,fl,M],
+  [varsC,bC,varsP,bP,vSub,bP_dvpar,fl,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bP_dvpar : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vx^2=1/3,vx=0],bP)))*bP),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+
+  bP_dvpar : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vpar^2=1/3,vpar=0],bP)))*bP),
 
   printf(fh, "GKYL_CU_DH void ~a_M0_step1_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   printf(fh, "  const double volFact = dxv[~a]/2; ~%", cdim),
   fl : doExpand1(f, bP),
   M : calcInnerProdList(varsP, 1, bP_dvpar, fl),
@@ -67,16 +66,15 @@ calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* step 2, integrate over mu only */
 /* M0_step2 = int dmu f  */
 calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bP_dvpar,bC,fl,M],
+  [varsC,bC,varsP,bP,vSub,bP_dvpar,fl,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bP_dvpar : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vx^2=1/3,vx=0],bP)))*bP),
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+
+  bP_dvpar : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vpar^2=1/3,vpar=0],bP)))*bP),
 
   printf(fh, "GKYL_CU_DH void ~a_M0_step2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   printf(fh, "  const double volFact = 2.0*M_PI/m_*dxv[~a]/2; ~%", cdim+1),
   fl : doExpand1(f, bP_dvpar),
   M : calcInnerProdList(varsP, 1, bC, fl),
@@ -88,15 +86,13 @@ calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Parallel Momentum Density */
 /* M1 = < v_par f > */
 calcGkM1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M1_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
 
@@ -117,15 +113,13 @@ calcGkM1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Parallel Particle Energy */
 /* M2par = < v_par^2 f > */
 calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,vpar2_k,vpar2_expd,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,vpar2_k,vpar2_e,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
-
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  
   printf(fh, "GKYL_CU_DH void ~a_M2_par_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -137,9 +131,9 @@ calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* project vpar^2 onto basis and then re-expand */
   vpar2_k : innerProd(varsP, 1, bP, vTrans[1]*vTrans[1]),
-  vpar2_expd : vpar2_k.bP,
+  vpar2_e : vpar2_k . bP,
 
-  M : calcInnerProdList(varsP, vpar2_expd, bC, fl),
+  M : calcInnerProdList(varsP, vpar2_e, bC, fl),
   M : map(letsimp, M),
 
   writeCIncrExprsNoExpand1(out, volFact*expand(M)),
@@ -150,15 +144,13 @@ calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Perpendicular Particle Energy */
 /* M2perp = < mu/m B f > */
 calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,bmag_expd,Mtemp,tmp_expd,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,Mtemp,tmp_e,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH void ~a_M2_perp_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -166,7 +158,7 @@ calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   fl : doExpand1(f, bP),
-  bmag_expd : doExpand1(bmag, bC),
+  bmag_e : doExpand1(bmag, bC),
 
   Mtemp : calcInnerProdList(varsP, vTrans[2], bC, fl),
   Mtemp : map(letsimp, Mtemp),
@@ -174,9 +166,9 @@ calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double tmp[~a]; ~%", length(bC)),
 
   writeCExprs1(tmp, Mtemp),
-  tmp_expd : doExpand1(tmp, bC),
+  tmp_e : doExpand1(tmp, bC),
 
-  M : fullratsimp(innerProd(varsC, bC, bmag_expd, tmp_expd)),
+  M : fullratsimp(innerProd(varsC, bC, bmag_e, tmp_e)),
 
   writeCIncrExprsNoExpand1(out, volFact/m_*expand(M)),
 
@@ -186,15 +178,13 @@ calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Total Particle Energy */
 /* M2 = < v_par^2 + 2 mu/m B f > */
 calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,bmag_expd,vpar2_k,vpar2_expd,Mtemp,tmp_expd,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,vpar2_k,vpar2_e,Mtemp,tmp_e,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH void ~a_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -203,13 +193,13 @@ calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   fl : doExpand1(f, bP),
-  bmag_expd : doExpand1(bmag, bC),
+  bmag_e : doExpand1(bmag, bC),
 
   /* project vpar^2 onto basis and then re-expand */
   vpar2_k : innerProd(varsP, 1, bP, vTrans[1]*vTrans[1]),
-  vpar2_expd : vpar2_k.bP,
+  vpar2_e : vpar2_k . bP,
 
-  M : calcInnerProdList(varsP, vpar2_expd, bC, fl),
+  M : calcInnerProdList(varsP, vpar2_e, bC, fl),
   M : map(letsimp, M),
 
   writeCIncrExprsNoExpand1(out, volFact*expand(M)),
@@ -221,8 +211,8 @@ calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  double tmp[~a]; ~%", length(bC)),
 
     writeCExprs1(tmp, Mtemp),
-    tmp_expd : doExpand1(tmp, bC),
-    M : fullratsimp(innerProd(varsC, bC, bmag_expd, tmp_expd)),
+    tmp_e : doExpand1(tmp, bC),
+    M : fullratsimp(innerProd(varsC, bC, bmag_e, tmp_e)),
 
     writeCIncrExprsNoExpand1(out, 2*volFact/m_*expand(M))
   ),
@@ -233,15 +223,13 @@ calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Parallel Heat Flux */
 /* M3par = < v_par^3 f > */
 calcGkM3par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH void ~a_M3_par_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -263,15 +251,13 @@ calcGkM3par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Perpendicular Heat Flux */
 /* M3perp = < v_par mu/m B f > */
 calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,bmag_expd,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH void ~a_M3_perp_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -279,9 +265,9 @@ calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   fl : doExpand1(f, bP),
-  bmag_expd : doExpand1(bmag, bC),
+  bmag_e : doExpand1(bmag, bC),
 
-  M : calcInnerProdList(varsP, vTrans[1]*vTrans[2]*bmag_expd, bC, fl),
+  M : calcInnerProdList(varsP, vTrans[1]*vTrans[2]*bmag_e, bC, fl),
   M : map(letsimp, M),
 
   writeCIncrExprsNoExpand1(out, volFact/m_*expand(M)),
@@ -291,15 +277,13 @@ calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
 /* Simultaneously calculate M0, M1, and M2 */
 calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [modNm,p,bP,bC,i,fl,bmag_expd,energy,M0,M1,M2par,Mtemp,tmp_expd,M2perp,M],
+  [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,energy,M0,M1,M2par,Mtemp,tmp_e,M2perp,M],
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH void ~a_three_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
   if vdim = 1 then printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim)
   else printf(fh, "  const double volFact = 2.0*M_PI/m_*~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -308,10 +292,10 @@ calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   fl : doExpand1(f, bP),
-  bmag_expd : doExpand1(bmag, bC),
+  bmag_e : doExpand1(bmag, bC),
 
   energy : vTrans[1]*vTrans[1],
-  if vdim > 1 then energy : energy + 2*vTrans[2]/m_*bmag_expd,
+  if vdim > 1 then energy : energy + 2*vTrans[2]/m_*bmag_e,
 
   M0 : calcInnerProdList(varsP, 1, bC, fl),
   M0 : map(letsimp, M0),
@@ -329,8 +313,8 @@ calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  double tmp[~a]; ~%", length(bC)),
 
     writeCExprs1(tmp, Mtemp),
-    tmp_expd : doExpand1(tmp, bC),
-    M2perp : fullratsimp(innerProd(varsC, bC, bmag_expd, tmp_expd))
+    tmp_e : doExpand1(tmp, bC),
+    M2perp : fullratsimp(innerProd(varsC, bC, bmag_e, tmp_e))
   ),
   three_moments : [],
   three_moments : append(three_moments, M0),

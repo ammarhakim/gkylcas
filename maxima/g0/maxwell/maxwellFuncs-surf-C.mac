@@ -33,12 +33,15 @@ modFlux : [
  [tau*c*By, -tau*c*Bx, c^2*chi*phi, -c*Ey/tau, c*Ex/tau, gamma*psi, chi*Ez, c^2*gamma*Bz]
 ]$
 
-calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block([],
-  kill(varsC, basisC),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
-  load(modNm),
+calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [basisConstant,bC,nbasis,Exll,Eyll,Ezll,Bxll,Byll,Bzll,phll,psll,Excl,Eycl,Ezcl,
+   Bxcl,Bycl,Bzcl,phcl,pscl,Exrl,Eyrl,Ezrl,Bxrl,Byrl,Bzrl,phrl,psrl,cv,subListL,
+   subListCL,subListCR,subListR,numFluxL,numFluxR,surfVars,clst,fhatL,incrl,fhatR,incrr,
+   incr_sl,incr_sr,varsC],
 
-  bC : if polyOrder = 0 then basisConstant else basisC[polyOrder],
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  if polyOrder = 0 then bC : basisConstant,
   nbasis : length(bC),
   
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),

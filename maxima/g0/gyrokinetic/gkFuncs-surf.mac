@@ -9,7 +9,7 @@ load("gyrokinetic/gkUtil")$
 fpprec : 24$
 
 calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
-  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,vSubInv,numC,numP,surfVar,varLabel,dirLabel,
+  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,
    BvarsLabel,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
@@ -19,8 +19,8 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
 
   pDim : cdim+vdim,
 
-  [varsC,bC,varsP,bP,vSub,vSubInv] : loadBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC), numP : length(bP), 
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), 
 
   surfVar  : varsP[surfDir],             /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -118,7 +118,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
 )$
 
 calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
-  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,vSubInv,numC,numP,surfVar,varLabel,dirLabel,
+  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,
    BvarsLabel,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
@@ -128,8 +128,8 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
 
   pDim : cdim+vdim,
 
-  [varsC,bC,varsP,bP,vSub,vSubInv] : loadBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC), numP : length(bP), 
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), 
 
   surfVar  : varsP[surfDir],             /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),

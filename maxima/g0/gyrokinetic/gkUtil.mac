@@ -7,63 +7,6 @@ load("nodal_operations/quadrature_functions")$
 
 doMakeExprLst(vals, S) := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
-loadBasis(basisType, cdim, vdim, pIn) := block([modNm,allLabels,vSub,vSubInv,varsC,bC,bP,varsP],
-  /* Load basis of approapriate dimension. */
-  if vdim > 0 then (
-    modNm : sconcat("basis-precalc/basis", basisType, cdim, "x", vdim, "v")
-  ) else (
-    modNm : sconcat("basis-precalc/basis", basisType, cdim, "x")
-  ),
-  load(modNm),
-
-  /* Save configuration and phase space basis and switch to GK variables. */
-  vSub    : [vx=vpar, vy=mu],
-  vSubInv : [vpar=vx, mu=vy],
-
-  bC    : subst(vSub, basisC[pIn]),
-  varsC : subst(vSub, varsC),
-
-  if vdim=0 then bP : bC
-  else           bP : subst(vSub, basisP[pIn]),
-
-  if vdim=0 then varsP : varsC
-  else           varsP : subst(vSub, varsP),
-
-  return([varsC,bC,varsP,bP,vSub,vSubInv])
-)$
-
-basisFromVars(basisType, varsIn, pIn) := block(
-  [dimIn,oldVarsC,oldVarsP,basis,vars,replaceList],
-
-  dimIn : length(varsIn),
-
-  /* In case varsP and varsC were already loaded, save them
-     and restore them at the end of this function. */
-  if listp(varsC) then (oldVarsC : copylist(varsC)),
-  if listp(varsP) then (oldVarsP : copylist(varsP)),
-
-  if dimIn > 3 then (
-    load(sconcat("basis-precalc/basis", basisType, dimIn-3, "x", 3, "v")),
-    basis : basisP[pIn],
-    vars  : varsP
-  ) elseif dimIn > 0 then (
-    load(sconcat("basis-precalc/basis", basisType, dimIn, "x")),
-    basis : basisC[pIn],
-    vars  : varsC
-  ) else (
-    basis : [],
-    vars  : []
-  ),
-  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
-  basis : psubst(replaceList,basis),
-
-  /* Restore varsC and varsP. */
-  if listp(oldVarsC) then (varsC : copylist(oldVarsC)),
-  if listp(oldVarsP) then (varsP : copylist(oldVarsP)),
-
-  return(basis)
-)$
-
 expandInputFields(bC,bmagBasis) := block(
   [bmag_e,bmagInv_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,cdim,
    AparL_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,BdriftX_e,BdriftY_e],

@@ -101,8 +101,8 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
   ),
   facDiff_c : calcInnerProdList(varsC, 1, bC, facDiff_e),
 
-  if polyOrder>1 or dir=2 then (
-    /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
+  if dir=2 then (
+    /* facDiff = 2*nu*vtSq/B. */
     printf(fh, "  double facDiff[~a]; ~%", NC),
     /* Write out the components of facDiff's expansion. */
     printf(fh, "  // Expand diffusion coefficient in conf basis.~%"),
@@ -118,10 +118,10 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero : doMakeExprLst(facDiff_c, nuVtSqSum)
   ),
-  facDiff_NoZero_e : doExpand(facDiff_NoZero, bC),
+  facDiff_e : doExpand(facDiff_NoZero, bC),
 
   /* Volume increment. */
-  vol_incr_c : rdvSq4*calcInnerProdList(varsP, 1, basisFac, facDiff_NoZero_e*fSkin_e),
+  vol_incr_c : rdvSq4*calcInnerProdList(varsP, 1, basisFac, facDiff_e*fSkin_e),
   printf(fh, "  double vol_incr[~a] = {0.0};~%", NP),
   writeCExprs1(vol_incr, vol_incr_c),
   printf(fh, "~%"),

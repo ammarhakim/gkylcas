@@ -14,8 +14,8 @@ vvars : [vx, vy, vz]$
 
 dvdx  : [dv0dx0, dv1dx1, dv2dx2]$
 wdx   : [w0dx0, w1dx1, w2dx2]$
-dx11 : [dx10, dx11, dx12]$
-dv11 : [dv10, dv11, dv12]$
+dx11  : [dx10, dx11, dx12]$
+dv11  : [dv10, dv11, dv12]$
 
 Efld  : [E0, E1, E2]$
 Bfld  : [B0, B1, B2]$
@@ -37,8 +37,6 @@ calcAccel(vdir, vdim, bc) :=
   else
     subst(vTransSubs, subst(vzero(vdim), az(vvx,vvy,vvz,bc)))$
 
-slcn(lst, n) := makelist(lst[i], i, 1, n)$
-
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
@@ -47,14 +45,13 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
-calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bC,bP,numC,numP,pDim,cid,vid,vv,surfVars,bSurf,fSkin_e,fEdge_e,acc_e,
+   alphaV_c,alphaNoZero,alpha_e,surfNodes,numNodes,exprAtNodes,alphaOrd_n,
+   rcoFac,fHatSurf_e,Ghat_c,GhatNoZero,Ghat_e,incr,varsC,varsP,basisC,basisP],
 
-  bP    : basisP[polyOrder],
-  bC    : basisC[polyOrder],
-  varsC : slcn(varsP, cdim),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
   numC  : length(bC),
   numP  : length(bP),
   pDim  : length(varsP),

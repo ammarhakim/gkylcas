@@ -37,8 +37,6 @@ calcAccel(vdir, vdim, bc) :=
   else
     subst(vTransSubs, subst(vzero(vdim), az(vvx,vvy,vvz,bc)))$
 
-slcn(lst, n) := makelist(lst[i], i, 1, n)$
-
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
@@ -50,11 +48,8 @@ doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,numBasisP,cid,vid,wvl,wvr,dvl,dvr,cv,vv,surfVars,fL_e,fR_e,fhat,surfTerm,incr_r,clst,incr_s],
 
-  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
-
-  bP        : basisP[polyOrder],
   numBasisP : length(bP),
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
@@ -155,14 +150,11 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "} ~%")
 );
 
-calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [],
 
-  bP    : basisP[polyOrder],
-  bC    : basisC[polyOrder],
-  varsC : slcn(varsP, cdim),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
   numC  : length(bC),
   numP  : length(bP),
   pDim  : length(varsP),
