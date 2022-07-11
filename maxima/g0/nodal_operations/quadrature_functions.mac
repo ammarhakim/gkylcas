@@ -286,12 +286,17 @@ gaussOrdHyb(n,cdim,vdim) := block(
 )$
 
 /* Like gaussOrdWeightGkHyb but only return ordinates. */
-gaussOrdGkHyb(n,cdim,vdim) := block([nc,ord_flipped,ord],
-  nc : n,   /* Number of quad points in configuration space. */
+gaussOrdGkHyb(n,cvars,vvars) := block([cdim,vdim,nc,nv,ord_flipped,ord],
+  cdim : length(cvars),  vdim : length(vvars),
+  nc : n,   /* Number of quad points in configuration space and mu. */
+  nv : n+1, /* Number of quad points in vpar. */
 
   if cdim=0 then (
     if vdim = 1 then (
-      ord : gaussOrd(nv,vdim)
+      if vvars[1]=vx or vvars[1]=vpar then
+        ord : gaussOrd(nv,vdim)
+      elseif vvars[1]=vy or vvars[1]=mu then
+        ord : gaussOrd(nc,vdim)
     ) else (
       /* Need p=2 in vpar and p=1 in mu. */
       ord_flipped : gaussOrdHyb(nc,1,1),
@@ -300,9 +305,12 @@ gaussOrdGkHyb(n,cdim,vdim) := block([nc,ord_flipped,ord],
     )
   ) elseif vdim=0 then (
     ord : gaussOrd(nc,cdim)
-  ) elseif cdim=1 and vdim=1 then (
-    ord : gaussOrdHyb(nc,cdim,vdim)
-  ) else (
+  ) elseif cdim>0 and vdim=1 then (
+    if vvars[1]=vx or vvars[1]=vpar then
+      ord : gaussOrdHyb(nc,cdim,vdim)
+    elseif vvars[1]=vy or vvars[1]=mu then
+      ord : gaussOrd(nc,cdim+vdim)
+  ) else ( /* cdim>0 and vdim=2 */
     /* Use gaussOrdHyb but flip the last two ordinate
        coordinates so p=2 is used in vpar and not mu. */
     ord_flipped : gaussOrdHyb(nc,cdim+1,1),

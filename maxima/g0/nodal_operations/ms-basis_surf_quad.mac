@@ -24,12 +24,12 @@ maxCdim_Tensor : 3$
 /* Hybrid basis. */
 minCdim_hyb : 1$
 maxCdim_hyb : 3$
-vDims_hyb : [[1,2,3], [2,3], [3]]$  /* Vdim for each of Cdim. */
+vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* GK hybrid basis. */
-minCdim_gk_hyb : 1$
-maxCdim_gk_hyb : 3$
-vDims_gk_hyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
+minCdim_gkhyb : 1$
+maxCdim_gkhyb : 3$
+vDims_gkhyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
 
 /* ...... END OF USER INPUTS........ */
 
@@ -39,10 +39,10 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-bNameHyb   : ["hyb","gk_hyb"]$
-minCdimHyb : [minCdim_hyb, minCdim_gk_hyb]$
-maxCdimHyb : [maxCdim_hyb, maxCdim_gk_hyb]$
-vDims      : [vDims_hyb, vDims_gk_hyb]$
+bNameHyb   : ["hyb","gkhyb"]$
+minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_hyb, vDims_gkhyb]$
 
 genSurfQuadEvKernel(dim, basisName, pOrder) := block(
   [vars,basis,surfNodes,numNodes,f_e,dir,xv,surfVars,fOrdR_n,fOrdL_n,fname,fh,n],
@@ -84,25 +84,29 @@ genSurfQuadEvKernelHyb(cdim, vdim, basisName) := block(
 
   if basisName = "hyb" then (
     [varsC,bC,varsP,bP] : loadPhaseBasis(basisName, cdim, vdim, 1)
-  ) elseif basisName = "gk_hyb" then (
+  ) elseif basisName = "gkhyb" then (
     [varsC,bC,varsP,bP,vsub] : loadGkBasis(basisName, cdim, vdim, 1)
   ),
   pdim : cdim+vdim,
 
   f_e : doExpand1(f, bP),
   for dir : 1 thru pdim do (
+    xv       : varsP[dir],        /* variable in direction of surface update. */
+    surfVars : delete(xv,varsP),  /* Surface variables to integrate over. */
+
     surf_cdim : cdim,  surf_vdim : vdim,
     if dir > cdim then (surf_vdim : vdim-1) else (surf_cdim : cdim-1),
     /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
     if basisName = "hyb" then (
       surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
-    ) elseif basisName = "gk_hyb" then (
-      surfNodes : gaussOrdGkHyb(1+1, surf_cdim, surf_vdim)
+    ) elseif basisName = "gkhyb" then (
+      varsV : listify(setdifference(setify(varsP),setify(varsC))), 
+      surfcvars : delete(xv, varsC),
+      surfvvars : delete(xv, varsV),
+      surfNodes : gaussOrdGkHyb(1+1, surfcvars, surfvvars)
     ),
     numNodes : length(surfNodes),    
   
-    xv       : varsP[dir],       /* variable in direction of surface update. */
-    surfVars : delete(xv,varsP),  /* Surface variables to integrate over. */
     /* Evaluate f at surface quadrature nodes. */
     /* Need evaluation on left (-1) and right (+1) */
     fOrdR_n : gcfac(float(evAtNodes(subst(xv=+1,f_e),surfNodes,surfVars))),
@@ -136,8 +140,10 @@ for bInd : 1 thru length(bName) do (
       disp(printf(false,sconcat("Creating configuration space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c,polyOrder)),
       genSurfQuadEvKernel(c, bName[bInd], polyOrder),
 
-      disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax3v_p~a"),c,polyOrder)),
-      genSurfQuadEvKernel(c+3, bName[bInd], polyOrder)
+      if not (c+3=6 and bName[bInd]="tensor" and polyOrder=2) then (  /* Don't do 3x3v p2 tensor. */
+        disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax3v_p~a"),c,polyOrder)),
+        genSurfQuadEvKernel(c+3, bName[bInd], polyOrder)
+      )
     )
   )
 )$

@@ -4,7 +4,7 @@
 #include "serendip_mono.h"
 #include "tensor_mono.h"
 #include "hyb_mono.h"
-#include "gk_hyb_mono.h"
+#include "gkhyb_mono.h"
 #include <modal_basis.h>
 
 // Serendipity basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
@@ -38,20 +38,17 @@ static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&);
 } hyb_mo_list[] = {
   {NULL, NULL, NULL, NULL}, // No 0x basis functions
   {NULL, hyb_1x1v_p1, hyb_1x2v_p1, hyb_1x3v_p1},
-  {NULL,        NULL, hyb_2x2v_p1, hyb_2x3v_p1},
-  {NULL,        NULL,        NULL, hyb_3x3v_p1},
+  {NULL, hyb_2x1v_p1, hyb_2x2v_p1, hyb_2x3v_p1},
+  {NULL, hyb_3x1v_p1, hyb_3x2v_p1, hyb_3x3v_p1},
 };
 
 // Serendipity GK hybrid basis function monomial list for each dimension: mo_list[ndim].ev[polyOrder]
 static struct { GiNaC::lst (*ev[4])(const std::vector<GiNaC::symbol>&);
-} gk_hyb_mo_list[] = {
+} gkhyb_mo_list[] = {
   {NULL, NULL, NULL, NULL}, // No 0D basis functions
-  {NULL, NULL, NULL, NULL}, // No 1D basis functions
-  {NULL, gk_hyb_2x_p1, NULL, NULL},
-  {NULL, gk_hyb_3x_p1, NULL, NULL},
-  {NULL, gk_hyb_4x_p1, NULL, NULL},
-  {NULL, gk_hyb_5x_p1, NULL, NULL},
-  {NULL, NULL, NULL, NULL}, // No 6D basis functions
+  {NULL, gkhyb_1x1v_p1, gkhyb_1x2v_p1, NULL},
+  {NULL,          NULL, gkhyb_2x2v_p1, NULL},
+  {NULL,          NULL, gkhyb_3x2v_p1, NULL},
 };
 
 Gkyl::ModalBasis::ModalBasis(ModalBasisType type, int ndim, int vdim, const std::vector<GiNaC::symbol>& invars, int polyOrder)
@@ -76,10 +73,12 @@ Gkyl::ModalBasis::ModalBasis(ModalBasisType type, int ndim, int vdim, const std:
     assert(hyb_mo_list[cdim].ev[vdim] != NULL);
     bc = gsOrthoNorm(hyb_mo_list[cdim].ev[vdim](vars));
   }
-  else if (type == Gkyl::MODAL_GK_HYB) {
+  else if (type == Gkyl::MODAL_GKHYB) {
+    assert(vdim > 0 && vdim < ndim);
     assert(polyOrder == 1);
-    assert(gk_hyb_mo_list[ndim].ev[polyOrder] != NULL);
-    bc = gsOrthoNorm(gk_hyb_mo_list[ndim].ev[polyOrder](vars));
+    int cdim = ndim-vdim;
+    assert(gkhyb_mo_list[cdim].ev[vdim] != NULL);
+    bc = gsOrthoNorm(gkhyb_mo_list[cdim].ev[vdim](vars));
   }  
 }
 

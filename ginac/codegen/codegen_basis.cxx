@@ -16,8 +16,8 @@ get_basis_name(Gkyl::ModalBasisType type)
     bn = "tensor";
   else if (type == Gkyl::MODAL_HYB)
     bn = "hyb";
-  else if (type == Gkyl::MODAL_GK_HYB)
-    bn = "gk_hyb";
+  else if (type == Gkyl::MODAL_GKHYB)
+    bn = "gkhyb";
 
   return bn;
 }
@@ -133,7 +133,7 @@ gen_eval_expand(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, c
   symbol f("f");
   auto f_expand = basis.expand(f);
   // expressions to compute expansion
-  fc << " return " << f_expand.expand().evalf() << ";" << std::endl;
+  fc << "  return " << f_expand.expand().evalf() << ";" << std::endl;
   
   // close function
   fc << "}" << std::endl << std::endl;
@@ -464,8 +464,10 @@ gen_hyb_basis()
   flip_file << "// " << buff << std::endl;
   flip_file << "#include <gkyl_basis_hyb_kernels.h>" << std::endl;
 
+  // All dim combinations needed when one accounts for surface 
+  // evaluation, GK and sims that are only kinetic in 1 v-space dir.
   for (int cd=1; cd<4; ++cd) {
-    for (int vd=cd; vd<4; ++vd) {
+    for (int vd=1; vd<4; ++vd) {
       int dim = cd+vd;
       int p = 1;
       std::cout << cd << "x"<< vd << "vp" << p << " ";      
@@ -490,7 +492,7 @@ gen_hyb_basis()
 }
 
 void
-gen_gk_hyb_basis()
+gen_gkhyb_basis()
 {
   // compute time-stamp
   char buff[70];
@@ -504,40 +506,42 @@ gen_gk_hyb_basis()
   symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
   std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
 
-  std::ofstream header("kernels/basis/gkyl_basis_gk_hyb_kernels.h", std::ofstream::out);
+  std::ofstream header("kernels/basis/gkyl_basis_gkhyb_kernels.h", std::ofstream::out);
   header << "// " << buff << std::endl;
   header << "#pragma once" << std::endl;
   header << "#include <gkyl_util.h>" << std::endl;
   header << "EXTERN_C_BEG" << std::endl;
   
-  std::ofstream eval_file("kernels/basis/basis_eval_gk_hyb.c", std::ofstream::out);
-  std::ofstream flip_file("kernels/basis/basis_flip_sign_gk_hyb.c", std::ofstream::out);
+  std::ofstream eval_file("kernels/basis/basis_eval_gkhyb.c", std::ofstream::out);
+  std::ofstream flip_file("kernels/basis/basis_flip_sign_gkhyb.c", std::ofstream::out);
 
   eval_file << "// " << buff << std::endl;
-  eval_file << "#include <gkyl_basis_gk_hyb_kernels.h>" << std::endl;
+  eval_file << "#include <gkyl_basis_gkhyb_kernels.h>" << std::endl;
 
   flip_file << "// " << buff << std::endl;
-  flip_file << "#include <gkyl_basis_gk_hyb_kernels.h>" << std::endl;
+  flip_file << "#include <gkyl_basis_gkhyb_kernels.h>" << std::endl;
 
-  for (int d=1; d<5; ++d) {
-    int dim = dims[d];
-    int p =1;
-    std::cout << dim << "dp" << p << " ";      
-    Gkyl::ModalBasis mbasis(Gkyl::MODAL_GK_HYB, dim, 0, vars, p);
-      
-    // generate eval method
-    gen_eval(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
-    // generate eval_expand method
-    gen_eval_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
-    gen_eval_grad_expand(Gkyl::MODAL_GK_HYB, header, eval_file, mbasis);
-    // generate flip_sign methods
-    gen_flip_odd_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
-    gen_flip_even_sign(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
-    // generate node_coords
-    gen_node_coords(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
-    // generate nodal to modal
-    gen_nodal_to_modal(Gkyl::MODAL_GK_HYB, header, flip_file, mbasis);
-    std::cout << std::endl;
+  for (int cd=1; cd<4; ++cd) {
+    for (int vd=std::min(cd,2); vd<3; ++vd) {
+      int dim = cd+vd;
+      int p = 1;
+      std::cout << cd << "x"<< vd << "vp" << p << " ";      
+      Gkyl::ModalBasis mbasis(Gkyl::MODAL_GKHYB, dim, vd, vars, p);
+        
+      // generate eval method
+      gen_eval(Gkyl::MODAL_GKHYB, header, eval_file, mbasis);
+      // generate eval_expand method
+      gen_eval_expand(Gkyl::MODAL_GKHYB, header, eval_file, mbasis);
+      gen_eval_grad_expand(Gkyl::MODAL_GKHYB, header, eval_file, mbasis);
+      // generate flip_sign methods
+      gen_flip_odd_sign(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      gen_flip_even_sign(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      // generate node_coords
+      gen_node_coords(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      // generate nodal to modal
+      gen_nodal_to_modal(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      std::cout << std::endl;
+    }
   }
   header << "EXTERN_C_END" << std::endl;
 }
@@ -615,7 +619,7 @@ main(int argc, char **argv)
   std::cout << "Generating of modal hybrid basis took " << tm << " seconds" << std::endl;
   
   tstart = gkyl_wall_clock();
-  gen_gk_hyb_basis();
+  gen_gkhyb_basis();
   tm = gkyl_time_diff_now_sec(tstart);
   std::cout << "Generating of modal gk hybrid basis took " << tm << " seconds" << std::endl;
   

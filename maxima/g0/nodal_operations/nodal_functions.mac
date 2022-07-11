@@ -7,6 +7,7 @@ load(stringproc)$
 fpprec : 24$
 load("eigen")$
 load("scifac")$
+load("utilities")$
 
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
@@ -45,7 +46,8 @@ calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block(
 )$
 
 /* Given a set of nodes. */
-calcBasisNodToModWithNodes(basisType, dim, p, nodes) := block([basis, vars, numNodes, basisNodToMod, varsC, varsP, basisC, basisP],
+calcBasisNodToModWithNodes(basisType, dim, p, nodes) := block(
+  [basis, vars, basisNodToMod, varsC, varsP, basisC, basisP],
   if (dim < 4) then (
     load(sconcat("basis-precalc/basis", basisType, dim, "x")),
     basis : basisC[p],
@@ -62,7 +64,7 @@ calcBasisNodToModWithNodesHyb(basisType, cdim, vdim, nodes) := block(
   [varsC,bC,basis,vars,basisNodToMod],
   if basisType = "hyb" then (
     [varsC,bC,vars,basis] : loadPhaseBasis("ser", cdim, vdim, 1)
-  ) elseif basisType = "gk_hyb" then (
+  ) elseif basisType = "gkhyb" then (
     [varsC,bC,vars,basis,vSub] : loadGkBasis("ser", cdim, vdim, 1)
   ),
   basisNodToMod : calcBasisNodToModWithNodesAndBasis(nodes, basis, vars),
@@ -155,9 +157,22 @@ calcModToNod(basisType, dim, p) := block([basisNodToMod],
    .................................................................................................... */
 
 /* Given a modal basis and a set of nodes. */
-getNodalBasisWithNodesAndBasis(nodes, modalBasis, vars) := block([basisModToNod],
-  basisModToNod : calcBasisModToNodWithNodesAndBasis(nodes, modalBasis, vars),
-  return(fullratsimp(list_matrix_entries(basisModToNod . modalBasis)))
+getNodalBasisWithNodesAndBasis(nodes, modalBasis, vars) := block(
+  [basisModToNod,basisNodToMod,unknowns,eqLHS,eq,sol],
+  if length(modalBasis) < 50 then (
+    basisModToNod : calcBasisModToNodWithNodesAndBasis(nodes, modalBasis, vars),
+    return(fullratsimp(list_matrix_entries(basisModToNod . modalBasis)))
+  ) else (
+    /* We found that for large number of basis monomials (~100) the invert
+       method in calcBasisModToNodWithNodesAndBasis took too long. Here we use
+       linsolve instead, which is faster. */
+    basisNodToMod : fullratsimp(calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars)),
+    unknowns      : makelist(w[i],i,1,length(basisModToNod)),
+    eqLHS : basisNodToMod . unknowns,
+    eq    : makelist(eqLHS[i][1] = modalBasis[i], i, 1, length(modalBasis)),
+    sol   : linsolve(eq, unknowns),
+    return(fullratsimp(makelist(rhs(sol[i]),i,1,length(sol))))
+  )
 )$
 
 /* Given a set of nodes. */
@@ -195,11 +210,13 @@ getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block(
   return(nodalBasis)
 )$
 getVarsNodalBasisWithNodesHyb(basisType, cdim, vdim, varsIn, nodes) := block(
-  /* Same as getVarsNodalBasisWithNodes but for hybrid bases. */
-  [basis,vars,replaceList,nodalBasis],
+  /* Same as getVarsNodalBasisWithNodes but for hybrid bases.
+     For now we assuse this is just used for expanding quadrature node values,
+     so we use Tensor basis (or Ser when p=1, as in conf space). */
+  [dimIn,basis,vars,replaceList,nodalBasis],
   dimIn : length(varsIn),
   if vdim=0 then (
-    load(sconcat("basis-precalc/basisSer", cdim,"x")),
+    load(sconcat("basis-precalc/basisSer", cdim, "x")),
     basis : basisC[1],  vars : varsC
   ) else (
     if basisType="hyb" then (
@@ -207,34 +224,12 @@ getVarsNodalBasisWithNodesHyb(basisType, cdim, vdim, varsIn, nodes) := block(
         load(sconcat("basis-precalc/basisTensor", vdim, "x")),
         basis : subst([x=vx,y=vy,z=vz],basisC[2]),  vars : subst([x=vx,y=vy,z=vz],varsC)
       ) else (
-        load(sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")),
+        load(sconcat("basis-precalc/basisTensorHybrid", cdim, "x", vdim, "v")),
         basis : basisP[1],  vars : varsP
       )
-    ) elseif basisType="gk_hyb" then ( (
-      /* gk_hyb is tricker because it's p=2 only in vpar. */      
-      hasvpar : isInList(vpar,varsIn),
-      if hasvpar then (
-        if cdim=0 then (
-          if vdim=1 then (
-            load(sconcat("basis-precalc/basisSer", vdim, "x")),
-            basis : subst(x=vpar,basisC[1]),  vars : subst(x=vpar,varsC)
-          ) elseif vdim=2 then (
-            load(sconcat("basis-precalc/basis", vdim, "x")),
-            basis : subst(x=vpar,basisC[1]),  vars : subst(x=vpar,varsC)
-          )
-        ) else (
-        )
-          load(sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")),
-          basis : basisP[1],  vars : varsP
-      ) else (
-        if cdim=0 then (
-          load(sconcat("basis-precalc/basisSer", 1, "x")),
-          basis : subst(x=mu,basisC[1]),  vars : subst(x=mu,varsC)
-        ) else (
-          [vars, basis] : loadBasis("ser", cdim+1, 1),
-          basis : subst(vars[cdim+1]=mu,basis),  vars : subst(vars[cdim+1]=mu,vars)
-        )
-      )
+    ) elseif basisType="gkhyb" then (
+      /* gkhyb is tricker because it's p=2 only in vpar. */      
+      [vars, basis] : loadGkHybBasisFromVars(varsIn)
     )
   ),
   replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),

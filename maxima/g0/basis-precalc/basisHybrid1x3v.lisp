@@ -6,10 +6,10 @@
 (ADD2LNC '|$varsP| $VALUES) 
 (DSKSETQ |$basisC|
          '((MLIST SIMP
-            (20.
+            (23.
              #A((94.) BASE-CHAR
                 . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeHybBasisToFile| 13.))
+             SRC |$writeHybBasisToFile| 16.))
            ((MLIST SIMP
              (32.
               #A((70.) BASE-CHAR
@@ -21,10 +21,10 @@
 (ADD2LNC '|$basisC| $VALUES) 
 (DSKSETQ |$basisP|
          '((MLIST SIMP
-            (26.
+            (29.
              #A((94.) BASE-CHAR
                 . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeHybBasisToFile| 13.))
+             SRC |$writeHybBasisToFile| 16.))
            ((MLIST SIMP
              (32.
               #A((70.) BASE-CHAR
@@ -58,20 +58,20 @@
              ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
               ((MEXPT SIMP
-                (24.
+                (27.
                  #A((94.) BASE-CHAR
                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeHybBasisToFile| 13.))
+                 SRC |$writeHybBasisToFile| 16.))
                $VX 2.)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
@@ -79,10 +79,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VY)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
@@ -90,10 +90,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VZ)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VZ)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -101,10 +101,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VY $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -112,10 +112,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VZ $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VZ $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -123,10 +123,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY $VZ)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VY $VZ)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -134,30 +134,30 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY $VZ $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VX 2.)
                $VY $VZ $X)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
               ((MEXPT SIMP
-                (24.
+                (27.
                  #A((94.) BASE-CHAR
                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeHybBasisToFile| 13.))
+                 SRC |$writeHybBasisToFile| 16.))
                $VY 2.)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
@@ -165,20 +165,20 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.))))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VZ)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $VZ)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -186,10 +186,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $X)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -197,10 +197,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VZ $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $VZ $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -208,10 +208,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $VZ)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $VZ)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -219,30 +219,30 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $VZ $X)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VY 2.)
                $VZ $X)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
               ((MEXPT SIMP
-                (24.
+                (27.
                  #A((94.) BASE-CHAR
                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeHybBasisToFile| 13.))
+                 SRC |$writeHybBasisToFile| 16.))
                $VZ 2.)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
@@ -250,30 +250,30 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.))))
             ((MTIMES SIMP) ((RAT SIMP) 3. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY)
               ((MTIMES SIMP) $VY
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.))))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
              ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $X)
               ((MTIMES SIMP) $VX
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -281,10 +281,10 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY $X)
               ((MTIMES SIMP) $VY
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.)
                $X)))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
@@ -292,20 +292,20 @@
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $VY)
               ((MTIMES SIMP) $VX $VY
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.))))
             ((MTIMES SIMP) ((RAT SIMP) 9. 8.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $VY $X)
               ((MTIMES SIMP) $VX $VY
                ((MEXPT SIMP
-                 (24.
+                 (27.
                   #A((94.) BASE-CHAR
                      . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 13.))
+                  SRC |$writeHybBasisToFile| 16.))
                 $VZ 2.)
                $X)))))) 
 (ADD2LNC '|$basisP| $VALUES) 

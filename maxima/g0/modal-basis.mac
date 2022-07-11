@@ -1,4 +1,5 @@
 /* Code to work with modal basis functions */
+load("utilities")$
 
 /* In the following "vars" is the list of independent variables */
 
@@ -293,89 +294,161 @@ loadBasis(basisType, dim, pOrder) := block([basis,vars,btype],
 )$
 
 loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
-  [modNm,varsC,bC,bP,varsP,btype],
-  /* Load phase-space basis. */
+  [modNm,varsC,bC,bP,varsP,btype,p],
+  /* Load phase-space basis. Some complication below is due to the fact
+     that some routines may call this version for surfaces and/or hybrid bases. */
   btype : basisType,
-  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+  if basisType="ser" then btype : "Ser"
+  elseif basisType="tensor" then btype : "Tensor"
+  elseif basisType="hyb" then btype : "Hybrid",
 
   kill(varsC, varsP, basisC, basisP),
-  if vdim > 0 then (
-    if cdim=0 then (
+  if vdim>0 then (
+    if cdim>0 then (
+      if pOrder = 1 then  /* Forcing p=1 to hybrid. */
+        modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
+      else
+        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
+    ) else (
       if basisType = "tensor" then 
         modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
       else
         modNm : sconcat("basis-precalc/basisSer", vdim, "x")
-    ) else (
-      if pOrder = 1 then 
-        modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
-      else
-        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
     )
   ) else (
-    modNm : sconcat("basis-precalc/basis", btype, cdim, "x")
+    if basisType = "tensor" then 
+      modNm : sconcat("basis-precalc/basisTensor", cdim, "x")
+    else
+      modNm : sconcat("basis-precalc/basisSer", cdim, "x")
   ),
   load(modNm),
 
-  if cdim>0 then (
-    bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
-
-    if vdim=0 then (
-      bP : bC,  varsP : varsC
-    ) else (
+  if vdim>0 then (
+    if cdim>0 then (
+      bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
       bP : copylist(basisP[pOrder]),  varsP : copylist(varsP)
+    ) else (
+      if basisType = "hyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
+      bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[p])),
+      varsP : subst([x=vx,y=vy,z=vz],copylist(varsC)),
+      bC : [],  varsC : []
     )
   ) else (
-    bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[pOrder])),
-    varsP : subst([x=vx,y=vy,z=vz],copylist(varsC)),
-    bC : [],  varsC : []
+    bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
+    bP : bC,  varsP : varsC
   ),
 
   return([varsC,bC,varsP,bP])
 )$
 
 loadGkBasis(basisType, cdim, vdim, pOrder) := block(
-  [modNm,vSub,vSubInv,varsC,bC,bP,varsP,btype],
-  /* Load basis of approapriate dimension. */
+  [btype,modNm,vSub,varsC,bC,bP,varsP],
+  /* Load phase-space basis for gyrokinetics. Some complication below is due to the fact
+     that some routines may call this version for surfaces and/or hybrid bases. */
   btype : basisType,
-  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+  if basisType="ser" then btype : "Ser"
+  elseif basisType="tensor" then btype : "Tensor"
+  elseif basisType="hyb" then btype : "Hybrid"
+  elseif basisType="gkhyb" then btype : "GkHybrid",
 
   kill(varsC, varsP, basisC, basisP),
   if vdim > 0 then (
-    if cdim=0 then (
+    if cdim>0 then (
+      if pOrder = 1 then
+        /* MF 2022/07/07: For now let's use Hybrid instead of
+           GkHybrid. We can experiment with GkHybrid later. 
+           GkHybrid may require additional changes to this function
+           and other parts of the code because cdim and vdim alone
+           would no longer be sufficient to determine which basis to load. */
+        modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
+      else
+        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
+    ) else (
       if basisType = "tensor" then 
         modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
       else
         modNm : sconcat("basis-precalc/basisSer", vdim, "x")
-    ) else (
-      if pOrder = 1 then
-        modNm : sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")
-      else
-        modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
     )
   ) else (
-    modNm : sconcat("basis-precalc/basis", btype, cdim, "x")
+    if basisType = "tensor" then
+      modNm : sconcat("basis-precalc/basisTensor", cdim, "x")
+    else
+      modNm : sconcat("basis-precalc/basisSer", cdim, "x")
   ),
   load(modNm),
 
   /* Save configuration and phase space basis and switch to GK variables. */
   vSub : [vx=vpar, vy=mu],
 
-  if cdim>0 then (
-    bC    : subst(vSub, copylist(basisC[pOrder])),
-    varsC : subst(vSub, copylist(varsC)),
-
-    if vdim=0 then (
-      bP : bC,  varsP : varsC
-    ) else (
+  if vdim>0 then (
+    if cdim>0 then (
+      bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
       bP : subst(vSub, copylist(basisP[pOrder])),  varsP : subst(vSub, copylist(varsP))
+    ) else (
+      if basisType = "hyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
+      bP    : subst([x=vpar,y=mu],copylist(basisC[pOrder])),
+      varsP : subst([x=vpar,y=mu],copylist(varsC)),
+      bC : [],  varsC : []
     )
   ) else (
-    bP    : subst(vSub,copylist(basisC[pOrder])),
-    varsP : subst(vSub,copylist(varsC)),
-    bC : [],  varsC : []
+    bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
+    bP : bC,  varsP : varsC
   ),
 
   return([varsC,bC,varsP,bP,vSub])
+)$
+
+loadGkHybBasisFromVars(varsIn) := block([dimIn,cdim,vdim,vars,basis],
+  /* Load a basis given the variables, intended to be used with the GkHybrid
+     basis. The need to do this arises when needing surface bases, which
+     is slightly more complicated with GkHybrid. */
+
+  dimIn : length(varsIn),
+  vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
+  cdim : dimIn - vdim,
+
+  hasvpar : isInList(vpar,varsIn) or isInList(vx,varsIn),
+
+  /* In case varsP and varsC were already loaded, save them
+     and restore them at the end of this function. */
+  if listp(varsC) then (oldVarsC : copylist(varsC)),
+  if listp(varsP) then (oldVarsP : copylist(varsP)),
+
+  if hasvpar then (
+    if cdim=0 then (
+      if vdim=1 then (
+        load(sconcat("basis-precalc/basisSer1x")),
+        basis : subst(x=vpar,basisC[2]),  vars : subst(x=vpar,varsC)
+      ) elseif vdim=2 then (
+        load(sconcat("basis-precalc/basisHybrid1x1v")),
+        /* Careful, the order of these substitutions matter. */
+        basis : subst([vx^2*x-x/3=vpar^2*mu-mu/3,vx^2=vpar^2,vx=mu,x=vpar],basisP[1]),
+        vars  : subst([x=vpar,vx=mu],varsP)
+      )
+    ) else (
+      if vdim=1 then (
+        load(sconcat("basis-precalc/basisHybrid",cdim,"x1v")),
+        basis : subst(vx=vpar,basisP[1]),  vars : subst(vx=vpar,varsP)
+      ) elseif vdim=2 then (
+        load(sconcat("basis-precalc/basisGkHybrid",cdim,"x2v")),
+        basis : subst([vx=vpar,vy=mu],basisP[1]),  vars : subst([vx=vpar,vy=mu],varsP)
+      )
+    )
+  ) else (
+    if cdim=0 then (
+      load(sconcat("basis-precalc/basisSer", 1, "x")),
+      basis : subst(x=mu,basisC[1]),  vars : subst(x=mu,varsC)
+    ) else (
+      [vars, basis] : loadBasis("ser", cdim+1, 1),
+      basis : subst(vars[cdim+1]=mu,basis),  vars : subst(vars[cdim+1]=mu,vars)
+    )
+  ),
+
+  /* Restore varsC and varsP. */
+  if listp(oldVarsC) then (varsC : copylist(oldVarsC)),
+  if listp(oldVarsP) then (varsP : copylist(oldVarsP)),
+
+  return([vars,basis])
 )$
 
 /* Load a basis of type 'basisType' and polynomial order 'pOrder'
@@ -387,13 +460,10 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   if basisType="ser" then btype : "Ser"
   elseif basisType="tensor" then btype : "Tensor"
   elseif basisType="hyb" then btype : "Hybrid"
-  elseif basisType="gk_hyb" then btype : "GkHybrid",
+  elseif basisType="gkhyb" then btype : "GkHybrid",
 
   dimIn : length(varsIn),
-  if basisType="hyb" then (
-    vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v"))),
-    cdim : dimIn - vdim
-  ) elseif basisType="gk_hyb" then (
+  if basisType="hyb" or basisType="gkhyb" then (
     vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
     cdim : dimIn - vdim
   ),
@@ -405,8 +475,10 @@ basisFromVars(basisType, varsIn, pOrder) := block(
 
   if basisType = "hyb" then (
     [varsc,bc,vars,basis] : loadPhaseBasis(basisType, cdim, vdim, 1)
-  ) elseif basisType = "gk_hyb" then (
-    [varsc,bc,vars,basis,vsub] : loadGkBasis(basisType, cdim, vdim, 1)
+  ) elseif basisType = "gkhyb" then (
+    /* vdim is insufficient, because vdim=1 could mean vpar or mu,
+       and one has p=2 (vpar) while the other p=1 (mu). Sort this out. */
+    [vars, basis] : loadGkHybBasisFromVars(varsIn)
   ) elseif dimIn > 3 then (
     load(sconcat("basis-precalc/basis", btype, dimIn-3, "x", 3, "v")),
     basis : basisP[pOrder],

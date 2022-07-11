@@ -143,6 +143,45 @@ gen_hyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
 
 }
 
+static void
+gen_gkhyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
+  const Gkyl::ModalBasis& ba, const Gkyl::ModalBasis& bb)
+{
+  int polyOrder = ba.get_polyOrder();
+  int a_ndim = ba.get_ndim();
+  int b_ndim = bb.get_ndim();
+  int b_vdim = bb.get_ndim();
+  int b_cdim = b_ndim - b_vdim;
+  
+  lst bc = bb.get_basis(); // projection is on basis function bb
+  
+  // function declaration
+  fh << std::endl
+     << "GKYL_CU_DH void binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_gkhyb_" << "p" << polyOrder
+     << "(const double *f, const double *g, double *fg );" << std::endl;
+
+  // function definition
+  fc << "GKYL_CU_DH" << std::endl;
+  fc << "void" << std::endl;
+  fc << "binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_gkhyb_" << "p" << polyOrder
+       << "(const double *f, const double *g, double *fg )" << std::endl;
+  fc << "{" << std::endl;
+
+  symbol f("f"), g("g");
+  auto fg = ba.expand(f)*bb.expand(g);
+
+  for (int i=0; i<bb.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    auto out = bb.innerProd(bc[i], fg).expand().evalf();
+    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+  }
+  std::cout << std::endl;  
+
+  // close function
+  fc << "}" << std::endl << std::endl;
+
+}
+
 void
 gen_all_ser_mul_op()
 {
@@ -296,7 +335,9 @@ gen_all_hyb_cross_mul_op()
 
     int a_dim = a_dims[da];
     int p = 1;
-    for (int b_dim=2*a_dim; b_dim<=a_dim+3; ++b_dim) {
+    // Include all combinations to account for gyrokinetics and models that are
+    // kinetic in only one velocity direction.
+    for (int b_dim=a_dim+1; b_dim<=a_dim+3; ++b_dim) {
       int vdim = b_dim-a_dim;
 
       std::cout << a_dim << "x" << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
@@ -316,28 +357,63 @@ gen_all_hyb_cross_mul_op()
       gen_hyb_cross_mul_op(mul_file_h, mul_file_c, m1, m2);
     }
 
-    // Include a 3d x 5d multiplication for gyrokinetics:
-    if (a_dim == 3) {
-      int b_dim = 5;
+    std::cout << std::endl;
+  }
+
+  mul_file_h << "EXTERN_C_END" << std::endl;
+
+  double tm = gkyl_time_diff_now_sec(tstart);
+  std::cout << "Took " << tm << " seconds" << std::endl;  
+}
+
+void
+gen_all_gkhyb_cross_mul_op()
+{
+  // compute time-stamp
+  char buff[70];
+  time_t t = time(NULL);
+  struct tm curr_tm = *localtime(&t);
+  strftime(buff, sizeof buff, "%c", &curr_tm);
+  
+  int a_dims[] = { 1, 2, 3 };
+
+  symbol z0("z0"), z1("z1"), z2("z2"), z3("z3"), z4("z4"), z5("z5");
+  std::vector<symbol> vars { z0, z1, z2, z3, z4, z5 };
+
+  std::ofstream mul_file_h("kernels/bin_op/gkyl_binop_cross_mul_gkhyb.h", std::ofstream::out);
+  mul_file_h << "// " << buff << std::endl;
+  mul_file_h << "#pragma once" << std::endl;
+  mul_file_h << "#include <gkyl_util.h>" << std::endl;
+  mul_file_h << "EXTERN_C_BEG" << std::endl;
+  
+  struct timespec tstart = gkyl_wall_clock();
+
+  for (int da=0; da<3; ++da) {
+    std::cout << std::endl;
+
+    int a_dim = a_dims[da];
+    int p = 1;
+    // Include all combinations to account for gyrokinetics and models that are
+    // kinetic in only one velocity direction.
+    for (int b_dim=a_dim+std::min(a_dim,2); b_dim<=a_dim+2; ++b_dim) {
       int vdim = b_dim-a_dim;
 
       std::cout << a_dim << "x" << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
 
       Gkyl::ModalBasis m1(Gkyl::MODAL_SER, a_dim, 0, vars, p);
-      Gkyl::ModalBasis m2(Gkyl::MODAL_GK_HYB, b_dim, vdim, vars, p);
+      Gkyl::ModalBasis m2(Gkyl::MODAL_GKHYB, b_dim, vdim, vars, p);
 
       // each function is written to its own file to allow building
       // kernels in parallel
       std::ostringstream fn;
-      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x_" << a_dim << "x" << vdim << "v_hyb_" << "p" << p << ".c";
+      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x_" << a_dim << "x" << vdim << "v_gkhyb_" << "p" << p << ".c";
       std::ofstream mul_file_c(fn.str().c_str(), std::ofstream::out);
       mul_file_c << "// " << buff << std::endl;
-      mul_file_c << "#include <gkyl_binop_cross_mul_hyb.h>" << std::endl;
+      mul_file_c << "#include <gkyl_binop_cross_mul_gkhyb.h>" << std::endl;
       
       // generate multiply method
-      gen_hyb_cross_mul_op(mul_file_h, mul_file_c, m1, m2);
+      gen_gkhyb_cross_mul_op(mul_file_h, mul_file_c, m1, m2);
     }
-
 
     std::cout << std::endl;
   }
@@ -351,9 +427,10 @@ gen_all_hyb_cross_mul_op()
 int
 main(int argc, char **argv)
 {
-//  gen_all_ser_mul_op();
-//  gen_all_ser_cross_mul_op();
+  gen_all_ser_mul_op();
+  gen_all_ser_cross_mul_op();
   gen_all_hyb_cross_mul_op();
+  gen_all_gkhyb_cross_mul_op();
   
   return 1;
 }

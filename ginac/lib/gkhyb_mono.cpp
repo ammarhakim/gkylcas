@@ -1,8 +1,8 @@
 #include <ginac/ginac.h>
-#include <gk_hyb_mono.h>
+#include <gkhyb_mono.h>
 
 GiNaC::lst
-gk_hyb_2x_p1(const std::vector<GiNaC::symbol> &vars)
+gkhyb_1x1v_p1(const std::vector<GiNaC::symbol> &vars)
 {
   GiNaC::symbol x = vars[0], vx = vars[1];
   
@@ -11,7 +11,7 @@ gk_hyb_2x_p1(const std::vector<GiNaC::symbol> &vars)
 }
 
 GiNaC::lst
-gk_hyb_3x_p1(const std::vector<GiNaC::symbol> &vars)
+gkhyb_1x2v_p1(const std::vector<GiNaC::symbol> &vars)
 {
   GiNaC::symbol x = vars[0], vx = vars[1], vy = vars[2];
   
@@ -20,7 +20,7 @@ gk_hyb_3x_p1(const std::vector<GiNaC::symbol> &vars)
 }
 
 GiNaC::lst
-gk_hyb_4x_p1(const std::vector<GiNaC::symbol> &vars)
+gkhyb_2x2v_p1(const std::vector<GiNaC::symbol> &vars)
 {
   GiNaC::symbol x = vars[0], y = vars[1], vx = vars[2], vy = vars[3];
   
@@ -29,7 +29,7 @@ gk_hyb_4x_p1(const std::vector<GiNaC::symbol> &vars)
 }
 
 GiNaC::lst
-gk_hyb_5x_p1(const std::vector<GiNaC::symbol> &vars)
+gkhyb_3x2v_p1(const std::vector<GiNaC::symbol> &vars)
 {
   GiNaC::symbol x = vars[0], y = vars[1], z = vars[2], vx = vars[3], vy = vars[4];  
   

@@ -6,10 +6,10 @@
 (ADD2LNC '|$varsP| $VALUES) 
 (DSKSETQ |$basisC|
          '((MLIST SIMP
-            (37.
-             #A((94.) BASE-CHAR
-                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeGkHybBasisToFile| 34.))
+            (102.
+             #A((100.) BASE-CHAR
+                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-tensorhybrid.mac")
+             SRC |$placeMonoBefore| 95.))
            ((MLIST SIMP
              (32.
               #A((70.) BASE-CHAR
@@ -21,10 +21,10 @@
 (ADD2LNC '|$basisC| $VALUES) 
 (DSKSETQ |$basisP|
          '((MLIST SIMP
-            (38.
-             #A((94.) BASE-CHAR
-                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeGkHybBasisToFile| 34.))
+            (103.
+             #A((100.) BASE-CHAR
+                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-tensorhybrid.mac")
+             SRC |$placeMonoBefore| 95.))
            ((MLIST SIMP
              (32.
               #A((70.) BASE-CHAR
@@ -40,20 +40,20 @@
              ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
               ((MEXPT SIMP
-                (39.
-                 #A((94.) BASE-CHAR
-                    . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeGkHybBasisToFile| 34.))
+                (73.
+                 #A((70.) BASE-CHAR
+                    . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/modal-basis.mac")
+                 SRC |$calcPowers| 73.))
                $VX 2.)))
             ((MTIMES SIMP) ((RAT SIMP) 3. 4.)
              ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
              ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
               ((MTIMES SIMP)
                ((MEXPT SIMP
-                 (39.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeGkHybBasisToFile| 34.))
+                 (73.
+                  #A((70.) BASE-CHAR
+                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/modal-basis.mac")
+                  SRC |$calcPowers| 73.))
                 $VX 2.)
                $X)))))) 
 (ADD2LNC '|$basisP| $VALUES) 

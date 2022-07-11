@@ -43,7 +43,6 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 /* Helper functions for expanding in basis functions a quantity we know should be sparse  */
 /* For example, alpha, the phase space flow only depends on a few phase space coordinates */
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bC,bP,numC,numP,pDim,cid,vid,vv,surfVars,bSurf,fSkin_e,fEdge_e,acc_e,
@@ -96,7 +95,11 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   surfVars : delete(vv,varsP),
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
-  bSurf : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vv^2=var2,var2=1/3,vv=0],bP)))*bP),
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
 
   /* Create expansions of f_skin, f_edge on volume basis. */
   fSkin_e : doExpand1(fSkin, bP),
@@ -119,11 +122,16 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
   alphaNoZero : doMakeExprLst(alphaV_c, alpha),
-  alpha_e     : doExpandLst(alphaNoZero, bSurf),
+  alpha_e     : doExpand(alphaNoZero, bSurf),
 
   /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  surfNodes : gaussOrd(polyOrder+1, pDim-1),
-  numNodes : length(surfNodes),
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    surf_cdim : cdim,  surf_vdim : vdim-1,
+    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
+  ) else (
+    surfNodes : gaussOrd(polyOrder+1, pDim-1)
+  ),
+  numNodes  : length(surfNodes),
 
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 
@@ -147,9 +155,9 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, cdim, vdim, cdim+dir, i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, cdim, vdim, cdim+dir, i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),
@@ -161,7 +169,10 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  if polyOrder=1 then
+    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
+  else
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */
@@ -183,7 +194,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
 
   /* Zero out components of Ghat which are empty. */
   GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+  Ghat_e     : doExpand(GhatNoZero, bSurf),
 
   incr : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),  
@@ -194,14 +205,14 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   /* Write out fUpwindQuad for the far right edge */
   for i : 1 thru length(alphaOrd_n) do (
     /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
+       the common factor (for p=1) which is not needed to determine
+       sign (not working for p>1). */
     if polyOrder=1 then (
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, cdim, vdim, cdim+dir, i-1),
       printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, cdim, vdim, cdim+dir, i-1),
       printf(fh, "  } ~%")
     ) else (
       printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),
@@ -213,7 +224,10 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  if polyOrder=1 then
+    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
+  else
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */
@@ -235,7 +249,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
 
   /* Zero out components of Ghat which are empty. */
   GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+  Ghat_e     : doExpand(GhatNoZero, bSurf),
 
   incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),

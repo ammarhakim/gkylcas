@@ -127,7 +127,7 @@ getNodesGkHyb(cdim, vdim) := block([cnodes,vparnodes,munodes,nodeLst],
 /* Function that returns the nodes for given basis,
    dimensionality and polynomial order.
    Note: Vlasov hybrid basis (hyb) should use getNodesHyb because those
-         need cdim and vdim as inputs. GK hybrid (gk_hyb) use getNodesGkHyb. */
+         need cdim and vdim as inputs. GK hybrid (gkhyb) use getNodesGkHyb. */
 getNodes(basisType, dim, polyOrder) := block(
   [nodes,nodes1D,n1D,d,numNodesC,numNodes,iR,n,i,newCoord],
   nodes : 0,
