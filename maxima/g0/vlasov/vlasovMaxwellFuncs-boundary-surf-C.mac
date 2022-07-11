@@ -152,7 +152,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
     /* This subst eliminates the need for another variable, and removes
         the common factor (for p=1) which is not needed to determine
         sign (not working for p>1). */
-    if polyOrder=1 then (
+    if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
       rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
       printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
       printf(fh, "    fUpwindQuad[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, cdim, vdim, cdim+dir, i-1),
@@ -169,7 +169,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then
+  if polyOrder=1 then  /* Force p=1 to use hybrid basis. */
     printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
   else
     printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),

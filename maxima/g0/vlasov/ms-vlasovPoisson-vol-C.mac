@@ -46,7 +46,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume Vlasov Poisson",bName[bInd]," ~ax~avp~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating volume VlasovPoisson ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
         fname : sconcat("~/max-out/vlasov_poisson_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),

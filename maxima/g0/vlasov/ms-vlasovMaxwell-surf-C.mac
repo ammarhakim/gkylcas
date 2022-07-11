@@ -62,8 +62,7 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_surf"),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-          if polyOrder = 1 then (
-            /* Force hybrid basis (p=2 in velocity space). */
+          if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
           ) elseif polyOrder > 1 then (
