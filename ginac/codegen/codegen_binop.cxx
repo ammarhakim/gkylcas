@@ -109,22 +109,21 @@ gen_hyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   const Gkyl::ModalBasis& ba, const Gkyl::ModalBasis& bb)
 {
   int polyOrder = ba.get_polyOrder();
-  int a_ndim = ba.get_ndim();
-  int b_ndim = bb.get_ndim();
-  int b_vdim = bb.get_ndim();
-  int b_cdim = b_ndim - b_vdim;
+  int cdim = ba.get_ndim();
+  int pdim = bb.get_ndim();
+  int vdim = pdim-cdim;
   
   lst bc = bb.get_basis(); // projection is on basis function bb
   
   // function declaration
   fh << std::endl
-     << "GKYL_CU_DH void binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_hyb_" << "p" << polyOrder
+     << "GKYL_CU_DH void binop_cross_mul_" << cdim << "x" << vdim << "v_hyb_" << "p" << polyOrder
      << "(const double *f, const double *g, double *fg );" << std::endl;
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
   fc << "void" << std::endl;
-  fc << "binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_hyb_" << "p" << polyOrder
+  fc << "binop_cross_mul_" << cdim << "x" << vdim << "v_hyb_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;
 
@@ -148,22 +147,21 @@ gen_gkhyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   const Gkyl::ModalBasis& ba, const Gkyl::ModalBasis& bb)
 {
   int polyOrder = ba.get_polyOrder();
-  int a_ndim = ba.get_ndim();
-  int b_ndim = bb.get_ndim();
-  int b_vdim = bb.get_ndim();
-  int b_cdim = b_ndim - b_vdim;
+  int cdim = ba.get_ndim();
+  int pdim = bb.get_ndim();
+  int vdim = pdim - cdim;
   
   lst bc = bb.get_basis(); // projection is on basis function bb
   
   // function declaration
   fh << std::endl
-     << "GKYL_CU_DH void binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_gkhyb_" << "p" << polyOrder
+     << "GKYL_CU_DH void binop_cross_mul_" << cdim << "x" << vdim << "v_gkhyb_" << "p" << polyOrder
      << "(const double *f, const double *g, double *fg );" << std::endl;
 
   // function definition
   fc << "GKYL_CU_DH" << std::endl;
   fc << "void" << std::endl;
-  fc << "binop_cross_mul_" << a_ndim << "x_" << b_cdim << "x" << b_vdim << "v_gkhyb_" << "p" << polyOrder
+  fc << "binop_cross_mul_" << cdim << "x" << vdim << "v_gkhyb_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;
 
@@ -340,7 +338,7 @@ gen_all_hyb_cross_mul_op()
     for (int b_dim=a_dim+1; b_dim<=a_dim+3; ++b_dim) {
       int vdim = b_dim-a_dim;
 
-      std::cout << a_dim << "x" << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
+      std::cout << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
 
       Gkyl::ModalBasis m1(Gkyl::MODAL_SER, a_dim, 0, vars, p);
       Gkyl::ModalBasis m2(Gkyl::MODAL_HYB, b_dim, vdim, vars, p);
@@ -348,7 +346,7 @@ gen_all_hyb_cross_mul_op()
       // each function is written to its own file to allow building
       // kernels in parallel
       std::ostringstream fn;
-      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x_" << a_dim << "x" << vdim << "v_hyb_" << "p" << p << ".c";
+      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x" << vdim << "v_hyb_" << "p" << p << ".c";
       std::ofstream mul_file_c(fn.str().c_str(), std::ofstream::out);
       mul_file_c << "// " << buff << std::endl;
       mul_file_c << "#include <gkyl_binop_cross_mul_hyb.h>" << std::endl;
@@ -398,7 +396,7 @@ gen_all_gkhyb_cross_mul_op()
     for (int b_dim=a_dim+std::min(a_dim,2); b_dim<=a_dim+2; ++b_dim) {
       int vdim = b_dim-a_dim;
 
-      std::cout << a_dim << "x" << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
+      std::cout << a_dim <<  "x" << vdim << "v" << "p" << p << " " << std::flush;
 
       Gkyl::ModalBasis m1(Gkyl::MODAL_SER, a_dim, 0, vars, p);
       Gkyl::ModalBasis m2(Gkyl::MODAL_GKHYB, b_dim, vdim, vars, p);
@@ -406,7 +404,7 @@ gen_all_gkhyb_cross_mul_op()
       // each function is written to its own file to allow building
       // kernels in parallel
       std::ostringstream fn;
-      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x_" << a_dim << "x" << vdim << "v_gkhyb_" << "p" << p << ".c";
+      fn << "kernels/bin_op/binop_cross_mul_" << a_dim << "x" << vdim << "v_gkhyb_" << "p" << p << ".c";
       std::ofstream mul_file_c(fn.str().c_str(), std::ofstream::out);
       mul_file_c << "// " << buff << std::endl;
       mul_file_c << "#include <gkyl_binop_cross_mul_gkhyb.h>" << std::endl;
@@ -427,9 +425,9 @@ gen_all_gkhyb_cross_mul_op()
 int
 main(int argc, char **argv)
 {
-  gen_all_ser_mul_op();
-  gen_all_ser_cross_mul_op();
-  gen_all_hyb_cross_mul_op();
+//  gen_all_ser_mul_op();
+//  gen_all_ser_cross_mul_op();
+//  gen_all_hyb_cross_mul_op();
   gen_all_gkhyb_cross_mul_op();
   
   return 1;
