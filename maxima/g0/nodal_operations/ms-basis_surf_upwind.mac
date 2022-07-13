@@ -148,7 +148,7 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     printf(fh, "~a_~ax~av_p1_~a_upwind_quad_to_modal(const double* fUpwindQuad, double* GKYL_RESTRICT fUpwind) { ~%", basisName, cdim, vdim, dirlabels[dcurr]),
   
     /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
-    basisNodal : getVarsNodalBasisWithNodesHyb(basisName, surf_cdim, surf_vdim, surfVars, surfNodes),
+    basisNodal  : getVarsNodalBasisWithNodesHyb(basisName, surf_cdim, surf_vdim, surfVars, surfNodes),
     fHatNodal_e : doExpand1(fUpwindQuad,basisNodal),
     /* Project nodal basis back onto modal basis */
     fHatModProj_e : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, fHatNodal_e)),

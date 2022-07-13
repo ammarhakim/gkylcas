@@ -167,7 +167,7 @@ getNodalBasisWithNodesAndBasis(nodes, modalBasis, vars) := block(
        method in calcBasisModToNodWithNodesAndBasis took too long. Here we use
        linsolve instead, which is faster. */
     basisNodToMod : fullratsimp(calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars)),
-    unknowns      : makelist(w[i],i,1,length(basisModToNod)),
+    unknowns      : makelist(w[i],i,1,length(basisNodToMod)),
     eqLHS : basisNodToMod . unknowns,
     eq    : makelist(eqLHS[i][1] = modalBasis[i], i, 1, length(modalBasis)),
     sol   : linsolve(eq, unknowns),

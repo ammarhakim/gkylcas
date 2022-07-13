@@ -28,7 +28,6 @@ wTrans : [wx1, wx2, wx3]$
 /* M0 = < f > */
 calcGkM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,fl,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   
@@ -47,7 +46,6 @@ calcGkM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M0_step1 = int dvpar f  */
 calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,bP_dvpar,fl,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -67,7 +65,6 @@ calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M0_step2 = int dmu f  */
 calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,bP_dvpar,fl,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -87,7 +84,6 @@ calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M1 = < v_par f > */
 calcGkM1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   
@@ -114,7 +110,6 @@ calcGkM1(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M2par = < v_par^2 f > */
 calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,vpar2_k,vpar2_e,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   
@@ -145,7 +140,6 @@ calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M2perp = < mu/m B f > */
 calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,Mtemp,tmp_e,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -179,7 +173,6 @@ calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M2 = < v_par^2 + 2 mu/m B f > */
 calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,vpar2_k,vpar2_e,Mtemp,tmp_e,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -224,7 +217,6 @@ calcGkM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M3par = < v_par^3 f > */
 calcGkM3par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -252,7 +244,6 @@ calcGkM3par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M3perp = < v_par mu/m B f > */
 calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -278,7 +269,6 @@ calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* Simultaneously calculate M0, M1, and M2 */
 calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,energy,M0,M1,M2par,Mtemp,tmp_e,M2perp,M],
-  kill(varsC, varsP, basisC, basisP),
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
 

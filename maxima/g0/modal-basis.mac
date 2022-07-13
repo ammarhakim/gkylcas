@@ -360,7 +360,11 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
            GkHybrid may require additional changes to this function
            and other parts of the code because cdim and vdim alone
            would no longer be sufficient to determine which basis to load. */
+      /*
         modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
+      */
+        /* MF 2022/07/10: Let's stick to our original GkHybrid plan. */
+        modNm : sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")
       else
         modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
     ) else (
@@ -401,7 +405,7 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
 loadGkHybBasisFromVars(varsIn) := block([dimIn,cdim,vdim,vars,basis],
   /* Load a basis given the variables, intended to be used with the GkHybrid
      basis. The need to do this arises when needing surface bases, which
-     is slightly more complicated with GkHybrid. */
+     more complicated with GkHybrid. */
 
   dimIn : length(varsIn),
   vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
@@ -426,21 +430,19 @@ loadGkHybBasisFromVars(varsIn) := block([dimIn,cdim,vdim,vars,basis],
         vars  : subst([x=vpar,vx=mu],varsP)
       )
     ) else (
-      if vdim=1 then (
-        load(sconcat("basis-precalc/basisHybrid",cdim,"x1v")),
-        basis : subst(vx=vpar,basisP[1]),  vars : subst(vx=vpar,varsP)
-      ) elseif vdim=2 then (
-        load(sconcat("basis-precalc/basisGkHybrid",cdim,"x2v")),
-        basis : subst([vx=vpar,vy=mu],basisP[1]),  vars : subst([vx=vpar,vy=mu],varsP)
-      )
+      load(sconcat("basis-precalc/basisGkHybrid",cdim,"x",vdim,"v")),
+      basis : subst([vx=vpar,vy=mu],basisP[1]),  vars : subst([vx=vpar,vy=mu],varsP)
     )
   ) else (
     if cdim=0 then (
       load(sconcat("basis-precalc/basisSer", 1, "x")),
       basis : subst(x=mu,basisC[1]),  vars : subst(x=mu,varsC)
     ) else (
-      [vars, basis] : loadBasis("ser", cdim+1, 1),
-      basis : subst(vars[cdim+1]=mu,basis),  vars : subst(vars[cdim+1]=mu,vars)
+      [vars, basis] : loadBasis("ser", cdim+vdim, 1),
+      if vdim = 1 then (
+        basis : subst(vars[cdim+1]=mu,basis),
+        vars  : subst(vars[cdim+1]=mu,vars)
+      )
     )
   ),
 
