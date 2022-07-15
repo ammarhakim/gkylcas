@@ -204,12 +204,17 @@ gaussOrdWeightHyb(n,cdim,vdim) := block(
 )$
 
 /* Like gaussOrdWeightHyb but for gyrokinetics (only p=2 in vpar). */
-gaussOrdWeightGkHyb(n,cdim,vdim) := block([nc,ord_flipped,ord,weight],
-  nc : n,   /* Number of quad points in configuration space. */
+gaussOrdWeightGkHyb(n,cvars,vvars) := block([nc,nv,ord_flipped,ord,weight],
+  cdim : length(cvars),  vdim : length(vvars),
+  nc : n,   /* Number of quad points in configuration space and mu. */
+  nv : n+1, /* Number of quad points in vpar. */
 
   if cdim=0 then (
     if vdim = 1 then (
-      [ord, weight] : gaussOrdWeight(nv,vdim)
+      if vvars[1]=vx or vvars[1]=vpar then
+        [ord, weight] : gaussOrdWeight(nv,vdim)
+      elseif vvars[1]=vy or vvars[1]=mu then
+        [ord, weight] : gaussOrdWeight(nc,vdim)
     ) else (
       /* Need p=2 in vpar and p=1 in mu. */
       [ord_flipped, weight] : gaussOrdWeightHyb(nc,1,1),
@@ -219,7 +224,10 @@ gaussOrdWeightGkHyb(n,cdim,vdim) := block([nc,ord_flipped,ord,weight],
   ) elseif vdim=0 then (
     [ord, weight] : gaussOrdWeight(nc,cdim)
   ) elseif cdim=1 and vdim=1 then (
-    [ord, weight] : gaussOrdWeightHyb(nc,cdim,vdim)
+    if vvars[1]=vx or vvars[1]=vpar then
+      [ord, weight] : gaussOrdWeightHyb(nc,cdim,vdim)
+    elseif vvars[1]=vy or vvars[1]=mu then
+      [ord, weight] : gaussOrdWeight(nc,vdim)
   ) else (
     /* Use gaussOrdWeightHyb but flip the last two ordinate
        coordinates so p=2 is used in vpar and not mu. */
