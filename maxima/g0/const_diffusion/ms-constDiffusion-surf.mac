@@ -18,11 +18,6 @@ maxPolyOrder_Ser : 2$
 minDim_Ser : 1$
 maxDim_Ser : 4$
 
-/* Maximal order basis. */
-maxPolyOrder_Max : 1$
-minDim_Max : 1$
-maxDim_Max : 0$
-
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
@@ -34,11 +29,11 @@ maxDim_Tensor : 4$
 /* ...... END OF USER INPUTS........ */
 
 /* To generate other bases, just add corresponding column to arrays below. */
-bName        : ["ser","max","tensor"]$
-minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Max, minPolyOrder_Tensor]$
-maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Max, maxPolyOrder_Tensor]$
-minDim       : [minDim_Ser,minDim_Max,minDim_Tensor]$
-maxDim       : [maxDim_Ser,maxDim_Max,maxDim_Tensor]$
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minDim       : [minDim_Ser,minDim_Tensor]$
+maxDim       : [maxDim_Ser,maxDim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for cD : 1 thru maxDim[bInd] do (

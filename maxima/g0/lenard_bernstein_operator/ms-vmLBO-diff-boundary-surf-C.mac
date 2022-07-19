@@ -15,11 +15,11 @@ grid : "uni"$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
-maxVdim_Ser : 3$
+maxCdim_Ser : 1$
+maxVdim_Ser : 1$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -40,7 +40,8 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
-varsV : [vx, vy, vz]$
+
+vvarsAll : [vx, vy, vz]$
 
 /* Is non-uniform booleans. */
 
@@ -59,11 +60,11 @@ for bInd : 1 thru length(bName) do (
         for gridInd : 1 thru length(gridType) do (
           isNonuniform : gridType[gridInd],
           if isNonuniform then (gridStr : "nonuniform") else (gridStr : ""),
-          disp(printf(false,sconcat("Creating surface Vlasov LBO ~a",bName[bInd]," ~ax~avP~a"),gridStr,c,v,polyOrder)),
+          disp(printf(false,sconcat("Creating diff surface Vlasov LBO ~a",bName[bInd]," ~ax~av p~a"),gridStr,c,v,polyOrder)),
           for dir:1 thru v do (
-            fname : sconcat("~/max-out/lbo_vlasov_diff_boundary_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
+            fname : sconcat("~/max-out/lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
             fh : openw(fname),
-            funcName : sconcat("lbo_vlasov_diff_boundary_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            funcName : sconcat("lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
             calcBoundaryDiffUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, isNonuniform),
             close(fh)

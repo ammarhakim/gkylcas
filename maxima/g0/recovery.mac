@@ -24,21 +24,6 @@ eta(vars, xc, dx, fn) := block([out],
   return(out)
 ) $
 
-getBasis(basisType, numDims, polyOrder) := block(
-  [basis, varsC, basisC, varsP, basisP, basisConstant],
-  if (numDims < 4) then (
-    load(sconcat("basis-precalc/basis", basisType, numDims, "x"))
-  ) else (
-    load(sconcat("basis-precalc/basis", basisType, numDims-3, "x", 3, "v"))
-  ),
-  if polyOrder > 0 then (
-    basis : if (numDims<4) then basisC[polyOrder] else basisP[polyOrder]
-  ) else (
-    basis : basisConstant
-    ),
-  return(basis)
-  ) $
-
 getDirs(numDims, polyOrder) := block(
   [dirs, varsC, basisC, varsP, basisP, basisConstant],
   if (numDims < 4) then (
@@ -52,4 +37,4 @@ getDirs(numDims, polyOrder) := block(
     dirs : 1
   ),
   return(dirs)
-) $
+)$

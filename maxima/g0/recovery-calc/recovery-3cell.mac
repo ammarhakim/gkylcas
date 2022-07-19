@@ -24,30 +24,56 @@ calcRecov3CellGen(basisNm, recDir, dirs, polyOrder, lo, ce, up) := block(
     recovered polynomial
   */
   [
+  numDims, perpDirs, recDirPolyOrder,
+  vdim, cdim, jnk1, jnk2, pvars, pbasis,
   DoF, r, rExp, rSol, rSub,
   recEqList, projSubList,
+  varsaCe1D,varsaCeND,
   baLo1D, baCe1D, baUp1D, baLoND, baCeND, baUpND, baVars,
   dimProjLo, dimProjCe, dimProjUp, qLo1D, qCe1D, qUp1D,
-  wx, wy, wz,
-  numDims
+  wx, wy, wz
   ],
   
-  baCe1D : getBasis(basisNm, 1, polyOrder),
-  baCe1D : subst(x=recDir, baCe1D),
+  numDims : length(dirs),
+
+  perpDirs : delete(recDir, dirs),
+
+  recDirPolyOrder : polyOrder,
+
+  /* Get 1D basis in recovery direction. */
+  if basisNm="hyb" or basisNm="gkhyb" then (
+    /* Do things differently for hybrid because it may involve a p=2 direction. */
+    vdim : length(sublist(dirs,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
+    cdim : numDims - vdim,
+    if basisNm = "hyb" then
+      [jnk1,jnk2,pvars,pbasis] : loadPhaseBasis(basisNm, cdim, vdim, 1)
+    elseif basisNm = "gkhyb" then
+      [jnk1,jnk2,pvars,pbasis,vsub] : loadGkBasis(basisNm, cdim, vdim, 1),
+    baCe1D : sqrt(2)^(numDims-1)*sublist(pbasis, lambda([b], lfreeof(perpDirs,listofvars(b)))),
+    /* MF 2022/07/15: I think this is only needed when perpDirs=[]. */
+    baCe1D : subst(listofvars(baCe1D)[1]=recDir,baCe1D),
+
+    if charat(string(recDir),1)="v" then
+      recDirPolyOrder : polyOrder+1
+  ) else (
+    [varsaCe1D,baCe1D] : loadBasis(basisNm, 1, polyOrder),
+    baCe1D : subst(x=recDir, baCe1D)
+  ),
+
   baLo1D : etaDir(recDir, -2, 2, baCe1D),
   baUp1D : etaDir(recDir, 2, 2, baCe1D),
   
   /* Forming and solving the equation system */
-  DoF : polyOrder + 1, /* Number of degrees of freedom */
+  DoF : recDirPolyOrder + 1, /* Number of degrees of freedom */
     if is(op(lo)=dg) then (
-    DoF : DoF + polyOrder + 1,
+    DoF : DoF + recDirPolyOrder + 1,
     if length(args(lo)) > 1 then DoF : DoF + 1 /* aditional DoF for BC */
   )
   else (
     DoF : DoF + 1 /* only 1 DoF for BC */
   ),
   if is(op(up)=dg) then (
-    DoF : DoF + polyOrder + 1,
+    DoF : DoF + recDirPolyOrder + 1,
     if length(args(up)) > 1 then DoF : DoF + 1 /* aditional DoF for BC */
   )
   else (
@@ -110,11 +136,14 @@ calcRecov3CellGen(basisNm, recDir, dirs, polyOrder, lo, ce, up) := block(
   rSub : fullratsimp(subst(rSol, rExp)),
 
   /* backsubstitute the non-recovered directtions if needed */
-  numDims : length(dirs),
   if numDims > 1 then (
-    baCeND : getBasis(basisNm, numDims, polyOrder),
-    baVars : listofvars(baCeND),
-    baCeND : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), baCeND),
+    if basisNm="hyb" or basisNm="gkhyb" then (
+      baCeND : copylist(pbasis)
+    ) else (
+      [varsaCeND,baCeND] : loadBasis(basisNm, numDims, polyOrder),
+      baVars : listofvars(baCeND),
+      baCeND : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), baCeND)
+    ),
     baLoND : etaDir(recDir, -2, 2, baCeND),
     baUpND : etaDir(recDir, 2, 2, baCeND),
 

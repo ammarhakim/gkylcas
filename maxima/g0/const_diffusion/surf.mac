@@ -1,17 +1,16 @@
 load("modal-basis");
 load("recovery");
 
-
 for ndim : 1 thru maxNdim do (
   dirs : if ndim = 1 then [x] elseif ndim = 2 then [x, y] else [x, y, z],
   for polyOrder : 1 thru maxPolyOrder do (
     for basisIdx : 1 thru min(polyOrder, length(basisNames)) do (
-      ba : getBasis(basisNames[basisIdx], ndim, polyOrder),
+      ba : loadBasis(basisNames[basisIdx], ndim, polyOrder),
       subList : append(
         makelist(fl[i]=fl[i-1], i, 1, length(ba)),
         makelist(fc[i]=fc[i-1], i, 1, length(ba)),
         makelist(fr[i]=fr[i-1], i, 1, length(ba))
-        ),
+      ),
       fname : sconcat(outFn, "/const_diffusion_surf_", ndim, "x_",
         sdowncase(basisNames[basisIdx]), "_p", polyOrder, ".c"),
       fh : openw(fname),
@@ -20,7 +19,7 @@ for ndim : 1 thru maxNdim do (
         rl : calcRecov2CellGen(basisNames[basisIdx], dirs[dirIdx], dirs, polyOrder, dg(fl), dg(fc)),
         rr : calcRecov2CellGen(basisNames[basisIdx], dirs[dirIdx], dirs, polyOrder, dg(fc), dg(fr)),
         surf : subst(x=0, diff(rr, x))*subst(x=1, ba) - subst(x=0, rr)*subst(x=1, diff(ba, x))
-          - subst(x=0, diff(rl, x))*subst(x=-1, ba) + subst(x=0, rl)*subst(x=-1, diff(ba, x)),
+             - subst(x=0, diff(rl, x))*subst(x=-1, ba) + subst(x=0, rl)*subst(x=-1, diff(ba, x)),
         out : float(expand(subst(subList, surf))),
         
         printf(fh, "GKYL_CU_DH void~%"),

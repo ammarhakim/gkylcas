@@ -10,25 +10,16 @@
 
 load("modal-basis")$
 load("out-scripts")$
-load(stringproc)$
 load("nodal_operations/nodal_functions")$
-
+load(stringproc)$
 fpprec : 24$
 
-VarsC : [X, Y, Z]$
-varsV : [vx, vy, vz]$
+varsCAll : [x, y, z]$
 
 writeCExprsA(lhs, rhs) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (
     if expr[i] # 0.0 then printf(fh,"  ~a,~a); ~%", lhs[i], expr[i])
-  )
-)$
-
-writeCExprsB(lhs, rhs) := block([expr],
-  expr : float(expand(rhs)),
-  for i : 1 thru length(expr) do (
-    if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", sremove("\\", ssubst(")","]",ssubst("(","[",string(lhs[i])))), expr[i])
   )
 )$
 
@@ -39,27 +30,21 @@ writeCExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,E,Eflat,Elhs,m1RHS_c],
+calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [vars,bC,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,
+   m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,E,Eflat,Elhs,m1RHS_c],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
-  if (basisFun="Ser") then basisFun:"ser",
-  if (basisFun="Tensor") then basisFun:"tensor",
-
-  if (sequal(substring(funcNm,1,7),"vlasov")) then (
+  if (sequal(substring(funcNm,1,7),"vlasov")) then
     udim : vdim
-  ) else (
-    udim : 1
-  ),
+  else
+    udim : 1,
 
-  bC  : basisC[polyOrder],
-  bP  : basisP[polyOrder],
-  NP  : length(bP),
-  NC  : length(bC),
-  
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
   /* Function declaration with input/output variables. */
   printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // A:                    Matrix to be inverted to solve Ax = rhs (set by this function). ~%"),
@@ -126,14 +111,9 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
-  /* Expansion in configuration space basis and coefficients of m0. */
+  /* Expansion in configuration space bC and coefficients of m0. */
   m0_e : doExpand1(m0r, bC),
   m0_c : makelist(m0r[i],i,0,NC-1),
-  if (polyOrder=1) then (
-    /* Expansion in configuration space basis and coefficients of m2. */
-    m2_e : doExpand1(m2Sr, bC),
-    m2_c : makelist(m2Sr[i],i,0,NC-1)
-  ),
   /* Equivalently for  vtSq .*/
   vtSq_e : doExpand1(vtSq,bC),
   vtSq_c : makelist(vtSq[i],i,0,NC-1),
@@ -175,7 +155,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
     /* Elhs     : list_matrix_entries(genmatrix(Ef,NC-1,NC-1,0,0)), */
     Elhs     : list_matrix_entries(genmatrix(Ef,vd*NC-1,vd*NC-1,(vd-1)*NC,(vd-1)*NC)),
   
-    printf(fh, "  // ....... Block from weak multiply of u~a and m0  .......... // ~%", VarsC[vd]),
+    printf(fh, "  // ....... Block from weak multiply of u~a and m0  .......... // ~%", varsCAll[vd]),
     writeCExprsA(Elhs,Eflat),
     printf(fh, " ~%"),
   
@@ -185,29 +165,21 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
     /* Flatten E for WriteCExprsB. */
     Eflat : list_matrix_entries(E),
   
-    Elhs     : list_matrix_entries(genmatrix(Ef,vd*NC-1,N-1,(vd-1)*NC,(udim-1)*NC+NC)),
+    Elhs  : list_matrix_entries(genmatrix(Ef,vd*NC-1,N-1,(vd-1)*NC,(udim-1)*NC+NC)),
   
-    printf(fh, "  // ....... Block from correction to u~a .......... // ~%", VarsC[vd]),
+    printf(fh, "  // ....... Block from correction to u~a .......... // ~%", varsCAll[vd]),
     writeCExprsA(Elhs,Eflat),
     printf(fh, " ~%"),
   
     /*........... Matrix block from weak multiply of u and m1 .............*/
-    if polyOrder=1 then (
-      /* Expand m1S and use the vd component of m1S. */
-      m1S_e : doExpand1(m1Sr, bC),
-      m1S_e : subst(makelist(m1Sr[i]=m1Sr[(vd-1)*NC+i],i,0,NC-1),m1S_e),
-
-      eq    : calcInnerProdList(varsC,u_e,bC,m1S_e)
-    ) else (
-      eq    : calcInnerProdList(varsC,u_e,bC,m1_e)
-    ),
+    eq    : calcInnerProdList(varsC,u_e,bC,m1_e),
     E     : fullratsimp(coefmatrix(eq,u_c)),
     /* Flatten E for WriteCExprsB. */
     Eflat : list_matrix_entries(E),
   
     Elhs  : list_matrix_entries(genmatrix(Ef,N-1,vd*NC-1,udim*NC,(vd-1)*NC)),
 
-    printf(fh, "  // ....... Block from weak multiply of u~a and m1~a  .......... // ~%", VarsC[vd], VarsC[vd]),
+    printf(fh, "  // ....... Block from weak multiply of u~a and m1~a  .......... // ~%", varsCAll[vd], varsCAll[vd]),
     writeCExprsA(Elhs,Eflat),
     printf(fh, " ~%"),
 
@@ -216,30 +188,17 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   ),
   
   /*........... Matrix block from correction to vtSq .............*/
-  if (sequal(substring(funcNm,1,7),"vlasov")) then (
+  if (sequal(substring(funcNm,1,7),"vlasov")) then
     /* Vlasov-Maxwell. */
-    if polyOrder=1 then (
-      /* Expand m0S and use the vd component of m1S. */
-      m0S_e : doExpand1(m0Sr, bC),
-      eq : calcInnerProdList(varsC,vtSq_e,bC,m0S_e-cE_e)
-    ) else (
-      eq : calcInnerProdList(varsC,vtSq_e,bC,vdim*m0_e-cE_e)
-    )
-  ) else (
+    eq : calcInnerProdList(varsC,vtSq_e,bC,vdim*m0_e-cE_e)
+  else
     /* Gyrokinetics. */
-    if polyOrder=1 then (
-      /* Expand m0S and use the vd component of m1S. */
-      m0S_e : doExpand1(m0Sr, bC),
-      eq : calcInnerProdList(varsC,vtSq_e,bC,2*(vdim-1)*m0_e+m0S_e-cE_e)
-    ) else (
-      eq : calcInnerProdList(varsC,vtSq_e,bC,(2*vdim-1)*m0_e-cE_e)
-    )
-  ),
-  E  : fullratsimp(coefmatrix(eq,vtSq_c)),
+    eq : calcInnerProdList(varsC,vtSq_e,bC,(2*vdim-1)*m0_e-cE_e),
+  E : fullratsimp(coefmatrix(eq,vtSq_c)),
   /* Flatten E for WriteCExprsB. */
   Eflat : list_matrix_entries(E),
   
-  Elhs     : list_matrix_entries(genmatrix(Ef,N-1,N-1,udim*NC,udim*NC)),
+  Elhs  : list_matrix_entries(genmatrix(Ef,N-1,N-1,udim*NC,udim*NC)),
   
   printf(fh, "  // ....... Block from correction to vtSq .......... // ~%"),
   writeCExprsA(Elhs,Eflat),

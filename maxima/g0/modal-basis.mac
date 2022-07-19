@@ -270,11 +270,12 @@ find_min_idx(lst) := block([cidx : 1],
   return (cidx)
   )$
 
-loadBasis(basisType, dim, pOrder) := block([basis,vars,btype],
+loadBasis(basisType, dim, pOrder) := block([basis,vars,btype,basisConstant],
   /* Load a basis based on dimensionality, basis type and polyOrder alone.
      For kinetic models please use loadPhaseBasis or loadGkBasis. */
   btype : basisType,
-  if basisType="ser" then btype : "Ser" elseif basisType="tensor" then btype : "Tensor",
+  if basisType="ser" then btype : "Ser"
+  elseif basisType="tensor" then btype : "Tensor",
 
   kill(varsC, varsP, basisC, basisP),
   if (dim < 4) then (
@@ -283,11 +284,12 @@ loadBasis(basisType, dim, pOrder) := block([basis,vars,btype],
     load(sconcat("basis-precalc/basis", btype, dim-3, "x", 3, "v"))
   ),
 
+  
   if (dim < 4) then (
-    basis : copylist(basisC[pOrder]),
+    basis : if pOrder>0 then copylist(basisC[pOrder]) else basisConstant,
     vars  : copylist(varsC)
   ) else (
-    basis : copylist(basisP[pOrder]),
+    basis : if pOrder>0 then copylist(basisP[pOrder]) else basisConstant,
     vars  : copylist(varsP)
   ),
   return([vars,basis])

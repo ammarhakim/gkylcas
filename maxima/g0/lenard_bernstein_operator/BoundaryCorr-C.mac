@@ -7,8 +7,8 @@ load("modal-basis");
 load("out-scripts");
 load(stringproc)$
 fpprec : 24$
-varsV : [vx, vy, vz]$
-VarsV : [VX, VY, VZ]$
+
+vvarsAll : [vx, vy, vz]$
 
 /* These variables make it possible for the function
    calcBoundaryIntegral to generate the code for both
@@ -29,20 +29,14 @@ writeCIncrExprsCollect1s(lhs, rhs, clst) := block([i,e,expr,param],
 )$
 
 calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [i,e,modNm,bC,bP,NP,NC,vv,surfVars,dv,fbIn_lower_e,fbIn_upper_e,mBlo_e,mBup_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
+  [varsC,bC,varsP,bP,NP,NC,i,e,modNm,vv,surfVars,dv,fbIn_lower_e,
+   fbIn_upper_e,mBlo_e,mBup_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
     
-  kill(varsC, varsP, basisC, basisP),
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-  if (basisFun="Ser") then basisFun:"ser",
-  if (basisFun="Tensor") then basisFun:"tensor",
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  bC : basisC[polyOrder],
-  bP : basisP[polyOrder],
-  NP : length(bP),
-  NC : length(bC),
+  /* Number of basis monomials. */
+  NP : length(bP),  NC : length(bC),
         
   printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // edge:      indicator of which velocity grid edge is being considered (VX/VPAR, VY/MU, VZ). ~%"),
@@ -59,7 +53,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
      if atLower=true  this is -f_(vmin) or -(vf)_(vmin),
      if atLower=false this is f^(vmax) or (vf)^(vmax). */
   for dir : 1 thru vdim do (
-    vv       : varsV[dir],
+    vv       : vvarsAll[dir],
     surfVars : delete(vv,varsP),
     dv       : makelist(dxv[cdim+i], i, 0, vdim-1),
 
@@ -83,7 +77,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
     /* Surface integral above was done in [-1,1] computational space. Surface
        factor needs to be multiplied to obtain result from physical grid. */
-    printf(fh, "  if (edge == GKYL_~a_LOWER) {~%", VarsV[dir]),
+    printf(fh, "  if (edge == GKYL_~a_LOWER) {~%", supcase(string(vvarsAll[dir]))),
     printf(fh, " ~%"),
     printf(fh, "    dS = ~a; ~%", float(1/(2^(vdim-1)))*surfExpr),
     expr : float(expand(dS*fBlo_c)),
@@ -103,7 +97,7 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       )
     ),
     printf(fh, " ~%"),
-    printf(fh, "  } else if (edge == GKYL_~a_UPPER) {~%", VarsV[dir]),
+    printf(fh, "  } else if (edge == GKYL_~a_UPPER) {~%", supcase(string(vvarsAll[dir]))),
     printf(fh, " ~%"),
     printf(fh, "    dS = ~a; ~%", float(1/(2^(vdim-1)))*surfExpr),
     expr : float(expand(dS*fBup_c)),

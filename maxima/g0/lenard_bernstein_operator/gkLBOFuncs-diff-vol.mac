@@ -1,5 +1,6 @@
 load("modal-basis")$
-load("out-scripts");
+load("out-scripts")$
+load("utilities")$
 load(stringproc)$
 
 fpprec : 24$
@@ -12,10 +13,6 @@ vIndex(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 varsV  : [vpar, mu]$
 gkVsub : [vx=vpar,vy=mu]$
-
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,bC,NP,NC,vidx,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr,
@@ -76,7 +73,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   if polyOrder>1 then (
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero   : doMakeExprLst(facDiff_c, facDiffVpar),
-    facDiff_NoZero_e : rdvSq4[0]*doExpandLst(facDiff_NoZero, bC),
+    facDiff_NoZero_e : rdvSq4[0]*doExpand(facDiff_NoZero, bC),
 
     /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
     printf(fh, "  double facDiffVpar[~a];~%", NC),
@@ -91,7 +88,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ) else (
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero   : doMakeExprLst(facDiff_c, nuVtSqSum),
-    facDiff_NoZero_e : rdvSq4[0]*doExpandLst(facDiff_NoZero, bC)
+    facDiff_NoZero_e : rdvSq4[0]*doExpand(facDiff_NoZero, bC)
   ),
 
   /* ..................... mu contribution ...................... */
@@ -106,7 +103,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
       /* Zero out components of alpha which are empty. */
       facDiffMu_NoZero : doMakeExprLst(facDiff_c, facDiffMu),
-      facDiff_NoZero_e : facDiff_NoZero_e+2*m_*rdv2[1]*doExpandLst(facDiffMu_NoZero, bC),
+      facDiff_NoZero_e : facDiff_NoZero_e+2*m_*rdv2[1]*doExpand(facDiffMu_NoZero, bC),
 
       /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
       /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */

@@ -1,8 +1,9 @@
 load("modal-basis")$
 load("out-scripts");
-load(stringproc)$
 load("nodal_operations/nodal_functions")$
 load("recovery")$
+load("utilities")$
+load(stringproc)$
 
 fpprec : 24$
 
@@ -13,8 +14,6 @@ cvars : [x, y, z]$
 vvars : [vx, vy, vz]$
 vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
   [modNm,vid,vid1,vv,surfVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
@@ -142,7 +141,7 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuni
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(glst1, bSurf),
+  Ghat_e     : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -214,7 +213,7 @@ calcBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuni
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(glst1, bSurf),
+  Ghat_e     : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -316,7 +315,7 @@ calcBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(glst1, bSurf),
+  Ghat_e     : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -349,7 +348,7 @@ calcBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(glst1, bSurf),
+  Ghat_e     : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 

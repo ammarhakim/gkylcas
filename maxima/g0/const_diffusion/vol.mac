@@ -5,7 +5,7 @@ for ndim : 1 thru maxNdim do (
   dirs : if ndim = 1 then [x] elseif ndim = 2 then [x, y] else [x, y, z],
   for polyOrder : 1 thru maxPolyOrder do (
     for basisIdx : 1 thru min(polyOrder, length(basisNames)) do (
-      ba : getBasis(basisNames[basisIdx], ndim, polyOrder),
+      ba : loadBasis(basisNames[basisIdx], ndim, polyOrder),
       subList : makelist(f[i]=f[i-1], i, 1, length(ba)),
       fname : sconcat(outFn, "/const_diffusion_vol_", ndim, "x_",
         sdowncase(basisNames[basisIdx]), "_p", polyOrder, ".c"),

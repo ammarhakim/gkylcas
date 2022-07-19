@@ -1,7 +1,7 @@
 load("modal-basis")$
 load("out-scripts");
-load(stringproc)$
 load("recovery")$
+load(stringproc)$
 fpprec : 24$
 
 /* This script generates the kernels needed for adding the
