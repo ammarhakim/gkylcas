@@ -1,0 +1,207 @@
+kill(all) $
+load("recovery") $
+load ("modal-basis") $
+load(stringproc)$
+
+minPolyOrder : 1 $
+maxPolyOrder : 2 $
+
+bName : "ser" $
+
+for polyOrder : minPolyOrder thru maxPolyOrder do (
+  load(sconcat("basis-precalc/basisSer1x3v")),
+  ba : basisP[polyOrder],
+  numBasis : length(ba),
+  
+  /* This is a not always necessary step and one could in most cases
+  use directly 'dg(qlll)' instead of dg(lstQlll) but this does prevent
+  potential super nasty aliasing!  */
+
+  lst_gllc : makelist(gllc[i], i, 0, numBasis-1),
+  lst_glcl : makelist(glcl[i], i, 0, numBasis-1),
+  lst_glcc : makelist(glcc[i], i, 0, numBasis-1),
+  lst_glcu : makelist(glcu[i], i, 0, numBasis-1),
+  lst_gluc : makelist(gluc[i], i, 0, numBasis-1),
+  
+  lst_gcll : makelist(gcll[i], i, 0, numBasis-1),
+  lst_gclc : makelist(gclc[i], i, 0, numBasis-1),
+  lst_gclu : makelist(gclu[i], i, 0, numBasis-1),
+  lst_gccl : makelist(gccl[i], i, 0, numBasis-1),
+  lst_gccc : makelist(gccc[i], i, 0, numBasis-1),
+  lst_gccu : makelist(gccu[i], i, 0, numBasis-1),
+  lst_gcul : makelist(gcul[i], i, 0, numBasis-1),
+  lst_gcuc : makelist(gcuc[i], i, 0, numBasis-1),
+  lst_gcuu : makelist(gcuu[i], i, 0, numBasis-1),
+  
+  lst_gulc : makelist(gulc[i], i, 0, numBasis-1),
+  lst_gucl : makelist(gucl[i], i, 0, numBasis-1),
+  lst_gucc : makelist(gucc[i], i, 0, numBasis-1),
+  lst_gucu : makelist(gucu[i], i, 0, numBasis-1),
+  lst_guuc : makelist(guuc[i], i, 0, numBasis-1),
+
+
+  lst_fllc : makelist(fllc[i], i, 0, numBasis-1),
+  lst_flcl : makelist(flcl[i], i, 0, numBasis-1),
+  lst_flcc : makelist(flcc[i], i, 0, numBasis-1),
+  lst_flcu : makelist(flcu[i], i, 0, numBasis-1),
+  lst_fluc : makelist(fluc[i], i, 0, numBasis-1),
+  
+  lst_fcll : makelist(fcll[i], i, 0, numBasis-1),
+  lst_fclc : makelist(fclc[i], i, 0, numBasis-1),
+  lst_fclu : makelist(fclu[i], i, 0, numBasis-1),
+  lst_fccl : makelist(fccl[i], i, 0, numBasis-1),
+  lst_fccc : makelist(fccc[i], i, 0, numBasis-1),
+  lst_fccu : makelist(fccu[i], i, 0, numBasis-1),
+  lst_fcul : makelist(fcul[i], i, 0, numBasis-1),
+  lst_fcuc : makelist(fcuc[i], i, 0, numBasis-1),
+  lst_fcuu : makelist(fcuu[i], i, 0, numBasis-1),
+  
+  lst_fulc : makelist(fulc[i], i, 0, numBasis-1),
+  lst_fucl : makelist(fucl[i], i, 0, numBasis-1),
+  lst_fucc : makelist(fucc[i], i, 0, numBasis-1),
+  lst_fucu : makelist(fucu[i], i, 0, numBasis-1),
+  lst_fuuc : makelist(fuuc[i], i, 0, numBasis-1),
+
+
+
+  /*================================================================*/
+  /* VxVx-update */
+  fname : sconcat("~/max-out/vlasov_fpo_diff_surfxx_1x3v_",
+    bName, "_p", polyOrder, ".c"),
+  print("Generating:", fname),
+  
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_vlasov_fpo_kernels.h>~%~%"),
+  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, sconcat("vlasov_fpo_diff_surfxx_1x3v_", bName, "_p", polyOrder,
+      "(const double* w, const double* dx,~%")),
+  printf(fh, "  const double* g[], const double* f[], double* GKYL_RESTRICT out) ~%"),
+  printf(fh, "{~%"),
+  printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing~%"),
+  printf(fh, "  // g: ~%"),
+  printf(fh, "  // f: ~%"),
+  printf(fh, "  // out: Incremented output~%~%"),
+  
+  printf(fh, "  const double Jxx = 4/dx[1]/dx[1];~%"),
+  printf(fh, "  const double* glcc = g[4];~%"),
+  printf(fh, "  const double* gccc = g[13];~%"),
+  printf(fh, "  const double* gucc = g[22];~%~%"),
+  printf(fh, "  const double* flcc = f[4];~%"),
+  printf(fh, "  const double* fccc = f[13];~%"),
+  printf(fh, "  const double* fucc = f[22];~%~%"),
+  
+  perpDirs : delete(vx, varsP),
+  ba_l : subst(vx=-1, ba),
+  ba_u : subst(vx=1, ba),
+  
+  g_2rec_l : calcRecov2CellGen("Ser", vx, varsP, polyOrder,
+    dg(lst_glcc), dg(lst_gccc)),
+  D_proj_l : calcInnerProdList(perpDirs, 1, ba_l,
+    subst(vx=0, diff(g_2rec_l, vx, 2))),
+  printf(fh, "  double D_proj_l[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  D_proj_l[~a] += ~a;~%", i-1,
+      float(expand(D_proj_l[i])))
+    ),
+  printf(fh, "~%"),
+  kill(g_2rec_l, D_proj_l),
+  lst_D_proj_l : makelist(D_proj_l[i], i, 0, numBasis-1),
+
+
+  g_2rec_u : calcRecov2CellGen("Ser", vx, varsP, polyOrder,
+    dg(lst_gccc), dg(lst_gucc)),
+  D_proj_u : calcInnerProdList(perpDirs, 1, ba_u,
+    subst(vx=0, diff(g_2rec_u, vx, 2))),
+  printf(fh, "  double D_proj_u[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  D_proj_u[~a] += ~a;~%", i-1,
+      float(expand(D_proj_u[i])))
+    ),
+  kill(g_2rec_u, D_proj_u),
+  printf(fh, "~%"),
+  lst_D_proj_u : makelist(D_proj_u[i], i, 0, numBasis-1),
+
+
+  f_2rec_l : calcRecov2CellGen("Ser", vx, varsP, polyOrder,
+    dg(lst_flcc), dg(lst_fccc)),
+  df_proj_l : calcInnerProdList(perpDirs, 1, ba_l,
+    subst(vx=0, diff(f_2rec_l, vx))),
+  printf(fh, "  double df_proj_l[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  df_proj_l[~a] += ~a;~%", i-1,
+      float(expand(df_proj_l[i])))
+    ),
+  printf(fh, "~%"),
+  f_proj_l : calcInnerProdList(perpDirs, 1, ba_l,
+    subst(vx=0, f_2rec_l)),
+  printf(fh, "  double f_proj_l[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  f_proj_l[~a] += ~a;~%", i-1,
+      float(expand(f_proj_l[i])))
+    ),
+  printf(fh, "~%"),
+  kill(f_2rec_l, df_proj_l, f_proj_l),
+  lst_df_proj_l : makelist(df_proj_l[i], i, 0, numBasis-1),
+  lst_f_proj_l : makelist(f_proj_l[i], i, 0, numBasis-1),
+
+
+  f_2rec_u : calcRecov2CellGen("Ser", vx, varsP, polyOrder,
+    dg(lst_fccc), dg(lst_fucc)),
+  df_proj_u : calcInnerProdList(perpDirs, 1, ba_u,
+    subst(vx=0, diff(f_2rec_u, vx))),
+  printf(fh, "  double df_proj_u[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  df_proj_u[~a] += ~a;~%", i-1,
+      float(expand(df_proj_u[i])))
+    ),
+  printf(fh, "~%"),
+  f_proj_u : calcInnerProdList(perpDirs, 1, ba_u,
+    subst(vx=0, f_2rec_u)),
+  printf(fh, "  double f_proj_u[~a];~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  f_proj_u[~a] += ~a;~%", i-1,
+      float(expand(f_proj_u[i])))
+    ),
+  printf(fh, "~%"),
+  kill(f_2rec_u, df_proj_u, f_proj_u),
+  lst_df_proj_u : makelist(df_proj_u[i], i, 0, numBasis-1),
+  lst_f_proj_u : makelist(f_proj_u[i], i, 0, numBasis-1),
+
+
+  surf_l : calcInnerProdList(perpDirs, 1, ba_l, doExpand(lst_df_proj_l, ba_l)*doExpand(lst_D_proj_l, ba_l)) - calcInnerProdList(perpDirs, 1, subst(vx=-1, diff(ba, vx)), doExpand(lst_f_proj_l, ba_l)*doExpand(lst_D_proj_l, ba_l)),
+  surf_u : calcInnerProdList(perpDirs, 1, ba_u, doExpand(lst_df_proj_u, ba_u)*doExpand(lst_D_proj_u, ba_u)) - calcInnerProdList(perpDirs, 1, subst(vx=1, diff(ba, vx)), doExpand(lst_f_proj_u, ba_u)*doExpand(lst_D_proj_u, ba_u)),
+
+  kernel : (surf_u - surf_l)/2,
+
+  for i : 1 thru numBasis do (
+    printf(fh, "  out[~a] +=  Jxx*(~a);~%", i-1,
+      float(expand(kernel[i])))
+    ),
+  printf(fh, "}~%"),
+  close(fh),
+  kill( kernel)
+
+
+
+
+  
+  /* qRec6u : calcRecovFaceGen("Ser", [x, y], dirs, 0, 0, polyOrder, 0, */
+  /*   dg(dg(lstQclc), dg(lstQulc)), */
+  /*   dg(dg(lstQccc), dg(lstQucc)), */
+  /*   dg(dg(lstQcuc), dg(lstQuuc))), */
+  /* qRec6l : calcRecovFaceGen("Ser", [x, y], dirs, 0, 0, polyOrder, 0, */
+  /*   dg(dg(lstQllc), dg(lstQclc)), */
+  /*   dg(dg(lstQlcc), dg(lstQccc)), */
+  /*   dg(dg(lstQluc), dg(lstQcuc))), */
+  /* qRec1 : calcRecov1CellGen("Ser", y, dirs, polyOrder, 0, */
+  /*   dg(lstQclc), dg(lstQccc), dg(lstQcuc)), */
+  /* surfu : integrate(integrate(subst(x=1, Dxye*ba) * diff(qRec6u, y), */
+  /*     y, -1, 1), z, -1, 1), */
+  /* surfl : integrate(integrate(subst(x=-1, Dxye*ba) * diff(qRec6l, y), */
+  /*     y, -1, 1), z, -1, 1), */
+  /* vol : calcInnerProdList(dirs, 1, diff(ba, x), Dxye*diff(qRec1, y)), */
+  /* kernel : surfu - surfl - vol, */
+
+ 
+  ) $
