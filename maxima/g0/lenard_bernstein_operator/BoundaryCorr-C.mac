@@ -10,13 +10,6 @@ fpprec : 24$
 
 vvarsAll : [vx, vy, vz]$
 
-/* These variables make it possible for the function
-   calcBoundaryIntegral to generate the code for both
-   the function that evaluates the surface integral of
-   f|^(vmax)_(vmin) and that of vf|^(vmax)_(vmin). */
-Fsuffix : [f, vf]$
-Bfac    : [ 1 , vBoundary ]$
-
 writeCIncrExprsCollect1s(lhs, rhs, clst) := block([i,e,expr,param],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (
@@ -29,8 +22,8 @@ writeCIncrExprsCollect1s(lhs, rhs, clst) := block([i,e,expr,param],
 )$
 
 calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,i,e,modNm,vv,surfVars,dv,fbIn_lower_e,
-   fbIn_upper_e,mBlo_e,mBup_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
+  [varsC,bC,varsP,bP,NP,NC,i,e,modNm,vv,surfVars,dv,fbIn_lower_e,fbIn_upper_e,
+   mBlo_e,mBup_e,fBlo_c,fBup_c,dvSurf,surfExpr,expr,expr_v,param,param_v],
     
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),

@@ -31,8 +31,8 @@ writeCExprs1s(lhs, rhs) := block([expr],
 )$
 
 calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [vars,bC,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,
-   m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,E,Eflat,Elhs,m1RHS_c],
+  [varsC,bC,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,
+   m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,N,E,Eflat,Elhs,m1RHS_c],
 
   if (sequal(substring(funcNm,1,7),"vlasov")) then
     udim : vdim
@@ -111,7 +111,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
-  /* Expansion in configuration space bC and coefficients of m0. */
+  /* Expansion in configuration space basis and coefficients of m0. */
   m0_e : doExpand1(m0r, bC),
   m0_c : makelist(m0r[i],i,0,NC-1),
   /* Equivalently for  vtSq .*/

@@ -12,12 +12,14 @@ fpprec : 24$
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$
 nuUSumx  : [sumNuUx, sumNuUy, sumNuUz]$
-vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [modNm,vid,vid1,vv,surfVars,surfNodes,surfNodesConfig,numNodes,numNodesConfig,
-   numNodesVel,varsC,bC,varsP,bP,NP,NC,basisp,hOrder,h_e,hsol],
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,fl_e,fc_e,fr_e,
+   bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,
+   surf_cdim,surf_vdim,surfNodes,numNodes,alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,
+   numNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,
+   Ghat_r_c,glst1_l,Ghat_l_e,glst1_r,Ghat_r_e,drag_incr_r,drag_incr_l],
   
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -27,7 +29,6 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
 
   pDim : cdim+vdim,
   /* Variables. */
-  vid  : vidx(cdim,vdim),
   vid1 : vidx1(cdim,vdim),
   vv   : vvarsAll[dir],
   surfVars : delete(vv,varsP),
@@ -182,11 +183,11 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
   glst1_l  : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e : doExpand(glst1_l, bSurf),
   glst1_r  : doMakeExprLst(Ghat_r_c, Ghat_r),
+  Ghat_l_e : doExpand(glst1_l, bSurf),
   Ghat_r_e : doExpand(glst1_r, bSurf),
-  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
   drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
+  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
 
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 

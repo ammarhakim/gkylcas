@@ -13,14 +13,13 @@ fpprec : 24$
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$
 nuUSumx  : [sumNuUx, sumNuUy, sumNuUz]$
-vidx(cdim,vdim)  := makelist(i,i,cdim+1,cdim+vdim)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [varsC,bC,varsP,bP,NP,NC,pDim,vid,vid1,vv,surfVars,nuSum_e,nuUSum_e,bSurf,alphaDr,alphaDrSurf_l_c,
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,bSurf,alphaDr,alphaDrSurf_l_c,
    alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,surf_cdim,surf_vdim,surfNodes,numNodes,
-   alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,numNodesConfig,numNodesVel,i,fHatSurf_e,Ghat_c,glst1,Ghat_e,
-   incr],
+   alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,numNodesConfig,numNodesVel,i,rcoFac,fHatSurf_e,Ghat_c,
+   glst1,Ghat_e,incr],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -30,7 +29,6 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
   pDim : cdim+vdim,
   /* Variables. */
-  vid  : vidx(cdim,vdim),
   vid1 : vidx1(cdim,vdim),
   vv   : vvarsAll[dir],
   surfVars : delete(vv,varsP),
@@ -100,7 +98,7 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   printf(fh, "  double fUpwind[~a] = {0.0};;~%", length(bSurf)),
   printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
-  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
   /* In addition we need the drag term evaluated at +1 (so alphaDr evaluated on the right) */
   printf(fh, "  if (edge == -1) { ~%~%"),
   /* Write out drag term for far left edge boundary.
@@ -154,8 +152,8 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpand(glst1, bSurf),
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -169,7 +167,7 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   flush_output(fh),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
-  incr :  calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_e),
+  incr : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_e),
   
   /* Write out contribution */
   writeCIncrExprs1(out, rdv2*incr),
@@ -227,8 +225,8 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1      : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpand(glst1, bSurf),
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -242,7 +240,7 @@ calcVmLBOBoundaryDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   flush_output(fh),
 
   /* Increments to the far right edge skin cell (some dimensional factors missing). */
-  incr :  calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_e),
+  incr : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_e),
 
   /* Write out contribution. */
   writeCIncrExprs1(out, rdv2*incr),

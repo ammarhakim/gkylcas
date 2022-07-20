@@ -10,8 +10,8 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 
 minCdim_Ser : 1$
-minVdim_Ser : 3$    /* but see v loop below. */
-maxCdim_Ser : 2$
+minVdim_Ser : 1$    /* but see v loop below. */
+maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor order basis. */

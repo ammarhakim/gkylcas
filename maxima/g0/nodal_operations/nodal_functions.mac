@@ -13,7 +13,7 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 
 /* Given a set of an expression and a set of nodes, evaluate the expression at the nodes.
    Must also provide the variables of the functional space exprIn is defined in. */
-evAtNodes(exprIn, nodesIn, varsIn) := block([dim,numNodes],
+evAtNodes(exprIn, nodesIn, varsIn) := block([dim,numNodes,exprAtNodes],
   dim         : length(varsIn),
   numNodes    : length(nodesIn),
   exprAtNodes : makelist(subst(makelist(varsIn[j]=nodesIn[i][j], j, 1, dim),exprIn),i,1,numNodes),
@@ -47,7 +47,7 @@ calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block(
 
 /* Given a set of nodes. */
 calcBasisNodToModWithNodes(basisType, dim, p, nodes) := block(
-  [basis, vars, basisNodToMod, varsC, varsP, basisC, basisP],
+  [basis, vars, basisNodToMod, varsC, varsP, basisC, basisP, basisConstant],
   if (dim < 4) then (
     load(sconcat("basis-precalc/basis", basisType, dim, "x")),
     basis : basisC[p],
@@ -61,7 +61,7 @@ calcBasisNodToModWithNodes(basisType, dim, p, nodes) := block(
   return(basisNodToMod)
 )$
 calcBasisNodToModWithNodesHyb(basisType, cdim, vdim, nodes) := block(
-  [varsC,bC,basis,vars,basisNodToMod],
+  [varsC,bC,basis,vars,vSub,basisNodToMod],
   if basisType = "hyb" then (
     [varsC,bC,vars,basis] : loadPhaseBasis("ser", cdim, vdim, 1)
   ) elseif basisType = "gkhyb" then (
@@ -177,7 +177,7 @@ getNodalBasisWithNodesAndBasis(nodes, modalBasis, vars) := block(
 
 /* Given a set of nodes. */
 getNodalBasisWithNodes(basisType, dim, p, nodes) := block(
-  [basis,vars,nodalBasis],
+  [varsC,basisC,varsP,basisP,basisConstant,basis,vars,nodalBasis],
   if (dim < 4) then (
     load(sconcat("basis-precalc/basis", basisType, dim, "x")),
     basis : basisC[p],
@@ -193,7 +193,7 @@ getNodalBasisWithNodes(basisType, dim, p, nodes) := block(
 
 /* Given a set of nodes and variable list. */
 getVarsNodalBasisWithNodes(basisType, dim, p, varsIn, nodes) := block(
-  [basis,vars,replaceList,nodalBasis],
+  [varsC,basisC,varsP,basisP,basisConstant,basis,vars,replaceList,nodalBasis],
   dimIn : length(varsIn),
   if (dim < 4) then (
     load(sconcat("basis-precalc/basis", basisType, dim, "x")),
@@ -213,7 +213,7 @@ getVarsNodalBasisWithNodesHyb(basisType, cdim, vdim, varsIn, nodes) := block(
   /* Same as getVarsNodalBasisWithNodes but for hybrid bases.
      For now we assuse this is just used for expanding quadrature node values,
      so we use Tensor basis (or Ser when p=1, as in conf space). */
-  [dimIn,basis,vars,replaceList,nodalBasis],
+  [varsC,basisC,varsP,basisP,basisConstant,dimIn,basis,vars,replaceList,nodalBasis],
   dimIn : length(varsIn),
   if vdim=0 then (
     load(sconcat("basis-precalc/basisSer", cdim, "x")),

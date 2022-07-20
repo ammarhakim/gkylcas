@@ -7,16 +7,17 @@ fpprec : 24$
    contribution from Lenard Bernstein operator. */
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$
 rdv2     : [rdvx2, rdvy2, rdvz2]$
 
-doMakeExprLstOff(vals, S) := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
+doMakeExprLstOff(vals, S, off) := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
 
 calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,zr,cid,vid,dir,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,
-   incrDrag,alphaDrag_mid,vdir,alphaDrag_e,expr,i,alphaDrag_NoZero],
+  [varsC,bC,varsP,bP,NP,NC,zr,cid,vid1,dir,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,
+   incrDrag,alphaDrag_mid,vdir,alphaDrag_e,expr,i,alphaDrag_NoZero,
+   alphaDrag_NoZero_e],
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
 
@@ -24,13 +25,12 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
   /* Number of basis monomials. */
-  NP  : length(bP),
-  NC : length(bC),
+  NP : length(bP),  NC : length(bC),
 
   /* Specify a point to evaluate alpha at for use in computing CFL */
   /* Here we choose to evaluate things in the middle of the cell, where
      coordinates = 0. */
-  zr : makelist(varsP[d]=0, d, 1, length(varsP)),
+  zr : makelist(varsP[d]=0, d, 1, cdim+vdim),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:      Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:    Cell spacing. ~%", cdim+vdim),
@@ -40,10 +40,10 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output ~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid  : cidx(cdim),
+  vid1 : vidx1(cdim,vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  const double rd~a2 = 2.0/dxv[~a]; ~%", vvarsAll[dir], vid[dir])
+    printf(fh, "  const double rd~a2 = 2.0/dxv[~a]; ~%", vvarsAll[dir], vid1[dir])
   ),
   printf(fh, "~%"),
 
@@ -62,8 +62,8 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incrDrag : 0,
   alphaDrag_mid : makelist(0, i, 1, vdim),
   for vdir : 1 thru vdim do (
-    /* alphaDrag = rdv2*< psi, (nuSum*v - nuUSum) >. */
-    alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vid[vdir]]+0.5*dxv[vid[vdir]]*vvarsAll[vdir])+subst(a0=NC*(vdir-1),nuUSum_e)),
+    /* alphaDrag = rdv2*< psi, -(nuSum*v - nuUSum) >. */
+    alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vid1[vdir]]+0.5*dxv[vid1[vdir]]*vvarsAll[vdir])+subst(a0=NC*(vdir-1),nuUSum_e)),
     expr : gcfac(float(expand(radcan(rdv2[vdir]*alphaDrag_e)))),
     /* Write out the component of alphaDrag's phase space expansion. */
     printf(fh, "  // Expand rdv2*(nu*~a-nuUSum~a) in phase basis.~%",vvarsAll[vdir],varsCAll[vdir]),
@@ -72,7 +72,7 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
-    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag),
+    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
     alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
     /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
     alphaDrag_mid[vdir] : gcfac(float(expand(subst(zr,0.5*subst(a0=NP*(vdir-1),alphaDrag_NoZero_e))))),
