@@ -12,7 +12,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see beginning of v loop below though. */
-maxCdim_Ser : 3$
+maxCdim_Ser : 1$
 maxVdim_Ser : 2$
 
 /* Tensor product basis. */
@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume GkLBO",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating diff volume GkLBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
         funcName : sconcat("lbo_gyrokinetic_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
         fname : sconcat("~/max-out/",funcName, ".c"),
         fh : openw(fname),

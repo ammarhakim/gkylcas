@@ -1,7 +1,7 @@
 /* Generate kernels that compute the moments of the distribution
    function in Vlasov and gyrokinetic models. */
 load(stringproc)$
-load("lenard_bernstein_operator/BoundaryCorr-C")$
+load("lenard_bernstein_operator/vmBoundaryCorr")$
 
 /* ...... USER INPUTS........ */
 

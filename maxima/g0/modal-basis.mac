@@ -345,7 +345,7 @@ loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
 )$
 
 loadGkBasis(basisType, cdim, vdim, pOrder) := block(
-  [btype,modNm,vSub,varsC,basisC,varsP,basisP,bC,bP],
+  [btype,modNm,vSub,varsC,basisC,varsP,basisP,bC,bP,p],
   /* Load phase-space basis for gyrokinetics. Some complication below is due to the fact
      that some routines may call this version for surfaces and/or hybrid bases. */
   btype : basisType,
@@ -358,15 +358,9 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
   if vdim > 0 then (
     if cdim>0 then (
       if pOrder = 1 then
-        /* MF 2022/07/07: For now let's use Hybrid instead of
-           GkHybrid. We can experiment with GkHybrid later. 
-           GkHybrid may require additional changes to this function
-           and other parts of the code because cdim and vdim alone
-           would no longer be sufficient to determine which basis to load. */
-      /*
-        modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
-      */
-        /* MF 2022/07/10: Let's stick to our original GkHybrid plan. */
+        /* MF 2022/07/15: In principle we could make GK use Hybrid instead
+           of GkHybrid. Consider that later (which would require changes further
+           down in this function and in many other parts/files. */
         modNm : sconcat("basis-precalc/basisGkHybrid", cdim, "x", vdim, "v")
       else
         modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
@@ -392,8 +386,12 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
       bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
       bP : subst(vSub, copylist(basisP[pOrder])),  varsP : subst(vSub, copylist(varsP))
     ) else (
-      if basisType = "hyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
-      bP    : subst([x=vpar,y=mu],copylist(basisC[pOrder])),
+      if vdim=1 and basisType = "gkhyb" then (
+        print("** Incorrect use of loadGkBasis: cdim/vdim not enough to specify which GkHybrid basis to load when vdim=1. **"),
+        tmp : [1],  print(tmp[2]) /* just to trigger an error. */
+      ),
+      if basisType = "gkhyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
+      bP    : subst([x=vpar,y=mu],copylist(basisC[p])),
       varsP : subst([x=vpar,y=mu],copylist(varsC)),
       bC : [],  varsC : []
     )
@@ -406,7 +404,7 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
 )$
 
 loadGkHybBasisFromVars(varsIn) := block(
-  [dimIn,cdim,vdim,vars,basis,varsC,basisC,varsP,basisP],
+  [dimIn,cdim,vdim,vars,basis,varsC,basisC,varsP,basisP,basisConstant],
   /* Load a basis given the variables, intended to be used with the GkHybrid
      basis. The need to do this arises when needing surface bases, which
      more complicated with GkHybrid. */
@@ -434,7 +432,11 @@ loadGkHybBasisFromVars(varsIn) := block(
         vars  : subst([x=vpar,vx=mu],varsP)
       )
     ) else (
-      load(sconcat("basis-precalc/basisGkHybrid",cdim,"x",vdim,"v")),
+      if vdim=1 then (
+        load(sconcat("basis-precalc/basisHybrid",cdim,"x",vdim,"v"))
+      ) elseif vdim=2 then (
+        load(sconcat("basis-precalc/basisGkHybrid",cdim,"x",vdim,"v"))
+      ),
       basis : subst([vx=vpar,vy=mu],basisP[1]),  vars : subst([vx=vpar,vy=mu],varsP)
     )
   ) else (

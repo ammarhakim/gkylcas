@@ -48,10 +48,15 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     /* Do things differently for hybrid because it may involve a p=2 direction. */
     vdim : length(sublist(dirs,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
     cdim : numDims - vdim,
-    if basisNm = "hyb" then
+    if basisNm = "hyb" then (
       [jnk1,jnk2,pvars,pbasis] : loadPhaseBasis(basisNm, cdim, vdim, 1)
-    elseif basisNm = "gkhyb" then
-      [jnk1,jnk2,pvars,pbasis,vsub] : loadGkBasis(basisNm, cdim, vdim, 1),
+    ) elseif basisNm = "gkhyb" then (
+      /* Need to do something slightly different for gkhyb because this
+         function is called by calcRecov1CellGenNonuniform with just [vpar]
+         or [mu], depending on what recovery it is doing, and cdim/vdim
+         are not enough to clearly specify which basis should be loaded. */
+      [pvars, pbasis] : loadGkHybBasisFromVars(dirs)
+    ),
     baCe1D : sqrt(2)^(numDims-1)*sublist(pbasis, lambda([b], lfreeof(perpDirs,listofvars(b)))),
     /* MF 2022/07/15: I think this is only needed when perpDirs=[]. */
     baCe1D : subst(listofvars(baCe1D)[1]=recDir,baCe1D),

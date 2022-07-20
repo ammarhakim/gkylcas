@@ -9,35 +9,27 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator
    in the gyrokinetic equation. */
 
-varsV  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
+varsVAll  : [vpar, mu]$
 
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [pDim,vidx1,surfVar,bP,bC,NP,NC,h_e,temp_diff_c,nuVtSqSum_e,diffFac_e,diff_incr_c],
+calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+  [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,bType,h_e,temp_diff_c,nuVtSqSum_e,diffFac_e,diff_incr_c],
   
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  kill(varsC, varsP, basisC, basisP),
-
   /* Load basis of dimensionality requested. */
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
-
-  pDim : cdim+vdim,
-  /* Variables. */
-  vidx1 : vIndex1(cdim,vdim),
-  surfVar : varsV[dir],
-
-  /* Polynomial basis and its derivatives. */
-  bP : subst(gkVsub,basisP[polyOrder]),  NP : length(bP),
-  bC : basisC[polyOrder],  NC : length(bC),
+  pDim    : cdim+vdim,
+  vidx1   : vIndex1(cdim,vdim),
+  surfVar : varsVAll[dir],
 
   /* Construct the recovery polynomial */
-  h_e : calcRecov1CellGen(basisFun, surfVar, varsP, polyOrder, 1,
+  if polyOrder=1 then /* Force p=1 to mean hybrid. */
+    bType : "gkhyb"
+  else
+    bType : basisFun,
+  h_e : calcRecov1CellGen(bType, surfVar, varsP, polyOrder, 1,
     dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
     

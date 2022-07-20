@@ -9,31 +9,22 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator to the
    gyrokinetic equation. */
 
-vIndex(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+varsVAll : [vpar, mu]$
 
-varsV  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
+vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,NP,NC,vidx,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr,
-   facDiff_c,facDiff_NoZero,facDiff_NoZero_e,polyFact,facDiff_mid],
+  [varsC,bC,varsP,bP,NP,NC,vidx1,dir,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr,
+   facDiff_c,facDiff_NoZero,facDiff_NoZero_e,i,BmagInv_e,facDiffMu_NoZero,
+   expr,polyFact,facDiff_mid],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
 
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
-
-  /* Polynomial basis and its derivatives. */
-  bP : subst(gkVsub,basisP[polyOrder]),  bC : basisC[polyOrder],
-  NP : length(bP),  NC : length(bC),
-
-  vidx : vIndex(cdim,vdim),
+  vidx1 : vIndex1(cdim,vdim),
 
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:      cell-center coordinates. ~%", cdim+vdim),
@@ -49,7 +40,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double rdv2[~a]; ~%", vdim),
   printf(fh, "  double rdvSq4[~a]; ~%", vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx[dir]),
+    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir]),
     printf(fh, "  rdvSq4[~a] = rdv2[~a]*rdv2[~a]; ~%", dir-1, dir-1, dir-1)
   ),
   printf(fh, "~%"),
@@ -99,7 +90,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
     if polyOrder>1 then (
 
-      facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsV[2]+rdv2[1]*w[vidx[2]])),
+      facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsVAll[2]+rdv2[1]*w[vidx1[2]])),
 
       /* Zero out components of alpha which are empty. */
       facDiffMu_NoZero : doMakeExprLst(facDiff_c, facDiffMu),
@@ -117,7 +108,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       ),
       printf(fh, "~%")
     ) else (
-      facDiff_c : calcInnerProdList(varsP,1,bP,2*m_*BmagInv_e*nuVtSqSum_e*(rdv2[1]*varsV[2]+rdvSq4[1]*w[vidx[2]])),
+      facDiff_c : calcInnerProdList(varsP,1,bP,2*m_*BmagInv_e*nuVtSqSum_e*(rdv2[1]*varsVAll[2]+rdvSq4[1]*w[vidx1[2]])),
 
       /* Zero out components of alpha which are empty. */
       facDiff_NoZero_e : facDiff_NoZero_e+doExpand(facDiff_c, bP)
