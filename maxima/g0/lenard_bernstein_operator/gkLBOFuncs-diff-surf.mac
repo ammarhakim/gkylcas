@@ -1,7 +1,8 @@
 load("modal-basis")$
 load("out-scripts");
-load(stringproc)$
 load("recovery")$
+load("utilities")$
+load(stringproc)$
 
 fpprec : 24$
 
@@ -44,8 +45,8 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
   printf(fh, "  // out:           incremented distribution function in cell ~%"),
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vidx1[dir], vidx1[dir]),
-  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", length(bP)),
-  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", length(bP)),
+  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", NP),
   printf(fh, "~%"),
     
   /* Write out the second derivative of the recovered distribution. */
@@ -63,7 +64,13 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   if dir=1 then (
     diffFac_e : nuVtSqSum_e 
   ) elseif dir=2 then (
-    diffFac_e : 2*m_*BmagInv_e*nuVtSqSum_e 
+    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
+    printf(fh, "  double diffFac[~a] = {0.}; ~%", NC),
+    writeCExprs1(diffFac, diffFac_c),
+    printf(fh, "~%"),
+
+    diffFacNoZeros_c : doMakeExprLst(diffFac_c, diffFac),
+    diffFac_e : doExpand(diffFacNoZeros_c, bC)
   ),
   diff_incr_c : calcInnerProdList(varsP, diffFac_e, bP, doExpand1(temp_diff,bP)),
   writeCExprs1(diff_incr, diff_incr_c),
