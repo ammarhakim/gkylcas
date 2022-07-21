@@ -22,3 +22,4 @@ for polyOrder : 1 thru 2 do (
 printf(fh, "~%") $
 
 printf(fh, "EXTERN_C_END") $
+close(fh) $
