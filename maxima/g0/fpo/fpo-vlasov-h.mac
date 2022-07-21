@@ -10,6 +10,7 @@ bName : "ser" $
 dirs : [vx, vy, vz] $
 
 for polyOrder : 1 thru 2 do (
+  printf(fh, sconcat("GKYL_CU_DH double fpo_vlasov_diff_vol_1x3v_", bName, "_p", polyOrder, "(const double* w, const double* dx, const double* g, const double* f, double* GKYL_RESTRICT out);~%")),
   for d1 : 1 thru 3 do (
     dir1 : dirs[d1],
     for d2 : 1 thru 3 do (
