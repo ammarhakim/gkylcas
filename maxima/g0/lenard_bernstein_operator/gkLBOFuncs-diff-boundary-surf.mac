@@ -42,6 +42,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
     bType : basisFun,
   hl_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fedge[i-1],i,1,NP)), dg(makelist(fskin[i-1],i,1,NP))),
   hr_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fskin[i-1],i,1,NP)), dg(makelist(fedge[i-1],i,1,NP))),
+  /* Derivatives of recovery polynomials. */
   hOrder : 2*polyOrder+1,
   hsol_l : cons(subst(surfVar=0,hl_e),makelist(subst(surfVar=0,diff(hl_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
   hsol_r : cons(subst(surfVar=0,hr_e),makelist(subst(surfVar=0,diff(hr_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
@@ -102,7 +103,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   facDiff_c : calcInnerProdList(varsC, 1, bC, facDiff_e),
 
   if dir=2 then (
-    /* facDiff = 2*nu*vtSq/B. */
+    /* facDiff = 2*m*nu*vtSq/B. */
     printf(fh, "  double facDiff[~a]; ~%", NC),
     /* Write out the components of facDiff's expansion. */
     printf(fh, "  // Expand diffusion coefficient in conf basis.~%"),

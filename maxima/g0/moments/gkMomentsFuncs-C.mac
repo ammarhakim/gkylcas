@@ -301,20 +301,18 @@ calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     Mtemp : map(letsimp, Mtemp),
 
     printf(fh, "  double tmp[~a]; ~%", length(bC)),
-
     writeCExprs1(tmp, Mtemp),
+
     tmp_e : doExpand1(tmp, bC),
     M2perp : fullratsimp(innerProd(varsC, bC, bmag_e, tmp_e))
   ),
   three_moments : [],
   three_moments : append(three_moments, M0),
   three_moments : append(three_moments, M1),
-  if vdim > 1 then (
+  if vdim > 1 then
     three_moments : append(three_moments, M2par+2/m_*M2perp)
-  )
-  else (
-    three_moments : append(three_moments, M2par)
-  ),
+  else
+    three_moments : append(three_moments, M2par),
   writeCIncrExprsNoExpand1(out, volFact*expand(three_moments)),
   printf(fh, "} ~%")
 )$
