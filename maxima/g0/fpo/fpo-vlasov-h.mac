@@ -1,0 +1,25 @@
+fname : sconcat("~/max-out/gkyl_fpo_vlasov_kernels.h") $
+fh : openw(fname) $
+
+printf(fh, "#pragma once~%") $
+printf(fh, "#include <math.h>~%") $
+printf(fh, "#include <gkyl_util.h>~%") $
+printf(fh, "EXTERN_C_BEG~%~%") $
+
+bName : "ser" $
+dirs : [vx, vy, vz] $
+
+for polyOrder : 1 thru 2 do (
+  printf(fh, sconcat("GKYL_CU_DH double fpo_vlasov_diff_vol_1x3v_", bName, "_p", polyOrder, "(const double* w, const double* dx, const double* g, const double* f, double* GKYL_RESTRICT out);~%")),
+  for d1 : 1 thru 3 do (
+    dir1 : dirs[d1],
+    for d2 : 1 thru 3 do (
+      dir2 : dirs[d2],
+      printf(fh, sconcat("GKYL_CU_DH void fpo_vlasov_diff_surf", dir1, dir2, "_1x3v_", bName, "_p", polyOrder, "(const double* w, const double* dx, const double* g[], const double* f[], double* GKYL_RESTRICT out);~%"))
+      )
+    )
+  ) $
+printf(fh, "~%") $
+
+printf(fh, "EXTERN_C_END") $
+close(fh) $

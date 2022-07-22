@@ -10,7 +10,7 @@ printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, " ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, " ~%")$
-printf(fh, "GKYL_CU_DH void prim_lbo_copy_sol(const struct gkyl_mat *rhs, const int nc, const int vdim, double* GKYL_RESTRICT u, double* GKYL_RESTRICT vtSq); ~%")$
+printf(fh, "GKYL_CU_DH void prim_lbo_copy_sol(const struct gkyl_mat *rhs, const int nc, const int vdim,~%  double* GKYL_RESTRICT u, double* GKYL_RESTRICT vtSq); ~%")$
 printf(fh, " ~%")$
 
 bName   : ["ser"]$
@@ -26,7 +26,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "GKYL_CU_DH void vlasov_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
 
         /* Primitive moments for cross-collision Vlasov LBO terms. */
-        printf(fh, "GKYL_CU_DH void vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greeneFac, const double m_self,~%  const double *u_self, const double *vtsq_self, const double m_other, const double *u_other,~%  const double *vtsq_other, const double *nu, const double *moms, const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
+        printf(fh, "GKYL_CU_DH void vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *greene, const double m_self, const double *u_self, const double *vtsq_self,~%  const double m_other, const double *u_other, const double *vtsq_other, const double *moms,~%  const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
 
         /* Vlasov parallel kinetic with perp fluid model. */
         printf(fh, "GKYL_CU_DH void vlasov_with_fluid_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *fluid, const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
