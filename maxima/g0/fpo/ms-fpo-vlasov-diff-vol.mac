@@ -1,0 +1,22 @@
+kill(all) $
+load("fpo/funcs-fpo-vlasov-diff-vol-1x3v") $
+
+/* This script calls the functions which calculate the
+   updates from the diffusion portion of the volume contributions. */
+
+/* ...... USER INPUTS........ */
+
+minPolyOrder : 1 $
+maxPolyOrder : 2 $
+
+bNames : [ "Ser" ] $
+
+/* ...... END OF USER INPUTS........ */
+
+
+for polyOrder : minPolyOrder thru maxPolyOrder do (
+  for bIdx : 1 thru length(bNames) do (
+    calcFpoDiffVol1x3v(polyOrder, bNames[bIdx])
+  )
+) $
+  
