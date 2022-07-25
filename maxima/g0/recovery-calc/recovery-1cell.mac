@@ -24,24 +24,48 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
     recovered polynomial
   */
   [
+  numDims, recDirIdx, perpDirs, recDirPolyOrder,
+  vdim, cdim, jnk1, jnk2, pvars, pbasis,
   DoF, r, rLo, rUp, rExp, rSol, rSub,
   recEqList, projSubList,
+  varsa,
   ba, baLo1D, baCe1D, baUp1D, baLoND, baCeND, baUpND, baVars,
   dimProjLo, dimProjCe, dimProjUp, qLo1D, qCe1D, qUp1D,
   wx, wy, wz,
-  recDirIdx,
-  numDims,
   shiftList,
-  perpDirs, baCeNDw, bcExp
+  baCeNDw, bcExp
   ],
 
-  for i : 1 thru length(dirs) do
-  (
+  numDims : length(dirs),
+  for i : 1 thru numDims do (
     if recDir=dirs[i] then recDirIdx : i
   ),
 
-  ba : getBasis(basisNm, 1, polyOrder),
-  ba : subst(x=recDir, ba),
+  perpDirs : delete(recDir, dirs),
+
+  recDirPolyOrder : polyOrder,
+
+  /* Get 1D basis in recovery direction. */
+  if basisNm="hyb" or basisNm="gkhyb" then (
+    /* Do things differently for hybrid because it may involve a p=2 direction. */
+    vdim : length(sublist(dirs,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
+    cdim : numDims - vdim,
+    if basisNm = "hyb" then
+      [jnk1,jnk2,pvars,pbasis] : loadPhaseBasis(basisNm, cdim, vdim, 1)
+    elseif basisNm = "gkhyb" then
+      [jnk1,jnk2,pvars,pbasis,vsub] : loadGkBasis(basisNm, cdim, vdim, 1),
+    ba : sqrt(2)^(numDims-1)*sublist(pbasis, lambda([b], lfreeof(perpDirs,listofvars(b)))),
+    /* MF 2022/07/15: I think this is only needed when perpDirs=[]. */
+    ba : subst(listofvars(ba)[1]=recDir,ba),
+
+    if charat(string(recDir),1)="v" then
+      recDirPolyOrder : polyOrder+1
+    
+  ) else (
+    [varsa,ba] : loadBasis(basisNm, 1, polyOrder),
+    ba : subst(x=recDir, ba)
+  ),
+
   baCe1D : etaDir(recDir, 0, dxce[recDirIdx], ba),
   baLo1D : etaDir(recDir, -dxce[recDirIdx]/2-dxlo[recDirIdx]/2, dxlo[recDirIdx], ba),
   baUp1D : etaDir(recDir, dxce[recDirIdx]/2+dxup[recDirIdx]/2, dxup[recDirIdx], ba),
@@ -50,7 +74,7 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   still, they are still required in the same spot as in the case of
   the other methods for clarity */
 
-  DoF : polyOrder + 1,
+  DoF : recDirPolyOrder + 1,
   if is(op(lo)=dg) then
   (
     DoF : DoF + 1 + C
@@ -156,11 +180,14 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
   rSub : fullratsimp(subst(rSol, rExp)),
   
   /* Backsubstitute the non-recovered directtions if needed */
-  numDims : length(dirs),
   if numDims > 1 then (
-    ba : getBasis(basisNm, numDims, polyOrder),
-    baVars : listofvars(ba),
-    ba : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), ba),
+    if basisNm="hyb" or basisNm="gkhyb" then (
+      ba : copylist(pbasis)
+    ) else (
+      [varsa,ba] : loadBasis(basisNm, numDims, polyOrder),
+      baVars     : listofvars(ba),
+      ba         : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), ba)
+    ),
     /* rescale basis */
     shiftList : makelist(0, i, 1, numDims),
     baLoND : eta(dirs, shiftList, dxlo, ba),
@@ -172,10 +199,7 @@ calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dxlo, dxce, dxu
     /* prepare for the case where expansion coefficients at a wall are
     given; i.e., a basis function set with one less dimension is
     needed */
-    perpDirs : delete(recDir, dirs),
-    baCeNDw  : getBasis(basisNm, numDims-1, polyOrder),
-    baVars   : listofvars(baCeNDw),
-    baCeNDw  : psubst(makelist(baVars[i]=perpDirs[i],i,1,numDims-1), baCeNDw),
+    baCeNDw : basisFromVars(basisNm, perpDirs, polyOrder),
     
     projSubList : [],
     if is(op(lo)=dg) then (
@@ -248,6 +272,4 @@ calcRecov1CellGen(basisNm, recDir, dirs, polyOrder, C, lo, ce, up) := block(
   [dx],
   dx : makelist(2, i, 1, length(dirs)),
   return(calcRecov1CellGenNonuniform(basisNm, recDir, dirs, polyOrder, C, dx, dx, dx, lo, ce, up))
-  )$
-
-calcRecov1Cell(recDir, dirs, polyOrder, lo, ce, up) := calcRecov1CellGen("Ser", recDir, dirs, polyOrder, 0, lo, ce, up)$
+)$

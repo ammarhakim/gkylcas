@@ -1,4 +1,4 @@
-load("g0/vlasov/vlasovMaxwellFuncs-vol-C")$
+load("vlasov/vlasovMaxwellFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term contributions in the
@@ -44,7 +44,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume Vlasov",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating volume Vlasov ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
         fname : sconcat("~/max-out/vlasov_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_vol_", c, "x", v, "v_", bName[bInd]),

@@ -28,12 +28,9 @@ dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 
 /* Number density */
 /* M0 = < f > */
-calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,fl,M],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -46,14 +43,10 @@ calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 
 
 /* Momentum */
-calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
-  
   printf(fh, "GKYL_CU_DH void ~a_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -75,13 +68,9 @@ calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 /* Energy */
-calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -102,14 +91,10 @@ calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 /* Pressure tensor */
-calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
-  
   printf(fh, "GKYL_CU_DH void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
@@ -134,13 +119,9 @@ calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 /* Heat-flux vector */
-calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -166,13 +147,9 @@ calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 /* Heat-flux tensor */
-calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M,d1,d2,d3,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -200,13 +177,9 @@ calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 )$
 
 /* Calculate M0, M1i, and M2 (Five moments) sequentially */
-calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,i,fl,M0,M1i,M2,M0M1i,M0M2,incr_tempM0,incr_tempM1i,five_moments,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   
   printf(fh, "GKYL_CU_DH void ~a_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),

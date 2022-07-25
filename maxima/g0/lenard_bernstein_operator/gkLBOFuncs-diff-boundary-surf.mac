@@ -1,55 +1,51 @@
 load("modal-basis")$
 load("out-scripts");
-load(stringproc)$
 load("recovery")$
-
+load("utilities")$
+load(stringproc)$
 fpprec : 24$
 
 /* This script generates the kernels for the boundary surface term
    diffusion contribution from Lenard Bernstein operator for the
    gyrokinetic equation. */
 
-vvars  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
+varsVAll : [vpar, mu]$
 
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
+calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+  [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,surfIntVars,bPp,fEdge_e,fSkin_e,bType,hl_e,hr_e,
+   hOrder,hsol_l,hsol_r,surfVarPhys,nuVtSqSum_e,bSurf,facDiff_e,basisFac,GhatPhaseFac_l,
+   GhatPhaseFac_r,ibpPhaseFac_l,ibpPhaseFac_r,vfSkin_l,vfSkin_r,BmagInv_e,surfVar_l,surfVar_r,
+   facDiff_c,expr,i,facDiff_NoZero,vol_incr_c,Gdiff_l_c,Gdiff_r_c,Gdiff_l_e,Gdiff_r_e,Gdiff2_l_c,
+   Gdiff2_r_c,Gdiff2_l_e,Gdiff2_r_e,temp_diff_rc,temp_edge_lc,diff_incr_rc,edge_incr_lc,temp_diff_lc,
+   temp_edge_rc,diff_incr_lc,edge_incr_rc,vol_out,diff_out,edge_out],
 
-calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [modNm,vidx1,surfVar,surfIntVars,bP,bC,NP,NC,bPp,hOrder,h_e,hsol],
-
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
-
-  pDim : cdim+vdim,
-  /* Variables. */
-  vidx1 : vIndex1(cdim,vdim),
-  surfVar : vvars[dir],
+  pDim    : cdim+vdim,
+  vidx1   : vIndex1(cdim,vdim),
+  surfVar : varsVAll[dir],
   surfIntVars : delete(surfVar,varsP),
 
-  /* Polynomial basis and its derivatives. */
-  bP  : subst(gkVsub,basisP[polyOrder]),  NP : length(bP),
-  bC  : basisC[polyOrder],  NC : length(bC),
-  bPp : diff(bP,surfVar),
+  bPp : diff(bP,surfVar),  /* Basis derivative. */
+
   fEdge_e : doExpand1(fedge, bP),
   fSkin_e : doExpand1(fskin, bP),
 
   /* Construct the recovery polynomial */
+  if polyOrder=1 then /* Force p=1 to mean hybrid. */
+    bType : "gkhyb"
+  else
+    bType : basisFun,
+  hl_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fedge[i-1],i,1,NP)), dg(makelist(fskin[i-1],i,1,NP))),
+  hr_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fskin[i-1],i,1,NP)), dg(makelist(fedge[i-1],i,1,NP))),
+  /* Derivatives of recovery polynomials. */
   hOrder : 2*polyOrder+1,
-  hl_e : calcRecov2CellGen(basisFun,surfVar,varsP,polyOrder,dg(makelist(fedge[i-1],i,1,NP)), dg(makelist(fskin[i-1],i,1,NP))),
-  hr_e : calcRecov2CellGen(basisFun,surfVar,varsP,polyOrder,dg(makelist(fskin[i-1],i,1,NP)), dg(makelist(fedge[i-1],i,1,NP))),
   hsol_l : cons(subst(surfVar=0,hl_e),makelist(subst(surfVar=0,diff(hl_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
   hsol_r : cons(subst(surfVar=0,hr_e),makelist(subst(surfVar=0,diff(hr_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
-  if (basisFun="Ser") then basisFun:"ser",
-  if (basisFun="Tensor") then basisFun:"tensor",
   /*............. RECOVERY DONE ..............................*/
         
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
@@ -70,7 +66,12 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
   /* First compute the contribution coming from the second
      differentiation by parts to left and right cells. */
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
-  bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),  /* Surface basis. */
+
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder)
+  ),
      
   /* facDiff_c = < psi, nuVtSqSum > for vpar term,
                < psi, (2*m/B)*nuVtSqSum > for mu term.
@@ -101,8 +102,8 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
   ),
   facDiff_c : calcInnerProdList(varsC, 1, bC, facDiff_e),
 
-  if polyOrder>1 or dir=2 then (
-    /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
+  if dir=2 then (
+    /* facDiff = 2*m*nu*vtSq/B. */
     printf(fh, "  double facDiff[~a]; ~%", NC),
     /* Write out the components of facDiff's expansion. */
     printf(fh, "  // Expand diffusion coefficient in conf basis.~%"),
@@ -118,10 +119,10 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero : doMakeExprLst(facDiff_c, nuVtSqSum)
   ),
-  facDiff_NoZero_e : doExpand(facDiff_NoZero, bC),
+  facDiff_e : doExpand(facDiff_NoZero, bC),
 
   /* Volume increment. */
-  vol_incr_c : rdvSq4*calcInnerProdList(varsP, 1, basisFac, facDiff_NoZero_e*fSkin_e),
+  vol_incr_c : rdvSq4*calcInnerProdList(varsP, 1, basisFac, facDiff_e*fSkin_e),
   printf(fh, "  double vol_incr[~a] = {0.0};~%", NP),
   writeCExprs1(vol_incr, vol_incr_c),
   printf(fh, "~%"),

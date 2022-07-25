@@ -20,8 +20,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 1$
+maxVdim_Tensor : 2$
 
 gkVdims : [[1,2], [2], [2]]$
 
@@ -44,7 +44,7 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
       if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume GkLBO",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating drag volume GkLBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
         funcName : sconcat("lbo_gyrokinetic_drag_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
         fname : sconcat("~/max-out/",funcName, ".c"),
         fh : openw(fname),
