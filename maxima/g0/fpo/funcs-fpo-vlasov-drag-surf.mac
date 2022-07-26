@@ -131,7 +131,7 @@ calcFpoDragSurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) 
   glst1_u : doMakeExprLst(Ghat_u_c, Ghat_u),
   Ghat_u_e : doExpandLst(glst1_u, bSurf),
   drag_incr_u : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_u_e),
-  drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_u_e),
+  drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
   
   writeCExprs1(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
