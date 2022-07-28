@@ -39,6 +39,7 @@ gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis
   fc << "binop_mul_" << ndim << "d_ser_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;  
+  fc << "  double tmp[" << basis.get_numbasis() << "] = {0.};" << std::endl;
 
   int nsum = 0, nprod = 0;
   symbol f("f"), g("g");
@@ -47,10 +48,17 @@ gen_ser_mul_op(std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis
   for (int i=0; i<basis.get_numbasis(); ++i) {
     std::cout << i << " " << std::flush;
     auto out = basis.innerProd(bc[i], fg).expand().evalf();
-    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+    fc << "  tmp[" << i << "] = " << csrc << out << ";" << std::endl;
     struct gkyl_kern_op_count count = total_op(out);
     nsum += count.num_sum;
     nprod += count.num_prod;
+  }
+  std::cout << std::endl;
+  fc << " " << std::endl;
+
+  for (int i=0; i<basis.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    fc << "  fg[" << i << "] = tmp[" << i << "];" << std::endl;
   }
   std::cout << std::endl;
 
@@ -88,6 +96,7 @@ gen_ser_cross_mul_op(std::ostream& fh, std::ostream& fc,
   fc << "binop_cross_mul_" << a_ndim << "d_" << b_ndim << "d_ser_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;
+  fc << "  double tmp[" << bb.get_numbasis() << "] = {0.};" << std::endl;
 
   symbol f("f"), g("g");
   auto fg = ba.expand(f)*bb.expand(g);
@@ -95,7 +104,15 @@ gen_ser_cross_mul_op(std::ostream& fh, std::ostream& fc,
   for (int i=0; i<bb.get_numbasis(); ++i) {
     std::cout << i << " " << std::flush;
     auto out = bb.innerProd(bc[i], fg).expand().evalf();
-    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+    fc << "  tmp[" << i << "] = " << csrc << out << ";" << std::endl;
+  }
+  std::cout << std::endl;  
+  fc << "  double tmp[" << bb.get_numbasis() << "] = {0.};" << std::endl;
+  fc << " " << std::endl;
+
+  for (int i=0; i<bb.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    fc << "  fg[" << i << "] = " << "tmp[" << i << "];" << std::endl;
   }
   std::cout << std::endl;  
 
@@ -126,6 +143,7 @@ gen_hyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   fc << "binop_cross_mul_" << cdim << "x" << vdim << "v_hyb_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;
+  fc << "  double tmp[" << bb.get_numbasis() << "] = {0.};" << std::endl;
 
   symbol f("f"), g("g");
   auto fg = ba.expand(f)*bb.expand(g);
@@ -133,7 +151,14 @@ gen_hyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   for (int i=0; i<bb.get_numbasis(); ++i) {
     std::cout << i << " " << std::flush;
     auto out = bb.innerProd(bc[i], fg).expand().evalf();
-    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+    fc << "  tmp[" << i << "] = " << csrc << out << ";" << std::endl;
+  }
+  std::cout << std::endl;  
+  fc << " " << std::endl;
+
+  for (int i=0; i<bb.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    fc << "  fg[" << i << "] = " << "tmp[" << i << "];" << std::endl;
   }
   std::cout << std::endl;  
 
@@ -164,6 +189,7 @@ gen_gkhyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   fc << "binop_cross_mul_" << cdim << "x" << vdim << "v_gkhyb_" << "p" << polyOrder
        << "(const double *f, const double *g, double *fg )" << std::endl;
   fc << "{" << std::endl;
+  fc << "  double tmp[" << bb.get_numbasis() << "] = {0.};" << std::endl;
 
   symbol f("f"), g("g");
   auto fg = ba.expand(f)*bb.expand(g);
@@ -171,7 +197,14 @@ gen_gkhyb_cross_mul_op(std::ostream& fh, std::ostream& fc,
   for (int i=0; i<bb.get_numbasis(); ++i) {
     std::cout << i << " " << std::flush;
     auto out = bb.innerProd(bc[i], fg).expand().evalf();
-    fc << "  fg[" << i << "] = " << csrc << out << ";" << std::endl;
+    fc << "  tmp[" << i << "] = " << csrc << out << ";" << std::endl;
+  }
+  std::cout << std::endl;  
+  fc << " " << std::endl;
+
+  for (int i=0; i<bb.get_numbasis(); ++i) {
+    std::cout << i << " " << std::flush;
+    fc << "  fg[" << i << "] = " << "tmp[" << i << "];" << std::endl;
   }
   std::cout << std::endl;  
 
@@ -425,9 +458,9 @@ gen_all_gkhyb_cross_mul_op()
 int
 main(int argc, char **argv)
 {
-//  gen_all_ser_mul_op();
-//  gen_all_ser_cross_mul_op();
-//  gen_all_hyb_cross_mul_op();
+  gen_all_ser_mul_op();
+  gen_all_ser_cross_mul_op();
+  gen_all_hyb_cross_mul_op();
   gen_all_gkhyb_cross_mul_op();
   
   return 1;
