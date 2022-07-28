@@ -404,7 +404,7 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
 )$
 
 loadGkHybBasisFromVars(varsIn) := block(
-  [dimIn,cdim,vdim,vars,basis,varsC,basisC,varsP,basisP,basisConstant],
+  [dimIn,cdim,vdim,hasvpar,vars,basis,varsC,basisC,varsP,basisP,basisConstant],
   /* Load a basis given the variables, intended to be used with the GkHybrid
      basis. The need to do this arises when needing surface bases, which
      more complicated with GkHybrid. */

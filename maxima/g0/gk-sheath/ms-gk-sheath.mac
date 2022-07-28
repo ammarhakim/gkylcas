@@ -11,33 +11,30 @@ cDims : [1,3]$
 vDims : [[1,2],[2]]$
 
 /* Serendipity basis. */
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 
 /* Tensor order basis. */
+minPolyOrder_Tensor : 2$  /* Don't generate p=1. */
 maxPolyOrder_Tensor : 2$
 
 bName        : ["Ser", "Tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 
-load("gk-calc/sheath-1x1v");
-load("gk-calc/sheath-1x2v");
-load("gk-calc/sheath-3x2v");
+load("gk-sheath/sheath-1x1v");
+load("gk-sheath/sheath-1x2v");
+load("gk-sheath/sheath-3x2v");
 
 /* Create the sheath kernels. */
 for bInd : 1 thru length(bName) do (
+  minPolyOrderB : minPolyOrder[bInd],
   maxPolyOrderB : maxPolyOrder[bInd],
-  for polyOrder : 1 thru maxPolyOrderB do (
+  for polyOrder : minPolyOrderB thru maxPolyOrderB do (
     fname : sconcat("~/max-out/GkSheathFuncs",bName[bInd],"P",polyOrder,".cpp"),
     fh : openw(fname),
   
     printf(fh, "#include <GkSheathModDecl.h> ~%"),
-    printf(fh, "~%"),
-  
-    printf(fh, "// approximation for inverse Langevin function ~%"),
-    printf(fh, "long double invL(long double x) { ~%"),
-    printf(fh, "  // from Kroger ~%"),
-    printf(fh, "  return (3.*x-x*x*x*(6. + x*x - 2.*x*x*x*x)/5.)/(1.-x*x); ~%"),
-    printf(fh, "}~%"),
     printf(fh, "~%"),
   
     for cI : 1 thru length(cDims) do (
@@ -46,7 +43,7 @@ for bInd : 1 thru length(bName) do (
           calcGkSheathFuncs1x1v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
         ) else if cDims[cI]=1 and vDims[cI][vI]=2 then (
           calcGkSheathFuncs1x2v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
-        ) else if cDims[cI]=3 and vDims[cI][vI]=2 then (
+        ) else if cDims[cI]=3 and vDims[cI][vI]=2 and bName[bInd]="Ser" then (
           calcGkSheathFuncs3x2v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
         )
       )
@@ -66,6 +63,13 @@ printf(fh, "#include <algorithm>~%")$
 printf(fh, "#include <CartFieldBinOpModDecl.h>~%")$
 printf(fh, "~%")$
 
+printf(fh, "// approximation for inverse Langevin function ~%")$
+printf(fh, "template <typename T> T invL(T x) {~%")$
+printf(fh, "  // from Kroger ~%")$
+printf(fh, "  return (3.*x-x*x*x*(6. + x*x - 2.*x*x*x*x)/5.)/(1.-x*x); ~%")$
+printf(fh, "}~%")$
+printf(fh, "~%")$
+  
 printf(fh, "extern \"C\" { ~%")$
 printf(fh, "~%")$
 

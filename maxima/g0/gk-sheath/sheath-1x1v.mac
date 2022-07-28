@@ -7,10 +7,12 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
-calcGkSheathFuncs1x1v(fh, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
+calcGkSheathFuncs1x1v(fh, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,vSub,NP,bVp,NVp,zVar,funcNm,phiSheath_e,phiWall_e,deltaPhi_e,quad,
+   nodes1d,numNodes1d,f_e,vcutSqQ,fRefl_c,fReflZQ_e,fZQ_e,fZQ_Vp_c,xbar,beta,fReflfacs,
+   nodToModZ,fReflQ_ZVp_e,fReflQ_ZVp_c,fReflQ_e],
 
-  /* Get desired polyOrder of each basis. */
+  /* Get desired basis. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NP : length(bP),
 
