@@ -1,0 +1,120 @@
+load("modal-basis")$
+load("out-scripts")$
+fpprec : 24$
+
+statevec : [rho, rhou0,rhou1,rhou2]$
+dx1  : [dx10, dx11, dx12]$
+
+lhs : [outrho, outrhou0, outrhou1, outrhou2]$
+
+uvar : [uvar0,uvar1,uvar2]$
+
+cidx(cdim)      := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([],
+
+  kill(varsC, varsP, basisC, basisP),
+
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
+  load(modNm),
+  bP   : basisP[pOrder],
+  bC   : basisC[pOrder],
+  numC : length(bC),
+
+  printf(fh, "GKYL_CU_DH double ~ap~a(const double *w, const double *dxv, const double vth, const double *uvar, const double *statevec, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, pOrder),
+  printf(fh, "  // w[NDIM]: Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // statevec: [rho, rho ux, rho uy, rho uz].~%"),
+  printf(fh, "  // uvar: [ux, uy, uz].~%"),
+  printf(fh, "  // out: Incremented output.~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rho = &statevec[~a]; ~%", 0*numC),
+  if (cdim >= 1) then (printf(fh, "  const double *rhou0 = &statevec[~a]; ~%", 1*numC)),
+  if (cdim >= 2) then (printf(fh, "  const double *rhou1 = &statevec[~a]; ~%", 2*numC)),
+  if (cdim >= 3) then (printf(fh, "  const double *rhou2 = &statevec[~a]; ~%", 3*numC)),
+
+  if (cdim >= 1) then (printf(fh, "  const double *uvar0 = &uvar[~a]; ~%", 0*numC)),
+  if (cdim >= 2) then (printf(fh, "  const double *uvar1 = &uvar[~a]; ~%", 1*numC)),
+  if (cdim >= 3) then (printf(fh, "  const double *uvar2 = &uvar[~a]; ~%", 2*numC)),
+
+  printf(fh, "  double *outrho = &out[~a]; ~%", 0*numC),
+  if (cdim >= 1) then (printf(fh, "  double *outrhou0 = &out[~a]; ~%", 1*numC)),
+  if (cdim >= 2) then (printf(fh, "  double *outrhou1 = &out[~a]; ~%", 2*numC)),
+  if (cdim >= 3) then (printf(fh, "  double *outrhou2 = &out[~a]; ~%", 3*numC)),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dx1~a = 2./dxv[~a]; ~%", dir-1, dir-1)/*vid[dir])*/ /*TODO: figure out indexing here and fix if needed  note: it is weird as our cdim var is weird (as statevec = [rho rhoux  rhouy rhouz] our cdim goes up to four and has a min of 2)*/
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "  double vthsq = vth*vth; ~%"), /*maxima will write out vth^2 in c/cpp code, but the ^ operator is the XOR operator, this is a quick workaround*/
+
+  rhovar : [statevec[1]],
+  rhou : [statevec[2],statevec[3],statevec[4]],
+  rhol : doExpand1(rhovar[1], bC),
+
+  rhouxl : doExpand1(rhou[1], bC),
+  rhouyl : doExpand1(rhou[2], bC),
+  rhouzl : doExpand1(rhou[3], bC),
+  rhoul : [rhouxl,rhouyl,rhouzl],
+
+  uvarxl : doExpand1(uvar[1], bC),
+  uvaryl : doExpand1(uvar[2], bC),
+  uvarzl : doExpand1(uvar[3], bC),
+
+  t1 : (t1 : 0, for dir : 1 thru cdim do (
+     t1 : t1 + dx1[dir]*innerProd(varsC,1,rhol,rhoul[dir])
+     ),
+  t1),
+  if (not(listp(t1))) then (t1 : [t1]), /*edge case where above term is not a list*/
+  t2 : (t2 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarxl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
+     if (dir = 2) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvaryl)),
+     if (dir = 3) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarzl))
+     ),
+  t2),
+  t3 : (t3 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarxl)),
+     if (dir = 2) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvaryl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
+     if (dir = 3) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarzl))
+     ),
+  t3),
+  t4 : (t4 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarxl)),
+     if (dir = 2) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvaryl)),
+     if (dir = 3) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarzl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir])))
+     ),
+  t4),
+
+  volTerms : [t1,t2,t3,t4],
+  for m : 1 thru cdim+1 do (
+    vt : volTerms[m],
+    writeCIncrExprs1(lhs[m], vt),
+    expr : float(expand(vt)),
+    printf(fh, "~%")
+  ),
+
+  /*TODO:  cfl convergence calculation */
+  printf(fh,"  return 0.; ~%"),
+
+  printf(fh, "} ~%")
+
+)$
+
+pmax:3$
+cmax:3$
+for pOrder : 1 thru pmax do (
+  for c : 1 thru cmax do (
+    v : c,
+    fname : sconcat("~/max-out/isoeuler_vol_", c, "x", v, "v_p", pOrder, ".c"),
+    fh    : openw(fname),
+    printf(fh, "#include <gkyl_isoeuler_kernels.h> ~%"),
+    funcName : sconcat("isoeuler_vol_", c, "x", c, "v_", "ser_"),
+    calcIsoEulerVolUpdater(fh, funcName, c, v, "Ser", pOrder),
+    close(fh)
+  )
+)$
