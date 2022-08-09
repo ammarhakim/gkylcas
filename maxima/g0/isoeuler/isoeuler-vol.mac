@@ -12,7 +12,7 @@ uvar : [uvar0,uvar1,uvar2]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([],
+calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm,basisConstant,bP,bC,numC,cid,vid,rhovar, rhou, rhol, rhouxl, rhouyl, rhouzl, rhoul, uvarxl, uvaryl, uvarzl, t1, t2, t3, t4, volTerms, vt, expr, varsC, basisC],
 
   kill(varsC, varsP, basisC, basisP),
 

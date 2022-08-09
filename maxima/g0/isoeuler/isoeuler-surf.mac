@@ -151,7 +151,7 @@ calcFluxRoeAvg(dir,Flux,svaridx) := block([F],
   return (F)
 )$
 
-calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block([],
+calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm, basisConstant, i, bP, bC, numC, nbasis, cid, vid, cv, vv, surfVars, FluxFuncs, outlvars, outrvars, Flux, substval, fhat, incr_r, incr_s, outrvarstemp, incr_l, nincr_r, outlvarstemp, varsC, basisC],
   kill(varsC, varsP, basisC, basisP),
 
   /* load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")), */
@@ -267,7 +267,7 @@ calcIsoEulerSurfUpdater(fh, cdim, vdim, basisFun, pOrder) := block([dir],
   printf(fh, "#include <gkyl_isoeuler_kernels.h> ~%"),
   for dir : 1 thru cdim do (
     funcName : sconcat("isoeuler_surf",cvars_name[dir],"_", c, "x", c, "v_", "ser"),
-    calcIsoEulerUpdateInDir(dir, fh, funcName, cdim, vdim, basisFun, pOrder) 
+    calcIsoEulerUpdateInDir(dir, fh, funcName, cdim, vdim, basisFun, pOrder)
   )
 )$
 

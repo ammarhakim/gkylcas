@@ -1,7 +1,7 @@
 cvars : [X, Y, Z]$
 cvars_name : ["x","y","z"]$
 
-printPrototypes() := block([],
+printPrototypes() := block([pmax,dirlabel],
   pmax:3,
   for ci : 1 thru 3 do (
     for pi : 1 thru pmax do (
@@ -15,13 +15,16 @@ printPrototypes() := block([],
   )
 )$
 
-fh : openw("~/max-out/IsoEulerModDecl.h")$
-printf(fh, "#ifndef ISOEULER_MOD_DECL_H ~%")$
-printf(fh, "#define ISOEULER_MOD_DECL_H ~%")$
-printf(fh, "#include <cmath> ~%")$
+fh : openw("~/max-out/gkyl_isoeuler_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, " ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, " ~%")$
 printPrototypes()$
-printf(fh, "} ~%")$
-printf(fh, "#endif ~%")$
+printf(fh, "EXTERN_C_END ~%")$
 close(fh)$
 
 /* fh : openw("~/max-out/ISOEulerCdef.lua")$
