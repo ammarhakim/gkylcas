@@ -31,18 +31,18 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   printf(fh, "~%"),
 
   printf(fh, "  const double *rho = &statevec[~a]; ~%", 0*numC),
-  if (cdim >= 1) then (printf(fh, "  const double *rhou0 = &statevec[~a]; ~%", 1*numC)),
-  if (cdim >= 2) then (printf(fh, "  const double *rhou1 = &statevec[~a]; ~%", 2*numC)),
-  if (cdim >= 3) then (printf(fh, "  const double *rhou2 = &statevec[~a]; ~%", 3*numC)),
+  printf(fh, "  const double *rhou0 = &statevec[~a]; ~%", 1*numC),
+  printf(fh, "  const double *rhou1 = &statevec[~a]; ~%", 2*numC),
+  printf(fh, "  const double *rhou2 = &statevec[~a]; ~%", 3*numC),
 
-  if (cdim >= 1) then (printf(fh, "  const double *uvar0 = &uvar[~a]; ~%", 0*numC)),
-  if (cdim >= 2) then (printf(fh, "  const double *uvar1 = &uvar[~a]; ~%", 1*numC)),
-  if (cdim >= 3) then (printf(fh, "  const double *uvar2 = &uvar[~a]; ~%", 2*numC)),
+  printf(fh, "  const double *uvar0 = &uvar[~a]; ~%", 0*numC),
+  printf(fh, "  const double *uvar1 = &uvar[~a]; ~%", 1*numC),
+  printf(fh, "  const double *uvar2 = &uvar[~a]; ~%", 2*numC),
 
   printf(fh, "  double *outrho = &out[~a]; ~%", 0*numC),
-  if (cdim >= 1) then (printf(fh, "  double *outrhou0 = &out[~a]; ~%", 1*numC)),
-  if (cdim >= 2) then (printf(fh, "  double *outrhou1 = &out[~a]; ~%", 2*numC)),
-  if (cdim >= 3) then (printf(fh, "  double *outrhou2 = &out[~a]; ~%", 3*numC)),
+  printf(fh, "  double *outrhou0 = &out[~a]; ~%", 1*numC),
+  printf(fh, "  double *outrhou1 = &out[~a]; ~%", 2*numC),
+  printf(fh, "  double *outrhou2 = &out[~a]; ~%", 3*numC),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
