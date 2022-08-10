@@ -60,11 +60,12 @@ for bInd : 1 thru length(bName) do (
 fh : openw("~/max-out/gkyl_bc_sheath_gyrokinetic_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
+printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "~%")$
 
 printf(fh, "// approximation for inverse Langevin function ~%")$
-printf(fh, "long double invL(long double x) {~%")$
+printf(fh, "static inline long double invL(long double x) {~%")$
 printf(fh, "  // from Kroger ~%")$
 printf(fh, "  return (3.*x-x*x*x*(6. + x*x - 2.*x*x*x*x)/5.)/(1.-x*x); ~%")$
 printf(fh, "}~%")$
