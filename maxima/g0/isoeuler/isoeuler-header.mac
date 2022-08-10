@@ -5,10 +5,10 @@ printPrototypes() := block([pmax,dirlabel],
   pmax:3,
   for ci : 1 thru 3 do (
     for pi : 1 thru pmax do (
-      printf(fh, "GKYL_CU_DH double isoeuler_vol_~ax~av_ser_p~a(const double *w, const double *dxv, const double vth, const double *uvar, const double *statevec, double* GKYL_RESTRICT out); ~%", ci, ci, pi),
+      printf(fh, "GKYL_CU_DH double isoeuler_vol_~ax_ser_p~a(const double *w, const double *dxv, const double vth, const double *uvar, const double *statevec, double* GKYL_RESTRICT out); ~%", ci, pi),
       for si : 1 thru ci do (
         dirlabel : cvars[si],
-        printf(fh, "GKYL_CU_DH void isoeuler_surf~a_~ax~av_ser_p~a(const double *w, const double *dxv, double vth, const double *uvarl, const double *uvarc, const double *uvarr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out); ~%", cvars_name[si], ci, ci, pi)
+        printf(fh, "GKYL_CU_DH void isoeuler_surf~a_~ax_ser_p~a(const double *w, const double *dxv, double vth, const double *uvarl, const double *uvarc, const double *uvarr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out); ~%", cvars_name[si], ci, pi)
       ),
       printf(fh, "~%")
     )

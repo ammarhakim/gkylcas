@@ -110,10 +110,10 @@ cmax:3$
 for pOrder : 1 thru pmax do (
   for c : 1 thru cmax do (
     v : c,
-    fname : sconcat("~/max-out/isoeuler_vol_", c, "x", v, "v_p", pOrder, ".c"),
+    fname : sconcat("~/max-out/isoeuler_vol_", c, "x", "_p", pOrder, ".c"),
     fh    : openw(fname),
     printf(fh, "#include <gkyl_isoeuler_kernels.h> ~%"),
-    funcName : sconcat("isoeuler_vol_", c, "x", c, "v_", "ser_"),
+    funcName : sconcat("isoeuler_vol_", c, "x_", "ser_"),
     calcIsoEulerVolUpdater(fh, funcName, c, v, "Ser", pOrder),
     close(fh)
   )

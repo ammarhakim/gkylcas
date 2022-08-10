@@ -258,7 +258,6 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
     printf(fh, "~% ~%")
   ),
 
-  /* TODO: figure out if anything needs to be returned... */
   printf(fh, "} ~%")
 );
 
@@ -266,7 +265,7 @@ calcIsoEulerSurfUpdater(fh, cdim, vdim, basisFun, pOrder) := block([dir],
   /* printf(fh, "#include <IsoEulerModDecl.h> ~%"), */
   printf(fh, "#include <gkyl_isoeuler_kernels.h> ~%"),
   for dir : 1 thru cdim do (
-    funcName : sconcat("isoeuler_surf",cvars_name[dir],"_", c, "x", c, "v_", "ser"),
+    funcName : sconcat("isoeuler_surf",cvars_name[dir],"_", c, "x", "_", "ser"),
     calcIsoEulerUpdateInDir(dir, fh, funcName, cdim, vdim, basisFun, pOrder)
   )
 )$
@@ -276,7 +275,7 @@ cmax:3$
 for c : 1 thru cmax do (
   for pOrder : 1 thru pmax do (
     v : c,
-    fname : sconcat("~/max-out/isoeuler_surf",cvars_name[c],"_", c, "x", c, "v_p", pOrder, ".c"),
+    fname : sconcat("~/max-out/isoeuler_surf",cvars_name[c],"_", c, "x", "_p", pOrder, ".c"),
     fh : openw(fname),
     calcIsoEulerSurfUpdater(fh, c, v, "Ser", pOrder),
     close(fh)
