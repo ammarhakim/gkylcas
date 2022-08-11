@@ -7,16 +7,21 @@ cvars : [X, Y, Z]$
 cvars_name : ["x","y","z"]$
 svars : [rho, rhou0, rhou1, rhou2]$
 svarsl : [rhol,rhou0l,rhou1l,rhou2l]$
+svarsc : [rhoc,rhou0c,rhou1c,rhou2c]$
 svarsr : [rhor,rhou0r,rhou1r,rhou2r]$
 svarsll : [rholl,rhou0ll,rhou1ll,rhou2ll]$
+svarscl : [rhocl,rhou0cl,rhou1cl,rhou2cl]$
 svarsrl : [rhorl,rhou0rl,rhou1rl,rhou2rl]$
 
 uvar : [uvar0,uvar1,uvar2]$
 uvarl : [uvar0l,uvar1l,uvar2l]$
+uvarc : [uvar0c,uvar1c,uvar2c]$
 uvarr : [uvar0r,uvar1r,uvar2r]$
 uvarll : [uvar0ll,uvar1ll,uvar2ll]$
+uvarcl : [uvar0cl,uvar1cl,uvar2cl]$
 uvarrl : [uvar0rl,uvar1rl,uvar2rl]$
 
+/*TODO: finish below func and add output to flux*/
 RoeDissipativeTerms(dir,svaridx) := block([qvars,Amat,Bmat,Cmat,alphalist,kvecs], /*disp term is far right term in eq (11.29) of Toro E. F. 2009 */
   /*construct flux mat*/
   if(dir = 1)then(dirvec : [1,0,0]),
@@ -112,9 +117,13 @@ RoeDissipativeTerms(dir,svaridx) := block([qvars,Amat,Bmat,Cmat,alphalist,kvecs]
   return (disptermtemp)
 );
 
-FluxRho(dir,l_or_r) := block([F,svars,sltemp],
-  if(l_or_r = "l")then(substval : 1, svars : svarsl),
-  if(l_or_r = "r")then(substval :-1, svars : svarsr),
+FluxRho(dir,cell,cellside) := block([F,svars,sltemp],
+  if(cell = "l")then(svars : svarsl),
+  if(cell = "c")then(svars : svarsc),
+  if(cell = "r")then(svars : svarsr),
+
+  if(cellside = "l")then(substval : -1),
+  if(cellside = "r")then(substval : 1),
 
   sltemp : doExpand1(svars[dir+1],bC),
   F : subst(cv=substval, sltemp),
@@ -122,11 +131,15 @@ FluxRho(dir,l_or_r) := block([F,svars,sltemp],
   return (F)
 );
 
-FluxRhoUi(dir,l_or_r,idir) := block([F,svars,sltemp,rltemp,uvars,ultemp], /* idir is the U_i (note: this var starts indexing at 1)*/
-  if(l_or_r = "l")then(substval : 1, svars : svarsl, uvars : uvarl),
-  if(l_or_r = "r")then(substval :-1, svars : svarsr, uvars : uvarr),
+FluxRhoUi(dir,cell,cellside,idir) := block([F,svars,sltemp,rltemp,uvars,ultemp], /* idir is the U_i (note: this var starts indexing at 1)*/
+  if(cell = "l")then(svars : svarsl, uvars : uvarl),
+  if(cell = "c")then(svars : svarsc, uvars : uvarc),
+  if(cell = "r")then(svars : svarsr, uvars : uvarr),
 
-  F : 0,
+  if(cellside = "l")then(substval : -1),
+  if(cellside = "r")then(substval : 1),
+
+  F : 0, /*TODO: check this*/
   if(dir = idir)then(
     rltemp : doExpand1(svars[1],bC),
     sltemp : doExpand1(svars[dir+1],bC),
@@ -140,13 +153,14 @@ FluxRhoUi(dir,l_or_r,idir) := block([F,svars,sltemp,rltemp,uvars,ultemp], /* idi
   return (F)
 )$
 
-FluxRhoUx(dir,l_or_r) := block([],FluxRhoUi(dir,l_or_r,1))$
-FluxRhoUy(dir,l_or_r) := block([],FluxRhoUi(dir,l_or_r,2))$
-FluxRhoUz(dir,l_or_r) := block([],FluxRhoUi(dir,l_or_r,3))$
+FluxRhoUx(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,1))$
+FluxRhoUy(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,2))$
+FluxRhoUz(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,3))$
 
-calcFluxRoeAvg(dir,Flux,svaridx) := block([F],
-
-  F : 0.5*(Flux(dir,"l")+Flux(dir,"r")) /*-0.5*RoeDissipativeTerms(dir,svaridx)*/,   /*TODO: add dissipative term i.e. far right term eq 2.30; right now we are using central fluxes as dispterm = 0*/
+calcFluxRoeAvg(dir,centercellside,Flux,svaridx) := block([F],
+  /*TODO: add dissipative term i.e. far right term eq 2.30; right now we are using central fluxes with dispterm = 0*/
+  if(centercellside = "l")then(F : 0.5*(Flux(dir,"l","r")+Flux(dir,"c","l"))),
+  if(centercellside = "r")then(F : 0.5*(Flux(dir,"c","r")+Flux(dir,"r","l"))),
 
   return (F)
 )$
@@ -175,6 +189,11 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
   printf(fh, "  const double *rhou1l = &statevecl[~a]; ~%", 2*numC),
   printf(fh, "  const double *rhou2l = &statevecl[~a]; ~%", 3*numC),
 
+  printf(fh, "  const double *rhoc = &statevecc[~a]; ~%",   0*numC),
+  printf(fh, "  const double *rhou0c = &statevecc[~a]; ~%", 1*numC),
+  printf(fh, "  const double *rhou1c = &statevecc[~a]; ~%", 2*numC),
+  printf(fh, "  const double *rhou2c = &statevecc[~a]; ~%", 3*numC),
+
   printf(fh, "  const double *rhor = &statevecr[~a]; ~%",   0*numC),
   printf(fh, "  const double *rhou0r = &statevecr[~a]; ~%", 1*numC),
   printf(fh, "  const double *rhou1r = &statevecr[~a]; ~%", 2*numC),
@@ -184,19 +203,18 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
   printf(fh, "  const double *uvar1l = &uvarl[~a]; ~%", 1*numC),
   printf(fh, "  const double *uvar2l = &uvarl[~a]; ~%", 2*numC),
 
+  printf(fh, "  const double *uvar0c = &uvarc[~a]; ~%", 0*numC),
+  printf(fh, "  const double *uvar1c = &uvarc[~a]; ~%", 1*numC),
+  printf(fh, "  const double *uvar2c = &uvarc[~a]; ~%", 2*numC),
+
   printf(fh, "  const double *uvar0r = &uvarr[~a]; ~%", 0*numC),
   printf(fh, "  const double *uvar1r = &uvarr[~a]; ~%", 1*numC),
   printf(fh, "  const double *uvar2r = &uvarr[~a]; ~%", 2*numC),
 
-  printf(fh, "  double *outlrho = &out[~a]; ~%",   0*numC),
-  printf(fh, "  double *outlrhoux = &out[~a]; ~%", 1*numC),
-  printf(fh, "  double *outlrhouy = &out[~a]; ~%", 2*numC),
-  printf(fh, "  double *outlrhouz = &out[~a]; ~%", 3*numC),
-
-  printf(fh, "  double *outrrho = &out[~a]; ~%",   0*numC+numC*(4)),
-  printf(fh, "  double *outrrhoux = &out[~a]; ~%", 1*numC+numC*(4)),
-  printf(fh, "  double *outrrhouy = &out[~a]; ~%", 2*numC+numC*(4)),
-  printf(fh, "  double *outrrhouz = &out[~a]; ~%", 3*numC+numC*(4)),
+  printf(fh, "  double *outrho = &out[~a]; ~%",   0*numC),
+  printf(fh, "  double *outrhoux = &out[~a]; ~%", 1*numC),
+  printf(fh, "  double *outrhouy = &out[~a]; ~%", 2*numC),
+  printf(fh, "  double *outrhouz = &out[~a]; ~%", 3*numC),
 
   printf(fh, "  double incr[~a]; ~%~%", nbasis),
 
@@ -209,52 +227,16 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
   surfVars : delete(cv,varsC),
 
   FluxFuncs : [FluxRho, FluxRhoUx, FluxRhoUy, FluxRhoUz],
-  outlvars : [outlrho,outlrhoux,outlrhouy,outlrhouz],
-  outrvars : [outrrho,outrrhoux,outrrhouy,outrrhouz],
+  outvars : [outrho,outrhoux,outrhouy,outrhouz],
   for m : 1 thru cdim+1 do (
     printf(fh, "  //~a; ~%", FluxFuncs[m]),
     Flux : FluxFuncs[m],
-    fhat : calcFluxRoeAvg(dir,Flux,m),
+    fhatl : calcFluxRoeAvg(dir,"l",Flux,m),
+    fhatr : calcFluxRoeAvg(dir,"r",Flux,m),
 
-    incr_r : innerProd(surfVars, 1, subst(cv=-1, bC), fhat),
-    writeCExprs1(incr, incr_r),
-    printf(fh, "~%"),
-    incr_s : makelist(incr[i-1], i, 1, nbasis),
-    outrvarstemp : outrvars[m],
-    writeCIncrExprs1(outrvarstemp, dxr1*incr_s),
-    printf(fh, "~%"),
-
-    incr_l : -innerProd(surfVars, 1, subst(cv=1, bC), fhat),
-
-    /*sometimes incr_r has zero terms, so computing signs as signs : fullratsimp(incr_l/incr_r) leads to undefined operations*/
-    nincr_r : length(incr_r),
-    for idx : 1 thru nincr_r do (
-      if (listp(incr_r[idx])) then (
-        nincr_r_idx : length(incr_r[idx]),
-        for idx2 : 1 thru nincr_r_idx do (
-          signs[idx] : makelist(0,idxtemp_,1,nincr_r_idx),
-          if(incr_r[idx][idx2] = 0) then (
-            signs[idx][idx2] : 0
-          )
-          else(
-            signs[idx][idx2] : fullratsimp(incr_l[idx][idx2]/incr_r[idx][idx2])
-          )
-        )
-      )else(
-        if(incr_r[idx] = 0) then (
-          signs[idx] : 0
-        )
-        else(
-          signs[idx] : fullratsimp(incr_l[idx]/incr_r[idx])
-        )
-      )
-    ),
-
-    /*TODO: try after implementing 'lambda' term in roe averaging */
-    /* signs : fullratsimp(incr_l/incr_r),  */
-    incr_s : makelist(signs[i]*incr[i-1], i, 1, nbasis),
-    outlvarstemp : outlvars[m],
-    writeCIncrExprs1(outlvarstemp, dxl1*incr_s),
+    incr_l : innerProd(surfVars, 1, subst(cv=-1, bC), fhatl),
+    incr_r : innerProd(surfVars, -1, subst(cv=1, bC), fhatr),
+    writeCIncrExprs1(outvars[m], dxl1*incr_l + dxr1*incr_r),
     printf(fh, "~% ~%")
   ),
 
