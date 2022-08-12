@@ -36,7 +36,7 @@ for bInd : 1 thru length(bName) do (
     fname : sconcat("~/max-out/bc_sheath_gyrokinetic_",bName[bInd],"_p",polyOrder,".c"),
     fh : openw(fname),
   
-    printf(fh, "#include <gkyl_bc_sheath_gyrokinetic.h> ~%"),
+    printf(fh, "#include <gkyl_bc_sheath_gyrokinetic_kernels.h> ~%"),
     printf(fh, "~%"),
   
     for cI : 1 thru length(cDims) do (
