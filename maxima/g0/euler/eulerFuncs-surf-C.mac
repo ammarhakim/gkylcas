@@ -198,9 +198,9 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_u_2_l : 0.5*(ul_2_r + uc_2_l),
   avg_p_l : 0.5*(pl_r + pc_l),
 
-  avg_u_0_r : (uc_0_r + ur_0_l),
-  avg_u_1_r : (uc_1_r + ur_1_l),
-  avg_u_2_r : (uc_2_r + ur_2_l),
+  avg_u_0_r : 0.5*(uc_0_r + ur_0_l),
+  avg_u_1_r : 0.5*(uc_1_r + ur_1_l),
+  avg_u_2_r : 0.5*(uc_2_r + ur_2_l),
   avg_p_r : 0.5*(pc_r + pr_l),
 
   /* Ghat_energy = 1/2 * (u_l*(E_l+p_l) + u_r*(E_r+p_r)) - 1/2 * |max(u_l, u_r)| ((E_r + p_r) - (E_l+p_l)) */
