@@ -111,7 +111,7 @@ basisC],
   nbasis : length(bC),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *w, const double *dxv, double vth, const double *uvarl, const double *uvarc, const double *uvarr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out)  ~%{ ~%", funcNm, pOrder),
   printf(fh, "  // w: Cell-center coordinates. dxv[NDIM]: Cell spacing. statevec(l/c/r): [rho, rho ux, rho uy, rho uz] in (left/center/right) cell, uvar(l/c/r): [ux, uv, uz]  in (left/center/right) cell~%"),
-  printf(fh, "  // out: output in left/right cells ~%"),
+  printf(fh, "  // out: output in center cell ~%"),
 
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
 
@@ -175,13 +175,13 @@ basisC],
   incr_rho_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), ghat_rho_r),
 
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,1,"l")),
-  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,1,"r")),
+  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_r,1,"r")),
 
   incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,2,"l")),
-  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,2,"r")),
+  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_r,2,"r")),
 
   incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,3,"l")),
-  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,3,"r")),
+  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_r,3,"r")),
 
   outvars : [outrho,outrhoux,outrhouy,outrhouz],
   surfTerms : [incr_rho_l + incr_rho_r,incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
