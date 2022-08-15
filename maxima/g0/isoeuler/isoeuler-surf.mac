@@ -17,107 +17,11 @@ uvar : [uvar0,uvar1,uvar2]$
 uvarl : [uvar0l,uvar1l,uvar2l]$
 uvarc : [uvar0c,uvar1c,uvar2c]$
 uvarr : [uvar0r,uvar1r,uvar2r]$
-uvarll : [uvar0ll,uvar1ll,uvar2ll]$
-uvarcl : [uvar0cl,uvar1cl,uvar2cl]$
-uvarrl : [uvar0rl,uvar1rl,uvar2rl]$
+uvarle : [uvar0le,uvar1le,uvar2le]$
+uvarce : [uvar0ce,uvar1ce,uvar2ce]$
+uvarre : [uvar0re,uvar1re,uvar2re]$
 
-/*TODO: finish below func and add output to flux*/
-RoeDissipativeTerms(dir,svaridx) := block([qvars,Amat,Bmat,Cmat,alphalist,kvecs], /*disp term is far right term in eq (11.29) of Toro E. F. 2009 */
-  /*construct flux mat*/
-  if(dir = 1)then(dirvec : [1,0,0]),
-  if(dir = 2)then(dirvec : [0,1,0]),
-  if(dir = 3)then(dirvec : [0,0,1]),
-  frho : [svars[2],svars[3],svars[4]],
-  frhoux : [svars[2]*uvar[1]+vthterm(rho),svars[2]*uvar[2],svars[2]*uvar[3]],
-  frhouy : [svars[3]*uvar[1],svars[3]*uvar[2]+vthterm(rho),svars[3]*uvar[3]],
-  frhouz : [svars[4]*uvar[1],svars[4]*uvar[2],svars[4]*uvar[3]+vthterm(rho)],
-  fvec : [frho[dir],frhoux[dir],frhouy[dir],frhouz[dir]],
-  fvecsubset : makelist(fvec[tempidx],tempidx,1,cdim+1),
-  svarsubset : makelist(svars[tempidx],tempidx,1,cdim+1),
-
-  /* print("frhoux"),
-  print(frhoux),
-
-  print("fvecsubset"),
-  print(fvecsubset), */
-
-  /* Compute Jacobian  TOD: check if we can assume the rho matrix is equal to the jacobian*/
-  Amat : jacobian(fvecsubset,svarsubset),
-
-  /*maxima cant compute vth term, so we add it here*/
-  print("WARNING: assuming pOrder = 1 in disp term calc..."),   /* TODO: handle higher order terms, where thermal pressure term does not go to zero */
-  Amat : subst(diff(vthterm(rho),rho)=0,Amat), /*vth term goes to zero as (d/drho)(d/dxi(rho)) = d^2/dx^2(rho)/[d/dx(rho)] */
-
-  /*Get eigen values*/
-  [vals, vecs] : eigenvectors (Amat),
-
-  /*maxima has only 1 entry for eval/evec pairs with multiplicity >= 1, so we have to 'remap' the output here */
-  /*this code block might have errors with edge cases regarding the multiplicity of evecs, but it works here*/
-  numevals : sum(vals[2][itemp],itemp,1,length(vals[2])),
-  valsmap : makelist(0,tempidx,1,numevals),
-  vecsmap : makelist(0,tempidx,1,numevals), /*don't need this TODO: remove*/
-  mapidxevals : 1, /*idx used to map original output format to new output format, where eval/evec pairs are repeated */
-  mapidxevecs : 1,
-  for numevalsidx : 1 thru numevals do(
-    valsmap[numevalsidx] : vals[1][mapidxevals],
-    vecsmap[numevalsidx] : vecs[mapidxevals][mapidxevecs],
-    if(vals[2][mapidxevals] = 1)then(mapidxevals : mapidxevals + 1, mapidxevecs : 1)
-    else(vals[2][mapidxevals] : vals[2][mapidxevals] - 1,
-      if(mapidxevecs = length(vecs[mapidxevals]))then(mapidxevecs : mapidxevecs)
-      else(mapidxevecs : mapidxevecs + 1)
-    )
-  ),
-
-  print("vals"),
-  print(valsmap),
-  print("vecs"),
-  print(vecsmap),
-
-  /*get our values in appropriate form*/
-  sublist : makelist(svars[tempidx]=svarsr[tempidx]-svarsl[tempidx],tempidx,1,3),
-  sublist2 : makelist(uvar[tempidx]=uvarr[tempidx]-uvarl[tempidx],tempidx,1,3), /*TODO: check defn of \tilde(U), \tilde(rho) etc.. and confirm that this is correct */
-  vecsmap : subst(sublist,vecsmap),
-  vecsmap : subst(sublist2,vecsmap),
-  valsmap : subst(sublist,valsmap),
-  valsmap : subst(sublist2,valsmap),
-
-  /*TODO: we will need to compute alpha_i when pOrder > 1*/
-  /*WARNING: if eval contains division, our weak formulation doesnt work. TODO: check evals for division for pOrder > 1*/
-  /*otherwise, we can just scale by the appropriate eigenval, as other terms are zero*/
-  delS : svarsr-svarsl,
-
-  /*dispterm : abs(valsmap[svaridx])*delS[svaridx],*/  /*TODO: convert to sum when pOrder > 1; see 11.29; */ /*TODO: handle abs term in weak formulation*/
-  dispterm : valsmap[svaridx]*delS[svaridx],
-
-  /*break up term into each multiplication term*/ /*TODO: check that this works for polys of order > 1 */
-  disptermparts[1] : part(dispterm,1),
-  disptermparts[2] : part(dispterm,2),
-  if(disptermparts[1]*disptermparts[2] # dispterm)then(print("ERROR, could not parse dispterm solution correctly!!!!")), /*TODO: add line to break computation */
-
-  /*TODO: expand, and do weak operations to find disp term */
-  /* for
-    doExpand1(disptermparts[1],bC);
-    doExpand1(disptermparts[2],bC); */
-
-
-
-
-
-  /*TODO: sub in weak formulation (not sure of order of ops for weak formulation esp with jacobian and evals)*/
-  print("dispterm"),
-  print(dispterm),
-  disptermtemp : 0,
-
-
-
-
-  print("dispterm subbed in"),
-  print(dispterm),
-
-  return (disptermtemp)
-);
-
-FluxRho(dir,cell,cellside) := block([F,svars,sltemp],
+ExpandRho(cell,cellside) := block([F,svars,setemp],
   if(cell = "l")then(svars : svarsl),
   if(cell = "c")then(svars : svarsc),
   if(cell = "r")then(svars : svarsr),
@@ -125,47 +29,75 @@ FluxRho(dir,cell,cellside) := block([F,svars,sltemp],
   if(cellside = "l")then(substval : -1),
   if(cellside = "r")then(substval : 1),
 
-  sltemp : doExpand1(svars[dir+1],bC),
-  F : subst(cv=substval, sltemp),
+  setemp : doExpand1(svars[1],bC), /*TODO: don't use "l" to denote expansion*/
+  F : subst(cv=substval, setemp),
 
   return (F)
 );
 
-FluxRhoUi(dir,cell,cellside,idir) := block([F,svars,sltemp,rltemp,uvars,ultemp], /* idir is the U_i (note: this var starts indexing at 1)*/
-  if(cell = "l")then(svars : svarsl, uvars : uvarl),
-  if(cell = "c")then(svars : svarsc, uvars : uvarc),
-  if(cell = "r")then(svars : svarsr, uvars : uvarr),
+ExpandRhoUi(dir,cell,cellside) := block([F,svars,setemp],
+  if(cell = "l")then(svars : svarsl),
+  if(cell = "c")then(svars : svarsc),
+  if(cell = "r")then(svars : svarsr),
 
   if(cellside = "l")then(substval : -1),
   if(cellside = "r")then(substval : 1),
 
-  F : 0, /*TODO: check this*/
-  if(dir = idir)then(
-    rltemp : doExpand1(svars[1],bC),
-    sltemp : doExpand1(svars[dir+1],bC),
-    ultemp : doExpand1(uvars[dir],bC),
-
-    F : innerProd(surfVars,1,rltemp,ultemp) + vthsq*innerProd(surfVars,1,bC,diff(rltemp,varsC[dir]))
-  ),
-
-  F : subst(cv=substval, F),
+  setemp : doExpand1(svars[dir+1],bC),
+  F : subst(cv=substval, setemp),
 
   return (F)
-)$
+);
 
-FluxRhoUx(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,1))$
-FluxRhoUy(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,2))$
-FluxRhoUz(dir,cell,cellside) := block([],FluxRhoUi(dir,cell,cellside,3))$
+ExpandUi(dir,cell,cellside) := block([F,svars,sltemp],
+  if(cell = "l")then(uvar : uvarl),
+  if(cell = "c")then(uvar : uvarc),
+  if(cell = "r")then(uvar : uvarr),
 
-calcFluxRoeAvg(dir,centercellside,Flux,svaridx) := block([F],
-  /*TODO: add dissipative term i.e. far right term eq 2.30; right now we are using central fluxes with dispterm = 0*/
-  if(centercellside = "l")then(F : 0.5*(Flux(dir,"l","r")+Flux(dir,"c","l"))),
-  if(centercellside = "r")then(F : 0.5*(Flux(dir,"c","r")+Flux(dir,"r","l"))),
+  if(cellside = "l")then(substval : -1),
+  if(cellside = "r")then(substval : 1),
+
+  setemp : doExpand1(uvar[dir],bC),
+  F : subst(cv=substval, setemp),
 
   return (F)
+);
+
+calcNetFluxRho(idir,centercellside) := block([],
+  if(centercellside = "l")then(avg_rhoui : 0.5*(ExpandRhoUi(idir,"l","r")+ExpandRhoUi(idir,"c","l"))),
+  if(centercellside = "r")then(avg_rhoui : 0.5*(ExpandRhoUi(idir,"c","r")+ExpandRhoUi(idir,"r","l"))),
+
+  if(centercellside = "l")then(jump_rho : 0.5*(ExpandRho("c","l")-ExpandRho("l","r"))),
+  if(centercellside = "r")then(jump_rho : 0.5*(ExpandRho("r","l")-ExpandRho("c","r"))),
+
+  if(centercellside = "l")then(umax : u_max_l),
+  if(centercellside = "r")then(umax : u_max_r),
+
+  ghat_rho_exp : avg_rhoui-umax*jump_rho,
+
+  return (ghat_rho_exp)
 )$
 
-calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm, basisConstant, i, bP, bC, numC, nbasis, cid, vid, cv, vv, surfVars, FluxFuncs, outlvars, outrvars, Flux, substval, fhat, incr_r, incr_s, outrvarstemp, incr_l, nincr_r, outlvarstemp, varsC, basisC],
+calcNetFluxRhoUi(ighat_rho_exp,idir,centercellside) := block([],
+  if(centercellside = "l")then(avg_ui : 0.5*(ExpandUi(idir,"l","r")+ExpandUi(idir,"c","l"))),
+  if(centercellside = "r")then(avg_ui : 0.5*(ExpandUi(idir,"c","r")+ExpandUi(idir,"r","l"))),
+
+  if(centercellside = "l")then(avg_rho : 0.5*(ExpandRho("l","r")+ExpandRho("c","l"))),
+  if(centercellside = "r")then(avg_rho : 0.5*(ExpandRho("c","r")+ExpandRho("r","l"))),
+
+  if(idir = dir) then (ghat_rhoui_exp : ighat_rho_exp*avg_ui+vthsq*avg_rho)
+  else (ghat_rhoui_exp : ighat_rho_exp*avg_ui),
+
+  return (ghat_rhoui_exp)
+
+)$
+
+calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm, basisConstant, i, bP, bC, numC, nbasis, cid, vid,
+cv, vv, surfVars, substval, avg_rhoui, jump_rho, umax, ghat_rho_exp,
+ghat_rho_l_exp, ghat_rho_r_exp, incr_rho_l, incr_rho_r, setemp, avg_ui,
+avg_rho, ghat_rhoui_exp, incr_rhoux_l, incr_rhoux_r, incr_rhouy_l,
+incr_rhouy_r, incr_rhouz_l, incr_rhouz_r, outvars, surfTerms, surf, varsC,
+basisC],
   kill(varsC, varsP, basisC, basisP),
 
   /* load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")), */
@@ -181,8 +113,7 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
   printf(fh, "  // w: Cell-center coordinates. dxv[NDIM]: Cell spacing. statevec(l/c/r): [rho, rho ux, rho uy, rho uz] in (left/center/right) cell, uvar(l/c/r): [ux, uv, uz]  in (left/center/right) cell~%"),
   printf(fh, "  // out: output in left/right cells ~%"),
 
-  printf(fh, "  const double dxl1 = 2.0/dxv[~a]; ~%", dir-1),
-  printf(fh, "  const double dxr1 = 2.0/dxv[~a]; ~%", dir-1),
+  printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
 
   printf(fh, "  const double *rhol = &statevecl[~a]; ~%",   0*numC),
   printf(fh, "  const double *rhou0l = &statevecl[~a]; ~%", 1*numC),
@@ -226,18 +157,38 @@ calcIsoEulerUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, pOrder) := block(
   vv : varsV[dir],
   surfVars : delete(cv,varsC),
 
-  FluxFuncs : [FluxRho, FluxRhoUx, FluxRhoUy, FluxRhoUz],
-  outvars : [outrho,outrhoux,outrhouy,outrhouz],
-  for m : 1 thru cdim+1 do (
-    printf(fh, "  //~a; ~%", FluxFuncs[m]),
-    Flux : FluxFuncs[m],
-    fhatl : calcFluxRoeAvg(dir,"l",Flux,m),
-    fhatr : calcFluxRoeAvg(dir,"r",Flux,m),
+  printf(fh, "  double u_l_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uvar0l); ~%", basisFun, cdim, pOrder),
+  printf(fh, "  double u_c_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uvar0c); ~%", basisFun, cdim, pOrder),
+  printf(fh, "  double u_c_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uvar0c); ~%", basisFun, cdim, pOrder),
+  printf(fh, "  double u_r_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uvar0r); ~%", basisFun, cdim, pOrder),
+  printf(fh, "  double u_max_l = fmax(fabs(u_l_r), fabs(u_c_l)); ~%"),
+  printf(fh, "  double u_max_r = fmax(fabs(u_c_r), fabs(u_r_l)); ~%"),
 
-    incr_l : innerProd(surfVars, 1, subst(cv=-1, bC), fhatl),
-    incr_r : innerProd(surfVars, -1, subst(cv=1, bC), fhatr),
-    writeCIncrExprs1(outvars[m], dxl1*incr_l + dxr1*incr_r),
-    printf(fh, "~% ~%")
+  printf(fh, "  //FluxRho; ~%"),
+  ghat_rho_l_exp : calcNetFluxRho(dir,"l"),
+  ghat_rho_r_exp : calcNetFluxRho(dir,"r"),
+
+  printf(fh, "  double ghat_rho_l = ~a; ~%", float(expand(ghat_rho_l_exp))),
+  printf(fh, "  double ghat_rho_r = ~a; ~%", float(expand(ghat_rho_r_exp))),
+
+  incr_rho_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), ghat_rho_l),
+  incr_rho_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), ghat_rho_r),
+
+  incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,1,"l")),
+  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,1,"r")),
+
+  incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,2,"l")),
+  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,2,"r")),
+
+  incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), calcNetFluxRhoUi(ghat_rho_l,3,"l")),
+  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), calcNetFluxRhoUi(ghat_rho_l,3,"r")),
+
+  outvars : [outrho,outrhoux,outrhouy,outrhouz],
+  surfTerms : [incr_rho_l + incr_rho_r,incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
+  for m : 1 thru 4 do (
+    surf : surfTerms[m],
+    writeCIncrExprs1(outvars[m], dx1*surf),
+    printf(fh, "~%")
   ),
 
   printf(fh, "} ~%")
@@ -247,19 +198,20 @@ calcIsoEulerSurfUpdater(fh, cdim, vdim, basisFun, pOrder) := block([dir],
   /* printf(fh, "#include <IsoEulerModDecl.h> ~%"), */
   printf(fh, "#include <gkyl_isoeuler_kernels.h> ~%"),
   for dir : 1 thru cdim do (
+    printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", "ser", dir, pOrder, dir), /*TODO: do 2d 3d kerns*/
     funcName : sconcat("isoeuler_surf",cvars_name[dir],"_", c, "x", "_", "ser"),
     calcIsoEulerUpdateInDir(dir, fh, funcName, cdim, vdim, basisFun, pOrder)
   )
 )$
 
-pmax:3$
+pmax:2$
 cmax:3$
 for c : 1 thru cmax do (
   for pOrder : 1 thru pmax do (
     v : c,
     fname : sconcat("~/max-out/isoeuler_surf",cvars_name[c],"_", c, "x", "_p", pOrder, ".c"),
     fh : openw(fname),
-    calcIsoEulerSurfUpdater(fh, c, v, "Ser", pOrder),
+    calcIsoEulerSurfUpdater(fh, c, v, "ser", pOrder),
     close(fh)
   )
 );
