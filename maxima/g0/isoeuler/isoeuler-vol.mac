@@ -53,19 +53,6 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
 
   printf(fh, "  double vthsq = vth*vth; ~%"), /*maxima will write out vth^2 in c/cpp code, but the ^ operator is the XOR operator, this is a quick workaround*/
 
-  /*cfl calc*/
-  cflPt : makelist(varsC[d]=0, d, 1, length(varsC)),   /* specify a point to evaluate maximum speed at for use in computing CFL */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),   /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-
-  /*TODO: handle unit conversions*/
-  for dir : 1 thru cdim do (   /* compute stable time step, max speed = |u| + cs, cs = sqrt(5/3*p/rho), p~T~vth^2  */
-    umid : gcfac(float(expand(subst(cflPt, uvarl[dir])))),
-    rhomid : gcfac(float(expand(subst(cflPt, rhol)))),
-    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, 5./3.*vthsq/rhomid)
-  ),
-  printf(fh, "~%"),
-
-
   rhovar : [statevec[1]],
   rhou : [statevec[2],statevec[3],statevec[4]],
   rhol : doExpand1(rhovar[1], bC),
@@ -78,6 +65,19 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   uvarxl : doExpand1(uvar[1], bC),
   uvaryl : doExpand1(uvar[2], bC),
   uvarzl : doExpand1(uvar[3], bC),
+  uvarl : [uvarxl,uvaryl,uvarzl],
+
+  /*cfl calc*/
+  cflPt : makelist(varsC[idx]=0, idx, 1, length(varsC)),   /* specify a point to evaluate maximum speed at for use in computing CFL */
+  printf(fh, "  double alpha_mid = 0.0; ~%"),   /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
+
+  /*TODO: handle unit conversions*/
+  for dir : 1 thru cdim do (   /* compute stable time step, max speed = |u| + cs, cs = sqrt(5/3*p/rho), p~T~vth^2  */
+    umid : gcfac(float(expand(subst(cflPt, uvarl[dir])))),
+    rhomid : gcfac(float(expand(subst(cflPt, rhol)))),
+    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, 5./3.*vthsq/rhomid)
+  ),
+  printf(fh, "~%"),
 
   t1 : (t1 : 0, for dir : 1 thru cdim do (
      t1 : t1 + dx1[dir]*innerProd(varsC,1,rhol,rhoul[dir])
