@@ -29,7 +29,7 @@ ExpandRho(cell,cellside) := block([F,svars,setemp],
   if(cellside = "l")then(substval : -1),
   if(cellside = "r")then(substval : 1),
 
-  setemp : doExpand1(svars[1],bC), /*TODO: don't use "l" to denote expansion*/
+  setemp : doExpand1(svars[1],bC), 
   F : subst(cv=substval, setemp),
 
   return (F)

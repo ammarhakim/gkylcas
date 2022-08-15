@@ -53,6 +53,19 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
 
   printf(fh, "  double vthsq = vth*vth; ~%"), /*maxima will write out vth^2 in c/cpp code, but the ^ operator is the XOR operator, this is a quick workaround*/
 
+  /*cfl calc*/
+  cflPt : makelist(varsC[d]=0, d, 1, length(varsC)),   /* specify a point to evaluate maximum speed at for use in computing CFL */
+  printf(fh, "  double alpha_mid = 0.0; ~%"),   /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
+
+  /*TODO: handle unit conversions*/
+  for dir : 1 thru cdim do (   /* compute stable time step, max speed = |u| + cs, cs = sqrt(5/3*p/rho), p~T~vth^2  */
+    umid : gcfac(float(expand(subst(cflPt, uvarl[dir])))),
+    rhomid : gcfac(float(expand(subst(cflPt, rhol)))),
+    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, 5./3.*vthsq/rhomid)
+  ),
+  printf(fh, "~%"),
+
+
   rhovar : [statevec[1]],
   rhou : [statevec[2],statevec[3],statevec[4]],
   rhol : doExpand1(rhovar[1], bC),
@@ -72,21 +85,21 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   t1),
   if (not(listp(t1))) then (t1 : [t1]), /*edge case where above term is not a list*/
   t2 : (t2 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarxl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
+     if (dir = 1) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarxl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
      if (dir = 2) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvaryl)),
      if (dir = 3) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarzl))
      ),
   t2),
   t3 : (t3 : 0, for dir : 1 thru cdim do (
      if (dir = 1) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarxl)),
-     if (dir = 2) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvaryl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
+     if (dir = 2) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvaryl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
      if (dir = 3) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarzl))
      ),
   t3),
   t4 : (t4 : 0, for dir : 1 thru cdim do (
      if (dir = 1) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarxl)),
      if (dir = 2) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvaryl)),
-     if (dir = 3) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarzl) + vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir])))
+     if (dir = 3) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarzl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir])))
      ),
   t4),
 
@@ -94,12 +107,10 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   for m : 1 thru cdim+1 do (
     vt : volTerms[m],
     writeCIncrExprs1(lhs[m], vt),
-    expr : float(expand(vt)),
     printf(fh, "~%")
   ),
 
-  /*TODO:  cfl convergence calculation */
-  printf(fh,"  return 0.; ~%"),
+  printf(fh,"  return alpha_mid; ~%"),
 
   printf(fh, "} ~%")
 
