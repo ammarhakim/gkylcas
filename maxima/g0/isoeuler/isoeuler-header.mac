@@ -2,7 +2,7 @@ cvars : [X, Y, Z]$
 cvars_name : ["x","y","z"]$
 
 printPrototypes() := block([pmax,dirlabel],
-  pmax:3,
+  pmax:2,
   for ci : 1 thru 3 do (
     for pi : 1 thru pmax do (
       printf(fh, "GKYL_CU_DH double isoeuler_vol_~ax_ser_p~a(const double *w, const double *dxv, const double vth, const double *uvar, const double *statevec, double* GKYL_RESTRICT out); ~%", ci, pi),

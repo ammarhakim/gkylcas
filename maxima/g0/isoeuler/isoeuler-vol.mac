@@ -105,7 +105,7 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
 
 )$
 
-pmax:3$
+pmax:2$
 cmax:3$
 for pOrder : 1 thru pmax do (
   for c : 1 thru cmax do (
