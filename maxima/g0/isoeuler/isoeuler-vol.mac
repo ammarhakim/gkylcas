@@ -80,26 +80,26 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   printf(fh, "~%"),
 
   t1 : (t1 : 0, for dir : 1 thru cdim do (
-     t1 : t1 + dx1[dir]*innerProd(varsC,1,rhol,rhoul[dir])
+     t1 : t1 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhol*rhoul[dir])
      ),
   t1),
   if (not(listp(t1))) then (t1 : [t1]), /*edge case where above term is not a list*/
   t2 : (t2 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarxl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
-     if (dir = 2) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvaryl)),
-     if (dir = 3) then (t2 : t2 + dx1[dir]*innerProd(varsC,1,rhouxl,uvarzl))
+     if (dir = 1) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouxl*uvarxl) + dx1[dir]*vthsq*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),diff(rhol,varsC[dir]))),
+     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouxl*uvaryl)),
+     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouxl*uvarzl))
      ),
   t2),
   t3 : (t3 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarxl)),
-     if (dir = 2) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvaryl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir]))),
-     if (dir = 3) then (t3 : t3 + dx1[dir]*innerProd(varsC,1,rhouyl,uvarzl))
+     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouyl*uvarxl)),
+     if (dir = 2) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouyl*uvaryl) + dx1[dir]*vthsq*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),diff(rhol,varsC[dir]))),
+     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouyl*uvarzl))
      ),
   t3),
   t4 : (t4 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarxl)),
-     if (dir = 2) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvaryl)),
-     if (dir = 3) then (t4 : t4 + dx1[dir]*innerProd(varsC,1,rhouzl,uvarzl) + dx1[dir]*vthsq*innerProd(varsC,1,bC,diff(rhol,varsC[dir])))
+     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouzl*uvarxl)),
+     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouzl*uvaryl)),
+     if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),rhouzl*uvarzl) + dx1[dir]*vthsq*calcInnerProdList(varsC,1,diff(bC, varsC[dir]),diff(rhol,varsC[dir])))
      ),
   t4),
 
