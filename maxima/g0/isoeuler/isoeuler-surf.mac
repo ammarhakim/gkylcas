@@ -1,7 +1,7 @@
 load("modal-basis");
 load("out-scripts");
 load("recovery")$
-load("node_locations")$ /*TODO: fix pathing to this file in init and change this pathing to match the relative pathing of other scripts*/
+load("nodal_operations/node_locations")$ /*TODO: fix pathing to this file in init and change this pathing to match the relative pathing of other scripts*/
 fpprec : 24$
 ratprint: false$
 
@@ -151,7 +151,7 @@ nodesSer3xp1, nodesSer3xp2, nodesSer3xp3, nodesSer4xp0, nodesSer4xp1,
 nodesSer4xp2, nodesSer4xp3, nodesSer5xp0, nodesSer5xp1, nodesSer5xp2,
 nodesSer5xp3, nodesSer6xp0, cvars, cvars_name, svars, svarsl, svarsc, svarsr,
 svarsll, svarscl, svarsrl, uvar, uvarl, uvarc, uvarr, uvarle, uvarce, uvarre,
-lst_rho_l, lst_rho_c, lst_rho_r, 
+lst_rho_l, lst_rho_c, lst_rho_r,
 lst_rhou_0_l, lst_rhou_0_c, lst_rhou_0_r, lst_rhou_1_l, lst_rhou_1_c,
 lst_rhou_1_r, lst_rhou_2_l, lst_rhou_2_c, lst_rhou_2_r, lst_u_0_l, lst_u_0_c,
 lst_u_0_r, lst_u_1_l, lst_u_1_c, lst_u_1_r, lst_u_2_l, lst_u_2_c, lst_u_2_r,
@@ -473,7 +473,6 @@ ghat_rho_l_e, tempghat_rho_r, ghat_rho_r_c, ghat_rho_r_e],
   )
   else (
     /* Zero out components of recovered functions which are empty and make new expansions. */
-    /*TODO: zero out terms similiarly for ghat and possibly elsewhere*/
     urec_0_l_e : doExpandLst(doMakeExprLst(urec_0_l_c, urec_0_l), bSurf),
     urec_1_l_e : doExpandLst(doMakeExprLst(urec_1_l_c, urec_1_l), bSurf),
     urec_2_l_e : doExpandLst(doMakeExprLst(urec_2_l_c, urec_2_l), bSurf),
@@ -563,7 +562,6 @@ calcIsoEulerSurfUpdater(fh, cdim, vdim, basisFun, pOrder) := block([dir],
 pmax:2$
 cmax:3$
 print("TODO: consider using recovu*recov*rho for rhoflux")$
-print("TODO: general optimization by reusing ghatrho when possible")$
 for c : 1 thru cmax do (
   for pOrder : 1 thru pmax do (
     v : c,
