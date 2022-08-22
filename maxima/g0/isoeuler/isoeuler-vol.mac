@@ -72,10 +72,10 @@ calcIsoEulerVolUpdater(fh, funcNm, cdim, vdim, basisFun, pOrder) := block([modNm
   printf(fh, "  double alpha_mid = 0.0; ~%"),   /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
 
   /*TODO: handle unit conversions*/
-  for dir : 1 thru cdim do (   /* compute stable time step, max speed = |u| + cs, cs = sqrt(5/3*p/rho), p~T~vth^2  */
+  for dir : 1 thru cdim do (
     umid : gcfac(float(expand(subst(cflPt, uvarl[dir])))),
     rhomid : gcfac(float(expand(subst(cflPt, rhol)))),
-    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, 5./3.*vthsq/rhomid)
+    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, vthsq)
   ),
   printf(fh, "~%"),
 
