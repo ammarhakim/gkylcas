@@ -19,10 +19,21 @@ disp(printf(false,"Creating gkyl_fem_parproj_kernels.h"))$
 fname : "~/max-out/gkyl_fem_parproj_kernels.h"$
 fh    : openw(fname)$
 
+printf(fh, "// Gkyl ------------------------------------------------------------------------~%")$
+printf(fh, "//~%")$
+printf(fh, "// Header file for parallel FEM projection operator.~%")$
+printf(fh, "//~%")$
+printf(fh, "//    _______     ___~%")$
+printf(fh, "// + 6 @ |||| # P ||| +~%")$
+printf(fh, "//------------------------------------------------------------------------------~%")$
+printf(fh, "~%")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+printf(fh, "// This needs to be inside EXTERN_C~%")$
+printf(fh, "#include <gkyl_mat_triples.h> ~%")$
 printf(fh, "~%")$
 
 for bInd : 1 thru length(bName) do (
