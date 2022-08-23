@@ -41,6 +41,10 @@ for bInd : 1 thru length(bName) do (
       /* Local to global mapping. */
       printf(fh, "GKYL_CU_DH void fem_parproj_local_to_global_~ax_~a_p~a(const int numCellsPar, const int parIdx, long *globalIdxs);~%", c, bName[bInd], polyOrder),
 
+      /* Left side matrix stencil (weighted and unweighted). */
+      printf(fh, "void fem_parproj_lhs_stencil_~ax_~a_p~a(const double *weight, const long *globalIdxs, gkyl_mat_triples *tri);~%", c, bName[bInd], polyOrder),
+      printf(fh, "void fem_parproj_weighted_lhs_stencil_~ax_~a_p~a(const double *weight, const long *globalIdxs, gkyl_mat_triples *tri);~%", c, bName[bInd], polyOrder),
+
       /* Right side source stencil (mass matrix . modal_to_nodal matrix). */
       printf(fh, "GKYL_CU_DH void fem_parproj_src_stencil_~ax_~a_p~a(const double *rho, long nodeOff, const long *globalIdxs, double *bsrc);~%", c, bName[bInd], polyOrder),
 
