@@ -1,3 +1,5 @@
+kill(all) $/*TODO: remove this and fix var leak when header and then vol kern script is called before this one"*/
+
 load("modal-basis");
 load("out-scripts");
 load("recovery")$
