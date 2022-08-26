@@ -4,9 +4,9 @@ load("utilities")$
 load(stringproc)$
 fpprec : 24$
 
-/* This script generates the kernels for the volume term
-   diffusion contribution from Lenard Bernstein operator to the
-   Vlasov equation. */
+/* This script generates the kernels for the diff volume
+   kernel of the Lenard Bernstein operator for the
+   Vlasov equation. It only computes the CFL frequency. */
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
@@ -15,7 +15,7 @@ rdv2     : [rdvx2, rdvy2, rdvz2]$
 rdvSq4   : [rdvxSq4, rdvySq4, rdvzSq4]$
 
 calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,zr,cid,vid,dir,f_e,nuVtSqSum_e,
+  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,cid,vid,dir,f_e,nuVtSqSum_e,
    facDiff_c,facDiff_NoZero,polyFact,incrDiff,vdir,expr,i],
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
@@ -25,6 +25,11 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Number of basis monomials. */
   NP : length(bP),  NC : length(bC),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
 
   /* Specify a point to evaluate alpha at for use in computing CFL */
   /* Here we choose to evaluate things in the middle of the cell, where
@@ -75,8 +80,8 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   facDiff_NoZero_e : doExpand(facDiff_NoZero, bC),
-  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/dv_i */
-  polyFact : ((polyOrder+1)^2)/(2*polyOrder+1),
+  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/(dv_i/(2*(p+1)))^2 */
+  polyFact : (pOrderV+1)^2,
 
   incrDiff : 0,
   facDiff_mid : makelist(0, i, 1, vdim),

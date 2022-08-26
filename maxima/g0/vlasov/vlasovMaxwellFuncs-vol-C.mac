@@ -48,6 +48,11 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
   /* Number of basis monomials. */
   NP : length(bP),
   NC : length(bC),
@@ -91,8 +96,8 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     )
   ),
 
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   /* alpha_cdim = v, alpha_vdim = q/m (E + v x B) */
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
@@ -111,7 +116,7 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     for i : 1 thru NP do (
       if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], expr[i])
     ),
-    printf(fh, "  alpha_mid += fabs(~a)+~a; ~%", wdx[cdir], 0.5*dvdx[cdir]),
+    printf(fh, "  cflFreq_mid += ~a*(fabs(~a)+~a); ~%", float(2*polyOrder+1), wdx[cdir], 0.5*dvdx[cdir]),
     printf(fh, "~%"),
     /* zero out components of alpha which are empty */
     alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
@@ -137,9 +142,10 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     alpha_vdim_NoZero   : doMakeExprLstOff(alpha_vdim_c, alpha_vdim, a0),
     alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
-    /* evaluate alpha_vdim at cflPt to approximate max(abs(alpha_vdim))/dv_i */
+    /* evaluate alpha_vdim at cflPt to approximate
+    ** max(abs(alpha_vdim))/(dv_i/(2p+1)) */
     amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(vdir-1),alpha_vdim_NoZero_e))))),
-    printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+    printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
     printf(fh, "~%"),
     /* Volume increment from configuration space. */
     incr_vdim : incr_vdim+subst(a0=NP*(vdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+vdir]), alpha_vdim_NoZero_e*f_e))
@@ -150,6 +156,6 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
 
   printf(fh, "~%"),
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 )$
