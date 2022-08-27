@@ -532,9 +532,9 @@ calcAndWrite_upwindIncr_wLFfluxes(fH,basisType,polyOrder,bP,surfDir,alphaSurf_e)
 )$
 
 calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := block(
-  [i,varsP,numP,cdim,vdim,pDim,surfVar,surfIntVars,surf_cvars,surf_vvars,surfNodes,numNodes,
-   bSurf,numSurf,surfBasis,ignoreVars,alphaSurfL_c,alphaSurfL_e,alphaSurfL_n,alphaSurfR_c,
-   alphaSurfR_e,alphaSurfR_n],
+  [i,varsP,numP,cdim,vdim,pDim,surfVar,surfIntVars,pOrderCFL,surf_cvars,surf_vvars,
+   surfNodes,numNodes,bSurf,numSurf,surfBasis,ignoreVars,alphaSurfL_c,alphaSurfL_e,
+   alphaSurfL_n,alphaSurfR_c,alphaSurfR_e,alphaSurfR_n],
   /* Compute the CFL frequency from quadrature node contributions on the
      surfaces in the dir dimension, given a phase-space volume expansion
      of the speed (i.e. coming from doExpand(alpha,bP)). */
@@ -548,6 +548,11 @@ calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := 
   if isInList(vpar,varsP) then vdim : vdim+1,
   if isInList(mu,varsP) then vdim : vdim+1,
   cdim : pDim-vdim,
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
 
   surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
   surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
@@ -589,7 +594,7 @@ calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := 
   printf(fh, "  // Evaluate alpha at left surface quadrature points.~%"),
   for i : 1 thru numNodes do (
     printf(fh, "  alphaL = ~a; ~%", gcfac(float(alphaSurfL_n[i]))),
-    printf(fh, "  cflFreq += -0.5*(alphaL-fabs(alphaL)); ~%")
+    printf(fh, "  cflFreq += -~a*(alphaL-fabs(alphaL)); ~%",float(0.5*(2*pOrderCFL+1)))
   ),
 
   /*
@@ -601,6 +606,6 @@ calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := 
   printf(fh, "  // Evaluate alpha at right surface quadrature points.~%"),
   for i : 1 thru numNodes do (
     printf(fh, "  alphaR = ~a; ~%", gcfac(float(alphaSurfR_n[i]))),
-    printf(fh, "  cflFreq += 0.5*(alphaR+fabs(alphaR)); ~%")
+    printf(fh, "  cflFreq += ~a*(alphaR+fabs(alphaR)); ~%",float(0.5*(2*pOrderCFL+1)))
   )
 )$

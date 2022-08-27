@@ -75,6 +75,6 @@ calcMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  cflFreq += meq->c/dx[~a]; ~%", d-1)
   ),
   
-  printf(fh, "  return cflFreq; ~%"),
+  printf(fh, "  return ~a*cflFreq; ~%", float(2*polyOrder+1)),
   printf(fh, "} ~%")
 )$
