@@ -1,7 +1,8 @@
 load("euler/eulerPKPMFuncs-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to an euler equation. */
+   updates from the surface term due to an euler equation
+   in the parallel-kinetic-perpendicular-moment (pkpm) model. */
 
 /* ...... USER INPUTS........ */
 
@@ -9,7 +10,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 1$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -17,7 +18,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -33,22 +34,22 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating surface euler",bName[bInd]," ~axp~a"),d,polyOrder)),
+      disp(printf(false,sconcat("Creating surface euler pkpm model",bName[bInd]," ~axp~a"),d,polyOrder)),
       for dir : 1 thru d do ( 
-        if (dir = 1) then fname : sconcat("~/max-out/euler_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 2) then fname : sconcat("~/max-out/euler_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 3) then fname : sconcat("~/max-out/euler_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 1) then fname : sconcat("~/max-out/euler_pkpm_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/euler_pkpm_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/euler_pkpm_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("euler_surf"),
+        funcName : sconcat("euler_pkpm_surf"),
         printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
         if d = 1 then (
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d, polyOrder, dir),
-          calcEuler1xUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
+          calcEulerPKPM1xUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
         )
         else (
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d, polyOrder, dir),
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d, polyOrder),
-          calcEulerUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
+          calcEulerPKPMUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
         ),
         close(fh)
       )

@@ -1,0 +1,79 @@
+/* Generate kernels for Gamma^2 = 1/(1 - V^2/c^2), the Lorentz boost factor
+    for a velocity V. Uses weak multiplication to first get the expansion of 1 - V^2/c^2.
+    Since the resulting division is simpler (numerator is just 1.0), perform the weak division
+    by inverting the matrix by hand. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+calcGamma2(fh, funcNm, cdim, numComp, basisFun, polyOrder) := block([bC, NC, 
+  Vx_e, Vy_e, Vz_e, denom_e, expr, Gamma2_inv_e, Gamma2_e, Gamma2_c, 
+  eq, E, det_E, inv_E, norm_inv_E, unit],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  NC  : length(bC),
+
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *V, double *Gamma2) ~%{ ~%", funcNm),
+  printf(fh, "  // V:      Input velocity. ~%"),
+  printf(fh, "  // Gamma2: Gamma^2 = 1/(1 - V^2/c^2). ~%"),
+  printf(fh, " ~%"),
+
+  /* Get pointers to components of velocity (based on how many components are present). */
+  for dir : 1 thru numComp do (
+    printf(fh, "  const double *V_~a = &V[~a]; ~%", dir-1, (dir-1)*NC)
+  ),
+
+  Vx_e : doExpand1(V_0, bC),
+  Vy_e : doExpand1(V_1, bC),
+  Vz_e : doExpand1(V_2, bC),
+
+  if (numComp = 1) then (
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - Vx_e*Vx_e)
+  )
+  elseif (numComp = 2) then (
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - Vx_e*Vx_e - Vy_e*Vy_e)
+  )
+  else (
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - Vx_e*Vx_e - Vy_e*Vy_e - Vz_e*Vz_e)
+  ),
+
+  printf(fh, "  double Gamma2_inv[~a] = {0.0}; ~%", NC),
+
+  expr : gcfac(float(expand(radcan(denom_e)))),
+
+  /* Write our inverse of Gamma^2, which only needs weak multiplication */
+  for i : 1 thru NC do (
+    if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", Gamma2_inv[i-1], expr[i])
+  ),
+  printf(fh, " ~%"),
+  Gamma2_inv_e : doExpand1(Gamma2_inv, bC),
+  Gamma2_e : doExpand1(Gamma2, bC), 
+  Gamma2_c : makelist(Gamma2[i],i,0,NC-1),
+
+  /*........... Matrix for inverse to compute Gamma^2 .............*/
+  eq : calcInnerProdList(varsC,Gamma2_e,bC,Gamma2_inv_e),
+  E  : fullratsimp(coefmatrix(eq,Gamma2_c)),
+  det_E : determinant(E),
+  inv_E : invert(E),
+
+  printf(fh, "  double det = ~a; ~%", float(expand(det_E))),
+
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  norm_inv_E : inv_E*det_E*unit[1],
+
+  for i : 1 thru NC do (
+    printf(fh, "  ~a = ~a; ~%", Gamma2[i-1], float(expand(norm_inv_E[i,1]))/det)
+  ),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+

@@ -1,8 +1,8 @@
-load("euler/eulerPKPMFuncs-vol-C")$
+load("vlasov/SRGammaFuncs")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to an euler equation
-   in the parallel-kinetic-perpendicular-moment (pkpm) model. */
+    Gamma^2 = 1/(1 - V^2/c^2), the square of the Lorentz
+    Boost factor. */
 
 /* ...... USER INPUTS........ */
 
@@ -10,7 +10,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 1$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -22,7 +22,7 @@ maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser", "tensor"]$
+bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
@@ -34,11 +34,10 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume euler PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fname : sconcat("~/max-out/Gamma2_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_vol_", d, "x_", bName[bInd]),
-      calcEulerPKPMVolUpdater(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("Gamma2_", d, "x_", bName[bInd]),
+      calcGamma2(fh, funcName, d, 3, bName[bInd], polyOrder),
       close(fh)
     )
   )
