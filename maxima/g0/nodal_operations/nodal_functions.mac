@@ -38,7 +38,7 @@ calcBasisNodToModWithNodesAndBasis(nodes, modalBasis, vars) := block(
         col : subst(nodes[i][d],vars[d],col)
       ),
       col : columnvector(col),
-      if i = 1 then basisNodToMod:col else basisNodToMod:addcol(basisNodToMod, col)
+      if i = 1 then basisNodToMod : col else basisNodToMod : addcol(basisNodToMod, col)
     ),
     basisNodToMod
   ),

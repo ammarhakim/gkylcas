@@ -73,8 +73,8 @@ calcVlasovSRStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := blo
   ),
   printf(fh, "~%"),
 
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   /* alpha_cdim = p/gamma, alpha_vdim = q/m (E + p/gamma x B) */
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*length(bP)),
@@ -99,7 +99,7 @@ calcVlasovSRStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := blo
     
     /* evaluate alpha_cdim at cflPt to approximate max(abs(alpha_vdim))/dv_i */
     amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(cdir-1),alpha_cdim_NoZero_e))))),
-    printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+    printf(fh, "  cflFreq_mid += fabs(~a); ~%", amid),
     printf(fh, "~%"),
 
     /* Volume increment from configuration space. */
@@ -111,6 +111,6 @@ calcVlasovSRStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := blo
   writeCExprsCollect1c(radcan(incr_cdim)),
 
   printf(fh, "~%"),
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return ~a*cflFreq_mid; ~%",float(2*polyOrder+1)),
   printf(fh, "} ~%")
 )$

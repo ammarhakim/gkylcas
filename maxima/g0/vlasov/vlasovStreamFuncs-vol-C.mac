@@ -57,6 +57,6 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   for d : 2 thru cdim do (
     strOut : sconcat(strOut,"+fabs(w",vid1[d],"Ddx",d-1,")+0.5*dv",vid1[d],"Ddx",d-1)
   ),
-  printf(fh, "  return ~a;~%",strOut),
+  printf(fh, "  return ~a*(~a);~%",float(2*polyOrder+1),strOut),
   printf(fh, "} ~%")
 )$

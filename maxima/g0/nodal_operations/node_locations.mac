@@ -112,13 +112,23 @@ getNodesHyb(cdim, vdim) := block([cnodes,vnodes,nodeLst],
 /* Nodes for GK hybrid basis that is a Cartesian product of p=2 Ser in
    vpar and p=1 in other dimensions. */
 getNodesGkHyb(cdim, vdim) := block([cnodes,vparnodes,munodes,nodeLst],
-  cnodes    : args(eval_string(sconcat("nodesSer",cdim,"xp",1))),
-  vparnodes : args(eval_string(sconcat("nodesSer",1,"xp",2))),
-  if vdim=1 then (
-    nodeLst : listify(cartesian_product(setify(cnodes),setify(vparnodes)))
-  ) elseif vdim=2 then (
-    munodes : args(eval_string(sconcat("nodesSer",1,"xp",1))),
-    nodeLst : listify(cartesian_product(setify(cnodes),setify(vparnodes),setify(munodes)))
+  if cdim = 0 then (
+    vparnodes : args(eval_string(sconcat("nodesSer",1,"xp",2))),
+    if vdim=1 then (
+      nodeLst : vparnodes
+    ) elseif vdim=2 then (
+      munodes : args(eval_string(sconcat("nodesSer",1,"xp",1))),
+      nodeLst : listify(cartesian_product(setify(vparnodes),setify(munodes)))
+    )
+  ) else (
+    cnodes    : args(eval_string(sconcat("nodesSer",cdim,"xp",1))),
+    vparnodes : args(eval_string(sconcat("nodesSer",1,"xp",2))),
+    if vdim=1 then (
+      nodeLst : listify(cartesian_product(setify(cnodes),setify(vparnodes)))
+    ) elseif vdim=2 then (
+      munodes : args(eval_string(sconcat("nodesSer",1,"xp",1))),
+      nodeLst : listify(cartesian_product(setify(cnodes),setify(vparnodes),setify(munodes)))
+    )
   ),
   nodes : apply('matrix,makelist(flatten(nodeLst[i]),i,1,length(nodeLst))),
   return(nodes)
@@ -162,6 +172,16 @@ getNodes(basisType, dim, polyOrder) := block(
   ) else (
     error(basisType="unknown")
   ),
+  return(nodes)
+)$
+
+/* Nodes for tensor hybrid basis that is a Cartesian product of p=1 Tensor in
+   configuration space and p=2 Tensor in velocity space. */
+getNodesTenHyb(cdim, vdim) := block([cnodes,vnodes,nodeLst],
+  cnodes  : getNodes("tensor", cdim, 1),
+  vnodes  : getNodes("tensor", vdim, 2),
+  nodeLst : listify(cartesian_product(setify(cnodes),setify(vnodes))),
+  nodes   : apply('matrix,makelist(flatten(nodeLst[i]),i,1,length(nodeLst))),
   return(nodes)
 )$
 
