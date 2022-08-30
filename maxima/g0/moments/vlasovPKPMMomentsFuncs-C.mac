@@ -100,7 +100,7 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Surface variables to integrate over. */
   surfVars : delete(cv,varsP),
   surfConfVars : delete(cv,varsC),
-  
+
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no cv dependence. */
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("hyb",surfVars,polyOrder),
@@ -109,11 +109,15 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     bSurf : basisFromVars(basisFun,surfVars,polyOrder),
     bConfSurf : basisFromVars(basisFun,surfConfVars,polyOrder)
   ),
+  NSurf : length(bSurf),
 
   printf(fh, "  const double *ul_0 = &u_il[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *ur_0 = &u_ir[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *bl_0 = &bvarl[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *br_0 = &bvarr[~a]; ~%", NC*(dir-1)),
+
+  printf(fh, "  double *rho_flux = &out[~a]; ~%", NSurf*(dir-1)),
+  printf(fh, "  double *heat_flux = &out[~a]; ~%", NSurf*(dir-1+cdim)),
 
   /* Expand bulk velocity, magnetic field unit vector, and distribution function 
       in left, center, and right cells */
@@ -132,10 +136,10 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* alpha_l/c/r are the phase space fluxes at the surface. */
   /* Note we need alpha_c at both sides of the cell */
-  printf(fh, "  double u_l[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double u_r[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double q_l[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double q_r[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double u_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double u_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double q_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double q_r[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
 
   /* Project mass density flux and heat flux onto surface basis, and print resulting coefficients. */
@@ -167,20 +171,20 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Zero out components of mass density flux and heat flux which are empty.
       Since these still include velocity dependence, will be lots of empty coefficients. */
   uNoZero_l : doMakeExprLst(u_l_c, u_l),
-  u_l_bSurf_e     : doExpand(uNoZero_l, bSurf),
+  u_l_bSurf_e : doExpand(uNoZero_l, bSurf),
 
   uNoZero_r : doMakeExprLst(u_r_c, u_r),
-  u_r_bSurf_e     : doExpand(uNoZero_r, bSurf),
+  u_r_bSurf_e : doExpand(uNoZero_r, bSurf),
 
   qNoZero_l : doMakeExprLst(q_l_c, q_l),
-  q_l_bSurf_e     : doExpand(qNoZero_l, bSurf),
+  q_l_bSurf_e : doExpand(qNoZero_l, bSurf),
 
   qNoZero_r : doMakeExprLst(q_r_c, q_r),
-  q_r_bSurf_e     : doExpand(qNoZero_r, bSurf),
+  q_r_bSurf_e : doExpand(qNoZero_r, bSurf),
 
   /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surf_cdim : cdim,  surf_vdim : vdim-1,
+    surf_cdim : cdim-1,  surf_vdim : vdim,
     surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1)
@@ -196,8 +200,8 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double uQuad[~a] = {0.0};~%", numNodes),
   printf(fh, "  double qQuad[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double uMax[~a] = {0.0};;~%", length(bSurf)),
-  printf(fh, "  double qMax[~a] = {0.0};~%", length(bSurf)),
+  printf(fh, "  double uMax[~a] = {0.0};;~%", NSurf),
+  printf(fh, "  double qMax[~a] = {0.0};~%", NSurf),
 
   printf(fh, "  double ev_u_l = 0.0; ~%"),
   printf(fh, "  double ev_u_r = 0.0; ~%"),
@@ -234,21 +238,18 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   qMax_e : doExpand1(qMax, bSurf),
   
   if (cdim = 1) then (
-    rho_flux : calcInnerProdList(surfVars, 1, [1], avg_rho_flux - uMax_e*jump),
-    qpar_flux : calcInnerProdList(surfVars, 1, [1], avg_heat_flux - qMax_e*jump),
-    print(rho_flux)
+    rho_flux_e : calcInnerProdList(surfVars, 1, [1], avg_rho_flux - uMax_e*jump),
+    heat_flux_e : calcInnerProdList(surfVars, 1, [1], avg_heat_flux - qMax_e*jump)
   )
   else (
-    rho_flux : calcInnerProdList(surfVars, 1, bConfSurf, avg_rho_flux - uMax_e*jump),
-    qpar_flux : calcInnerProdList(surfVars, 1, bConfSurf, avg_heat_flux - qMax_e*jump)
+    rho_flux_e : calcInnerProdList(surfVars, 1, bConfSurf, avg_rho_flux - uMax_e*jump),
+    heat_flux_e : calcInnerProdList(surfVars, 1, bConfSurf, avg_heat_flux - qMax_e*jump)
   ),
   
-  qpar_flux : map(letsimp, qpar_flux),
+  heat_flux_e : map(letsimp, heat_flux_e),
 
   clst : [volFact, mass],
-  PKPM_moments : [],
-  PKPM_moments : append(PKPM_moments, volFact*mass*rho_flux),
-  PKPM_moments : append(PKPM_moments, volFact*mass*qpar_flux),
-  writeCIncrExprsCollect1(out, PKPM_moments, clst),
+  writeCIncrExprsCollect1(rho_flux, volFact*mass*rho_flux_e, clst),
+  writeCIncrExprsCollect1(heat_flux, volFact*mass*heat_flux_e, clst),
   printf(fh, "} ~%")
 )$

@@ -1,4 +1,4 @@
-load("euler/eulerFuncs-surf-C")$
+load("euler/eulerIsoFuncs-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term due to an euler equation. */
@@ -33,22 +33,22 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating surface euler",bName[bInd]," ~axp~a"),d,polyOrder)),
+      disp(printf(false,sconcat("Creating surface isothermal euler",bName[bInd]," ~axp~a"),d,polyOrder)),
       for dir : 1 thru d do ( 
-        if (dir = 1) then fname : sconcat("~/max-out/euler_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 2) then fname : sconcat("~/max-out/euler_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 3) then fname : sconcat("~/max-out/euler_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 1) then fname : sconcat("~/max-out/euler_iso_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/euler_iso_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/euler_iso_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("euler_surf"),
+        funcName : sconcat("euler_iso_surf"),
         printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
         if d = 1 then (
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d, polyOrder, dir),
-          calcEuler1xUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
+          calcEulerIso1xUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
         )
         else (
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d, polyOrder, dir),
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d, polyOrder),
-          calcEulerUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
+          calcEulerIsoUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder)
         ),
         close(fh)
       )

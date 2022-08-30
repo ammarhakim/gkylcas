@@ -75,8 +75,8 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,N
   printf(fh, "  double *outenergy = &out[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   rhoux_e : doExpand1(statevec[1], bC),
   rhouy_e : doExpand1(statevec[2], bC),
@@ -108,7 +108,7 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,N
   for dir : 1 thru cdim do (
     /* evaluate velocity at center of cell */
     umid : gcfac(float(expand(subst(cflPt, u_e[dir])))),
-    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)); ~%", dx1[dir], umid)
+    printf(fh, "  cflFreq_mid += 0.5*~a*(fabs(~a)); ~%", float(2*polyOrder+1)*dx1[dir], umid)
   ),
   printf(fh, "~%"),
 
@@ -154,7 +154,7 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,N
     printf(fh, "~%")
   ),
 
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 
 )$

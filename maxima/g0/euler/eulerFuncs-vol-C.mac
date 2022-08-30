@@ -15,11 +15,12 @@ calcEulerVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,NC,ci
   rhol,rhouxl,rhouyl,rhouzl,energyl,rhoul,uvarxl,uvaryl,uvarzl,iel,
   t1,t2,t3,t4,t5,volTerms,vol,expr,varsC,basisC],
 
-  kill(varsC, basisC),
+  kill(varsC, bC),
 
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
-  load(modNm),
-  bC   : basisC[pOrder],
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
   NC : length(bC),
 
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
@@ -59,8 +60,8 @@ calcEulerVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,NC,ci
   ),
   printf(fh, "~%"),
 
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   rhol : doExpand1(statevec[1], bC),
   rhouxl : doExpand1(statevec[2], bC),
@@ -85,7 +86,7 @@ calcEulerVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,NC,ci
     umid : gcfac(float(expand(subst(cflPt, uvarl[dir])))),
     rhomid : gcfac(float(expand(subst(cflPt, rhol)))),
     pmid : gcfac(float(expand(subst(cflPt, pvarl)))),
-    printf(fh, "  alpha_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", dx1[dir], umid, gas_gamma*pmid/rhomid)
+    printf(fh, "  cflFreq_mid += 0.5*~a*(fabs(~a)+sqrt(~a)); ~%", float(2*polyOrder+1)*dx1[dir], umid, gas_gamma*pmid/rhomid)
   ),
   printf(fh, "~%"),
 
@@ -129,7 +130,7 @@ calcEulerVolUpdater(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,NC,ci
     printf(fh, "~%")
   ),
 
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 
 )$

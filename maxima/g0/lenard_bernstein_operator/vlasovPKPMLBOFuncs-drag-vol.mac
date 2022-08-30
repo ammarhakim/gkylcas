@@ -21,6 +21,11 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
   /* Number of basis monomials. */
   NP : length(bP),  NC : length(bC),
 
@@ -40,7 +45,7 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   cid  : cidx(cdim),
   vid1 : vidx1(cdim,vdim),
   /* grid spacing in v_parallel and v_parallel coordinate */
-  printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
+  printf(fh, "  const double rdvpar = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
 
   /* Expand distribution function f in phase basis. */
@@ -53,11 +58,11 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   printf(fh, "  double alphaDrag[~a]; ~%", NP),
   incrDrag : 0,
 
-  /* alphaDrag = rdv2*< psi, -(nu*v) >. */
+  /* alphaDrag = rdvpar*< psi, -(nu*v) >. */
   alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nu_e*(wvpar+0.5*dvpar*vx)),
-  expr : gcfac(float(expand(radcan(dv1par*alphaDrag_e)))),
+  expr : gcfac(float(expand(radcan(rdvpar*alphaDrag_e)))),
   /* Write out the component of alphaDrag's phase space expansion. */
-  printf(fh, "  // Expand dv1par*(nu*vx) in phase basis.~%"),
+  printf(fh, "  // Expand rdvpar*(nu*vx) in phase basis.~%"),
   for i : 1 thru NP do (
       if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[i-1], expr[i])
   ),
@@ -65,8 +70,10 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   /* Zero out components of alpha which are empty. */
   alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
   alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
-  /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
-  alphaDrag_mid : gcfac(float(expand(subst(zr,0.5*subst(a0=0,alphaDrag_NoZero_e))))),
+  /* Evaluate alpha_vdim at zr to approximate
+  max(abs(alpha_vdim))/(dv_i/(2p+1)). */
+  cflFreq_mid : gcfac(float(expand(subst(zr,(2*pOrderV+1)*0.5*subst(a0=0,alphaDrag_NoZero_e))))),
+
   /* Volume increment from configuration space. */
   incrDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,vx), alphaDrag_NoZero_e*f_e)),
 
@@ -76,7 +83,7 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   writeCExprsCollect1c(radcan(incrDrag)),
   printf(fh, "~%"),
 
-  printf(fh, "  return fabs(~a); ~%", alphaDrag_mid),
+  printf(fh, "  return fabs(~a); ~%", cflFreq_mid),
 
   printf(fh, "~%"),
   printf(fh, "} ~%")

@@ -36,6 +36,13 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
   printf(fh, "~%"),
 
+  printf(fh, "~adouble euler_iso_vol_~ax_~a_p~a(const double *w, const double *dxv, const double vth, const double *uvar, const double *statevec, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  for si : 1 thru ci do (
+    printf(fh, "~avoid euler_iso_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const double vth, const double *uvarl, const double *uvarc, const double *uvarr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
+  ),
+
+  printf(fh, "~%"),
+
   printf(fh, "~avoid euler_pkpm_pressure_~ax_~a_p~a(const double *u_i, const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, double* GKYL_RESTRICT p_ij); ~%", deco, ci, bStr, pi),
   printf(fh, "~adouble euler_pkpm_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *u_i, const double *p_ij, const double *vlasov_pkpm_moms, const double *statevec, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (

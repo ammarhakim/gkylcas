@@ -28,6 +28,11 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
   /* Number of basis monomials. */
   NP : length(bP),
   NC : length(bC),
@@ -82,8 +87,8 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
   printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
 
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   /* alpha_cdim = v_parallel b_hat + u, alpha_vdim = b . div(P) + bb : grad(u) */
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
@@ -134,31 +139,32 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
-    /* evaluate alpha_cdim at cflPt to approximate max(abs(alpha_cdim))/dx_i */
+    /* evaluate alpha_cdim at cflPt to approximate
+    ** max(abs(alpha_cdim))/(dx_i/(2p+1)) */
     amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(cdir-1),alpha_cdim_NoZero_e))))),
-    printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+    printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*polyOrder+1), amid),
     printf(fh, "~%"),
 
     /* Volume increment from configuration space. */
     incr_cdim : incr_cdim+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
   ),
 
-  /* alpha_vdim = [b . div(P) + bb : grad(u)] df/dvpar */
+  /* alpha_vdim = [b . div(P) - v_parallel bb : grad(u)] df/dvpar */
   if cdim = 1 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
   )
   elseif cdim = 2 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
   )
   else (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
             + bx_e*diff(Pxz_e,varsC[3]) + by_e*diff(Pyz_e,varsC[3]) + bz_e*diff(Pzz_e,varsC[3]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
             + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
   ),
@@ -175,9 +181,10 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   alpha_vdim_NoZero   : doMakeExprLstOff(alpha_vdim_c, alpha_vdim, a0),
   alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
-  /* evaluate alpha_vdim at cflPt to approximate max(abs(alpha_vdim))/dv_i */
+  /* evaluate alpha_vdim at cflPt to approximate
+  ** max(abs(alpha_vdim))/(dx_i/(2p+1)) */
   amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=0,alpha_vdim_NoZero_e))))),
-  printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+  printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
   printf(fh, "~%"),
   /* Volume increment from configuration space. */
   incr_vdim : subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsP[cdim]), alpha_vdim_NoZero_e*f_e)),
@@ -187,6 +194,6 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
 
   printf(fh, "~%"),
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 )$

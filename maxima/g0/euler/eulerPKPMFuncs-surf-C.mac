@@ -339,7 +339,7 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 );
 
 calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [bC,NC,cid,cv,surfVars,
+  [bC,NC,cid,cv,surfVars,bSurf,NSurf,
   energyl_e, energyc_e, energyr_e,
   uxl_e,uxc_e,uxr_e,
   uyl_e,uyc_e,uyr_e,

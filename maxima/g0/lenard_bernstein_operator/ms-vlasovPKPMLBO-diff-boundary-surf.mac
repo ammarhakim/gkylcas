@@ -11,7 +11,7 @@ load(stringproc)$
 minPolyOrder_Ser : 2$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$

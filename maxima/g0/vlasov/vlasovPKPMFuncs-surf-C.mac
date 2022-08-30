@@ -139,7 +139,7 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
 
   /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surf_cdim : cdim,  surf_vdim : vdim-1,
+    surf_cdim : cdim-1,  surf_vdim : vdim,
     surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1)
@@ -198,7 +198,6 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
 
   /* Print C exprs for Ghat across surface boundary, (LEFT BOUNDARY) */
   Ghat_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, avg_l - alphaMax_l_e*jump_l)),
-
   writeCExprs1(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -209,7 +208,6 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
 
   /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
   Ghat_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, avg_r - alphaMax_r_e*jump_r)),
-
   writeCExprs1(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -319,22 +317,22 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  /* alpha_vdim = [b . div(P) + bb : grad(u)] df/dvpar */
+  /* alpha_vdim = [b . div(P) - v_parallel bb : grad(u)] df/dvpar */
   if cdim = 1 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
   )
   elseif cdim = 2 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[y]) + bybz_e*diff(uz_e, varsC[2]))
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
   )
   else (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
             + bx_e*diff(Pxz_e,varsC[3]) + by_e*diff(Pyz_e,varsC[3]) + bz_e*diff(Pzz_e,varsC[3]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
             + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
   ),
@@ -421,15 +419,7 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Print C exprs for Ghat across surface boundary, (LEFT BOUNDARY) */
   Ghat_l_c : fullratsimp(innerProd(surfVars, alphaSurf_l_e, bSurf, fHatSurf_l_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
-  ) else (
-    writeCExprs1(Ghat_l, Ghat_l_c)
-  ),
+  writeCExprs1(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
   flush_output(fh),
 
@@ -439,15 +429,7 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
   Ghat_r_c : fullratsimp(innerProd(surfVars, alphaSurf_r_e, bSurf, fHatSurf_r_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
-  ) else (
-    writeCExprs1(Ghat_r, Ghat_r_c)
-  ),
+  writeCExprs1(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 

@@ -77,25 +77,18 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   /* Write out drag term for far left edge boundary.
      Need alpha evaluated at +1 for skin-edge interface.
      NOTE: zero-flux boundary conditions means for far left boundary, no drag term on -1 surface */
-  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_r_c),
+  writeCExprs1(alphaDrSurf, alphaDrSurf_r_c),
   printf(fh, "~%"),
 
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, fSkin_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
+
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
   incr : calcInnerProdList(surfVars, 1, subst(vx=1, bP), Ghat_e),
@@ -108,26 +101,19 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   /* Write out drag term for far right edge boundary.
      Need alpha evaluated at -1 for skin-edge interface.
      NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
-  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_l_c),
+  writeCExprs1(alphaDrSurf, alphaDrSurf_l_c),
   printf(fh, "~%"),
 
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, fSkin_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
 
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
+  
   /* Increments to the far left skin cell (some dimensional factors missing). */
   incr : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_e),
   

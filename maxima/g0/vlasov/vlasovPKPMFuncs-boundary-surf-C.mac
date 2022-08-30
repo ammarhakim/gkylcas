@@ -112,22 +112,22 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  /* alpha_vdim = [b . div(P) + bb : grad(u)] df/dvpar */
+  /* alpha_vdim = [b . div(P) - v_parallel bb : grad(u)] df/dvpar */
   if cdim = 1 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
   )
   elseif cdim = 2 then (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[y]) + bybz_e*diff(uz_e, varsC[2]))
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
   )
   else (
     acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
             + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
             + bx_e*diff(Pxz_e,varsC[3]) + by_e*diff(Pyz_e,varsC[3]) + bz_e*diff(Pzz_e,varsC[3]) 
-            + (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
             + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
   ),
@@ -179,7 +179,7 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   /* Write out drag term for far left edge boundary.
      Need alpha evaluated at +1 for skin-edge interface.
      NOTE: zero-flux boundary conditions means for far left boundary, no drag term on -1 surface */
-  writeCExprsNoExpand1(alphaSurf, alphaSurf_r_c),
+  writeCExprs1(alphaSurf, alphaSurf_r_c),
   printf(fh, "~%"),
   /* Write out fUpwindQuad for the far left edge */
   /* Within the skin cell, we need alpha_r (alpha evaluated at +1)
@@ -207,19 +207,12 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   Ghat_c : calcInnerProdList(surfVars,alphaSurf_r_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
+
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
   incr : calcInnerProdList(surfVars, -1.0, subst(vx=1.0, bP), Ghat_e),
@@ -232,7 +225,7 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   /* Write out drag term for far right edge boundary.
      Need alpha evaluated at -1 for skin-edge interface.
      NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
-  writeCExprsNoExpand1(alphaSurf, alphaSurf_l_c),
+  writeCExprs1(alphaSurf, alphaSurf_l_c),
   printf(fh, "~%"),
   /* Write out fUpwindQuad for the far right edge */
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
@@ -260,19 +253,12 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   Ghat_c : calcInnerProdList(surfVars,alphaSurf_l_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
+
+  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  Ghat_e : doExpand(glst1, bSurf),
 
   /* Increments to the far right edge skin cell (some dimensional factors missing). */
   incr : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_e),
