@@ -1,0 +1,80 @@
+kill(all) $
+load("recovery") $
+load ("modal-basis") $
+load(stringproc)$
+
+minPolyOrder : 1 $
+maxPolyOrder : 2 $
+
+dirs : [[x], [x,y], [x,y,z]] $
+bName : "ser" $
+
+for polyOrder : minPolyOrder thru maxPolyOrder do (
+  for ndim : 1 thru length(dirs) do (
+    load(sconcat("basis-precalc/basisSer", ndim, "x")),
+    ba : basisC[polyOrder],
+    numBasis : length(ba),
+    subList : append(
+      makelist(Dxx[i]=D[i-1], i, 1, numBasis),
+      makelist(Dyy[i]=D[i-1+numBasis], i, 1, numBasis),
+      makelist(Dzz[i]=D[i-1+2*numBasis], i, 1, numBasis),
+      makelist(uvarl[i]=uvarl[i-1], i, 1, numBasis),
+      makelist(uvarr[i]=uvarr[i-1], i, 1, numBasis),
+      makelist(uvarc[i]=uvarc[i-1], i, 1, numBasis)
+      ),
+    De : [doExpand(Dxx, ba), doExpand(Dyy, ba), doExpand(Dzz, ba)],
+    for dir : 1 thru ndim do (
+      fname : sconcat("~/max-out/dg_euleriso_diffusion_surf", dirs[ndim][dir],"_",
+        ndim, "x_", bName, "_p", polyOrder, ".c"),
+      print("Generating:", fname),
+
+      uxRecX : calcRecov1CellGen("Ser", x, [x,y,z], polyOrder,
+        1, dg(uvarxl), dg(uvarxc), dg(uvarxr)),
+      uxRecY : calcRecov1CellGen("Ser", y, [x,y,z], polyOrder,
+        1, dg(uvaryl), dg(uvaryc), dg(uvaryr)),
+      uxRecZ : calcRecov1CellGen("Ser", z, [x,y,z], polyOrder,
+        1, dg(uvarzl), dg(uvarzc), dg(uvarzr)),
+
+      tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd) + diff(uxRecZ, z, 2)/(dzsqrd),
+      kernel : 4*calcInnerProdList([x,y,z], 1, ba, De[dir]*tmp), /*TODO: check if factor of 4 is needed; might be 3 */
+      /* kernel : 4*mu*calcInnerProdList([x,y,z], 1, ba, tmp), */
+
+      fh : openw(fname),
+      printf(fh, "#include <dg_euleriso_diffusion_kernels.h>~%~%"),
+      printf(fh, "GKYL_CU_DH void~%"),
+      printf(fh, sconcat("dg_euleriso_diffusion_surf", dirs[ndim][dir],"_",
+          ndim, "x_", bName, "_p", polyOrder,
+          "(const double* w, const double* dx,~%")),
+      printf(fh, "  const double* D_in,~%"),
+      printf(fh, "  const double* uvarl, const double* uvarc, const double* uvarr,~%"),
+      printf(fh, "  const double* statevecl, const double* statevecc, const double* statevecr,~%"),
+      printf(fh, "  double* GKYL_RESTRICT out) ~%"),
+      printf(fh, "{~%"),
+      printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
+      printf(fh, "  // dx[NDIM]: Cell spacing~%"),
+      printf(fh, "  // D: Diffusion coefficient in the center cell~%"),
+      printf(fh, "  // uvarl: Input velocity in the left cell~%"),
+      printf(fh, "  // uvarc: Input velocity in the center cell~%"),
+      printf(fh, "  // uvarr: Input velocity in the right cell~%"),
+      printf(fh, "  // statevecl: Input field in the left cell~%"),
+      printf(fh, "  // statevecc: Input field in the center cell~%"),
+      printf(fh, "  // statevecr: Input field in the right cell~%"),
+      printf(fh, "  // out: Incremented output~%~%"),
+      printf(fh, "  const double J = 4/dx[~a]/dx[~a];~%", dir-1, dir-1), /*TODO: this only works for square grids, so we need to generalize the use of J */
+      if(ndim >= 1) then printf(fh, "  dxsqrd = dx[0]*dx[0]~%"),
+      if(ndim >= 2) then printf(fh, "  dysqrd = dx[1]*dx[1]~%"),
+      if(ndim >= 3) then printf(fh, "  dzsqrd = dx[2]*dx[2]~%"),
+      printf(fh, "  const double *D = &D_in[~a]; ~%", 1*numC), /*statevec is [rho rhoux, rhouy, rhouz] so diff kernel is 4x3, however advection eq has no diffusion, so we just work with part of the matrix*/
+      printf(fh, "  double *mu = D[0]; ~%"),
+
+      for i : 1 thru numBasis do (
+        if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
+          printf(fh, "  out[~a] += J*(~a);~%", i-1, float(expand(psubst(subList, kernel[i]))))
+        )
+      ),
+
+      printf(fh, "}~%"),
+      close(fh)
+      )
+    )
+  ) $
