@@ -28,15 +28,17 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
         ndim, "x_", bName, "_p", polyOrder, ".c"),
       print("Generating:", fname),
 
-      uxRecX : calcRecov1CellGen("Ser", x, [x,y,z], polyOrder,
-        1, dg(uvarxl), dg(uvarxc), dg(uvarxr)),
-      uxRecY : calcRecov1CellGen("Ser", y, [x,y,z], polyOrder,
-        1, dg(uvaryl), dg(uvaryc), dg(uvaryr)),
-      uxRecZ : calcRecov1CellGen("Ser", z, [x,y,z], polyOrder,
-        1, dg(uvarzl), dg(uvarzc), dg(uvarzr)),
+      if(ndim = 1) then (uxRecX : calcRecov1CellGen("Ser", x, dirs[ndim], polyOrder,
+        1, dg(uvarxl), dg(uvarxc), dg(uvarxr))),
+      if(ndim = 2) then (uxRecY : calcRecov1CellGen("Ser", y, dirs[ndim], polyOrder,
+        1, dg(uvaryl), dg(uvaryc), dg(uvaryr))),
+      if(ndim = 3) then (uxRecZ : calcRecov1CellGen("Ser", z, dirs[ndim], polyOrder,
+        1, dg(uvarzl), dg(uvarzc), dg(uvarzr))),
 
-      tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd) + diff(uxRecZ, z, 2)/(dzsqrd),
-      kernel : 4*calcInnerProdList([x,y,z], 1, ba, De[dir]*tmp), /*TODO: check if factor of 4 is needed; might be 3 */
+      if(ndim = 1) then (tmp : diff(uxRecX, x, 2)/(dxsqrd)),
+      if(ndim = 2) then (tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd)),
+      if(ndim = 3) then (tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd) + diff(uxRecZ, z, 2)/(dzsqrd)),
+      kernel : 4*calcInnerProdList(dirs[ndim], 1, ba, De[dir]*tmp), /*TODO: check if factor of 4 is needed; might be 3 */
       /* kernel : 4*mu*calcInnerProdList([x,y,z], 1, ba, tmp), */
 
       fh : openw(fname),
@@ -61,9 +63,9 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
       printf(fh, "  // statevecr: Input field in the right cell~%"),
       printf(fh, "  // out: Incremented output~%~%"),
       printf(fh, "  const double J = 4/dx[~a]/dx[~a];~%", dir-1, dir-1), /*TODO: this only works for square grids, so we need to generalize the use of J */
-      printf(fh, "  const dxsqrd = dx[0]*dx[0];~%"),
-      printf(fh, "  const dysqrd = dx[0]*dx[0];~%"),
-      printf(fh, "  const dzsqrd = dx[0]*dx[0];~%"),
+      if(ndim >= 1) then (printf(fh, "  double dxsqrd = dx[0]*dx[0];~%")),
+      if(ndim >= 2) then (printf(fh, "  double dysqrd = dx[1]*dx[1];~%")),
+      if(ndim >= 3) then (printf(fh, "  double dzsqrd = dx[2]*dx[2];~%")),
       printf(fh, "  const double *D = &D_in[~a]; ~%", 1*numBasis), /*statevec is [rho rhoux, rhouy, rhouz] so diff kernel is 4x3, however advection eq has no diffusion, so we just work with part of the matrix*/
       printf(fh, "  double mu = D[0]; ~%"),
       printf(fh, "  const double *uvarxl = &uvarl[~a]; ~%", 0*numBasis),
