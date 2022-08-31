@@ -27,7 +27,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     print("Generating:", fname),
 
     fh : openw(fname),
-    printf(fh, "#include <gkyl_dg_isoeuler_diffusion_kernels.h>~%~%"),
+    printf(fh, "#include <gkyl_dg_euleriso_diffusion_kernels.h>~%~%"),
     printf(fh, "GKYL_CU_DH double~%"),
     printf(fh, sconcat("dg_euleriso_diffusion_vol_", ndim, "x_", bName,
         "_p", polyOrder, "(const double* w, const double* dx,~%")),
