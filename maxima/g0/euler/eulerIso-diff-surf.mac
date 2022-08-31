@@ -61,11 +61,20 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
       printf(fh, "  // statevecr: Input field in the right cell~%"),
       printf(fh, "  // out: Incremented output~%~%"),
       printf(fh, "  const double J = 4/dx[~a]/dx[~a];~%", dir-1, dir-1), /*TODO: this only works for square grids, so we need to generalize the use of J */
-      if(ndim >= 1) then printf(fh, "  dxsqrd = dx[0]*dx[0]~%"),
-      if(ndim >= 2) then printf(fh, "  dysqrd = dx[1]*dx[1]~%"),
-      if(ndim >= 3) then printf(fh, "  dzsqrd = dx[2]*dx[2]~%"),
-      printf(fh, "  const double *D = &D_in[~a]; ~%", 1*numC), /*statevec is [rho rhoux, rhouy, rhouz] so diff kernel is 4x3, however advection eq has no diffusion, so we just work with part of the matrix*/
-      printf(fh, "  double *mu = D[0]; ~%"),
+      printf(fh, "  const dxsqrd = dx[0]*dx[0];~%"),
+      printf(fh, "  const dysqrd = dx[0]*dx[0];~%"),
+      printf(fh, "  const dzsqrd = dx[0]*dx[0];~%"),
+      printf(fh, "  const double *D = &D_in[~a]; ~%", 1*numBasis), /*statevec is [rho rhoux, rhouy, rhouz] so diff kernel is 4x3, however advection eq has no diffusion, so we just work with part of the matrix*/
+      printf(fh, "  double mu = D[0]; ~%"),
+      printf(fh, "  const double *uvarxl = &uvarl[~a]; ~%", 0*numBasis),
+      printf(fh, "  const double *uvaryl = &uvarl[~a]; ~%", 1*numBasis),
+      printf(fh, "  const double *uvarzl = &uvarl[~a]; ~%", 2*numBasis),
+      printf(fh, "  const double *uvarxc = &uvarc[~a]; ~%", 0*numBasis),
+      printf(fh, "  const double *uvaryc = &uvarc[~a]; ~%", 1*numBasis),
+      printf(fh, "  const double *uvarzc = &uvarc[~a]; ~%", 2*numBasis),
+      printf(fh, "  const double *uvarxr = &uvarr[~a]; ~%", 0*numBasis),
+      printf(fh, "  const double *uvaryr = &uvarr[~a]; ~%", 1*numBasis),
+      printf(fh, "  const double *uvarzr = &uvarr[~a]; ~%", 2*numBasis),
 
       for i : 1 thru numBasis do (
         if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (

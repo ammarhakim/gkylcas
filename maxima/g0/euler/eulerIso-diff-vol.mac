@@ -27,7 +27,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     print("Generating:", fname),
 
     fh : openw(fname),
-    printf(fh, "#include <gkyl_dg_euleriso_diffusion_kernels.h>~%~%"),
+    printf(fh, "#include <dg_euleriso_diffusion_kernels.h>~%~%"),
     printf(fh, "GKYL_CU_DH double~%"),
     printf(fh, sconcat("dg_euleriso_diffusion_vol_", ndim, "x_", bName,
         "_p", polyOrder, "(const double* w, const double* dx,~%")),
@@ -45,12 +45,12 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  const double *D2 = &D[~a]; ~%", 1*numC),
     printf(fh, "  const double *D3 = &D[~a]; ~%", 2*numC),
     printf(fh, "  const double *D4 = &D[~a]; ~%", 3*numC),
-    printf(fh, "  double *mu = D2[0]; ~%"),
+    printf(fh, "  double mu = D2[0]; ~%"),
     for dir : 1 thru ndim do (
-      printf(fh, "  double dx1~a = 2./dxv[~a]; ~%", dir-1, dir-1)
+      printf(fh, "  double dx1~a = 2./dx[~a]; ~%", dir-1, dir-1)
     ),
 
-    printf(fh, "  cfl = mu/(dx1*dx1);~%"), /*Assumes square grids...*/
+    printf(fh, "  double cfl = mu/(dx10*dx10);~%"), /*Assumes square grids...*/
     printf(fh, "  return cfl;~%"),
 
     printf(fh, "}~%"),
