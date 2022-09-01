@@ -15,12 +15,18 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     ba : basisC[polyOrder],
     numBasis : length(ba),
     subList : append(
-      makelist(Dxx[i]=D[i-1], i, 1, numBasis),
-      makelist(Dyy[i]=D[i-1+numBasis], i, 1, numBasis),
-      makelist(Dzz[i]=D[i-1+2*numBasis], i, 1, numBasis),
-      makelist(uvarl[i]=uvarl[i-1], i, 1, numBasis),
-      makelist(uvarr[i]=uvarr[i-1], i, 1, numBasis),
-      makelist(uvarc[i]=uvarc[i-1], i, 1, numBasis)
+      makelist(Dxx[i]=D[i-1+1*numbasis], i, 1, numBasis),
+      makelist(Dyy[i]=D[i-1+2*numBasis], i, 1, numBasis),
+      makelist(Dzz[i]=D[i-1+3*numBasis], i, 1, numBasis),
+      makelist(uvarxl[i]=uvarxl[i-1], i, 1, numBasis),
+      makelist(uvarxr[i]=uvarxr[i-1], i, 1, numBasis),
+      makelist(uvarxc[i]=uvarxc[i-1], i, 1, numBasis),
+      makelist(uvaryl[i]=uvaryl[i-1], i, 1, numBasis),
+      makelist(uvaryr[i]=uvaryr[i-1], i, 1, numBasis),
+      makelist(uvaryc[i]=uvaryc[i-1], i, 1, numBasis),
+      makelist(uvarzl[i]=uvarzl[i-1], i, 1, numBasis),
+      makelist(uvarzr[i]=uvarzr[i-1], i, 1, numBasis),
+      makelist(uvarzc[i]=uvarzc[i-1], i, 1, numBasis)
       ),
     De : [doExpand(Dxx, ba), doExpand(Dyy, ba), doExpand(Dzz, ba)],
     for dir : 1 thru ndim do (
@@ -28,17 +34,17 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
         ndim, "x_", bName, "_p", polyOrder, ".c"),
       print("Generating:", fname),
 
-      if(ndim = 1) then (uxRecX : calcRecov1CellGen("Ser", x, dirs[ndim], polyOrder,
+      if(ndim >= 1) then (uxRecX : calcRecov1CellGen("Ser", x, dirs[ndim], polyOrder,
         1, dg(uvarxl), dg(uvarxc), dg(uvarxr))),
-      if(ndim = 2) then (uxRecY : calcRecov1CellGen("Ser", y, dirs[ndim], polyOrder,
+      if(ndim >= 2) then (uxRecY : calcRecov1CellGen("Ser", y, dirs[ndim], polyOrder,
         1, dg(uvaryl), dg(uvaryc), dg(uvaryr))),
-      if(ndim = 3) then (uxRecZ : calcRecov1CellGen("Ser", z, dirs[ndim], polyOrder,
+      if(ndim >= 3) then (uxRecZ : calcRecov1CellGen("Ser", z, dirs[ndim], polyOrder,
         1, dg(uvarzl), dg(uvarzc), dg(uvarzr))),
 
       if(ndim = 1) then (tmp : diff(uxRecX, x, 2)/(dxsqrd)),
       if(ndim = 2) then (tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd)),
       if(ndim = 3) then (tmp : diff(uxRecX, x, 2)/(dxsqrd) + diff(uxRecY, y, 2)/(dysqrd) + diff(uxRecZ, z, 2)/(dzsqrd)),
-      kernel : 4*calcInnerProdList(dirs[ndim], 1, ba, De[dir]*tmp), /*TODO: check if factor of 4 is needed; might be 3 */
+      kernel : mu*calcInnerProdList(dirs[ndim], 1, ba, tmp),
       /* kernel : 4*mu*calcInnerProdList([x,y,z], 1, ba, tmp), */
 
       fh : openw(fname),
@@ -80,7 +86,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
 
       for i : 1 thru numBasis do (
         if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
-          printf(fh, "  out[~a] += J*(~a);~%", i-1, float(expand(psubst(subList, kernel[i]))))
+          printf(fh, "  out[~a] += J*(~a);~%", i+numBasis-1, float(expand(psubst(subList, kernel[i])))) /*Note: state vec is [rho, rhoux, rhouy, rhouz] and diffusion only occurs for momentum, so we skip first numBasis idxs*/
         )
       ),
 
