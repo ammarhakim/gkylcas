@@ -84,9 +84,29 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
       printf(fh, "  const double *uvaryr = &uvarr[~a]; ~%", 1*numBasis),
       printf(fh, "  const double *uvarzr = &uvarr[~a]; ~%", 2*numBasis),
 
-      for i : 1 thru numBasis do (
-        if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
-          printf(fh, "  out[~a] += J*(~a);~%", i+numBasis-1, float(expand(psubst(subList, kernel[i])))) /*Note: state vec is [rho, rhoux, rhouy, rhouz] and diffusion only occurs for momentum, so we skip first numBasis idxs*/
+
+      /*Note: state vec is [rho, rhoux, rhouy, rhouz] and diffusion only occurs for momentum, so we skip first numBasis idxs*/
+      if(ndim >= 1) then(
+        for i : 1 thru numBasis do (
+          if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
+            printf(fh, "  out[~a] += J*(~a);~%",i+numBasis-1, float(expand(psubst(subList, kernel[i]))))
+          )
+        )
+      ),
+
+      if(ndim >= 2) then(
+        for i : 1 thru numBasis do (
+          if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
+            printf(fh, "  out[~a] += J*(~a);~%",i+2*numBasis-1, float(expand(psubst(subList, kernel[i]))))
+          )
+        )
+      ),
+
+      if(ndim >= 3) then(
+        for i : 1 thru numBasis do (
+          if (is (float(expand(psubst(subList, kernel[i]))) # 0.0)) then (
+            printf(fh, "  out[~a] += J*(~a);~%",i+3*numBasis-1, float(expand(psubst(subList, kernel[i]))))
+          )
         )
       ),
 
