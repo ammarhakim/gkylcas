@@ -50,7 +50,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
       printf(fh, "  double dx1~a = 2./dx[~a]; ~%", dir-1, dir-1)
     ),
 
-    printf(fh, "  double cfl = mu*~a/(dx10*dx10);~%",(polyOrder+1)*(polyOrder+1)), /*Assumes square grids...*/
+    printf(fh, "  double cfl = mu*~a*(dx10*dx10);~%",(polyOrder+1)*(polyOrder+1)), /*Assumes square grids...*/
     printf(fh, "  return cfl;~%"),
 
     printf(fh, "}~%"),
