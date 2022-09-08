@@ -19,7 +19,7 @@ let(dvpar^3, dvpar_cu)$
 let(wvpar^2, wvpar_sq)$
 let(dvpar^2, dvpar_sq)$
 
-volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
+volExpr(cdim, vdim) := prod(dxv[i-1], i, 1, vdim)$
 
 /* Calculate mass density, parallel pressure, and parallel heat flux (PKPM moments) sequentially */
 calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
@@ -32,7 +32,7 @@ calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *bvar, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
-  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", cdim, cdim),
+  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", 0, 0),
   printf(fh, "  const double wvpar_sq = wvpar*wvpar, dvpar_sq = dvpar*dvpar; ~%"),
   printf(fh, "  const double wvpar_cu = wvpar*wvpar*wvpar, dvpar_cu = dvpar*dvpar*dvpar; ~%"),
   printf(fh, "~%"),
@@ -83,8 +83,9 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   pDim  : length(varsP),
   
   printf(fh, "GKYL_CU_DH void ~a_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *u_il, const double *u_ir, const double *bvarl, const double *bvarr, const double *fl, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
-  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", cdim, cdim),
+  /* Updater assumes loop over *only* velocity grid, so only need the first entry of the cell center and grid space */
+  printf(fh, "  const double volFact = dxv[0]/2.0; ~%"),
+  printf(fh, "  const double wvpar = w[0], dvpar = dxv[0]; ~%"),
   printf(fh, "  const double wvpar_sq = wvpar*wvpar, dvpar_sq = dvpar*dvpar; ~%"),
   printf(fh, "  const double wvpar_cu = wvpar*wvpar*wvpar, dvpar_cu = dvpar*dvpar*dvpar; ~%"),
   printf(fh, "~%"),
@@ -110,14 +111,21 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     bConfSurf : basisFromVars(basisFun,surfConfVars,polyOrder)
   ),
   NSurf : length(bSurf),
+  NConfSurf : length(bConfSurf),
 
   printf(fh, "  const double *ul_0 = &u_il[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *ur_0 = &u_ir[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *bl_0 = &bvarl[~a]; ~%", NC*(dir-1)),
   printf(fh, "  const double *br_0 = &bvarr[~a]; ~%", NC*(dir-1)),
 
-  printf(fh, "  double *rho_flux = &out[~a]; ~%", NSurf*(dir-1)),
-  printf(fh, "  double *heat_flux = &out[~a]; ~%", NSurf*(dir-1+cdim)),
+  if (cdim = 1) then (
+    printf(fh, "  double *rho_flux = &out[0]; ~%"),
+    printf(fh, "  double *heat_flux = &out[1]; ~%")
+  )
+  else (
+    printf(fh, "  double *rho_flux = &out[~a]; ~%", NConfSurf*(dir-1)),
+    printf(fh, "  double *heat_flux = &out[~a]; ~%", NConfSurf*(dir-1+cdim))
+  ),
 
   /* Expand bulk velocity, magnetic field unit vector, and distribution function 
       in left, center, and right cells */
@@ -200,7 +208,7 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double uQuad[~a] = {0.0};~%", numNodes),
   printf(fh, "  double qQuad[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double uMax[~a] = {0.0};;~%", NSurf),
+  printf(fh, "  double uMax[~a] = {0.0};~%", NSurf),
   printf(fh, "  double qMax[~a] = {0.0};~%", NSurf),
 
   printf(fh, "  double ev_u_l = 0.0; ~%"),
