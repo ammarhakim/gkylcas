@@ -63,14 +63,19 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, " ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities
-     use the cell average m0 when m0<0 at one of the corners. */
+     use the cell averages when m0,m2<0 at one of the corners. */
   printf(fh, "  // If a corner value is below zero, use cell average m0.~%"),
-  printf(fh, "  bool cellAvg = false;~%"),
+  printf(fh, "  bool notCellAvg = true;~%"),
   nodes : getNodes(basisFun, cdim, 1),
-  nodesub(f):=makelist(subst(makelist(vars[j]=nodes[i][j],j,1,length(vars)),f),i,1,length(nodes)),
-  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(moms,basis))))),
+  m0in_e : doExpand(makelist(moms[numB*0+i-1],i,1,numB),basis),
+  m0Corners : gcfac(float(fullratsimp(evAtNodes(m0in_e,nodes,vars)))),
   for i : 1 thru length(nodes) do (
-    printf(fh, "  if (~a < 0) cellAvg = true; ~%", m0Corners[i])
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", m0Corners[i])
+  ),
+  m2in_e : doExpand(makelist(moms[numB*(1+udim)+i-1],i,1,numB),basis),
+  m2Corners : gcfac(float(fullratsimp(evAtNodes(m2in_e,nodes,vars)))),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", m2Corners[i])
   ),
   printf(fh, " ~%"),
 
@@ -80,7 +85,14 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, sconcat("  double m2r[~a] = {0.0}; ~%"), numB),
   printf(fh, sconcat("  double cMr[~a] = {0.0}; ~%"), udim*numB),
   printf(fh, sconcat("  double cEr[~a] = {0.0}; ~%"), numB),
-  printf(fh, "  if (cellAvg) { ~%"),
+  printf(fh, "  if (notCellAvg) { ~%"),
+  /* Use the original expansion polynomial. */
+  writeCExprs1s(m0r,makelist(moms[i],i,0,numB-1)),
+  writeCExprs1s(m1r,makelist(moms[i+numB],i,0,udim*numB-1)),
+  writeCExprs1s(m2r,makelist(moms[i+numB*(1+udim)],i,0,numB-1)),
+  writeCExprs1s(cMr,makelist(boundary_corrections[i],i,0,udim*numB-1)),
+  writeCExprs1s(cEr,makelist(boundary_corrections[i+udim*numB],i,0,numB-1)),
+  printf(fh, "  } else { ~%"),
   /* Use the cell average of m0, m1 and m2. */
   writeCExprs1s(m0r,append([moms[0]],makelist(0.0,i,1,numB-1))),
   for vd : 1 thru udim do (
@@ -95,13 +107,6 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   writeCExprs1s(m2r,append([moms[numB*(1+udim)]],makelist(0.0,i,1,numB-1))),
   writeCExprs1s(cEr,append([boundary_corrections[udim*numB]],makelist(0.0,i,1,numB-1))),
-  printf(fh, "  } else { ~%"),
-  /* Use the original expansion polynomial. */
-  writeCExprs1s(m0r,makelist(moms[i],i,0,numB-1)),
-  writeCExprs1s(m1r,makelist(moms[i+numB],i,0,udim*numB-1)),
-  writeCExprs1s(m2r,makelist(moms[i+numB*(1+udim)],i,0,numB-1)),
-  writeCExprs1s(cMr,makelist(boundary_corrections[i],i,0,udim*numB-1)),
-  writeCExprs1s(cEr,makelist(boundary_corrections[i+udim*numB],i,0,numB-1)),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
