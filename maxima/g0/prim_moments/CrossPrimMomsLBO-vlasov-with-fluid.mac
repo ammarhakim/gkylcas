@@ -106,7 +106,7 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
   NC  : length(bC),
   
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *u_self, const double *vtsq_self, const double m_other, const double *u_other, const double *vtsq_other, const double *moms, const double *fluid, const double *boundary_corrections) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *u_self, const double *vtsq_self, const double m_other, const double *moms_other, const double *u_other, const double *vtsq_other, const double *fluid, const double *boundary_corrections) ~%{ ~%", funcNm),
   printf(fh, "  // greene:               Greene's factor. ~%"),
   printf(fh, "  // m:                    mass. ~%"),
   printf(fh, "  // moms:                 moments of the distribution function. ~%"),
@@ -121,7 +121,7 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
   printf(fh, "  bool cellAvg = false;~%"),
   nodes : eval_string(sconcat("nodesSer", cdim, "xp", 1)),
   nodesub(f):=makelist(subst(makelist(varsC[j]=nodes[i][j],j,1,length(varsC)),f),i,1,length(nodes)),
-  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(moms,bC))))),
+  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(moms_self,bC))))),
   for i : 1 thru length(nodes) do (
     printf(fh, "  if (~a < 0) cellAvg = true; ~%", m0Corners[i])
   ),
@@ -136,9 +136,9 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
   
   printf(fh, "  if (cellAvg) { ~%"),
   /* Use the cell average of m0, m1 and m2. */
-  writeCExprs1s(m0r,append([moms[0]],makelist(0.0,i,1,NC-1))),
+  writeCExprs1s(m0r,append([moms_self[0]],makelist(0.0,i,1,NC-1))),
   for vd : 1 thru udim do (
-    expr : float(expand(append([moms[(vd)*NC]],makelist(0.0,i,1,NC-1)))),
+    expr : float(expand(append([moms_self[(vd)*NC]],makelist(0.0,i,1,NC-1)))),
     for i : 1 thru length(expr) do (
       printf(fh, "    ~a = ~a; ~%", m1r[(vd-1)*NC+i-1], expr[i])
     ),
@@ -148,21 +148,21 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
     )
   ),
   if (vdim = 1) then (
-    writeCExprs1s(m2r,append([moms[(udim+1)*NC]+2.0*fluid[0]],makelist(0.0,i,1,NC-1)))
+    writeCExprs1s(m2r,append([moms_self[(udim+1)*NC]+2.0*fluid[0]],makelist(0.0,i,1,NC-1)))
   )
   else (
-    writeCExprs1s(m2r,append([moms[(udim+1)*NC]+fluid[0]],makelist(0.0,i,1,NC-1)))
+    writeCExprs1s(m2r,append([moms_self[(udim+1)*NC]+fluid[0]],makelist(0.0,i,1,NC-1)))
   ),
   writeCExprs1s(cEr,append([boundary_corrections[udim*NC]],makelist(0.0,i,1,NC-1))),
   printf(fh, "  } else { ~%"),
   /* Use the original expansion polynomial. */
-  writeCExprs1s(m0r,makelist(moms[i],i,0,NC-1)),
-  writeCExprs1s(m1r,makelist(moms[i+NC],i,0,udim*NC-1)),
+  writeCExprs1s(m0r,makelist(moms_self[i],i,0,NC-1)),
+  writeCExprs1s(m1r,makelist(moms_self[i+NC],i,0,udim*NC-1)),
   if (vdim = 1) then (
-    writeCExprs1s(m2r,makelist(moms[i+NC*(udim+1)]+2.0*fluid[i],i,0,NC-1))
+    writeCExprs1s(m2r,makelist(moms_self[i+NC*(udim+1)]+2.0*fluid[i],i,0,NC-1))
   )
   else (
-    writeCExprs1s(m2r,makelist(moms[i+NC*(udim+1)]+fluid[i],i,0,NC-1))
+    writeCExprs1s(m2r,makelist(moms_self[i+NC*(udim+1)]+fluid[i],i,0,NC-1))
   ),
   writeCExprs1s(cMr,makelist(boundary_corrections[i],i,0,udim*NC-1)),
   writeCExprs1s(cEr,makelist(boundary_corrections[i+udim*NC],i,0,NC-1)),
