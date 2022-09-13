@@ -1,0 +1,199 @@
+/* This script generates the kernels for the volume term contribution from 
+   the Vlasov equation for the parallel-kinetic-perpendicular-moment (pkpm) model */
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load ("scifac")$
+load(stringproc)$
+fpprec : 24$
+
+dvdx : [dvpardx0, dvpardx1, dvpardx2]$
+wdx  : [wpardx0, wpardx1, wpardx2]$
+dx1 : [dx0, dx1, dx2]$
+
+cidx(cdim)      := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+
+calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,
+  ux_e, uy_e, uz_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
+  bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+  incr_cdim, incr_vdim, cdir, expr, expr_vpar, alpha_cdim_c, acc_e, alpha_vdim_c, amid],
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+
+  /* specify a point to evaluate alpha at for use in computing CFL */
+  cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *u_i, const double *p_ij, const double *bvar, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // u_i:       bulk flow velocity (ux, uy, uz).~%"),
+  printf(fh, "  // p_ij:      pressure tensor (P_xx, P_xy, P_xz, P_yy, P_yz, P_zz).~%"),
+  printf(fh, "  // bvar:      magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+
+  /* common expressions in streaming (v_parallel b_hat dot grad(f)) term */
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dx~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+    printf(fh, "  double dvpardx~a = dxv[~a]/dxv[~a]; ~%", dir-1, cdim, cid[dir]),
+    printf(fh, "  double wpardx~a = w[~a]/dxv[~a]; ~%", dir-1, cdim, cid[dir])
+  ),
+  /* grid spacing in v_parallel and v_parallel coordinate */
+  printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
+  printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
+  /* access flow, pressure tensor, and magnetic field unit vector data */
+  printf(fh, "  const double *ux = &u_i[~a]; ~%", 0),
+  printf(fh, "  const double *uy = &u_i[~a]; ~%", NC),
+  printf(fh, "  const double *uz = &u_i[~a]; ~%", NC*2),
+
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy = &p_ij[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz = &p_ij[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz = &p_ij[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", NC*5),
+
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
+  printf(fh, "  const double *bxby = &bvar[~a]; ~%", NC*4),
+  printf(fh, "  const double *bxbz = &bvar[~a]; ~%", NC*5),
+  printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
+  printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
+  printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
+
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
+
+  /* alpha_cdim = v_parallel b_hat + u, alpha_vdim = b . div(P) + bb : grad(u) */
+  printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
+  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", NP),
+
+  /* Expand distribution function f in phase basis. */
+  f_e : doExpand1(f, bP),
+
+  /* Expand u, P, and b in configuration space basis */
+  ux_e : doExpand1(ux, bC),
+  uy_e : doExpand1(uy, bC),
+  uz_e : doExpand1(uz, bC),
+  u_e : [ux_e, uy_e, uz_e],
+
+  Pxx_e : doExpand1(Pxx, bC),
+  Pxy_e : doExpand1(Pxy, bC),
+  Pxz_e : doExpand1(Pxz, bC),
+  Pyy_e : doExpand1(Pyy, bC),
+  Pyz_e : doExpand1(Pyz, bC),
+  Pzz_e : doExpand1(Pzz, bC),
+  P_e : [Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e],
+
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
+  b_e : [bx_e, by_e, bz_e],
+
+  bxbx_e : doExpand1(bxbx, bC),
+  bxby_e : doExpand1(bxby, bC),
+  bxbz_e : doExpand1(bxbz, bC),
+  byby_e : doExpand1(byby, bC),
+  bybz_e : doExpand1(bybz, bC),
+  bzbz_e : doExpand1(bzbz, bC),
+  bb_e : [bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e],
+
+  incr_cdim : 0,
+  /* alpha_cdim = [v_parallel b_hat + u] dot grad(f) */
+  for cdir : 1 thru cdim do (
+    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, (2*wdx[cdir]+dvdx[cdir]*vx)*b_e[cdir] + u_e[cdir]*dx1[cdir]),
+    expr : gcfac(float(expand(radcan(alpha_cdim_c)))),
+
+    /* Write out the component of alpha_cdim's phase space expansion */
+    for i : 1 thru NP do (
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], expr[i])
+    ),
+
+    /* zero out components of alpha which are empty */
+    alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
+    alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
+
+    /* evaluate alpha_cdim at cflPt to approximate
+    ** max(abs(alpha_cdim))/(dx_i/(2p+1)) */
+    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(cdir-1),alpha_cdim_NoZero_e))))),
+    printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*polyOrder+1), amid),
+    printf(fh, "~%"),
+
+    /* Volume increment from configuration space. */
+    incr_cdim : incr_cdim+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
+  ),
+
+  /* alpha_vdim = [b . div(P) - v_parallel bb : grad(u)] df/dvpar */
+  if cdim = 1 then (
+    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+  )
+  elseif cdim = 2 then (
+    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
+            + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
+  )
+  else (
+    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
+            + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
+            + bx_e*diff(Pxz_e,varsC[3]) + by_e*diff(Pyz_e,varsC[3]) + bz_e*diff(Pzz_e,varsC[3]) 
+            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
+            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
+            + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
+  ),
+
+  alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dv1par*acc_e),
+  expr_vpar : gcfac(float(expand(radcan(alpha_vdim_c)))),
+
+  /* Write out the component of alpha_vdim's phase space expansion */
+  for i : 1 thru NP do (
+    if expr_vpar[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_vdim[i-1], expr_vpar[i])
+  ),
+
+  /* zero out components of alpha which are empty */
+  alpha_vdim_NoZero   : doMakeExprLstOff(alpha_vdim_c, alpha_vdim, a0),
+  alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
+
+  /* evaluate alpha_vdim at cflPt to approximate
+  ** max(abs(alpha_vdim))/(dx_i/(2p+1)) */
+  amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=0,alpha_vdim_NoZero_e))))),
+  printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
+  printf(fh, "~%"),
+  /* Volume increment from configuration space. */
+  incr_vdim : subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsP[cdim]), alpha_vdim_NoZero_e*f_e)),
+
+  /* write out first attempts to simplify the radicals with radcan, e.g. force sqrt(3)*sqrt(5) = sqrt(15) */
+  /* outscripts loads scifac and uses the aggressive factorization routine "gcfac" */
+  writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
+
+  printf(fh, "~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
+  printf(fh, "} ~%")
+)$

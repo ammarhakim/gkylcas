@@ -22,6 +22,8 @@ maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
+cvars : [x, y, z]$
+
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
@@ -46,6 +48,14 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~%")  
 )$
 
+printPKPMPrototype(deco, ci, bStr, pi) := block([si],
+  printf(fh, "~avoid mom_vlasov_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *bvar, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  for si : 1 thru ci do (
+    printf(fh, "~avoid mom_vlasov_pkpm_surf~a_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *u_il, const double *u_ir, const double *bvarl, const double *bvarr, const double *fl, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
+  ),
+  printf(fh, "~%")  
+)$
+
 fh : openw("~/max-out/gkyl_mom_vlasov_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
@@ -65,7 +75,10 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
-    )
+    ),
+    for polyOrder : minPolyOrderB thru 2 do (
+      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
+    )    
   )
 );
 printf(fh, "EXTERN_C_END ~%")$
