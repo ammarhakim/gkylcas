@@ -35,6 +35,10 @@ printPrototypeMomBcorr(deco, ci, vi, bStr, pi) := block([],
   printf(fh, "~avoid mom_bcorr_lbo_vlasov_~ax~av_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
 )$
 
+printPrototypePKPMMomBcorr(deco, ci, bStr, pi) := block([],
+
+  printf(fh, "~avoid mom_bcorr_lbo_vlasov_pkpm_~ax1v_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi)
+)$
 
 /* ............ Write out the C header file ............ */
 
@@ -58,7 +62,8 @@ for bInd : 1 thru length(bName) do (
     for c : minCdim[bInd] thru maxCdim[bInd] do (
       for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
         printPrototypeMomBcorr(decorator, c, v, bName[bInd], polyOrder)
-      )
+      ),
+      printPrototypePKPMMomBcorr(decorator, c, bName[bInd], polyOrder)
     ),
     printf(fh, "~%")
   )
