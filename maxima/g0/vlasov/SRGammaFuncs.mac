@@ -65,7 +65,7 @@ calcGamma2(fh, funcNm, cdim, numComp, basisFun, polyOrder) := block([bC, NC,
 
   printf(fh, "  double det = ~a; ~%", float(expand(det_E))),
 
-  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
   norm_inv_E : inv_E*det_E*unit[1],
 
   for i : 1 thru NC do (

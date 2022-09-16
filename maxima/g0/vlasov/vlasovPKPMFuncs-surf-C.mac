@@ -230,6 +230,7 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    fl_e, fc_e, fr_e, acc_e,
    ux_e, uy_e, uz_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
    bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+   rho_inv_bx_e, rho_inv_by_e, rho_inv_bz_e, 
    alphaSurf_l_c, alphaSurf_r_c, alst_l, alst_r, alphaSurf_l_e, alphaSurf_r_e,
    alphaOrd_l_n, alphaOrd_r_n, 
    fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,GhatNoZero_l,
@@ -243,13 +244,14 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   pDim  : length(varsP),
 
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-     const double *u_i, const double *p_ij, const double *bvar,
+     const double *u_i, const double *p_ij, const double *bvar, const double *rho_inv_b, 
      const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // u_i:      bulk flow velocity (ux, uy, uz).~%"),
   printf(fh, "  // p_ij:     pressure tensor (P_xx, P_xy, P_xz, P_yy, P_yz, P_zz).~%"),
   printf(fh, "  // bvar:      magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
+  printf(fh, "  // rho_inv_b: b_i/rho (for pressure force 1/rho * b . div(P)).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells.~%"),
   printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
 
@@ -285,6 +287,14 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
   printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
 
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rho_inv_bx = &rho_inv_b[~a]; ~%", 0),
+  printf(fh, "  const double *rho_inv_by = &rho_inv_b[~a]; ~%", NC),
+  printf(fh, "  const double *rho_inv_bz = &rho_inv_b[~a]; ~%", NC*2),
+
+  printf(fh, "~%"),
+
   /* Expand u, P, and b in configuration space basis */
   ux_e : doExpand1(ux, bC),
   uy_e : doExpand1(uy, bC),
@@ -310,28 +320,32 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   byby_e : doExpand1(byby, bC),
   bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
-  bb_e : [bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e],
+  bb_e : [bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e], 
+
+  rho_inv_bx_e : doExpand1(rho_inv_bx, bC),
+  rho_inv_by_e : doExpand1(rho_inv_by, bC),
+  rho_inv_bz_e : doExpand1(rho_inv_bz, bC),
 
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  /* alpha_vdim = [b . div(P) - v_parallel bb : grad(u)] df/dvpar */
+  /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] df/dvpar */
   if cdim = 1 then (
-    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
+    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
             - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
   )
   elseif cdim = 2 then (
-    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
-            + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
+    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
+            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2])
             - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
   )
   else (
-    acc_e : bx_e*diff(Pxx_e,varsC[1]) + by_e*diff(Pxy_e,varsC[1]) + bz_e*diff(Pxz_e,varsC[1]) 
-            + bx_e*diff(Pxy_e,varsC[2]) + by_e*diff(Pyy_e,varsC[2]) + bz_e*diff(Pyz_e,varsC[2]) 
-            + bx_e*diff(Pxz_e,varsC[3]) + by_e*diff(Pyz_e,varsC[3]) + bz_e*diff(Pzz_e,varsC[3]) 
+    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
+            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]) 
+            + rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]) 
             - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
             + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
             + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
