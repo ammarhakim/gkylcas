@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        /* For Lenard-Bernstein operator. */
+        /* For Vlasov Lenard-Bernstein operator. */
         disp(printf(false,sconcat("Creating VmLBOCrossPrimMoments ~ax~av p~a ", bName[bInd]),c,v,polyOrder)),
         fname : sconcat("~/max-out/vlasov_cross_prim_moments_", c, "x", v, "v_",bName[bInd],"_p", polyOrder, ".c"),
         fh : openw(fname),

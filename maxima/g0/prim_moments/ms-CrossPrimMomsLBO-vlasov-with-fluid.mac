@@ -1,4 +1,4 @@
-load("prim_moments/CrossPrimMomsLBO-vlasov-with-fluid-C")$
+load("prim_moments/CrossPrimMomsLBO-vlasov-with-fluid")$
 
 load(stringproc)$
 
