@@ -166,10 +166,10 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "  double alpha_r_l = 0.0; ~%"),
   printf(fh, "~%"),
   for i : 1 thru numNodes do (
-    printf(fh, "  alpha_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(alpha_lr); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  alpha_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(alpha_cl); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  alpha_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(alpha_cr); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  alpha_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(alpha_rl); ~%", basisFun, pDim, polyOrder, dir, i-1),
+    printf(fh, "  alpha_l_r = ~a; ~%", alphaOrd_lr_n[i]),
+    printf(fh, "  alpha_c_l = ~a; ~%", alphaOrd_cl_n[i]),
+    printf(fh, "  alpha_c_r = ~a; ~%", alphaOrd_cr_n[i]),
+    printf(fh, "  alpha_r_l = ~a; ~%", alphaOrd_rl_n[i]),
 
     printf(fh, "  alphaQuad_l[~a] = fmax(fabs(alpha_l_r), fabs(alpha_c_l)); ~%", i-1),
     printf(fh, "  alphaQuad_r[~a] = fmax(fabs(alpha_c_r), fabs(alpha_r_l)); ~%", i-1)
