@@ -217,10 +217,10 @@ calcPKPMSurfMoments(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double ev_q_r = 0.0; ~%"),
   printf(fh, "~%"),
   for i : 1 thru numNodes do (
-    printf(fh, "  ev_u_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_l); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  ev_u_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(u_r); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  ev_q_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(q_l); ~%", basisFun, pDim, polyOrder, dir, i-1),
-    printf(fh, "  ev_q_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(q_r); ~%", basisFun, pDim, polyOrder, dir, i-1),
+    printf(fh, "  ev_u_l = ~a; ~%", uOrd_l_n[i]),
+    printf(fh, "  ev_u_r = ~a; ~%", uOrd_r_n[i]),
+    printf(fh, "  ev_q_l = ~a; ~%", qOrd_l_n[i]),
+    printf(fh, "  ev_q_r = ~a; ~%", qOrd_r_n[i]),
 
     printf(fh, "  uQuad[~a] = fmax(fabs(ev_u_l), fabs(ev_u_r)); ~%", i-1),
     printf(fh, "  qQuad[~a] = fmax(fabs(ev_q_l), fabs(ev_q_r)); ~%", i-1)
