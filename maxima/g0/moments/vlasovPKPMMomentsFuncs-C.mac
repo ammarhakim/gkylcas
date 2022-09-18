@@ -19,8 +19,6 @@ let(dvpar^3, dvpar_cu)$
 let(wvpar^2, wvpar_sq)$
 let(dvpar^2, dvpar_sq)$
 
-volExpr(cdim, vdim) := prod(dxv[i-1], i, 1, vdim)$
-
 /* Calculate mass density, parallel pressure, and parallel heat flux (PKPM moments) sequentially */
 calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,fl,bx_e,by_e,bz_e,vTrans,rho,ppar,qpar_x,qpar_y,qpar_z,PKPM_moments,clst],
@@ -31,8 +29,8 @@ calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NC : length(bC),
 
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *bvar, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
-  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", 0, 0),
+  printf(fh, "  const double volFact = dxv[~a]/2.0; ~%", cdim),
+  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", cdim, cdim),
   printf(fh, "  const double wvpar_sq = wvpar*wvpar, dvpar_sq = dvpar*dvpar; ~%"),
   printf(fh, "  const double wvpar_cu = wvpar*wvpar*wvpar, dvpar_cu = dvpar*dvpar*dvpar; ~%"),
   printf(fh, "~%"),
