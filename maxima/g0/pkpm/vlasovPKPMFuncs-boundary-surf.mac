@@ -9,8 +9,8 @@ load("scifac")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-dvdx : [dvpardx0, dvpardx1, dvpardx2]$
-wdx  : [wpardx0, wpardx1, wpardx2]$
+cvars : [x, y, z]$
+dx11 : [dx0, dx1, dx2]$
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
@@ -21,14 +21,14 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 
 calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, NP, pDim, cid, vid, surfVars, bSurf, surfNodes, numNodes,
-   fl_e, fc_e, fr_e, acc_e,
-   ux_e, uy_e, uz_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
-   bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+   fl_e, fc_e, fr_e, vTrans, 
+   ux_e, uy_e, uz_e, u_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
+   bx_e, by_e, bz_e, b_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
    rho_inv_bx_e, rho_inv_by_e, rho_inv_bz_e, 
+   acc_P_x_e, acc_P_y_e, acc_P_z_e, acc_u_x_e, acc_u_y_e, acc_u_z_e, 
    alphaSurf_l_c, alphaSurf_r_c, alst_l, alst_r, alphaSurf_l_e, alphaSurf_r_e,
    alphaOrd_l_n, alphaOrd_r_n, 
-   fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,GhatNoZero_l,
-   Ghat_l_e,GhatNoZero_r,Ghat_r_e,incr_l,incr_r],
+   fHatSurf_e,Ghat_c,glst1,Ghat_e,incr],
 
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -53,6 +53,11 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
 
+  /* grid spacing in configuration space (for transformation from computational to physical space
+     of acceleration [1/rho * b . div(P) - v_parallel bb : grad(u)] */
+  for dir : 1 thru cdim do (
+    printf(fh, "  const double dx~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir])
+  ),
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
@@ -102,7 +107,6 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   Pyy_e : doExpand1(Pyy, bC),
   Pyz_e : doExpand1(Pyz, bC),
   Pzz_e : doExpand1(Pzz, bC),
-  P_e : [Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e],
 
   bx_e : doExpand1(bx, bC),
   by_e : doExpand1(by, bC),
@@ -115,7 +119,6 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   byby_e : doExpand1(byby, bC),
   bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
-  bb_e : [bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e],
 
   rho_inv_bx_e : doExpand1(rho_inv_bx, bC),
   rho_inv_by_e : doExpand1(rho_inv_by, bC),
@@ -126,24 +129,33 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] df/dvpar */
+  /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] */
   if cdim = 1 then (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e)
   )
   elseif cdim = 2 then (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2])
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
+    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
+
+    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e)
   )
   else (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]) 
-            + rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]) 
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
-            + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
+    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
+
+    acc_P_z_e : rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]),
+    acc_u_z_e : -(vx*dvpar/2.0+wvpar)*(bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3])),
+
+    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e) + dx11[3]*(acc_P_z_e + acc_u_z_e)
   ),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
@@ -159,10 +171,11 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   ),
 
   /* Project alpha evaluated at interior surface onto surf basis. */
+  clst : [dx0, dx1, dx2, dvpar, wvpar],
   alphaSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=-1,acc_e))),
   alphaSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=1,acc_e))),
-  alst_l          : doMakeExprLst(alphaSurf_l_c, alphaSurf),
-  alst_r          : doMakeExprLst(alphaSurf_r_c, alphaSurf),
+  alst_l        : doMakeExprLst(alphaSurf_l_c, alphaSurf),
+  alst_r        : doMakeExprLst(alphaSurf_r_c, alphaSurf),
   alphaSurf_l_e : doExpand(alst_l, bSurf),
   alphaSurf_r_e : doExpand(alst_r, bSurf),
 
@@ -192,27 +205,37 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "  if (edge == -1) { ~%~%"),
   /* Write out drag term for far left edge boundary.
      Need alpha evaluated at +1 for skin-edge interface.
-     NOTE: zero-flux boundary conditions means for far left boundary, no drag term on -1 surface */
-  writeCExprs1(alphaSurf, alphaSurf_r_c),
+     NOTE: zero-flux boundary conditions means for far left boundary, no surface term on -1 surface */
+  writeCExprsCollect1(alphaSurf, alphaSurf_r_c, clst),
   printf(fh, "~%"),
   /* Write out fUpwindQuad for the far left edge */
   /* Within the skin cell, we need alpha_r (alpha evaluated at +1)
      just like how the skin cell is evaluated at +1 */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    for i : 1 thru length(alphaOrd_r_n) do (
+      printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, cdim, cdim+1, i-1),
+      printf(fh, "  } else { ~%"),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, cdim, cdim+1, i-1),
+      printf(fh, "  } ~%")
+    ),
 
-  for i : 1 thru length(alphaOrd_r_n) do (
-    printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-    printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-    printf(fh, "  } else { ~%"),
-    printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-    printf(fh, "  } ~%")
+    printf(fh, "~%"),
+    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    printf(fh, "  hyb_~ax1v_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim)
+  ) else (
+    for i : 1 thru length(alphaOrd_r_n) do (
+      printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
+      printf(fh, "  } else { ~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
+      printf(fh, "  } ~%")
+    ),
+
+    printf(fh, "~%"),
+    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, pDim, polyOrder)
   ),
-
-  printf(fh, "~%"),
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then  /* Force p=1 to use hybrid basis. */
-    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, 1)
-  else
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+1, polyOrder),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) on the left and right in the surface basis. */
@@ -238,27 +261,37 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "~%  } else { ~%~%"),
   /* Write out drag term for far right edge boundary.
      Need alpha evaluated at -1 for skin-edge interface.
-     NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
-  writeCExprs1(alphaSurf, alphaSurf_l_c),
+     NOTE: zero-flux boundary conditions means for far right boundary, no surface term on +1 surface */
+  writeCExprsCollect1(alphaSurf, alphaSurf_l_c, clst),
   printf(fh, "~%"),
   /* Write out fUpwindQuad for the far right edge */
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
      just like how the skin cell is evaluated at -1 */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    for i : 1 thru length(alphaOrd_l_n) do (
+      printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, cdim, cdim+1, i-1),
+      printf(fh, "  } else { ~%"),
+      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, cdim, cdim+1, i-1),
+      printf(fh, "  } ~%")
+    ),
 
-  for i : 1 thru length(alphaOrd_l_n) do (
-    printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-    printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-    printf(fh, "  } else { ~%"),
-    printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-    printf(fh, "  } ~%")
+    printf(fh, "~%"),
+    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    printf(fh, "  hyb_~ax1v_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim)
+  ) else (
+    for i : 1 thru length(alphaOrd_l_n) do (
+      printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
+      printf(fh, "  } else { ~%"),
+      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
+      printf(fh, "  } ~%")
+    ),
+
+    printf(fh, "~%"),
+    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, pDim, polyOrder)
   ),
-
-  printf(fh, "~%"),
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then  /* Force p=1 to use hybrid basis. */
-    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, 1)
-  else
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+1, polyOrder),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) on the left and right in the surface basis. */

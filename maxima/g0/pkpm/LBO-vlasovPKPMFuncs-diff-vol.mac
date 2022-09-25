@@ -1,12 +1,12 @@
+/* This script generates the kernels for the volume term
+   diffusion contribution from Lenard Bernstein operator to the
+   Vlasov equation. */
+
 load("modal-basis")$
 load("out-scripts");
 load("utilities")$
 load(stringproc)$
 fpprec : 24$
-
-/* This script generates the kernels for the volume term
-   diffusion contribution from Lenard Bernstein operator to the
-   Vlasov equation. */
 
 calcVlasovPKPMLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,zr,nuVtSq_e,polyFact,facDiff_mid],

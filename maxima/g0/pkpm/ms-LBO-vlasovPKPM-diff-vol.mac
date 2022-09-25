@@ -1,13 +1,12 @@
-load("lenard_bernstein_operator/vlasovPKPMLBOFuncs-drag-boundary-surf")$
-load(stringproc)$
-
 /* This script calls the functions which calculate the
-   updates from the drag portion of the surface contributions on the boundary. */
+   updates from the diff portion of the volume contributions. */
+
+load("pkpm/LBO-vlasovPKPMFuncs-diff-vol")$
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
@@ -32,11 +31,11 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_drag_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),c,polyOrder)),
-      funcName : sconcat("lbo_vlasov_pkpm_drag_boundary_surfvpar_", c, "x1v_", bName[bInd],"_p",polyOrder),
+      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_diff_vol_~ax1v_",bName[bInd]," _p~a"),c,polyOrder)),
+      funcName : sconcat("lbo_vlasov_pkpm_diff_vol_", c, "x1v_", bName[bInd],"_p",polyOrder),
       fname : sconcat("~/max-out/",funcName, ".c"),
       fh : openw(fname),
-      calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcName, c, 1, bName[bInd], polyOrder),
+      calcVlasovPKPMLBODiffVolUpdater(fh, funcName, c, 1, bName[bInd], polyOrder),
       close(fh) 
     ) 
   )

@@ -4,7 +4,7 @@
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$

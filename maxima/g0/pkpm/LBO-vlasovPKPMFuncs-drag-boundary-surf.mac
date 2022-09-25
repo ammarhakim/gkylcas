@@ -1,14 +1,12 @@
+/* This script generates the kernels for the boundary surface term
+   drag contribution from Lenard Bernstein operator. */
+
 load("modal-basis")$
 load("out-scripts");
-load("nodal_operations/nodal_functions")$
-load("recovery")$
 load("utilities")$
 load(stringproc)$
 
 fpprec : 24$
-
-/* This script generates the kernels for the boundary surface term
-   drag contribution from Lenard Bernstein operator. */
 
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$

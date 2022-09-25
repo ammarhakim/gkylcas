@@ -1,14 +1,12 @@
-load("modal-basis")$
-load("out-scripts");
-load("nodal_operations/nodal_functions")$
-load("recovery")$
-load("utilities")$
-load(stringproc)$
-fpprec : 24$
-
 /* This script generates the kernels for the surface term
    drag contribution from Lenard Bernstein operator when 
    coupled to the Vlasov parallel-kinetic-perpendicular-moment (pkpm) model. */
+
+load("modal-basis")$
+load("out-scripts");
+load("utilities")$
+load(stringproc)$
+fpprec : 24$
 
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$

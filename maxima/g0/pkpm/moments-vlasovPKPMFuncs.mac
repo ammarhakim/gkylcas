@@ -1,0 +1,55 @@
+/* Function that computes the moments of the distribution function in Vlasov 
+    parallel-kinetic-perpendicular-moment (pkpm) model. 
+    Note the Vlasov equation is in the local plasma rest frame in this model
+    so the second moment is the parallel pressure and third moment is parallel heat
+    flux (no Reynolds stress for example). */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("scifac")$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+cvars : [x, y, z]$
+
+let(wvpar^3, wvpar_cu)$
+let(dvpar^3, dvpar_cu)$
+
+let(wvpar^2, wvpar_sq)$
+let(dvpar^2, dvpar_sq)$
+
+/* Calculate mass density, parallel pressure, and parallel heat flux (PKPM moments) sequentially */
+calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,fl,vTrans,rho,ppar,qpar,PKPM_moments,clst],
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+
+  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = dxv[~a]/2.0; ~%", cdim),
+  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", cdim, cdim),
+  printf(fh, "  const double wvpar_sq = wvpar*wvpar, dvpar_sq = dvpar*dvpar; ~%"),
+  printf(fh, "  const double wvpar_cu = wvpar*wvpar*wvpar, dvpar_cu = dvpar*dvpar*dvpar; ~%"),
+  printf(fh, "~%"),
+
+  fl : doExpand1(f, bP),
+  vTrans  : vx*dvpar/2+wvpar,
+  
+  rho : calcInnerProdList(varsP, 1, bC, fl),
+  ppar : calcInnerProdList(varsP, vTrans*vTrans, bC, fl),
+  qpar : calcInnerProdList(varsP, 0.5*vTrans*vTrans*vTrans, bC, fl),
+  
+  ppar : map(letsimp, ppar),
+  qpar : map(letsimp, qpar),
+
+  clst : [volFact, mass],
+  PKPM_moments : [],
+  PKPM_moments : append(PKPM_moments, volFact*mass*rho),
+  PKPM_moments : append(PKPM_moments, volFact*mass*ppar),
+  PKPM_moments : append(PKPM_moments, volFact*mass*qpar),
+  writeCIncrExprsCollect1(out, PKPM_moments, clst),
+  printf(fh, "} ~%")
+)$

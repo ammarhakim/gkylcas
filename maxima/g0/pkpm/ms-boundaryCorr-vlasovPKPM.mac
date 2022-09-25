@@ -2,13 +2,12 @@
     function in Vlasov for the parallel-kinetic-perpendicular-moment model.
     Note that this model only requires a vtSq correction because the Vlasov equation
     is in the local rest frame. */
-load(stringproc)$
-load("lenard_bernstein_operator/vlasovPKPMBoundaryCorr")$
+load("pkpm/boundaryCorr-vlasovPKPMFuncs")$
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$

@@ -1,10 +1,10 @@
+/* This script generates the kernels for the volume drag term
+   contribution from Lenard Bernstein operator. */
+
 load("modal-basis")$
 load("out-scripts");
 load(stringproc)$
 fpprec : 24$
-
-/* This script generates the kernels for the volume drag term
-   contribution from Lenard Bernstein operator. */
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$

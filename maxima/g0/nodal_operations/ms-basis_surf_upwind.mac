@@ -31,7 +31,7 @@ maxVdim_Tensor : 3$
 /* Hybrid basis. */
 minCdim_hyb : 1$
 maxCdim_hyb : 3$
-vDims_hyb : [[1,2,3], [2,3], [2,3]]$  /* Vdim for each of Cdim. 3x2v for GK. */
+vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. 3x2v for GK. */
 
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$

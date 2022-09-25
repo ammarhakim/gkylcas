@@ -1,4 +1,4 @@
-load("vlasov/vlasovPKPMFuncs-surf-C")$
+load("pkpm/vlasovPKPMFuncs-surf")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term contributions in the Vlasov 
@@ -7,7 +7,7 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$

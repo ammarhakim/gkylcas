@@ -1,16 +1,15 @@
-load("vlasov/vlasovPKPMFuncs-vol-C")$
+load("pkpm/eulerPPerpPKPM-pressure")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term contributions in the Vlasov 
-   kinetic equation for parallel-kinetic-perpendicular-moment (pkpm) model. */
+   updates from the volume term due to an euler equation. */
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
-maxPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 1$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -22,24 +21,23 @@ maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","tensor"]$
+bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-/* Compute the volume contribution in BOTH real and velocity space (for use in full Vlasov-Maxwell) */
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume Vlasov PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/vlasov_pkpm_vol_",  d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating euler pkpm pressure",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/euler_pkpm_pressure_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("vlasov_pkpm_vol_", d, "x1v_", bName[bInd]),
-      calcVlasovPKPMVolUpdater(fh, funcName, d, 1, bName[bInd], polyOrder),
+      funcName : sconcat("euler_pkpm_pressure_", d, "x_", bName[bInd]),
+      calcEulerPKPMPressure(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

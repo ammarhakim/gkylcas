@@ -1,0 +1,43 @@
+load("modal-basis")$
+load("out-scripts")$
+fpprec : 24$
+
+calcEulerPKPMPressureSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, rho_e, nu_e, nu_vth_sq_e, p_perp_e, incr_p_perp],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *nu, const double *nu_vth_sq, const double *vlasov_pkpm_moms, const double *u_i, const double *euler_pkpm, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // nu: Collisionality.~%"),
+  printf(fh, "  // nu_vth_sq: nu*vth^2 = nu*T/m.~%"),
+  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, q_parallel], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // u_i: Input flow velocity.~%"),
+  printf(fh, "  // euler_pkpm: Input fluid variables.~%"),
+  printf(fh, "  // out: Output increment"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0),
+  printf(fh, "  const double *p_perp = &euler_pkpm[~a]; ~%", 3*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *outp_perp = &out[~a]; ~%", 3*NC),
+  printf(fh, "~%"),
+
+  rho_e : doExpand1(rho, bC),
+  nu_e : doExpand1(nu, bC),
+  nu_vth_sq_e : doExpand1(nu_vth_sq, bC),
+  p_perp_e : doExpand1(p_perp, bC),
+
+  incr_p_perp : calcInnerProdList(varsC, 1, bC, nu_vth_sq_e*rho_e - nu_e*p_perp_e),
+  writeCIncrExprs1(outp_perp, incr_p_perp),
+
+  printf(fh, "} ~%")
+)$

@@ -8,21 +8,26 @@ load ("scifac")$
 load(stringproc)$
 fpprec : 24$
 
-dvdx : [dvpardx0, dvpardx1, dvpardx2]$
-wdx  : [wpardx0, wpardx1, wpardx2]$
-dx1 : [dx0, dx1, dx2]$
+dx11 : [dx0, dx1, dx2]$
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
+/* Helper functions for expanding in basis functions a quantity we know should be sparse 
+   For example, alpha, the phase space flow only depends on a few phase space coordinates */
+/* List output is a vector with some offset off */
 doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+/* List output is a scalar */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,
-  ux_e, uy_e, uz_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
-  bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+  [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,vTrans, 
+  ux_e, uy_e, uz_e, u_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
+  bx_e, by_e, bz_e, b_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
   rho_inv_bx_e, rho_inv_by_e, rho_inv_bz_e, 
-  incr_cdim, incr_vdim, cdir, expr, expr_vpar, alpha_cdim_c, acc_e, alpha_vdim_c, amid],
+  alpha_cdim_c, expr, alpha_cdim_NoZero, alpha_cdim_NoZero_e, amid, incr_cdim, 
+  acc_P_x_e, acc_P_y_e, acc_P_z_e, acc_u_x_e, acc_u_y_e, acc_u_z_e, 
+  alpha_vdim_c, expr_vpar, alpha_vdim_NoZero, alpha_vdim_NoZero_e, clst, incr_vdim],
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
@@ -56,9 +61,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* common expressions in streaming (v_parallel b_hat dot grad(f)) term */
   for dir : 1 thru cdim do (
-    printf(fh, "  double dx~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-    printf(fh, "  double dvpardx~a = dxv[~a]/dxv[~a]; ~%", dir-1, cdim, cid[dir]),
-    printf(fh, "  double wpardx~a = w[~a]/dxv[~a]; ~%", dir-1, cdim, cid[dir])
+    printf(fh, "  const double dx~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir])
   ),
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
@@ -100,10 +103,12 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
-  /* alpha_cdim = v_parallel b_hat + u, alpha_vdim = b . div(P) + bb : grad(u) */
+  /* alpha_cdim = v_parallel b_hat + u, alpha_vdim = 1/rho * b . div(P) + bb : grad(u) */
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
   printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", NP),
 
+  /* Coordinate transformation for velocity space */
+  vTrans : vx*dvpar/2+wvpar,
   /* Expand distribution function f in phase basis. */
   f_e : doExpand1(f, bP),
 
@@ -119,7 +124,6 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   Pyy_e : doExpand1(Pyy, bC),
   Pyz_e : doExpand1(Pyz, bC),
   Pzz_e : doExpand1(Pzz, bC),
-  P_e : [Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e],
 
   bx_e : doExpand1(bx, bC),
   by_e : doExpand1(by, bC),
@@ -132,7 +136,6 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   byby_e : doExpand1(byby, bC),
   bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
-  bb_e : [bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e],
 
   rho_inv_bx_e : doExpand1(rho_inv_bx, bC),
   rho_inv_by_e : doExpand1(rho_inv_by, bC),
@@ -141,12 +144,12 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incr_cdim : 0,
   /* alpha_cdim = [v_parallel b_hat + u] dot grad(f) */
   for cdir : 1 thru cdim do (
-    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, (2*wdx[cdir]+dvdx[cdir]*vx)*b_e[cdir] + u_e[cdir]*dx1[cdir]),
+    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, vTrans*b_e[cdir] + u_e[cdir]),
     expr : gcfac(float(expand(radcan(alpha_cdim_c)))),
 
     /* Write out the component of alpha_cdim's phase space expansion */
     for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], expr[i])
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], expr[i]*dx11[cdir])
     ),
 
     /* zero out components of alpha which are empty */
@@ -165,43 +168,46 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] df/dvpar */
   if cdim = 1 then (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e))
   )
   elseif cdim = 2 then (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2])
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
+    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
+
+    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e))
   )
   else (
-    acc_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]) 
-            + rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]) 
-            + rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]) 
-            - (vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])
-            + bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])   
-            + bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3]))
+    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
+    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+
+    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
+    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
+
+    acc_P_z_e : rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]),
+    acc_u_z_e : -(vx*dvpar/2.0+wvpar)*(bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3])),
+
+    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e) + dx11[3]*(acc_P_z_e + acc_u_z_e))
   ),
+  clst : [dv1par, dx0, dx1, dx2, dvpar, wvpar],
+  writeCExprsCollect1(alpha_vdim, alpha_vdim_c*dv1par, clst),
 
-  alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dv1par*acc_e),
-  expr_vpar : gcfac(float(expand(radcan(alpha_vdim_c)))),
-
-  /* Write out the component of alpha_vdim's phase space expansion */
-  for i : 1 thru NP do (
-    if expr_vpar[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_vdim[i-1], expr_vpar[i])
-  ),
-
-  /* zero out components of alpha which are empty */
-  alpha_vdim_NoZero   : doMakeExprLstOff(alpha_vdim_c, alpha_vdim, a0),
+  /* Zero out components of alpha_vdim which are empty. */
+  alpha_vdim_NoZero : doMakeExprLst(alpha_vdim_c, alpha_vdim),
   alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
   /* evaluate alpha_vdim at cflPt to approximate
   ** max(abs(alpha_vdim))/(dx_i/(2p+1)) */
-  amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=0,alpha_vdim_NoZero_e))))),
+  amid : gcfac(float(expand(subst(cflPt,0.5*alpha_vdim_NoZero_e)))),
   printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
   printf(fh, "~%"),
   /* Volume increment from configuration space. */
-  incr_vdim : subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsP[cdim]), alpha_vdim_NoZero_e*f_e)),
+  incr_vdim : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*f_e),
 
   /* write out first attempts to simplify the radicals with radcan, e.g. force sqrt(3)*sqrt(5) = sqrt(15) */
   /* outscripts loads scifac and uses the aggressive factorization routine "gcfac" */
