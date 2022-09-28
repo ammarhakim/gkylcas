@@ -1,0 +1,132 @@
+/*
+   Modify the electrostatic potential at the boundary
+   to account for the potential drop due to a rarefaction
+   wave when u_parallel < c_s.
+*/
+
+load("out-scripts")$
+load("modal-basis")$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
+  [vars,basis,numB,nodes,numNodes,dimIn,basisNodal,phi_c,phi_e,phi_n,phiWall_c,phiWall_e,
+   m0Elc_e,m0Ion_e,m1Elc_e,m1Ion_e,m2parElc_e,m2parIon_e,edge,boundaryVal,zVar,m0Elc_b,
+   m0Ion_b,m1Elc_b,m1Ion_b,m2parElc_b,m2parIon_b,uparElc_b,uparIon_b,TparElc_b,TparIon_b,
+   cSound_b,Dphi_r,bNodeIdx,phiWall_b,phiOut_c],
+
+  [vars, basis] : loadBasis(basisNm, cdim, polyOrder),
+  numB : length(basis),
+
+  nodes : args(getNodes(basisNm, cdim, polyOrder)),
+  numNodes : length(nodes),
+
+  basisNodal : getVarsNodalBasisWithNodes(basisNm, cdim, polyOrder, vars, nodes),
+
+  phi_c : makelist(phi[i-1], i, 1, numB),
+  phi_e : doExpand(phi_c, basis),
+  phi_n : evAtNodes(phi_e, nodes, vars),
+
+  phiWall_c : makelist(phiWall[i-1], i, 1, numB),
+  phiWall_e : doExpand(phiWall_c, basis),
+
+  /* Expand moments in basis. */
+  m0Elc_e : doExpand1(m0Elc, basis),
+  m0Ion_e : doExpand1(m0Ion, basis),
+  m1Elc_e : doExpand1(m1Elc, basis),
+  m1Ion_e : doExpand1(m1Ion, basis),
+  m2parElc_e : doExpand1(m2parElc, basis),
+  m2parIon_e : doExpand1(m2parIon, basis),
+
+  /* Generate separate kernels for lower/upper boundaries. */
+  edge : ["lower", "upper"],
+  boundaryVal : [-1, 1],
+  zVar : vars[cdim],
+
+  for sI : 1 thru length(edge) do (
+
+    printf(fh, "~%"),
+    printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_~a_~ax_~a_p~a(double elem_q, double mElc, const double *momsElc, const double *m2parElc, double mIon, const double *momsIon, const double *m2parIon, const double *phiWall, double *phi) ~%{ ~%", edge[sI], cdim, basisNm, polyOrder),
+    printf(fh, "  // elem_q: elementary charge.~%"),
+    printf(fh, "  // mElc: electron mass.~%"),
+    printf(fh, "  // momsElc: m0, m1 and m2 moments of electrons.~%"),
+    printf(fh, "  // m2parElc: parallel m2 moment of electrons.~%"),
+    printf(fh, "  // mIon: ion mass.~%"),
+    printf(fh, "  // momsIon: m0, m1 and m2 moments of ions.~%"),
+    printf(fh, "  // m2parIon: parallel m2 moment of ions.~%"),
+    printf(fh, "  // phi: electrostatic potential.~%"),
+    printf(fh, "~%"),
+
+    /* Create pointers to M0, M1. */
+    for m : 0 thru 1 do (
+      printf(fh, "  const double *m~aElc = &momsElc[~a];~%", m, m*numB),
+      printf(fh, "  const double *m~aIon = &momsIon[~a];~%", m, m*numB)
+    ),
+    printf(fh, "~%"),
+
+    /* Compute Tpare, Tpari, upari and c_s at the boundary. */
+    m0Elc_b : subst(zVar=boundaryVal[sI], m0Elc_e),
+    m0Ion_b : subst(zVar=boundaryVal[sI], m0Ion_e),
+    m1Elc_b : subst(zVar=boundaryVal[sI], m1Elc_e),
+    m1Ion_b : subst(zVar=boundaryVal[sI], m1Ion_e),
+    m2parElc_b : subst(zVar=boundaryVal[sI], m2parElc_e),
+    m2parIon_b : subst(zVar=boundaryVal[sI], m2parIon_e),
+
+    printf(fh, "  double m0_e = ~a;~%", float(expand(m0Elc_b))),
+    printf(fh, "  double m0_i = ~a;~%", float(expand(m0Ion_b))),
+    printf(fh, "  double m1_e = ~a;~%", float(expand(m1Elc_b))),
+    printf(fh, "  double m1_i = ~a;~%", float(expand(m1Ion_b))),
+    printf(fh, "  double m2par_e = ~a;~%", float(expand(m2parElc_b))),
+    printf(fh, "  double m2par_i = ~a;~%", float(expand(m2parIon_b))),
+    printf(fh, "~%"),
+
+    uparElc_b : m1_e/m0_e,
+    uparIon_b : m1_i/m0_i,
+    printf(fh, "  double upar_e = ~a;~%", float(expand(uparElc_b))),
+    printf(fh, "  double upar_i = ~a;~%", float(expand(uparIon_b))),
+    printf(fh, "~%"),
+
+    TparElc_b : mElc*(m2par_e-upar_e*m1_e)/m0_e,
+    TparIon_b : mIon*(m2par_i-upar_i*m1_i)/m0_i,
+    printf(fh, "  double Tpar_e = ~a;~%", float(fullratsimp(TparElc_b))),
+    printf(fh, "  double Tpar_i = ~a;~%", float(fullratsimp(TparIon_b))),
+    printf(fh, "~%"),
+
+    printf(fh, "  if (Tpar_e>0. && Tpar_i>0.) {~%"),
+    printf(fh, "~%"),
+
+    cSound_b : sqrt((Tpar_e+3*Tpar_i)/mIon),
+    printf(fh, "  double c_s = ~a;~%", float(fullratsimp(cSound_b))),
+    printf(fh, "~%"),
+
+    Dphi_r : - (Tpar_e/elem_q)*(1.-upar_i/c_s),
+    printf(fh, "  double Delta_phi_r = ~a;~%", float(fullratsimp(Dphi_r))),
+    printf(fh, "~%"),
+
+    /* Change boundary value of phi to account for the rarefaction wave
+       modification to phi: -(Tpare/e)*(1-upari/c_s). */
+    bNodeIdx : sublist_indices(nodes, lambda([x], x[cdim]=1))[1],
+    phiWall_b : subst(zVar=boundaryVal[sI], phiWall_e),
+    phi_n[bNodeIdx] : fmax(phi_n[bNodeIdx] + Delta_phi_r, phiWall_b),
+
+    /* Write out nodal values. */
+    printf(fh, "  double phiNod[~a] = {0.};~%", numNodes),
+    writeCExprs1(phiNod, phi_n),
+    printf(fh, "~%"),
+
+    /* Expand nodal values in nodal basis and project onto modal basis. */
+    phiOut_c : calcInnerProdList(vars, 1, basis, doExpand1(phiNod, basisNodal)),
+
+    /* Write out modal values. */
+    writeCExprs1(phi, phiOut_c),
+
+    printf(fh, "~%"),
+    printf(fh, "  }~%"),
+
+    printf(fh, " ~%"),
+    printf(fh, "}~%")
+
+  )
+
+)$
+

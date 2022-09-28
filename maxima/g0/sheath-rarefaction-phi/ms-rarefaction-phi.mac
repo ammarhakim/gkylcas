@@ -1,0 +1,73 @@
+/*
+   Generate kernels that modify phi at the sheath entrance
+   to account for a rarefction wave.
+*/
+
+/* Configuration space dimensions to generate kernels for. */
+cDims : [1]$
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+
+/* Tensor order basis. */
+minPolyOrder_Tensor : 2$  /* Don't generate p=1. */
+maxPolyOrder_Tensor : 2$
+
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+
+load("sheath-rarefaction-phi/mod_boundary_phi");
+
+/* Create the sheath kernels. */
+for bInd : 1 thru length(bName) do (
+  minPolyOrderB : minPolyOrder[bInd],
+  maxPolyOrderB : maxPolyOrder[bInd],
+  for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+    fname : sconcat("~/max-out/sheath_rarefaction_phi_mod_",bName[bInd],"_p",polyOrder,".c"),
+    fh : openw(fname),
+
+    printf(fh, "#include <gkyl_sheath_rarefaction_pot_kernels.h> ~%"),
+    printf(fh, "~%"),
+
+    for cI : 1 thru length(cDims) do (
+      for vI : 1 thru length(vDims[cI]) do (
+        print(sconcat("Creating sheath_rarefaction_phi_mod ", cDims[cI], "x ", bName[bInd], " p",polyOrder)),
+        genModPhiKer(fh, cDims[cI], bName[bInd], polyOrder)
+      )
+    ),
+    close(fh)
+  )
+)$
+
+/* Create a header file for sheath kernels. */
+fh : openw("~/max-out/gkyl_sheath_rarefaction_pot_kernels.h")$
+printf(fh, "#pragma once~%")$
+printf(fh, "~%")$
+printf(fh, "#include <gkyl_util.h>~%")$
+printf(fh, "#include <math.h>~%")$
+printf(fh, "~%")$
+
+printf(fh, "EXTERN_C_BEG~%")$
+printf(fh, "~%")$
+
+edges : ["lower", "upper"]$
+
+for bInd : 1 thru length(bName) do (
+  maxPolyOrderB : maxPolyOrder[bInd],
+  for polyOrder : 1 thru maxPolyOrderB do (
+    for cI : 1 thru length(cDims) do (
+      for sI : 1 thru length(edges) do (
+
+        printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_~a_~ax_~a_p~a(double elem_q, double mElc, const double *momsElc, const double *m2parElc, double mIon, const double *momsIon, const double *m2parIon, const double *phiWall, double *phi); ~%", edges[sI], cDims[cI], bName[bInd], polyOrder)
+
+      )
+    )
+  )
+)$
+
+printf(fh, "~%")$
+printf(fh, "EXTERN_C_END~%")$
+printf(fh, "~%")$
+close(fh)$
