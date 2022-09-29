@@ -98,7 +98,7 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
     printf(fh, "  double c_s = ~a;~%", float(fullratsimp(cSound_b))),
     printf(fh, "~%"),
 
-    Dphi_r : - (Tpar_e/elem_q)*(1.-fabs(upar_i)/c_s),
+    Dphi_r : - (Tpar_e/elem_q)*(1.-fmin(1.0,fabs(upar_i)/c_s)),
     printf(fh, "  double Delta_phi_r = ~a;~%", float(fullratsimp(Dphi_r))),
     printf(fh, "~%"),
 
