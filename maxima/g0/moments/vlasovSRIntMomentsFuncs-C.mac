@@ -34,7 +34,7 @@ calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   NP : length(bP),
   NC : length(bC),
     
-  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *GammaV, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *GammaV_inv, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a*~a; ~%", volExpr(cdim+vdim), float(1/(2^(cdim+vdim))) ),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -44,17 +44,17 @@ calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, " ~%"),
 
   fl : doExpand1(f, bP),
-  GammaV_e : doExpand1(GammaV, bC),
+  GammaV_inv_e : doExpand1(GammaV, bC),
 
   M0 : calcInnerProdList(varsP, GammaV_e, 1, fl),
   
   M1 : (M1 : [],
     for dir : 1 thru vdim do (
-      M1 : append(M1, calcInnerProdList(varsP, GammaV_e*doExpand1(p_over_gamma_fld[dir], bV), 1, fl))
+      M1 : append(M1, calcInnerProdList(varsP, GammaV_inv_e*doExpand1(p_over_gamma_fld[dir], bV), 1, fl))
     ),
   M1),
 
-  Energy : calcInnerProdList(varsP, GammaV_e*doExpand1(gamma, bV), 1, fl),
+  Energy : calcInnerProdList(varsP, GammaV_inv_e*doExpand1(gamma, bV), 1, fl),
   
   clst : [volFact],
   int : [],
