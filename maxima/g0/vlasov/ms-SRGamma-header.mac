@@ -1,11 +1,4 @@
-load("vlasov/SRGammaFuncs")$
-load(stringproc)$
-/* This script calls the functions which calculate various 
-   quantities related to the Lorentz boost factor, including
-   1. Gamma^2 = 1/(1 - V^2/c^2),
-   2. Gamma = 1/sqrt(1 - V^2/c^2),
-   3. Gamma_inv = sqrt(1 - V^2/c^2).
-   where V is the bulk velocity. */
+/* Generate the header file for the Vlasov moment and integrated moment kernels. */
 
 /* ...... USER INPUTS........ */
 
@@ -36,6 +29,23 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+printPrototype(deco, ci, vi, bStr, pi) := block([si],
+  /* Variations of the Lorentz boost factor. */
+  printf(fh, "~avoid sr_Gamma2_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma2); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid sr_Gamma_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid sr_Gamma_inv_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma_inv); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")  
+)$
+
+fh : openw("~/max-out/gkyl_sr_Gamma_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : minVdim[bInd] thru maxVdim[bInd] do (
@@ -45,24 +55,11 @@ for bInd : 1 thru length(bName) do (
       if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        fname : sconcat("~/max-out/sr_Gamma2_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("sr_Gamma2_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcGamma2(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh),
-
-        fname : sconcat("~/max-out/sr_Gamma_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("sr_Gamma_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcGamma(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh),
-
-        fname : sconcat("~/max-out/sr_Gamma_inv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("sr_Gamma_inv_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcGammaInv(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)
+        printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
-    )
+    )  
   )
 );
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
+/* ............ Finished writing out the C header file ............ */
