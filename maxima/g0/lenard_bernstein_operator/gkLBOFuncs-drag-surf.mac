@@ -28,16 +28,21 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   vv       : varsVAll[1],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
   printf(fh, "  // m_:        species mass.~%"),
   printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum[~a]:sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
   printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
   printf(fh, "  // out:       incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
+  /* Create a pointer to nuUSum. */
+  printf(fh, "  const double *nuUSum = nuPrimMomsSum;~%"),
+  printf(fh, "~%"),
+
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[1]),
   printf(fh, "~%"),
     
@@ -104,55 +109,37 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
+
+  basisStr : sconcat(basisFun, "_", cdim+vdim, "x"),
+  rcoFac_l : 1.,  rcoFac_r : 1.,
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    basisStr : sconcat("gkhyb_", cdim, "x", vdim, "v"),
+    /* This subst eliminates the need for another variable, and removes
+       the common factor (for p=1) which is not needed to determine sign. */
+    rcoFac_l : 1./(content(alphaOrd_l_n[1],alphaDrSurf_l[0])[1]),
+    rcoFac_r : 1./(content(alphaOrd_r_n[1],alphaDrSurf_r[0])[1])
+  ),
+
   for i : 1 thru numNodesConfig do (
-    if polyOrder=1 then ( /* Force p=1 to use hybrid basis. */
-      /* This subst eliminates the need for another variable, and removes
-         the common factor (for p=1) which is not needed to determine
-         sign (not working for p>1). */
-      rcoFac_l : 1./(content(alphaOrd_l_n[1],alphaDrSurf_l[0])[1]),
-      rcoFac_r : 1./(content(alphaOrd_r_n[1],alphaDrSurf_r[0])[1]),
-      /* Drag term on left side of interface */
-      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac_l)),  
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_l[~a] = gkhyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, cdim, vdim, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } else { ~%"),
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_l[~a] = gkhyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fc); ~%", (j-1)+(i-1)*numNodesVel, cdim, vdim, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } ~%"),
-      /* Drag term on right side of interface.*/
-      printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac_r)),  
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_r[~a] = gkhyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, cdim, vdim, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),                                      
-      printf(fh, "  } else { ~%"),            
-      for j : 1 thru numNodesVel do (         
-        printf(fh, "    fUpwindQuad_r[~a] = gkhyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fr); ~%", (j-1)+(i-1)*numNodesVel, cdim, vdim, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } ~%")
-    /* If polyOrder > 1, we just evaluate alpha at the quadrature points with no further substitutions */
-    ) else (
-      printf(fh, "  if (~a < 0) { ~%", alphaOrd_l_n[i]),
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } else { ~%"),
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fc); ~%", (j-1)+(i-1)*numNodesVel, basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } ~%"),
-      /* Drag term on right side of interface */
-      printf(fh, "  if (~a < 0) { ~%", alphaOrd_r_n[i]),  
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } else { ~%"),
-      for j : 1 thru numNodesVel do (
-        printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fr); ~%", (j-1)+(i-1)*numNodesVel, basisFun, cdim+vdim, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
-      ),
-      printf(fh, "  } ~%")
-    )
+    printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac_l)),
+    for j : 1 thru numNodesVel do (
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+    ),
+    printf(fh, "  } else { ~%"),
+    for j : 1 thru numNodesVel do (
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+    ),
+    printf(fh, "  } ~%"),
+    /* Drag term on right side of interface */
+    printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac_r)),
+    for j : 1 thru numNodesVel do (
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+    ),
+    printf(fh, "  } else { ~%"),
+    for j : 1 thru numNodesVel do (
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fr); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+    ),
+    printf(fh, "  } ~%")
   ),
 
   printf(fh, "~%"),
@@ -205,7 +192,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
 );
 
 calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block( 
-  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,
+  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,alphaDr,
    fl_e,fc_e,fr_e,bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
    alphaDrSurf_l_e,alphaDrSurf_r_e,Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,
    Ghat_l_e,Ghat_r_e,incr_l,incr_r],
@@ -219,24 +206,23 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform)
   vv       : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum[~a]:sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
-  printf(fh, "  // out:       incremented distribution function in cell ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (vdim+1)*NC),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[2]),
   printf(fh, "~%"),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
 
   nuSum_e : doExpand1(nuSum,bC),
-  /* Expand the mean flow speed in the configuration basis. */
-  nuUSum_e : doExpand1(nuUSum,bC),
   /* Calculate the alpha-velocity due to drag. */
   alphaDr : 2.0*nuSum_e*((1/2)*dxv[vid1[2]]*vv+w[vid1[2]]),
     

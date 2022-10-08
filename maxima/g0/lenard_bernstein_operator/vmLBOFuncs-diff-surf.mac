@@ -33,14 +33,19 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   h_e : calcRecov1CellGen(bType, vv, varsP, polyOrder, 1, dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
     
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:         collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum[~a]:    sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
-  printf(fh, "  // nuVtSqSum[~a]: sum of thermal speeds squared time their respective collisionalities. ~%", NC),
-  printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
-  printf(fh, "  // out:           incremented distribution function in cell ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (vdim+1)*NC),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
   printf(fh, "  double temp_diff[~a] = {0.0}; ~%", NP),
   printf(fh, "  double diff_incr[~a] = {0.0}; ~%", NP),

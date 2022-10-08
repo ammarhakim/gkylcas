@@ -16,7 +16,7 @@ doMakeExprLstOff(vals, S, off) := makelist(if vals[i] # 0 then S[off+i-1] else 0
 
 calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,cid,vid1,dir,f_e,nuSum_e,nuUSum_e,
-   nuVtSqSum_e,incrDrag,cflFreq_mid,vdir,alphaDrag_e,expr,i,
+   incrDrag,cflFreq_mid,vdir,alphaDrag_e,expr,i,
    alphaDrag_NoZero,alphaDrag_NoZero_e],
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
@@ -36,14 +36,17 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Here we choose to evaluate things in the middle of the cell, where
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, cdim+vdim),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // f:         Input distribution function.~%"),
-  printf(fh, "  // out:       Incremented output ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%"),
+  printf(fh, "  // f: Input distribution function.~%"),
+  printf(fh, "  // out: Incremented output ~%"),
+
+  /* Create a pointer to nuUSum. */
+  printf(fh, "  const double *nuUSum = nuPrimMomsSum;~%"),
+  printf(fh, "~%"),
 
   cid  : cidx(cdim),
   vid1 : vidx1(cdim,vdim),
@@ -58,7 +61,6 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
   nuSum_e     : doExpand1(nuSum, bC),
   nuUSum_e    : doExpand1(nuUSum, bC),
-  nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
   /* To allow for multiple components change the cofficient indices in u. */
   nuUSum_e : psubst(makelist(nuUSum[i]=nuUSum[a0+i],i,0,NC-1),nuUSum_e),
 
