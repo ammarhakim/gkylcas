@@ -58,13 +58,19 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numB : length(basis),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *u_self, const double *vtsq_self, const double m_other, const double *moms_other, const double *u_other, const double *vtsq_other, const double *boundary_corrections) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections) ~%{ ~%", funcNm),
   printf(fh, "  // greene:               Greene's factor. ~%"),
   printf(fh, "  // m_:                   mass. ~%"),
   printf(fh, "  // moms:                 moments of the distribution function. ~%"),
-  printf(fh, "  // u,vtSq:               self primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, "  // prim_mom              self primitive moments: mean flow velocity and thermal speed squared. ~%"),
   printf(fh, "  // boundary_corrections: corrections to momentum and energy conservation due to finite velocity space. ~%"),
-  printf(fh, "  // uCross,vtSqCross:     cross primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, " ~%"),
+
+  /* Create pointers to u and vtsq of each species. */
+  printf(fh, "  const double *u_self = &prim_mom_self[~a];~%", 0*numB),
+  printf(fh, "  const double *vtsq_self = &prim_mom_self[~a];~%", udim*numB),
+  printf(fh, "  const double *u_other = &prim_mom_other[~a];~%", 0*numB),
+  printf(fh, "  const double *vtsq_other = &prim_mom_other[~a];~%", udim*numB),
   printf(fh, " ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities

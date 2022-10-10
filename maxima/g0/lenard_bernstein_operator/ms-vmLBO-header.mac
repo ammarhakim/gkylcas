@@ -42,20 +42,20 @@ cvars : [x, y, z]$
 
 printPrototypeDrag(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble lbo_vlasov_drag_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble lbo_vlasov_drag_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru vi do (
-    printf(fh, "~avoid lbo_vlasov_drag_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~avoid lbo_vlasov_drag_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~avoid lbo_vlasov_drag_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid lbo_vlasov_drag_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   printf(fh, "~%")
 )$
 
 printPrototypeDiff(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble lbo_vlasov_diff_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble lbo_vlasov_diff_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru vi do (
-    printf(fh, "~avoid lbo_vlasov_diff_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~avoid lbo_vlasov_diff_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~avoid lbo_vlasov_diff_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~avoid lbo_vlasov_diff_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   printf(fh, "~%")
 )$

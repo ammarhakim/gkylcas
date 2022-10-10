@@ -36,16 +36,19 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // f:         Input distribution function.~%"),
-  printf(fh, "  // out:       Incremented output ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
+  printf(fh, "  // f: Input distribution function.~%"),
+  printf(fh, "  // out: Incremented output ~%"),
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
+
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
 
   for dir : 1 thru vdim do (
     printf(fh, "  const double rd~aSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", varsVAll[dir], vid[dir], vid[dir])
