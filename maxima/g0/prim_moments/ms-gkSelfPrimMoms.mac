@@ -1,4 +1,4 @@
-load("prim_moments/SelfPrimMoms-C")$
+load("prim_moments/SelfPrimMomsLBO")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */

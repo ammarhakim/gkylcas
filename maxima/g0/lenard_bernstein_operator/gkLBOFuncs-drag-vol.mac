@@ -16,7 +16,7 @@ vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
 
 calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,zr,vidx1,dir,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,
+  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,zr,vidx1,dir,f_e,nuSum_e,nuUSum_e,
    incrDrag,cflFreq_mid,alphaDrag_e,expr,i,alphaDrag_NoZero,alphaDrag_NoZero_e],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
@@ -37,29 +37,32 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   vidx1 : vIndex1(cdim,vdim),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // f:         input distribution function.~%"),
-  printf(fh, "  // out:       incremented output ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
+  printf(fh, "  // f: input distribution function.~%"),
+  printf(fh, "  // out: incremented output ~%"),
+  printf(fh, "~%"),
+
+  /* Create a pointer to nuUSum. */
+  printf(fh, "  const double *nuUSum = nuPrimMomsSum;~%"),
+  printf(fh, "~%"),
 
   printf(fh, "  double rdv2[~a]; ~%", vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
+    printf(fh, "  rdv2[~a] = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
   ),
   printf(fh, "~%"),
 
   /* Expand distribution function f in phase basis.            */
   f_e : doExpand1(f, bP),
-  /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
-  nuSum_e     : doExpand1(nuSum, bC),
-  nuUSum_e    : doExpand1(nuUSum, bC),
-  nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
+  /* Expand flow speed sum(nu*u) in configuration basis. */
+  nuSum_e  : doExpand1(nuSum, bC),
+  nuUSum_e : doExpand1(nuUSum, bC),
 
   printf(fh, "  double alphaDrag[~a]; ~%", vdim*NP),
   incrDrag : 0,

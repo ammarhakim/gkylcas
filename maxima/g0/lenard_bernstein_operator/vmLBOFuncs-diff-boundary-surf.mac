@@ -46,14 +46,18 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, is
   hsol_r : cons(subst(vv=0,hr_e),makelist(subst(vv=0,diff(hr_e,vv,ord)/(ord!)),ord,1,hOrder)),
   /*............. RECOVERY DONE ..............................*/
         
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:         collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum[~a]:    sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
-  printf(fh, "  // nuVtSqSum[~a]: sum of thermal speeds squared time their respective collisionalities. ~%", NC),
-  printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
-  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (vdim+1)*NC),
+  printf(fh, "  // fSkin/Edge: Distribution function in cells ~%"),
+  printf(fh, "  // out: Incremented distribution function in cell ~%"),
+
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
   printf(fh, "~%"),
   /* First compute the contribution coming from the second

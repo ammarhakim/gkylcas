@@ -39,7 +39,7 @@ printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, " ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, " ~%")$
-printf(fh, "GKYL_CU_DH void prim_lbo_gyrokinetic_copy_sol(const struct gkyl_mat *rhs, const int nc, const int vdim, double* GKYL_RESTRICT u, double* GKYL_RESTRICT vtSq); ~%")$
+printf(fh, "GKYL_CU_DH void prim_lbo_gyrokinetic_copy_sol(const struct gkyl_mat *rhs, const int nc, const int udim, double* GKYL_RESTRICT out); ~%")$
 printf(fh, " ~%")$
 
 for bInd : 1 thru length(bName) do (
@@ -56,7 +56,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "GKYL_CU_DH void gyrokinetic_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
 
         /* Primitive moments for cross-collision GkLBO terms. */
-        printf(fh, "GKYL_CU_DH void gyrokinetic_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *greene, const double m_self, const double *moms_self, const double *u_self, const double *vtsq_self,~%  const double m_other, const double *moms_other, const double *u_other, const double *vtsq_other,~%  const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
+        printf(fh, "GKYL_CU_DH void gyrokinetic_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self,~%  const double m_other, const double *moms_other, const double *prim_mom_other,~%  const double *boundary_corrections); ~%", ci, vi, bName[bInd], pi),
 
         printf(fh, "~%")
       )
