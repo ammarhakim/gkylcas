@@ -9,13 +9,14 @@
 
 load("modal-basis");
 load("out-scripts");
+load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
 calcGamma2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bC, NC, VxSq_e, VySq_e, VzSq_e, denom_e],
 
-  kill(varsC, basisC),
+  kill(varsC, bC),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
@@ -60,7 +61,25 @@ calcGamma2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
+  Gamma2_inv_e : doExpand1(Gamma2_inv, bC),
+
+  printf(fh, "  bool notCellAvg = true;~%"),
+  nodes : getNodes(basisFun, cdim, 1),
+  Gamma2_inv_Corners : expand(float(evAtNodes(Gamma2_inv_e,nodes,varsC))),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Gamma2_inv_Corners[i])
+  ),
+
+  printf(fh, " ~%"),
+  printf(fh, "  if (notCellAvg) { ~%"),
   printf(fh, "  ~a_~ax_p~a_inv(Gamma2_inv, Gamma2); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  } else { ~%"),
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  printf(fh, "  Gamma2[0] = ~a/Gamma2_inv[0]; ~%", float(expand(unit[1]*unit[1]))), 
+  for i : 2 thru NC do (
+    printf(fh, "  Gamma2[~a] = 0.0; ~%", i-1)
+  ),
+  printf(fh, "  } ~%"),
 
   printf(fh, "} ~%"),
   printf(fh, " ~%")
@@ -69,7 +88,7 @@ calcGamma2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 calcGamma(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bC, NC, VxSq_e, VySq_e, VzSq_e, denom_e],
 
-  kill(varsC, basisC),
+  kill(varsC, bC),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
@@ -116,7 +135,26 @@ calcGamma(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
+  Gamma2_inv_e : doExpand1(Gamma2_inv, bC),
+
+  printf(fh, "  bool notCellAvg = true;~%"),
+  nodes : getNodes(basisFun, cdim, 1),
+  Gamma2_inv_Corners : expand(float(evAtNodes(Gamma2_inv_e,nodes,varsC))),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Gamma2_inv_Corners[i])
+  ),
+
+  printf(fh, " ~%"),
+  printf(fh, "  if (notCellAvg) { ~%"),
   printf(fh, "  ~a_~ax_p~a_inv(Gamma2_inv, Gamma2); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  } else { ~%"),
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  printf(fh, "  Gamma2[0] = ~a/Gamma2_inv[0]; ~%", float(expand(unit[1]*unit[1]))), 
+  for i : 2 thru NC do (
+    printf(fh, "  Gamma2[~a] = 0.0; ~%", i-1)
+  ),
+  printf(fh, "  } ~%"),
+
   printf(fh, "  ~a_~ax_p~a_sqrt(Gamma2, Gamma); ~%", basisFun, cdim, polyOrder),
 
   printf(fh, "} ~%"),
@@ -171,7 +209,24 @@ calcGammaInv(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
+  Gamma2_inv_e : doExpand1(Gamma2_inv, bC),
+
+  printf(fh, "  bool notCellAvg = true;~%"),
+  nodes : getNodes(basisFun, cdim, 1),
+  Gamma2_inv_Corners : expand(float(evAtNodes(Gamma2_inv_e,nodes,varsC))),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Gamma2_inv_Corners[i])
+  ),
+
+  printf(fh, " ~%"),
+  printf(fh, "  if (notCellAvg) { ~%"),
   printf(fh, "  ~a_~ax_p~a_sqrt(Gamma2_inv, Gamma_inv); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  } else { ~%"),
+  for i : 2 thru NC do (
+    printf(fh, "  Gamma2_inv[~a] = 0.0; ~%", i-1)
+  ),
+  printf(fh, "  ~a_~ax_p~a_sqrt(Gamma2_inv, Gamma_inv); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  } ~%"),
 
   printf(fh, "} ~%"),
   printf(fh, " ~%")

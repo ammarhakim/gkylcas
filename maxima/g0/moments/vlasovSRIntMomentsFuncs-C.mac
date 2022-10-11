@@ -13,9 +13,10 @@ dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 p_over_gamma_fld : [p0_over_gamma, p1_over_gamma, p2_over_gamma]$
 
 volExpr(totDim) := prod(dxv[i-1], i, 1, totDim)$
-calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, GammaV_inv_e, M0, M1, Energy, clst, int],
   /* Computes the integral of M0, M1i and M2 at the same time. */
-  kill(varsC, varsP, basisC, basisP),
+  kill(varsC, varsP, bC, bP),
   load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
   /* Generate basis in velocity space only. */
   if polyOrder = 1 then (
@@ -44,24 +45,24 @@ calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, " ~%"),
 
   fl : doExpand1(f, bP),
-  GammaV_inv_e : doExpand1(GammaV, bC),
+  GammaV_inv_e : doExpand1(GammaV_inv, bC),
 
-  M0 : calcInnerProdList(varsP, GammaV_e, 1, fl),
-  
-  M1 : (M1 : [],
-    for dir : 1 thru vdim do (
-      M1 : append(M1, calcInnerProdList(varsP, GammaV_inv_e*doExpand1(p_over_gamma_fld[dir], bV), 1, fl))
-    ),
-  M1),
+  M : [],
 
-  Energy : calcInnerProdList(varsP, GammaV_inv_e*doExpand1(gamma, bV), 1, fl),
-  
+  M0 : fullratsimp(innerProd(varsP, 1, GammaV_inv_e, fl)),
+  M  : endcons(M0,M),
+
+  for dir : 1 thru vdim do (
+    M1 : fullratsimp(innerProd(varsP, 1, GammaV_inv_e*doExpand1(p_over_gamma_fld[dir], bV), fl)),
+    M  : endcons(M1,M)
+  ),
+
+  Energy : fullratsimp(innerProd(varsP, 1, GammaV_inv_e*doExpand1(gamma, bV), fl)),
+  M  : endcons(Energy, M),
+
+  M : map(letsimp, M),
   clst : [volFact],
-  int : [],
-  int : append(int, volFact*M0),
-  int : append(int, volFact*M1),
-  int : append(int, volFact*Energy),
-  writeCIncrExprsCollect1(out, int, clst),
+  writeCIncrExprsCollect1(out, volFact*M, clst),
 
   printf(fh, "} ~%")
 )$
