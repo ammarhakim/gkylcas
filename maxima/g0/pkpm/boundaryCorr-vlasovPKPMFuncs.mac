@@ -21,10 +21,11 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NP : length(bP),  
   NC : length(bC),
         
-  printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double mass, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // edge:      indicator of which velocity grid edge is being considered (VX/VPAR). ~%"),
   printf(fh, "  // vBoundary: velocity at the boundary of the velocity grid. ~%"),
   printf(fh, "  // dxv[~a]:    cell length in each direction. ~%", cdim+vdim),
+  printf(fh, "  // mass:      species mass. ~%", cdim+vdim),
   printf(fh, "  // fIn[~a]:    distribution function at lower/upper velocity boundaries. ~%", NP),
   printf(fh, "  // out:       \int dS of vf^(vmax)_(vmin). ~%"),
   printf(fh, " ~%"),
@@ -50,10 +51,10 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  if (edge == GKYL_VX_LOWER) {~%"),
 
-  expr : float(expand((vBoundary[0]*fBlo_c))),
+  expr : float(expand((mass*vBoundary[0]*fBlo_c))),
   for i : 1 thru length(expr) do (
     if expr[i] # 0.0 then (
-      param_v : cons(expr[i], [vBoundary]),
+      param_v : cons(expr[i], [vBoundary, mass]),
       e : apply(collectterms, param_v),
       printf(fh, "    ~a += ~a; ~%", out[i-1], e)
     )
@@ -61,10 +62,10 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  } ~%  else if (edge == GKYL_VX_UPPER) {~%"),
 
-  expr : float(expand((vBoundary[1]*fBup_c))),
+  expr : float(expand((mass*vBoundary[1]*fBup_c))),
   for i : 1 thru length(expr) do (
     if expr[i] # 0.0 then (
-      param_v : cons(expr[i], [vBoundary]),
+      param_v : cons(expr[i], [vBoundary, mass]),
       e : apply(collectterms, param_v),
       printf(fh, "    ~a += ~a; ~%", out[i-1], e)
     )
