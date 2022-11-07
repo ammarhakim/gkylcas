@@ -1,5 +1,10 @@
 /* A collection of useful functions to simplify life in Maxima world. */
 
+/* Check if an element is in a list. */
 isInList(e, lst) := block([],
   return(length(sublist_indices(lst,lambda([x],x=e)))>0)
 )$
+
+/* Create a list of coefficients that are only nonzero (S[i-1])
+   if the corresponding vals entry is nonzero. */
+doMakeExprLst(vals, S) := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$

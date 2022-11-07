@@ -6,20 +6,18 @@ load("out-scripts");
 load(stringproc)$
 fpprec : 24$
 
-varsV : [vx, vy, vz]$
+varsVAll : [vx, vy, vz]$
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+cidx1(cdim)      := makelist(i,i,0,cdim-1)$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,cid,vid,wDdx,dvDdx,dir,volTerm,clst,strOut],
-
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,cid1,vid1,wDdx,dvDdx,dir,f_e,volTerm,clst,strOut,d],
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
-  bP : basisP[polyOrder],
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
@@ -28,16 +26,16 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid1 : cidx1(cdim),
+  vid1 : vidx1(cdim,vdim),
 
-  wDdx  : makelist(eval_string(sconcat("w",vid[i],"Ddx",cid[i])),i,1,cdim),
-  dvDdx : makelist(eval_string(sconcat("dv",vid[i],"Ddx",cid[i])),i,1,cdim),
+  wDdx  : makelist(eval_string(sconcat("w",vid1[i],"Ddx",cid1[i])),i,1,cdim),
+  dvDdx : makelist(eval_string(sconcat("dv",vid1[i],"Ddx",cid1[i])),i,1,cdim),
 
   /* Cell center and cell length divided by velocity cell length. */
   for dir : 1 thru cdim do (
-    printf(fh, "  double w~aDdx~a  = w[~a]/dxv[~a]; ~%", vid[dir], dir-1, vid[dir], cid[dir]),
-    printf(fh, "  double dv~aDdx~a = dxv[~a]/dxv[~a]; ~%", vid[dir], dir-1, vid[dir], cid[dir])
+    printf(fh, "  double w~aDdx~a  = w[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir]),
+    printf(fh, "  double dv~aDdx~a = dxv[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir])
   ),
 
   /* Expand distribution function in phase basis. */
@@ -47,7 +45,7 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   volTerm : 0,
   for dir : 1 thru cdim do (
     volTerm : volTerm
-             +calcInnerProdList(varsP, 2*wDdx[dir]+dvDdx[dir]*varsV[dir], diff(bP,varsP[dir]), f_e)
+             +calcInnerProdList(varsP, 2*wDdx[dir]+dvDdx[dir]*varsVAll[dir], diff(bP,varsP[dir]), f_e)
   ),
   printf(fh, "~%"),
 
@@ -55,10 +53,10 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   writeCIncrExprsCollect1(out,volTerm,clst),
   printf(fh, "~%"),
 
-  strOut : sconcat("fabs(w",vid[1],"Ddx",0,")+0.5*dv",vid[1],"Ddx",0),
+  strOut : sconcat("fabs(w",vid1[1],"Ddx",0,")+0.5*dv",vid1[1],"Ddx",0),
   for d : 2 thru cdim do (
-    strOut : sconcat(strOut,"+fabs(w",vid[d],"Ddx",d-1,")+0.5*dv",vid[d],"Ddx",d-1)
+    strOut : sconcat(strOut,"+fabs(w",vid1[d],"Ddx",d-1,")+0.5*dv",vid1[d],"Ddx",d-1)
   ),
-  printf(fh, "  return ~a;~%",strOut),
+  printf(fh, "  return ~a*(~a);~%",float(2*polyOrder+1),strOut),
   printf(fh, "} ~%")
 )$

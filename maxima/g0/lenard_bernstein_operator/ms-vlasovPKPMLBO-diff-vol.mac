@@ -1,0 +1,45 @@
+load("lenard_bernstein_operator/vlasovPKPMLBOFuncs-diff-vol")$
+load(stringproc)$
+
+/* This script calls the functions which calculate the
+   updates from the diff portion of the volume contributions. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+      maxPolyOrderB : maxPolyOrder[bInd],
+      minPolyOrderB : minPolyOrder[bInd],
+
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_diff_vol_~ax1v_",bName[bInd]," _p~a"),c,polyOrder)),
+      funcName : sconcat("lbo_vlasov_pkpm_diff_vol_", c, "x1v_", bName[bInd],"_p",polyOrder),
+      fname : sconcat("~/max-out/",funcName, ".c"),
+      fh : openw(fname),
+      calcVlasovPKPMLBODiffVolUpdater(fh, funcName, c, 1, bName[bInd], polyOrder),
+      close(fh) 
+    ) 
+  )
+);
+
+

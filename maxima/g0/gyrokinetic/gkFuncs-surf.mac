@@ -9,25 +9,20 @@ load("gyrokinetic/gkUtil")$
 fpprec : 24$
 
 calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
-  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,vSubInv,numC,numP,surfVar,varLabel,dirLabel,
-   BvarsLabel,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
+  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,
+   rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
    incrL_c,incrR_c],
 
-  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), 
 
   pDim : cdim+vdim,
-
-  [varsC,bC,varsP,bP,vSub,vSubInv] : loadBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC), numP : length(bP), 
 
   surfVar  : varsP[surfDir],             /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
-
-  BvarsLabel : "",
-  for i : 1 thru length(varsInB) do (BvarsLabel : sconcat(BvarsLabel,varsInB[i])),
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
@@ -118,25 +113,20 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
 )$
 
 calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
-  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,vSubInv,numC,numP,surfVar,varLabel,dirLabel,
-   BvarsLabel,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
+  [i,d,v,step2,pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,
+   rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
    incrL_c,incrR_c],
 
-  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), 
 
   pDim : cdim+vdim,
-
-  [varsC,bC,varsP,bP,vSub,vSubInv] : loadBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC), numP : length(bP), 
 
   surfVar  : varsP[surfDir],             /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
-
-  BvarsLabel : "",
-  for i : 1 thru length(varsInB) do (BvarsLabel : sconcat(BvarsLabel,varsInB[i])),
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),

@@ -1,72 +1,65 @@
 load("modal-basis")$
 load("out-scripts");
+load("utilities")$
 load(stringproc)$
-
 fpprec : 24$
 
-/* This script generates the kernels for the volume term
-   diffusion contribution from Lenard Bernstein operator to the
-   Vlasov equation. */
+/* This script generates the kernels for the diff volume
+   kernel of the Lenard Bernstein operator for the
+   Vlasov equation. It only computes the CFL frequency. */
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-cvars  : [x, y, z]$
-varsV  : [vx, vy, vz]$
-rdv2   : [rdvx2, rdvy2, rdvz2]$
-rdvSq4 : [rdvxSq4, rdvySq4, rdvzSq4]$
+varsVAll : [vx, vy, vz]$
+rdv2     : [rdvx2, rdvy2, rdvz2]$
+rdvSq4   : [rdvxSq4, rdvySq4, rdvzSq4]$
 
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates. */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
+calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,cid,vid,dir,f_e,nuVtSqSum_e,
+   facDiff_c,facDiff_NoZero,polyFact,incrDiff,vdir,expr,i],
 
-calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
 
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  /* Polynomial basis and its derivatives. */
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
-  NP : length(bP),
-  NC : length(bC),
+  /* Number of basis monomials. */
+  NP : length(bP),  NC : length(bC),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
 
   /* Specify a point to evaluate alpha at for use in computing CFL */
   /* Here we choose to evaluate things in the middle of the cell, where
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // f:         Input distribution function.~%"),
-  printf(fh, "  // out:       Incremented output ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
+  printf(fh, "  // f: Input distribution function.~%"),
+  printf(fh, "  // out: Incremented output ~%"),
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
 
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+
   for dir : 1 thru vdim do (
-      printf(fh, "  const double rd~aSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", varsV[dir], vid[dir], vid[dir])
+    printf(fh, "  const double rd~aSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", varsVAll[dir], vid[dir], vid[dir])
   ),
   printf(fh, "~%"),
 
-  /* Expand distribution function f in phase basis.            */
+  /* Expand distribution function f in phase basis. */
   f_e : doExpand1(f, bP),
 
-  /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
-  nuSum_e     : doExpand1(nuSum, bC),
-  nuUSum_e    : doExpand1(nuUSum, bC),
+  /* Expand flow speed sum(nu*vtSq) in configuration basis. */
   nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
-
-  /* To allow for multiple components change the cofficient indices in u. */
-  nuUSum_e : psubst(makelist(nuUSum[i]=nuUSum[a0+i],i,0,NC-1),nuUSum_e),
 
   /* facDiff = < psi, nuVtSqSum >. */
   facDiff_c : calcInnerProdList(varsC, 1, bC, nuVtSqSum_e),
@@ -89,15 +82,14 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([]
     facDiff_NoZero : doMakeExprLst(facDiff_c, nuVtSqSum)
   ),
 
-  facDiff_NoZero_e : doExpandLst(facDiff_NoZero, bC),
-  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/dv_i */
-  polyFact : ((polyOrder+1)^2)/(2*polyOrder+1),
+  facDiff_NoZero_e : doExpand(facDiff_NoZero, bC),
+  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/(dv_i/(2*(p+1)))^2 */
+  polyFact : (pOrderV+1)^2,
 
   incrDiff : 0,
   facDiff_mid : makelist(0, i, 1, vdim),
-
   for vdir : 1 thru vdim do (
-     facDiff_mid[vdir] : rdvSq4[vdir]*subst(a0=0,gcfac(float(expand(subst(zr,polyFact*facDiff_NoZero_e)))))
+     facDiff_mid[vdir] : rdvSq4[vdir]*gcfac(float(expand(subst(zr,polyFact*facDiff_NoZero_e))))
   ),
 
   if vdim = 1 then (

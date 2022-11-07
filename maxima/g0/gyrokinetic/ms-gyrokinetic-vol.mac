@@ -9,14 +9,16 @@ load("gyrokinetic/gkFuncs-vol")$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
-/* Tensor order basis. */
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 2$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
@@ -25,6 +27,7 @@ gkVdims : [[1,2], [2], [2]]$
 
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
@@ -42,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
-      for polyOrder : 1 thru maxPolyOrderB do (
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
 
         fname : sconcat("~/max-out/gyrokinetic_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         disp(printf(false,"Creating volume file: ~a",fname)),

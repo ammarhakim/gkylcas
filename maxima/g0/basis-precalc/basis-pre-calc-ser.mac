@@ -7,7 +7,9 @@ for c : 1 thru 2 do (
    writeBasisToFile(c, v, 4, makeSerendipBasis, fname)
   )
 )$
+*/
 
-writeBasisToFile(3, 3, 4, makeSerendipBasis, "~/max-out/basisSer3x3v.lisp")$
-writeBasisToFile(3, 2, 4, makeSerendipBasis, "~/max-out/basisSer3x2v.lisp")$*/
-writeBasisToFile(3, 1, 4, makeSerendipBasis, "~/max-out/basisSer3x1v.lisp")$
+c : 2$
+v : 1$
+polyOrderMax : 4$
+writeBasisToFile(c, v, polyOrderMax, makeSerendipBasis, sconcat("~/max-out/basisSer",c,"x",v,"v.lisp"))$

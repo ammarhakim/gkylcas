@@ -39,7 +39,7 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume VmLBO",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating diff volume VmLBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
         funcName : sconcat("lbo_vlasov_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
         fname : sconcat("~/max-out/",funcName, ".c"),
         fh : openw(fname),

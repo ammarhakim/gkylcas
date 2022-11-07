@@ -1,7 +1,8 @@
 load("modal-basis")$
 load("out-scripts");
-load(stringproc)$
 load("recovery")$
+load("utilities")$
+load(stringproc)$
 
 fpprec : 24$
 
@@ -9,51 +10,48 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator
    in the gyrokinetic equation. */
 
-varsV  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
+varsVAll  : [vpar, mu]$
 
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [pDim,vidx1,surfVar,bP,bC,NP,NC,h_e,temp_diff_c,nuVtSqSum_e,diffFac_e,diff_incr_c],
+calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+  [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,bType,h_e,temp_diff_c,nuVtSqSum_e,diffFac_e,diff_incr_c],
   
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  kill(varsC, varsP, basisC, basisP),
-
   /* Load basis of dimensionality requested. */
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
-
-  pDim : cdim+vdim,
-  /* Variables. */
-  vidx1 : vIndex1(cdim,vdim),
-  surfVar : varsV[dir],
-
-  /* Polynomial basis and its derivatives. */
-  bP : subst(gkVsub,basisP[polyOrder]),  NP : length(bP),
-  bC : basisC[polyOrder],  NC : length(bC),
+  pDim    : cdim+vdim,
+  vidx1   : vIndex1(cdim,vdim),
+  surfVar : varsVAll[dir],
 
   /* Construct the recovery polynomial */
-  h_e : calcRecov1CellGen(basisFun, surfVar, varsP, polyOrder, 1,
+  if polyOrder=1 then /* Force p=1 to mean hybrid. */
+    bType : "gkhyb"
+  else
+    bType : basisFun,
+  h_e : calcRecov1CellGen(bType, surfVar, varsP, polyOrder, 1,
     dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
     
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // m_:            species mass.~%"),
-  printf(fh, "  // bmag_inv:      1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum:         collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum[~a]:    sum of bulk velocities times their respective collisionalities. ~%", vdim*NC),
-  printf(fh, "  // nuVtSqSum[~a]: sum of thermal speeds squared time their respective collisionalities. ~%", NC),
-  printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
-  printf(fh, "  // out:           incremented distribution function in cell ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
+  printf(fh, "~%"),
+
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vidx1[dir], vidx1[dir]),
-  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", length(bP)),
-  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", length(bP)),
+  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", NP),
   printf(fh, "~%"),
     
   /* Write out the second derivative of the recovered distribution. */
@@ -71,7 +69,13 @@ calcDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   if dir=1 then (
     diffFac_e : nuVtSqSum_e 
   ) elseif dir=2 then (
-    diffFac_e : 2*m_*BmagInv_e*nuVtSqSum_e 
+    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
+    printf(fh, "  double diffFac[~a] = {0.}; ~%", NC),
+    writeCExprs1(diffFac, diffFac_c),
+    printf(fh, "~%"),
+
+    diffFacNoZeros_c : doMakeExprLst(diffFac_c, diffFac),
+    diffFac_e : doExpand(diffFacNoZeros_c, bC)
   ),
   diff_incr_c : calcInnerProdList(varsP, diffFac_e, bP, doExpand1(temp_diff,bP)),
   writeCExprs1(diff_incr, diff_incr_c),
