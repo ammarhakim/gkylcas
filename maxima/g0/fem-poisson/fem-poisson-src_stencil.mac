@@ -158,7 +158,7 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
           printf(fh, "  #ifdef __CUDA_ARCH__~%"),
           if insertVal[k] then (
             opStr : "atomicExch",
-            printf(fh, "  ~a((float*) &bsrc[globalIdxs[~a]],(float)~a);~%",opStr,k-1,expand(float(src_c[k])))
+            printf(fh, "  ~a((unsigned long long int*) &bsrc[globalIdxs[~a]],__double_as_longlong(~a));~%",opStr,k-1,expand(float(src_c[k])))
           ) else (
             opStr : "atomicAdd",
             printf(fh, "  ~a(&bsrc[globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))

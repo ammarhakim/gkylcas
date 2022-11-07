@@ -81,8 +81,8 @@ calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double u_c_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uc_0); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  double u_r_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(ur_0); ~%", basisFun, cdim, polyOrder),
 
-  printf(fh, "  double u_max_l = fabs(fmax(u_l_r, u_c_l)); ~%"),
-  printf(fh, "  double u_max_r= fabs(fmax(u_c_r, u_r_l)); ~%"),
+  printf(fh, "  double u_max_l = fmax(fabs(u_l_r), fabs(u_c_l)); ~%"),
+  printf(fh, "  double u_max_r = fmax(fabs(u_c_r), fabs(u_r_l)); ~%"),
 
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), avg_l - u_max_l*jump_l),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), avg_r - u_max_r*jump_r),
@@ -174,8 +174,8 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  u_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(uc_0); ~%", basisFun, cdim, polyOrder, dir, i-1),
     printf(fh, "  u_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(ur_0); ~%", basisFun, cdim, polyOrder, dir, i-1),
 
-    printf(fh, "  uQuad_l[~a] = fabs(fmax(u_l_r, u_c_l)); ~%", i-1),
-    printf(fh, "  uQuad_r[~a] = fabs(fmax(u_c_r, u_r_l)); ~%", i-1)
+    printf(fh, "  uQuad_l[~a] = fmax(fabs(u_l_r), fabs(u_c_l)); ~%", i-1),
+    printf(fh, "  uQuad_r[~a] = fmax(fabs(u_c_r), fabs(u_r_l)); ~%", i-1)
   ),
 
   printf(fh, "~%"),

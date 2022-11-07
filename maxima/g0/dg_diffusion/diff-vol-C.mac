@@ -31,8 +31,10 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  // D: Diffusion tensor~%"),
     printf(fh, "  // q: Input field~%"),
     printf(fh, "  // out: Incremented output~%~%"),
-    printf(fh, "  const double J[~a] = {4/dx[0]/dx[0]", ndim),
-    for d : 2 thru ndim do printf(fh, ", 4/dx[~a]/dx[~a]", d-1, d-1),
+
+    polyFact : (polyOrder+1)^2,
+    printf(fh, "  const double J[~a] = {~a/dx[0]/dx[0]", ndim, float(4*polyFact)),
+    for d : 2 thru ndim do printf(fh, ", ~a/dx[~a]/dx[~a]", float(4*polyFact), d-1, d-1),
     printf(fh, "};~%~%"),
     
     printf(fh, "~%  return D[0]*J[0]"),

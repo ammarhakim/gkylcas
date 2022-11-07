@@ -5,15 +5,16 @@
 
 namespace Gkyl {
   /* Basis type */
-  enum ModalBasisType { MODAL_SER, MODAL_TEN, MODAL_GK_HYB };
+  enum ModalBasisType { MODAL_SER, MODAL_TEN, MODAL_HYB, MODAL_GKHYB };
   
   class ModalBasis {
   public:
     /* Construct new modal basis object */
-    ModalBasis(ModalBasisType type, int ndim, const std::vector<GiNaC::symbol>& vars, int polyOrder);
+    ModalBasis(ModalBasisType type, int ndim, int vdim, const std::vector<GiNaC::symbol>& vars, int polyOrder);
     
     /* Dimensions and polyorder */
     int get_ndim() const { return ndim; }
+    int get_vdim() const { return vdim; }
     int get_polyOrder() const { return polyOrder; }
     
     /* Get number of basis functions */
@@ -38,7 +39,7 @@ namespace Gkyl {
     GiNaC::lst calcInnerProdList(const GiNaC::lst &lst, const GiNaC::ex &f) const;
 
   private:
-    int ndim, polyOrder;
+    int ndim, vdim, polyOrder;
     GiNaC::lst bc; // orthonormal basis set
     std::vector<GiNaC::symbol> vars; // Variable list
 

@@ -1,58 +1,55 @@
 load("modal-basis")$
-load("out-scripts");
+load("out-scripts")$
+load("utilities")$
 load(stringproc)$
 
 fpprec : 24$
 
-/* This script generates the kernels for the volume term
-   diffusion contribution from Lenard Bernstein operator to the
-   gyrokinetic equation. */
+/* This script generates the kernels for the diffusion volume
+   kernel of the Lenard Bernstein operator for the
+   gyrokinetic equation. It only computes the CFL frequency. */
 
-vIndex(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+varsVAll : [vpar, mu]$
 
-varsV  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
-
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
+vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,NP,NC,vidx,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr,
-   facDiff_c,facDiff_NoZero,facDiff_NoZero_e,polyFact,facDiff_mid],
+  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,vidx1,dir,f_e,nuSum_e,
+   nuVtSqSum_e,zr,facDiff_c,facDiff_NoZero,facDiff_NoZero_e,i,BmagInv_e,
+   facDiffMu_NoZero,expr,polyFact,facDiff_mid],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
 
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderVpar : polyOrder,
+  if polyOrder=1 then ( pOrderVpar : 2 ),
 
-  /* Polynomial basis and its derivatives. */
-  bP : subst(gkVsub,basisP[polyOrder]),  bC : basisC[polyOrder],
-  NP : length(bP),  NC : length(bC),
+  vidx1 : vIndex1(cdim,vdim),
 
-  vidx : vIndex(cdim,vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
+  printf(fh, "  // fin: input distribution function.~%"),
+  printf(fh, "  // out: incremented output ~%"),
+  printf(fh, "~%"),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // fin:       input distribution function.~%"),
-  printf(fh, "  // out:       incremented output ~%"),
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
+  printf(fh, "~%"),
 
   printf(fh, "  double rdv2[~a]; ~%", vdim),
   printf(fh, "  double rdvSq4[~a]; ~%", vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx[dir]),
+    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir]),
     printf(fh, "  rdvSq4[~a] = rdv2[~a]*rdv2[~a]; ~%", dir-1, dir-1, dir-1)
   ),
   printf(fh, "~%"),
@@ -62,7 +59,6 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
   nuSum_e     : doExpand1(nuSum, bC),
-  nuUSum_e    : doExpand1(nuUSum, bC),
   nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
 
   /* Specify a point to evaluate alpha at for use in computing CFL.
@@ -71,12 +67,15 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* ..................... vpar contribution ...................... */
 
+  /* Polynomial order factor in CFL frequency. */
+  polyFact : (pOrderVpar+1)^2,
+
   /* facDiff = (2/(Delta vpar))^2 * < psi, nuVtSqSum >. */
   facDiff_c : calcInnerProdList(varsC, 1, bC, nuVtSqSum_e),
   if polyOrder>1 then (
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero   : doMakeExprLst(facDiff_c, facDiffVpar),
-    facDiff_NoZero_e : rdvSq4[0]*doExpandLst(facDiff_NoZero, bC),
+    facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC),
 
     /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
     printf(fh, "  double facDiffVpar[~a];~%", NC),
@@ -91,22 +90,26 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ) else (
     /* Zero out components of alpha which are empty. */
     facDiff_NoZero   : doMakeExprLst(facDiff_c, nuVtSqSum),
-    facDiff_NoZero_e : rdvSq4[0]*doExpandLst(facDiff_NoZero, bC)
+    facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC)
   ),
 
   /* ..................... mu contribution ...................... */
 
   /* facDiff = (2/(Delta mu))^2 * < psi, 2*m_*bmag_inv*nuVtSqSum*mu >. */
   if vdim > 1 then (
+
+    /* Polynomial order factor in CFL frequency. */
+    polyFact : (polyOrder+1)^2,
+
     BmagInv_e : doExpand1(bmag_inv,bC),
 
     if polyOrder>1 then (
 
-      facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsV[2]+rdv2[1]*w[vidx[2]])),
+      facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsVAll[2]+rdv2[1]*w[vidx1[2]])),
 
       /* Zero out components of alpha which are empty. */
       facDiffMu_NoZero : doMakeExprLst(facDiff_c, facDiffMu),
-      facDiff_NoZero_e : facDiff_NoZero_e+2*m_*rdv2[1]*doExpandLst(facDiffMu_NoZero, bC),
+      facDiff_NoZero_e : facDiff_NoZero_e+polyFact*2*m_*rdv2[1]*doExpand(facDiffMu_NoZero, bC),
 
       /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
       /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
@@ -120,17 +123,14 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       ),
       printf(fh, "~%")
     ) else (
-      facDiff_c : calcInnerProdList(varsP,1,bP,2*m_*BmagInv_e*nuVtSqSum_e*(rdv2[1]*varsV[2]+rdvSq4[1]*w[vidx[2]])),
+      facDiff_c : calcInnerProdList(varsP,1,bP,polyFact*2*m_*BmagInv_e*nuVtSqSum_e*(rdv2[1]*varsVAll[2]+rdvSq4[1]*w[vidx1[2]])),
 
       /* Zero out components of alpha which are empty. */
       facDiff_NoZero_e : facDiff_NoZero_e+doExpand(facDiff_c, bP)
     )
   ),
 
-  /* Evaluate facDiff at zr to approximate max(abs(facDiff))/dv_i */
-  polyFact : ((polyOrder+1)^2)/(2*polyOrder+1),
-
-  facDiff_mid : gcfac(float(expand(subst(zr,polyFact*facDiff_NoZero_e)))),
+  facDiff_mid : gcfac(float(expand(subst(zr,facDiff_NoZero_e)))),
 
   /* Replace the rdv2[1]^2: */
   facDiff_mid : subst(rdv2[1]^2=pow(rdv2[1],2), facDiff_mid),

@@ -21,31 +21,60 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     a polynomial
   */
   [
+  numDims, recDirIdx, perpDirs, recDirPolyOrder,
+  vdim, cdim, jnk1, jnk2, pvars, pbasis,
   DoF, r, rExp, rSol, rSub,
   recEqList, projSubList,
+  varsaCe1D, varsaCeND,
   baLo1D, baCe1D, baUp1D, baLoND, baCeND, baUpND,
   dimProjLo, dimProjUp, qLo1D, qUp1D,
   wx, wy, wz,
-  numDims,
-  baCeNDw, perpDirs,
+  baCeNDw,
   bcExp, baVars,
-  recDirIdx,
   shiftList
   ],
 
-  for i : 1 thru length(dirs) do (
+  numDims : length(dirs),
+  for i : 1 thru numDims do (
     if recDir=dirs[i] then recDirIdx : i
   ),
+
+  perpDirs : delete(recDir, dirs),
+
+  recDirPolyOrder : polyOrder,
+
+  /* Get 1D basis in recovery direction. */
+  if basisNm="hyb" or basisNm="gkhyb" then (
+    /* Do things differently for hybrid because it may involve a p=2 direction. */
+    vdim : length(sublist(dirs,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
+    cdim : numDims - vdim,
+    if basisNm = "hyb" then (
+      [jnk1,jnk2,pvars,pbasis] : loadPhaseBasis(basisNm, cdim, vdim, 1)
+    ) elseif basisNm = "gkhyb" then (
+      /* Need to do something slightly different for gkhyb because this
+         function is called by calcRecov1CellGenNonuniform with just [vpar]
+         or [mu], depending on what recovery it is doing, and cdim/vdim
+         are not enough to clearly specify which basis should be loaded. */
+      [pvars, pbasis] : loadGkHybBasisFromVars(dirs)
+    ),
+    baCe1D : sqrt(2)^(numDims-1)*sublist(pbasis, lambda([b], lfreeof(perpDirs,listofvars(b)))),
+    /* MF 2022/07/15: I think this is only needed when perpDirs=[]. */
+    baCe1D : subst(listofvars(baCe1D)[1]=recDir,baCe1D),
+
+    if charat(string(recDir),1)="v" then
+      recDirPolyOrder : polyOrder+1
+  ) else (
+    [varsaCe1D,baCe1D] : loadBasis(basisNm, 1, polyOrder),
+    baCe1D : subst(x=recDir, baCe1D)
+  ),
   
-  baCe1D : getBasis(basisNm, 1, polyOrder),
-  baCe1D : subst(x=recDir, baCe1D),
   baLo1D : etaDir(recDir, -dxlo[recDirIdx]/2, dxlo[recDirIdx], baCe1D),
   baUp1D : etaDir(recDir, dxup[recDirIdx]/2, dxup[recDirIdx], baCe1D),
  
   /* forming and solving the equation system */
   DoF : 0,
   if is(op(lo)=dg) then (
-    DoF : DoF + polyOrder + 1,
+    DoF : DoF + recDirPolyOrder + 1,
     if length(args(lo)) > 1 then (
       if is(op(args(lo)[2])=bc) then (
         DoF : DoF + 1 /* only 1 DoF for BC */
@@ -62,7 +91,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     DoF : DoF + length(args(lo))
   ),
   if is(op(up)=dg) then (
-    DoF : DoF + polyOrder + 1,
+    DoF : DoF + recDirPolyOrder + 1,
     if length(args(up)) > 1 then (
       if is(op(args(up)[2])=bc) then (
         DoF : DoF + 1 /* only 1 DoF for BC */
@@ -168,11 +197,14 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
   rSub : fullratsimp(subst(rSol, rExp)),
   
   /* backsubstitute the non-recovered directtions if needed */
-  numDims : length(dirs),
   if numDims > 1 then (
-    baCeND : getBasis(basisNm, numDims, polyOrder),
-    baVars : listofvars(baCeND),
-    baCeND : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), baCeND),
+    if basisNm="hyb" or basisNm="gkhyb" then (
+      baCeND : copylist(pbasis)
+    ) else (
+      [varsaCeND,baCeND] : loadBasis(basisNm, numDims, polyOrder),
+      baVars : listofvars(baCeND),
+      baCeND : psubst(makelist(baVars[i]=dirs[i],i,1,numDims), baCeND)
+    ),
     /* rescale basis */
     shiftList : makelist(0, i, 1, numDims),
     baLoND : eta(dirs, shiftList, dxlo, baCeND),
@@ -183,10 +215,7 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     /* prepare for the case where expansion coefficients at a wall are
     given; i.e., a basis function set with one less dimension is
     needed */
-    perpDirs : delete(recDir, dirs),
-    baCeNDw  : getBasis(basisNm, numDims-1, polyOrder),
-    baVars   : listofvars(baCeNDw),
-    baCeNDw  : psubst(makelist(baVars[i]=perpDirs[i],i,1,numDims-1), baCeNDw), 
+    baCeNDw : basisFromVars(basisNm, perpDirs, polyOrder),
     
     projSubList : [],
     if is(op(lo)=dg) then (

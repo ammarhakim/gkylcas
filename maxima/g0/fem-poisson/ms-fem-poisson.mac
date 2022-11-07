@@ -15,9 +15,9 @@ load("fem-poisson/fem-poisson-sol_stencil")$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 2$
 
 /* Tensor product basis. */
 maxPolyOrder_Tensor : 1$
@@ -105,6 +105,7 @@ for bInd : 1 thru length(bName) do (
 )$
 close(fh)$
 
+**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil.c"))$
@@ -120,7 +121,6 @@ for bInd : 1 thru length(bName) do (
 )$
 close(fh)$
 
-**/
 /* Solution nodal-to-modal kernels. */
 disp(printf(false,"Creating fem_poisson_sol_stencil.c"))$
 fname : "~/max-out/fem_poisson_sol_stencil.c"$

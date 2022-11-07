@@ -20,7 +20,7 @@ generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
 
   for polyOrder : 1 thru pMax do (
 
-    printf(fh, "void ~a_p~a(const long *globalIdxs, gkyl_mat_triples *tri) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "void ~a_p~a(const double *weight, const long *globalIdxs, gkyl_mat_triples *tri) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
     printf(fh, "  // tri: triples object (i,j,val), i.e. contribute val to i,j element of the global matrix.~%"),
     printf(fh, "~%"),
@@ -36,6 +36,58 @@ generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
     phi_e : doExpand(phi_c,bN),
 
     phiMass_c : calcInnerProdList(vars,1,bN,phi_e),
+    
+    /* Write out the coefficients of each basis_i*basis_j pair to matrix
+       via triples object.*/
+    for k : 1 thru numB do (
+      vals_k : coefmatrix([phiMass_c[k]],phi_c),
+      for m : 1 thru numB do (
+        val : vals_k[1][m],
+        printf(fh, "  gkyl_mat_triples_accum(tri, globalIdxs[~a], globalIdxs[~a], ~a);~%",k-1,m-1,float(val))
+      )
+    ),
+    printf(fh, "~%"),
+
+    printf(fh, "}~%")
+
+  )
+
+)$
+
+generate_fem_parproj_weighted_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
+  [bN,numB,vars,nodes,numNodes,phi_c,phi_e,phiMass_c,vals_k,val,polyOrder,k,m],
+
+  kill(varsC, varsP, basisC, basisP),
+
+  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+
+  for polyOrder : 1 thru pMax do (
+
+    printf(fh, "void ~a_p~a(const double *weight, const long *globalIdxs, gkyl_mat_triples *tri) ~%{ ~%", funcNm, polyOrder),
+    printf(fh, "  // weight: multiplicative weight (a DG field).~%"),
+    printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
+    printf(fh, "  // tri: triples object (i,j,val), i.e. contribute val to i,j element of the global matrix.~%"),
+    printf(fh, "~%"),
+
+    bN   : getNodalBasis(basisFun, dim, polyOrder),
+    numB : length(bN),
+    vars : listofvars(bN),
+
+    nodes    : args(getNodes(basisFun, dim, polyOrder)),
+    numNodes : length(nodes),
+
+    phi_c : makelist(phi[k-1],k,1,numB),
+    phi_e : doExpand(phi_c,bN),
+
+    /* Convert the weight's modal coefficients to nodal coefficients
+       and expand in nodal basis. */
+    mod2nod : calcModToNod(basisFun, dim, polyOrder),
+    wgt_cm : makelist(weight[k-1],k,1,numB),
+    wgt_cn : mod2nod . wgt_cm,
+    wgt_c  : makelist(wgt_cn[k][1],k,1,numB),
+    wgt_e  : doExpand(wgt_c,bN),
+
+    phiMass_c : calcInnerProdList(vars,wgt_e,bN,phi_e),
     
     /* Write out the coefficients of each basis_i*basis_j pair to matrix
        via triples object.*/

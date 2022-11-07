@@ -15,15 +15,17 @@ dxInv : [dx0, dx1, dx2]$
 
 lhs : [outEx, outEy, outEz, outBx, outBy, outBz, outPh, outPs]$
 
-calcMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP, basisConstant),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
-  load(modNm),
-  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+calcMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [bC,nbasis,Exl,Eyl,Ezl,Bxl,Byl,Bzl,phil,psil,fluxl,
+   volTerms,vt,varsC,basisC,basisConstant,d,m],
 
-  bC : if polyOrder = 0 then basisConstant else basisC[polyOrder],
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  if polyOrder = 0 then bC : basisConstant,
   nbasis : length(bC),
   
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+
   printf(fh, "GKYL_CU_DH double ~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  const double c2 = meq->c*meq->c, chi = meq->chi, gamma = meq->gamma; ~%"),
   printf(fh, "  const double c2chi = c2*chi, c2gamma = c2*gamma; ~% ~%"),
@@ -73,6 +75,6 @@ calcMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([],
     printf(fh, "  cflFreq += meq->c/dx[~a]; ~%", d-1)
   ),
   
-  printf(fh, "  return cflFreq; ~%"),
+  printf(fh, "  return ~a*cflFreq; ~%", float(2*polyOrder+1)),
   printf(fh, "} ~%")
 )$

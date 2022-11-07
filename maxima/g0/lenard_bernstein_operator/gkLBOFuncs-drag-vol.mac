@@ -4,106 +4,106 @@ load(stringproc)$
 
 fpprec : 24$
 
-/* This script generates the kernels for the volume term
-   drag contribution from Lenard Bernstein operator to the
+/* This script generates the kernels for the drag volume
+   kernel of the Lenard Bernstein operator for the
    gyrokinetic equation. */
 
-vIndex(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+varsVAll : [vpar, mu]$
 
-varsV  : [vpar, mu]$
-gkVsub : [vx=vpar,vy=mu]$
+vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
+doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
 
 calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,NP,NC,vidx,f_e,nuSum_e,nuUSum_e,nuVtSqSum_e,zr],
+  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,zr,vidx1,dir,f_e,nuSum_e,nuUSum_e,
+   incrDrag,cflFreq_mid,alphaDrag_e,expr,i,alphaDrag_NoZero,alphaDrag_NoZero_e],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
 
-  kill(varsC, varsP, basisC, basisP),
   /* Load basis of dimensionality requested. */
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
 
-  /* Rename independent variables in bases. */
-  varsP : subst(gkVsub, varsP),
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderVpar : polyOrder,
+  if polyOrder=1 then ( pOrderVpar : 2 ),
+
   /* Specify a point to evaluate alpha at for use in computing CFL */
   /* Here we choose to evaluate things in the middle of the cell, where
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  /* Polynomial basis and its derivatives. */
-  bP : subst(gkVsub,basisP[polyOrder]),  bC : basisC[polyOrder],
-  NP : length(bP),  NC : length(bC),
-  bC : basisC[polyOrder],
-  NC : length(bC),
+  vidx1 : vIndex1(cdim,vdim),
 
-  vidx : vIndex(cdim,vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
+  printf(fh, "  // f: input distribution function.~%"),
+  printf(fh, "  // out: incremented output ~%"),
+  printf(fh, "~%"),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuUSum:    sum of bulk velocities times their respective collisionalities. ~%"),
-  printf(fh, "  // nuVtSqSum: sum of thermal speeds squared time their respective collisionalities. ~%"),
-  printf(fh, "  // f:         input distribution function.~%"),
-  printf(fh, "  // out:       incremented output ~%"),
+  /* Create a pointer to nuUSum. */
+  printf(fh, "  const double *nuUSum = nuPrimMomsSum;~%"),
+  printf(fh, "~%"),
 
   printf(fh, "  double rdv2[~a]; ~%", vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx[dir])
+    printf(fh, "  rdv2[~a] = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
   ),
   printf(fh, "~%"),
 
   /* Expand distribution function f in phase basis.            */
-  f_e    : doExpand1(f, bP),
-  /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
-  nuSum_e    : doExpand1(nuSum, bC),
-  nuUSum_e    : doExpand1(nuUSum, bC),
-  nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
+  f_e : doExpand1(f, bP),
+  /* Expand flow speed sum(nu*u) in configuration basis. */
+  nuSum_e  : doExpand1(nuSum, bC),
+  nuUSum_e : doExpand1(nuUSum, bC),
 
   printf(fh, "  double alphaDrag[~a]; ~%", vdim*NP),
   incrDrag : 0,
-  alphaDrag_mid : makelist(0, i, 1, vdim),
+  cflFreq_mid : makelist(0, i, 1, vdim),
 
   /* alphaDrag_par = rdv2*< psi, (nuSum*vpar - nuUparSum) >. */
-  alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vidx[1]]+0.5*dxv[vidx[1]]*varsV[1])+nuUSum_e),
+  alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vidx1[1]]+0.5*dxv[vidx1[1]]*varsVAll[1])+nuUSum_e),
   expr : gcfac(float(expand(radcan(rdv2[0]*alphaDrag_e)))),
   /* Write out the component of alphaDrag's phase space expansion. */
   printf(fh, "  // Expand rdv2*(nu*vpar-nuUparSum) in phase basis.~%"),
   for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[i-1], expr[i])
+    if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[i-1], expr[i])
   ),
   printf(fh, "~%"),
   /* Zero out components of alpha which are empty. */
-  alphaDrag_NoZero   : doMakeExprLst(alphaDrag_e, alphaDrag),
+  alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
   alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
-  /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
-  alphaDrag_mid[1] : gcfac(float(expand(subst(zr,0.5*subst(a0=0,alphaDrag_NoZero_e))))),
+  /* Evaluate alpha_vdim at zr to approximate
+     max(abs(alpha_vdim))/(dv_i/(2p+1)). */
+  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*subst(a0=0,alphaDrag_NoZero_e))))),
   /* Volume increment from configuration space. */
-  incrDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsV[1]), alphaDrag_NoZero_e*f_e)),
+  incrDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]), alphaDrag_NoZero_e*f_e)),
 
   /* mu contribution. */
   if vdim = 2 then (
-    alphaDrag_e : calcInnerProdList(varsP, 1, bP, -2.0*nuSum_e*(w[vidx[2]]+0.5*dxv[vidx[2]]*varsV[2])),
+    alphaDrag_e : calcInnerProdList(varsP, 1, bP, -2.0*nuSum_e*(w[vidx1[2]]+0.5*dxv[vidx1[2]]*varsVAll[2])),
     expr : gcfac(float(expand(radcan(rdv2[1]*alphaDrag_e)))),
     /* Write out the component of alphaDrag's phase space expansion. */
     printf(fh, "  // Expand rdv2*nu*2*mu in phase basis.~%"),
     for i : 1 thru NP do (
-        if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[NP+i-1], expr[i])
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[NP+i-1], expr[i])
     ),
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
-    alphaDrag_NoZero   : doMakeExprLst(alphaDrag_e, alphaDrag),
+    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag,a0),
     alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
-    /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
-    alphaDrag_mid[2] : gcfac(float(expand(subst(zr,0.5*subst(a0=NP,alphaDrag_NoZero_e))))),
+    /* Evaluate alpha_vdim at zr to approximate
+       max(abs(alpha_vdim))/(dv_i/(2p+1)). */
+    cflFreq_mid[2] : gcfac(float(expand(subst(zr,(2*polyOrder+1)*0.5*subst(a0=NP,alphaDrag_NoZero_e))))),
     /* Volume increment from configuration space. */
-    incrDrag : incrDrag+subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsV[2]), alphaDrag_NoZero_e*f_e))
+    incrDrag : incrDrag+subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), alphaDrag_NoZero_e*f_e))
   ),
 
   /* Write out first attempts to simplify the radicals with radcan, e.g.
@@ -112,9 +112,9 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprsCollect1c(radcan(incrDrag)),
   printf(fh, "~%"),
   if vdim = 1 then (
-    printf(fh, "  return fabs(~a); ~%", alphaDrag_mid[1])
+    printf(fh, "  return fabs(~a); ~%", cflFreq_mid[1])
   ) elseif vdim = 2 then (
-    printf(fh, "  return fabs(~a)+fabs(~a); ~%", alphaDrag_mid[1], alphaDrag_mid[2])
+    printf(fh, "  return fabs(~a)+fabs(~a); ~%", cflFreq_mid[1], cflFreq_mid[2])
   ),
   printf(fh, "~%"),
   printf(fh, "} ~%")

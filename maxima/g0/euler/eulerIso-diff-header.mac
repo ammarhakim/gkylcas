@@ -1,0 +1,35 @@
+cvars : [X, Y, Z]$
+cvars_name : ["x","y","z"]$
+
+printPrototypes() := block([pmax,dirlabel],
+  pmax:2,
+  for ci : 1 thru 3 do (
+    for pi : 1 thru pmax do (
+      printf(fh, "GKYL_CU_DH double dg_euleriso_diffusion_vol_~ax_ser_p~a(const double *w, const double *dxv, const double *D, const double *uvar, const double *statevec, double* GKYL_RESTRICT out); ~%", ci, pi),
+      for si : 1 thru ci do (
+        dirlabel : cvars[si],
+        printf(fh, "GKYL_CU_DH void dg_euleriso_diffusion_surf~a_~ax_ser_p~a(const double *w, const double *dxv, const double *D, const double *uvarl, const double *uvarc, const double *uvarr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out); ~%", cvars_name[si], ci, pi)
+      ),
+      printf(fh, "~%")
+    )
+  )
+)$
+
+fh : openw("~/max-out/dg_euleriso_diffusion_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, " ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, " ~%")$
+printPrototypes()$
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
+
+/* fh : openw("~/max-out/ISOEulerCdef.lua")$
+printf(fh, "local ffi = require \"ffi\" ~%~%")$
+printf(fh, "ffi.cdef [[~%")$
+printPrototypes()$
+printf(fh, "]]~%")$
+close(fh)$ */

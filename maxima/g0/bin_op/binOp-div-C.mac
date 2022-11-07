@@ -7,7 +7,7 @@
 load("modal-basis");
 load("out-scripts");
 load(stringproc)$
-load("fem-calc/femMatrices");
+load("nodal_operations/nodal_functions")$
 
 fpprec : 24$
 
@@ -46,27 +46,24 @@ writeCExprs0s(lhs, rhs) := block([expr],
   )
 )$
 
-calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,Ef,eq,E],
+calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [Elhs,Eflat,Ef,eq,E],
 
-  if (basisFun="ser") then basisFun:"Ser",
-  if (basisFun="tensor") then basisFun:"Tensor",
-  kill(varsC, varsP, basisC, basisP),
+  if (basisFun="ser") then bType : "Ser"
+  elseif (basisFun="tensor") then bType : "Tensor",
 
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x"),
-  load(modNm),
-  if polyOrder=0 then (
-        bW:[basisC[1][1]]
-        )
-    else (
-        bW:basisC[polyOrder]
-    ),
-  varsW : varsC,
+  if polyOrder>0 then pOrder : polyOrder else pOrder : 1,
+
+  [varsC, basisC] : loadBasis(bType, cdim, pOrder),
+
+  if polyOrder=0 then
+    bW : [basisC[1]]
+  else
+    bW : copylist(basisC),
+  varsW : copylist(varsC),
   wdim  : cdim,
   N     : length(bW),
     
-  if (basisFun="Ser") then basisFun:"ser",
-  if (basisFun="Tensor") then basisFun:"tensor",
-  
   /* Function declaration with input/output variables. */
   printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *f, const double *g) ~%{ ~%", funcNm),
   printf(fh, "  // A:       preallocated LHS matrix. ~%"),
@@ -76,14 +73,13 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
   printf(fh, " ~%"),
 
   /* function to evaluate f on nodes */
-  nodesub(f, nodes):=fullratsimp(makelist(subst(makelist(varsW[j]=nodes[i][j],j,1,length(varsW)),f),i,1,length(nodes))),
-  cornerNodes : eval_string(sconcat("nodes", wdim, "xp", 1)),
+  cornerNodes : getNodes(basisFun, wdim, 1),
 
   /* List of A evaluated at the corners. */
-  cornerAs : nodesub(doExpand1(g,bW), cornerNodes),
+  cornerAs : evAtNodes(doExpand1(g,bW), cornerNodes, varsW),
 
   /* List of A evaluated close to positivity control points. */
-  controlAs : nodesub(doExpand1(g,bW), cornerNodes*2/5),
+  controlAs : evAtNodes(doExpand1(g,bW), cornerNodes*2/5, varsW),
 
   /* In order to avoid dividing by very small, negative or zero numbers
      use the cell average of g when g<0 at one of the corners. */
@@ -109,13 +105,13 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
     printf(fh, "  } ~%"),
     printf(fh, " ~%"),
     flush_output(fh)
- ) else (
-        printf(fh, "  double lhs[~a]; ~%", N),
-        rhs[i]:sconcat("gkyl_mat_set(rhs,0,",i),
-        writeCExprs0s(lhs,makelist(g[i],i,0,N-1)),
-        writeCExprsRHS0(rhs,makelist(f[i],i,0,N-1)),
-        printf(fh, " ~%")
-    ),
+  ) else (
+    printf(fh, "  double lhs[~a]; ~%", N),
+    rhs[i]:sconcat("gkyl_mat_set(rhs,0,",i),
+    writeCExprs0s(lhs,makelist(g[i],i,0,N-1)),
+    writeCExprsRHS0(rhs,makelist(f[i],i,0,N-1)),
+    printf(fh, " ~%")
+  ),
 
   /* Expand fields A and B in weak basis. */
   Ae : doExpand1(lhs, bW),
@@ -126,7 +122,7 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
 
   kill(eq,E,Eflat,Ef,Elhs),
 
-  massMatrix(Amat,nSpaces) := block([],
+  writeMassMatrix(Amat,nSpaces) := block([],
     /* Flatten E for WriteCExprsA. */
     Eflat : list_matrix_entries(Amat),
 
@@ -143,8 +139,8 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block([Elhs,Eflat,
   eq : calcInnerProdList(varsW,ue,bW,Ae),
   E  : fullratsimp(coefmatrix(eq,un)),
 
-  massMatrix(E,0),
-  div(0),
+  writeMassMatrix(E,0),
+
   printf(fh, "} ~%")
 )$
 

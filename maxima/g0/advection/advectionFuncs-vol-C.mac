@@ -5,10 +5,10 @@ load("out-scripts");
 load(stringproc)$
 fpprec : 24$
 
-dx2   : [dx2, dy2, dz2]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 
-calcAdvectionVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([bP,cid,vid,wDdx,dvDdx,dir,volTerm,clst,strOut],
+calcAdvectionVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [bP,NC,cflPt,cid,dir,rdx2,u_e,f_e,volTerm,amid],
 
   kill(varsC, basisC),
 
@@ -30,10 +30,12 @@ calcAdvectionVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([bP,cid,
   printf(fh, "  // out:       Incremented output.~%"),
   cid : cidx(cdim),
   for dir : 1 thru cdim do (
-      printf(fh, "  const double d~a2 = 2.0/dxv[~a]; ~%", varsC[dir], cid[dir])
+      printf(fh, "  const double rd~a2 = 2.0/dxv[~a]; ~%", varsC[dir], cid[dir])
   ),
-  /* alpha_mid is our approximation of sum_i max(abs(alpha_i))/dx_i */
-  printf(fh, "  double alpha_mid = 0.0; ~%"),
+  rdx2 : [rdx2, rdy2, rdz2],
+
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   /* Advection velocity in each direction of configuration space. */
   u_e : doExpand1(u, bC),
@@ -45,17 +47,18 @@ calcAdvectionVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block([bP,cid,
   /* Inner product of grad(psi) . u f, where psi is a basis function. */
   volTerm : 0,
   for dir : 1 thru cdim do (
-    /* evaluate alpha_vdim at cflPt to approximate max(abs(alpha_vdim))/dv_i */
-    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NC*(dir-1),u_e))))),
-    printf(fh, "  alpha_mid += fabs(~a); ~%", amid),
+    /* evaluate alpha_vdim at cflPt to approximate
+    ** max(abs(alpha_vdim))/(dx_i/(2p+1)). */
+    amid : gcfac(float(expand(subst(cflPt,(2*polyOrder+1)*0.5*subst(a0=NC*(dir-1),u_e))))),
+    printf(fh, "  cflFreq_mid += fabs(~a); ~%", rdx2[dir]*amid),
 
-    volTerm : volTerm + subst(a0=NC*(dir-1),calcInnerProdList(varsC, dx2[dir]*u_e, diff(bC,varsC[dir]), f_e))
+    volTerm : volTerm + subst(a0=NC*(dir-1),calcInnerProdList(varsC, rdx2[dir]*u_e, diff(bC,varsC[dir]), f_e))
   ),
   printf(fh, "~%"),
 
   writeCExprsCollect1c(volTerm),
   printf(fh, "~%"),
 
-  printf(fh, "  return alpha_mid; ~%"),
+  printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 )$
