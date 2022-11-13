@@ -22,10 +22,7 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, NP, pDim, cid, vid, surfVars, bSurf, surfNodes, numNodes,
    fl_e, fc_e, fr_e, vTrans, 
-   ux_e, uy_e, uz_e, u_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
-   bx_e, by_e, bz_e, b_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
-   rho_inv_bx_e, rho_inv_by_e, rho_inv_bz_e, 
-   acc_P_x_e, acc_P_y_e, acc_P_z_e, acc_u_x_e, acc_u_y_e, acc_u_z_e, 
+   p_force_e, bb_grad_u_e, acc_e, 
    alphaSurf_l_c, alphaSurf_r_c, alst_l, alst_r, alphaSurf_l_e, alphaSurf_r_e,
    alphaOrd_l_n, alphaOrd_r_n, 
    fHatSurf_e,Ghat_c,glst1,Ghat_e,incr],
@@ -38,14 +35,12 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   pDim  : length(varsP),
 
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-     const double *u_i, const double *p_ij, const double *bvar, const double *rho_inv_b, 
+     const double *bb_grad_u, const double *p_force, 
      const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // u_i:      bulk flow velocity (ux, uy, uz).~%"),
-  printf(fh, "  // p_ij:     pressure tensor (P_xx, P_xy, P_xz, P_yy, P_yz, P_zz).~%"),
-  printf(fh, "  // bvar:      magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // rho_inv_b: b_i/rho (for pressure force 1/rho * b . div(P)).~%"),
+  printf(fh, "  // p_force:   total pressure force = 1/rho (b . div(P) + p_perp div(b)) for Euler PKPM.~%"),
+  printf(fh, "  // bb_grad_u: bb : grad(u).~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
   printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
@@ -61,102 +56,19 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
-  /* access flow, pressure tensor, and magnetic field unit vector data */
-  printf(fh, "  const double *ux = &u_i[~a]; ~%", 0),
-  printf(fh, "  const double *uy = &u_i[~a]; ~%", NC),
-  printf(fh, "  const double *uz = &u_i[~a]; ~%", NC*2),
-
-  printf(fh, "~%"),
-
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0),
-  printf(fh, "  const double *Pxy = &p_ij[~a]; ~%", NC),
-  printf(fh, "  const double *Pxz = &p_ij[~a]; ~%", NC*2),
-  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", NC*3),
-  printf(fh, "  const double *Pyz = &p_ij[~a]; ~%", NC*4),
-  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", NC*5),
-
-  printf(fh, "~%"),
-
-  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
-  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
-  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
-  printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
-  printf(fh, "  const double *bxby = &bvar[~a]; ~%", NC*4),
-  printf(fh, "  const double *bxbz = &bvar[~a]; ~%", NC*5),
-  printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
-  printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
-  printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
-
-  printf(fh, "~%"),
-
-  printf(fh, "  const double *rho_inv_bx = &rho_inv_b[~a]; ~%", 0),
-  printf(fh, "  const double *rho_inv_by = &rho_inv_b[~a]; ~%", NC),
-  printf(fh, "  const double *rho_inv_bz = &rho_inv_b[~a]; ~%", NC*2),
-
-  printf(fh, "~%"),
-
-  /* Expand u, P, and b in configuration space basis */
-  ux_e : doExpand1(ux, bC),
-  uy_e : doExpand1(uy, bC),
-  uz_e : doExpand1(uz, bC),
-  u_e : [ux_e, uy_e, uz_e],
-
-  Pxx_e : doExpand1(Pxx, bC),
-  Pxy_e : doExpand1(Pxy, bC),
-  Pxz_e : doExpand1(Pxz, bC),
-  Pyy_e : doExpand1(Pyy, bC),
-  Pyz_e : doExpand1(Pyz, bC),
-  Pzz_e : doExpand1(Pzz, bC),
-
-  bx_e : doExpand1(bx, bC),
-  by_e : doExpand1(by, bC),
-  bz_e : doExpand1(bz, bC),
-  b_e : [bx_e, by_e, bz_e],
-
-  bxbx_e : doExpand1(bxbx, bC),
-  bxby_e : doExpand1(bxby, bC),
-  bxbz_e : doExpand1(bxbz, bC),
-  byby_e : doExpand1(byby, bC),
-  bybz_e : doExpand1(bybz, bC),
-  bzbz_e : doExpand1(bzbz, bC),
-
-  rho_inv_bx_e : doExpand1(rho_inv_bx, bC),
-  rho_inv_by_e : doExpand1(rho_inv_by, bC),
-  rho_inv_bz_e : doExpand1(rho_inv_bz, bC),
+  
+  /* Expand pressure force 1/rho * (b_hat . div(P) + p_perp div(b_hat)) and bb : grad(u) in configuration space basis */
+  p_force_e : doExpand1(p_force, bC),
+  bb_grad_u_e : doExpand1(bb_grad_u, bC),
 
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] */
-  if cdim = 1 then (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
-
-    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e)
-  )
-  elseif cdim = 2 then (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
-
-    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
-    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
-
-    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e)
-  )
-  else (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
-
-    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
-    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
-
-    acc_P_z_e : rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]),
-    acc_u_z_e : -(vx*dvpar/2.0+wvpar)*(bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3])),
-
-    acc_e : dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e) + dx11[3]*(acc_P_z_e + acc_u_z_e)
-  ),
+  /* alpha_vdim = [1/rho * (b_hat . div(P) + p_perp div(b_hat)) - v_parallel bb : grad(u)] df/dvpar */
+  /* alpha_vdim consolidated as alpha_vdim = p_force - v_parallel bb_grad_u (pressure forces and bb_grad_u pre-computed) */
+  acc_e : p_force_e - (vx*dvpar/2.0+wvpar)*bb_grad_u_e, 
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
 

@@ -1,8 +1,7 @@
-load("pkpm/eulerPPerpPKPMFuncs-vol-div-P")$
+load("pkpm/eulerPPerpPKPM-grad-u")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to an euler equation
-   in the parallel-kinetic-perpendicular-moment (pkpm) model. */
+   gradient of the flow velocity with recovery. */
 
 /* ...... USER INPUTS........ */
 
@@ -34,12 +33,17 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume euler PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("euler_pkpm_vol_", d, "x_", bName[bInd]),
-      calcEulerPKPMVolUpdater(fh, funcName, d, bName[bInd], polyOrder),
-      close(fh)
+      disp(printf(false,sconcat("Creating gradient of flow velocity",bName[bInd]," ~axp~a"),d,polyOrder)),
+      for dir : 1 thru d do ( 
+        if (dir = 1) then fname : sconcat("~/max-out/euler_pkpm_bb_grad_u_x_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/euler_pkpm_bb_grad_u_y_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/euler_pkpm_bb_grad_u_z_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("euler_pkpm_bb_grad_u_"),
+        printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+        calcPKPMbbgradu(dir, fh, funcName, d, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 );

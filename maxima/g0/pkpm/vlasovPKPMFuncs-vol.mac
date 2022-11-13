@@ -22,9 +22,8 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 
 calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,vTrans, 
-  ux_e, uy_e, uz_e, u_e, Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
-  bx_e, by_e, bz_e, b_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
-  rho_inv_bx_e, rho_inv_by_e, rho_inv_bz_e, 
+  ux_e, uy_e, uz_e, u_e, bx_e, by_e, bz_e, b_e,
+  p_force_e, bb_grad_u_e,  
   alpha_cdim_c, expr, alpha_cdim_NoZero, alpha_cdim_NoZero_e, amid, incr_cdim, 
   acc_P_x_e, acc_P_y_e, acc_P_z_e, acc_u_x_e, acc_u_y_e, acc_u_z_e, 
   alpha_vdim_c, expr_vpar, alpha_vdim_NoZero, alpha_vdim_NoZero_e, clst, incr_vdim],
@@ -46,64 +45,41 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* specify a point to evaluate alpha at for use in computing CFL */
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *u_i, const double *p_ij, const double *bvar, const double *rho_inv_b, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *bvar, const double *u_i, const double *bb_grad_u, const double *p_force, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // u_i:       bulk flow velocity (ux, uy, uz).~%"),
-  printf(fh, "  // p_ij:      pressure tensor (P_xx, P_xy, P_xz, P_yy, P_yz, P_zz).~%"),
   printf(fh, "  // bvar:      magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // rho_inv_b: b_i/rho (for pressure force 1/rho * b . div(P)).~%"),
+  printf(fh, "  // u_i:       flow velocity"),
+  printf(fh, "  // p_force:   total pressure force = 1/rho (b . div(P) + p_perp div(b)) for Euler PKPM.~%"),
+  printf(fh, "  // bb_grad_u: bb : grad(u).~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
 
-  /* common expressions in streaming (v_parallel b_hat dot grad(f)) term */
+  /* common expressions in streaming [v_parallel b_hat + u] dot grad(f) term */
   for dir : 1 thru cdim do (
     printf(fh, "  const double dx~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir])
   ),
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
-  /* access flow, pressure tensor, and magnetic field unit vector data */
+
+  /* access flow velocity and magnetic field unit vector data */
   printf(fh, "  const double *ux = &u_i[~a]; ~%", 0),
   printf(fh, "  const double *uy = &u_i[~a]; ~%", NC),
   printf(fh, "  const double *uz = &u_i[~a]; ~%", NC*2),
 
-  printf(fh, "~%"),
-
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0),
-  printf(fh, "  const double *Pxy = &p_ij[~a]; ~%", NC),
-  printf(fh, "  const double *Pxz = &p_ij[~a]; ~%", NC*2),
-  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", NC*3),
-  printf(fh, "  const double *Pyz = &p_ij[~a]; ~%", NC*4),
-  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", NC*5),
-
-  printf(fh, "~%"),
-
   printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
   printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
   printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
-  printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
-  printf(fh, "  const double *bxby = &bvar[~a]; ~%", NC*4),
-  printf(fh, "  const double *bxbz = &bvar[~a]; ~%", NC*5),
-  printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
-  printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
-  printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
-
-  printf(fh, "~%"),
-
-  printf(fh, "  const double *rho_inv_bx = &rho_inv_b[~a]; ~%", 0),
-  printf(fh, "  const double *rho_inv_by = &rho_inv_b[~a]; ~%", NC),
-  printf(fh, "  const double *rho_inv_bz = &rho_inv_b[~a]; ~%", NC*2),
 
   printf(fh, "~%"),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
-  /* alpha_cdim = v_parallel b_hat + u, alpha_vdim = 1/rho * b . div(P) + bb : grad(u) */
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
   printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", NP),
 
@@ -112,34 +88,19 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand distribution function f in phase basis. */
   f_e : doExpand1(f, bP),
 
-  /* Expand u, P, b, and 1/rho in configuration space basis */
+  /* Expand u, b, pressure force 1/rho * (b_hat . div(P) + p_perp div(b_hat)), and bb : grad(u) in configuration space basis */
   ux_e : doExpand1(ux, bC),
   uy_e : doExpand1(uy, bC),
   uz_e : doExpand1(uz, bC),
   u_e : [ux_e, uy_e, uz_e],
-
-  Pxx_e : doExpand1(Pxx, bC),
-  Pxy_e : doExpand1(Pxy, bC),
-  Pxz_e : doExpand1(Pxz, bC),
-  Pyy_e : doExpand1(Pyy, bC),
-  Pyz_e : doExpand1(Pyz, bC),
-  Pzz_e : doExpand1(Pzz, bC),
 
   bx_e : doExpand1(bx, bC),
   by_e : doExpand1(by, bC),
   bz_e : doExpand1(bz, bC),
   b_e : [bx_e, by_e, bz_e],
 
-  bxbx_e : doExpand1(bxbx, bC),
-  bxby_e : doExpand1(bxby, bC),
-  bxbz_e : doExpand1(bxbz, bC),
-  byby_e : doExpand1(byby, bC),
-  bybz_e : doExpand1(bybz, bC),
-  bzbz_e : doExpand1(bzbz, bC),
-
-  rho_inv_bx_e : doExpand1(rho_inv_bx, bC),
-  rho_inv_by_e : doExpand1(rho_inv_by, bC),
-  rho_inv_bz_e : doExpand1(rho_inv_bz, bC),
+  p_force_e : doExpand1(p_force, bC),
+  bb_grad_u_e : doExpand1(bb_grad_u, bC),
 
   incr_cdim : 0,
   /* alpha_cdim = [v_parallel b_hat + u] dot grad(f) */
@@ -166,35 +127,11 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     incr_cdim : incr_cdim+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
   ),
 
-  /* alpha_vdim = [1/rho * b . div(P) - v_parallel bb : grad(u)] df/dvpar */
-  if cdim = 1 then (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
+  /* alpha_vdim = [1/rho * (b_hat . div(P) + p_perp div(b_hat)) - v_parallel bb : grad(u)] df/dvpar */
+  /* alpha_vdim consolidated as alpha_vdim = p_force - v_parallel bb_grad_u (pressure forces and bb_grad_u pre-computed) */
+  alpha_vdim_c : calcInnerProdList(varsP, 1, bP, p_force_e - (vx*dvpar/2.0+wvpar)*bb_grad_u_e),
 
-    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e))
-  )
-  elseif cdim = 2 then (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
-
-    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
-    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
-
-    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e))
-  )
-  else (
-    acc_P_x_e : rho_inv_bx_e*diff(Pxx_e,varsC[1]) + rho_inv_by_e*diff(Pxy_e,varsC[1]) + rho_inv_bz_e*diff(Pxz_e,varsC[1]),
-    acc_u_x_e : -(vx*dvpar/2.0+wvpar)*(bxbx_e*diff(ux_e, varsC[1]) + bxby_e*diff(uy_e, varsC[1]) + bxbz_e*diff(uz_e, varsC[1])),
-
-    acc_P_y_e : rho_inv_bx_e*diff(Pxy_e,varsC[2]) + rho_inv_by_e*diff(Pyy_e,varsC[2]) + rho_inv_bz_e*diff(Pyz_e,varsC[2]),
-    acc_u_y_e : -(vx*dvpar/2.0+wvpar)*(bxby_e*diff(ux_e, varsC[2]) + byby_e*diff(uy_e, varsC[2]) + bybz_e*diff(uz_e, varsC[2])),
-
-    acc_P_z_e : rho_inv_bx_e*diff(Pxz_e,varsC[3]) + rho_inv_by_e*diff(Pyz_e,varsC[3]) + rho_inv_bz_e*diff(Pzz_e,varsC[3]),
-    acc_u_z_e : -(vx*dvpar/2.0+wvpar)*(bxbz_e*diff(ux_e, varsC[3]) + bybz_e*diff(uy_e, varsC[3]) + bzbz_e*diff(uz_e, varsC[3])),
-
-    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, dx11[1]*(acc_P_x_e + acc_u_x_e) + dx11[2]*(acc_P_y_e + acc_u_y_e) + dx11[3]*(acc_P_z_e + acc_u_z_e))
-  ),
-  clst : [dv1par, dx0, dx1, dx2, dvpar, wvpar],
+  clst : [dv1par, dvpar, wvpar],
   writeCExprsCollect1(alpha_vdim, alpha_vdim_c*dv1par, clst),
 
   /* Zero out components of alpha_vdim which are empty. */

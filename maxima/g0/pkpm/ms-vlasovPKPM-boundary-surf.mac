@@ -1,4 +1,4 @@
-load("pkpm/vlasovPKPMFuncs-boundary-surf")$
+load("pkpm/vlasovPKPMFuncs-boundary-surf-div-P")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term contributions in the Vlasov 

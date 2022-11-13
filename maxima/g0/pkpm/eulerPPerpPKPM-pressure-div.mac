@@ -1,0 +1,124 @@
+/* This script generates the kernels for the divergence of the pressure
+   tensor for discretization of the parallel-kinetic-perpendicular-moment
+   model. Used by *both* Euler's equations and kinetic equation. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("scifac")$
+load("recovery")$
+fpprec : 24$
+cvars : [x, y, z]$
+
+calcEulerPKPMDivPressure(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, cv, 
+  lst_Pxx_l, lst_Pxx_c, lst_Pxx_r, lst_Pxy_l, lst_Pxy_c, lst_Pxy_r, lst_Pxz_l, lst_Pxz_c, lst_Pxz_r, 
+  lst_Pyy_l, lst_Pyy_c, lst_Pyy_r, lst_Pyz_l, lst_Pyz_c, lst_Pyz_r, lst_Pzz_l, lst_Pzz_c, lst_Pzz_r, 
+  Pxx_rec, Pxy_rec, Pxz_rec, Pyy_rec, Pyz_rec, Pzz_rec, 
+  div_p_x_c, div_p_y_c, div_p_z_c],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  /* cv = variable to perform recovery in. */
+  cv : varsC[dir],
+
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *dxv, const double *p_ijl, const double *p_ijc, const double *p_ijr, double* GKYL_RESTRICT div_p) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // p_ijl/p_ijc/p_ijr: Pressure tensor in left/center/right cells.~%"),
+  printf(fh, "  // div_p: Volume expansion of div(p).~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_l = &p_ijl[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_l = &p_ijl[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_l = &p_ijl[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_l = &p_ijl[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_l = &p_ijl[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_l = &p_ijl[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_c = &p_ijc[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_c = &p_ijc[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_c = &p_ijc[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_c = &p_ijc[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_c = &p_ijc[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_c = &p_ijc[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_r = &p_ijr[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_r = &p_ijr[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_r = &p_ijr[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_r = &p_ijr[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_r = &p_ijr[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_r = &p_ijr[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *div_p_x = &div_p[~a]; ~%", 0*NC),
+  printf(fh, "  double *div_p_y = &div_p[~a]; ~%", 1*NC),
+  printf(fh, "  double *div_p_z = &div_p[~a]; ~%", 2*NC),
+
+  /* We use recovery to compute the divergence of the pressure tensor */
+  lst_Pxx_l : makelist(Pxx_l[i], i, 0, NC-1),
+  lst_Pxx_c : makelist(Pxx_c[i], i, 0, NC-1),
+  lst_Pxx_r : makelist(Pxx_r[i], i, 0, NC-1),
+
+  lst_Pxy_l : makelist(Pxy_l[i], i, 0, NC-1),
+  lst_Pxy_c : makelist(Pxy_c[i], i, 0, NC-1),
+  lst_Pxy_r : makelist(Pxy_r[i], i, 0, NC-1),
+
+  lst_Pxz_l : makelist(Pxz_l[i], i, 0, NC-1),
+  lst_Pxz_c : makelist(Pxz_c[i], i, 0, NC-1),
+  lst_Pxz_r : makelist(Pxz_r[i], i, 0, NC-1),
+
+  lst_Pyy_l : makelist(Pyy_l[i], i, 0, NC-1),
+  lst_Pyy_c : makelist(Pyy_c[i], i, 0, NC-1),
+  lst_Pyy_r : makelist(Pyy_r[i], i, 0, NC-1),
+
+  lst_Pyz_l : makelist(Pyz_l[i], i, 0, NC-1),
+  lst_Pyz_c : makelist(Pyz_c[i], i, 0, NC-1),
+  lst_Pyz_r : makelist(Pyz_r[i], i, 0, NC-1),
+
+  lst_Pzz_l : makelist(Pzz_l[i], i, 0, NC-1),
+  lst_Pzz_c : makelist(Pzz_c[i], i, 0, NC-1),
+  lst_Pzz_r : makelist(Pzz_r[i], i, 0, NC-1),
+
+  Pxx_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxx_l), dg(lst_Pxx_c), dg(lst_Pxx_r)),
+
+  Pxy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxy_l), dg(lst_Pxy_c), dg(lst_Pxy_r)),
+
+  Pxz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxz_l), dg(lst_Pxz_c), dg(lst_Pxz_r)),
+
+  Pyy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pyy_l), dg(lst_Pyy_c), dg(lst_Pyy_r)),
+
+  Pyz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pyz_l), dg(lst_Pyz_c), dg(lst_Pyz_r)),
+
+  Pzz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pzz_l), dg(lst_Pzz_c), dg(lst_Pzz_r)),
+
+  div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxx_rec , cv)),
+  writeCExprs1(div_p_x, dx1*div_p_x_c),
+  printf(fh, "~%"),
+
+  div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec , cv)),
+  writeCExprs1(div_p_y, dx1*div_p_y_c),
+  printf(fh, "~%"),
+
+  div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec , cv)),
+  writeCExprs1(div_p_z, dx1*div_p_z_c),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$
