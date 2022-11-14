@@ -6,7 +6,6 @@ fpprec : 24$
 /* This script generates the kernels for the volume drag term
    contribution from Lenard Bernstein operator. */
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 varsCAll : [x, y, z]$
 vvarsAll : [vx, vy, vz]$
@@ -15,7 +14,7 @@ rdv2     : [rdvx2, rdvy2, rdvz2]$
 doMakeExprLstOff(vals, S, off) := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
 
 calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,cid,vid1,dir,f_e,nuSum_e,nuUSum_e,
+  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,vid1,dir,f_e,nuSum_e,nuUSum_e,
    incrDrag,cflFreq_mid,vdir,alphaDrag_e,expr,i,
    alphaDrag_NoZero,alphaDrag_NoZero_e],
 
@@ -48,7 +47,6 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *nuUSum = nuPrimMomsSum;~%"),
   printf(fh, "~%"),
 
-  cid  : cidx(cdim),
   vid1 : vidx1(cdim,vdim),
   for dir : 1 thru vdim do (
     printf(fh, "  const double rd~a2 = 2.0/dxv[~a]; ~%", vvarsAll[dir], vid1[dir])
@@ -59,8 +57,8 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   f_e : doExpand1(f, bP),
 
   /* Expand flow speed sum(nu*u) and sum(nu*vtSq) in configuration basis. */
-  nuSum_e     : doExpand1(nuSum, bC),
-  nuUSum_e    : doExpand1(nuUSum, bC),
+  nuSum_e  : doExpand1(nuSum, bC),
+  nuUSum_e : doExpand1(nuUSum, bC),
   /* To allow for multiple components change the cofficient indices in u. */
   nuUSum_e : psubst(makelist(nuUSum[i]=nuUSum[a0+i],i,0,NC-1),nuUSum_e),
 
@@ -70,8 +68,8 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   cflFreq_mid : makelist(0, i, 1, vdim),
   for vdir : 1 thru vdim do (
     /* alphaDrag = rdv2*< psi, -(nuSum*v - nuUSum) >. */
-    alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vid1[vdir]]+0.5*dxv[vid1[vdir]]*vvarsAll[vdir])+subst(a0=NC*(vdir-1),nuUSum_e)),
-    expr : gcfac(float(expand(radcan(rdv2[vdir]*alphaDrag_e)))),
+    alphaDrag_c : calcInnerProdList(varsP, 1, bP, -nuSum_e*(w[vid1[vdir]]+0.5*dxv[vid1[vdir]]*vvarsAll[vdir])+subst(a0=NC*(vdir-1),nuUSum_e)),
+    expr : gcfac(float(expand(radcan(rdv2[vdir]*alphaDrag_c)))),
     /* Write out the component of alphaDrag's phase space expansion. */
     printf(fh, "  // Expand rdv2*(nu*~a-nuUSum~a) in phase basis.~%",vvarsAll[vdir],varsCAll[vdir]),
     for i : 1 thru NP do (
@@ -79,7 +77,7 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
-    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
+    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_c, alphaDrag, a0),
     alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
     /* Evaluate alpha_vdim at zr to approximate
        max(abs(alpha_vdim))/(dv_i/(2p+1)). */

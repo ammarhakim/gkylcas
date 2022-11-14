@@ -8,14 +8,13 @@ fpprec : 24$
    kernel of the Lenard Bernstein operator for the
    Vlasov equation. It only computes the CFL frequency. */
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 varsVAll : [vx, vy, vz]$
 rdv2     : [rdvx2, rdvy2, rdvz2]$
 rdvSq4   : [rdvxSq4, rdvySq4, rdvzSq4]$
 
 calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,cid,vid,dir,f_e,nuVtSqSum_e,
+  [varsC,bC,varsP,bP,NP,NC,pOrderV,zr,vid,dir,f_e,nuVtSqSum_e,
    facDiff_c,facDiff_NoZero,polyFact,incrDiff,vdir,expr,i],
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
@@ -43,7 +42,6 @@ calcVmLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
   printf(fh, "  // f: Input distribution function.~%"),
   printf(fh, "  // out: Incremented output ~%"),
-  cid : cidx(cdim),
   vid : vidx(cdim,vdim),
 
   /* Create a pointer to nuVtSqSum. */
