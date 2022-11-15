@@ -124,7 +124,7 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
 
   for i : 1 thru numNodesConfig do (
     /* Drag term on left side of interface */
-    printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac_l)),
+    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_l_n[i]*rcoFac_l)))),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),
@@ -134,7 +134,7 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
     ),
     printf(fh, "  } ~%"),
     /* Drag term on right side of interface */
-    printf(fh, "  if (~a < 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac_r)),
+    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_r_n[i]*rcoFac_r)))),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),
