@@ -1,0 +1,30 @@
+kill(all) $
+load("fpo/funcs-fpo-vlasov-D-surf-1x3v") $
+
+/* This script calls the functions which calculate surface
+contribution to D from g. */
+
+/* ...... USER INPUTS........ */
+
+minPolyOrder : 1 $
+maxPolyOrder : 2 $
+
+bNames : [ "Ser" ] $
+
+/* ...... END OF USER INPUTS........ */
+
+for polyOrder : minPolyOrder thru maxPolyOrder do (
+  for bIdx : 1 thru length(bNames) do (
+    load(sconcat("basis-precalc/basis", bNames[bIdx], "1x3v")),
+    ba : basisP[polyOrder],
+    numBasis : length(ba),
+    
+    getLists(numBasis),
+    getRecoveries(varsP, polyOrder, bNames[bIdx]),
+    for d1 : 1 thru 3 do (
+      for d2 : d1 thru 3 do (
+        calcFpoDSurf1x3v(polyOrder, bNames[bIdx], d1, d2)
+      )
+    )
+  )
+) $

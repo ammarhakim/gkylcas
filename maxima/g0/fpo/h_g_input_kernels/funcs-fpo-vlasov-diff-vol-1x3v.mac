@@ -6,7 +6,7 @@ dirs : [vx, vy, vz] $
 
 calcFpoDiffVol1x3v(polyOrder, bName) := block(
   [ba, numBasis, fname, fh,
-  lst_D, lst_f,
+  lst_g, lst_f,
   dir1, dir2,
   isFirst],
   
@@ -15,10 +15,10 @@ calcFpoDiffVol1x3v(polyOrder, bName) := block(
   numBasis : length(ba),
   
   /* This is a not always necessary step and one could in most cases
-  use directly 'dg(qlll)' instead of dg(lst_qlll) but this does prevent
+  use directly 'dg(qlll)' instead of dg(lstQlll) but this does prevent
   potential super nasty aliasing!  */
 
-  lst_D : makelist(D[i], i, 0, numBasis-1),
+  lst_g : makelist(g[i], i, 0, numBasis-1),
   lst_f : makelist(f[i], i, 0, numBasis-1),
 
   print("Generating:", bName,"diff-vol", polyOrder),
@@ -27,14 +27,13 @@ calcFpoDiffVol1x3v(polyOrder, bName) := block(
   fh : openw(fname),
   printf(fh, "#include <gkyl_fpo_vlasov_kernels.h>~%~%"),
   printf(fh, "GKYL_CU_DH double~%"),
-  printf(fh, sconcat("fpo_vlasov_diff_vol_1x3v_",
-      sdowncase(bName), "_p", polyOrder,
+  printf(fh, sconcat("fpo_vlasov_diff_vol_1x3v_", sdowncase(bName), "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
-  printf(fh, "  const double* D, const double* f, double* GKYL_RESTRICT out) ~%"),
+  printf(fh, "  const double* g, const double* f, double* GKYL_RESTRICT out) ~%"),
   printf(fh, "{~%"),
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing~%"),
-  printf(fh, "  // D: ~%"),
+  printf(fh, "  // g: ~%"),
   printf(fh, "  // f: ~%"),
   printf(fh, "  // out: Incremented output~%~%"),
 
@@ -42,16 +41,15 @@ calcFpoDiffVol1x3v(polyOrder, bName) := block(
     dir1 : dirs[d1],
     for d2 : 1 thru 3 do (
       dir2 : dirs[d2],
-      
-      printf(fh, sconcat("  const double J", dir1, dir2,
-          " = 4/dx[", d1, "]/dx[", d2, "];~%~%")),
-      
-      kernel : calcInnerProdList(varsP, 1,
-        diff(doExpand(lst_D, ba) * diff(ba, dir1), dir2),
-        doExpand(lst_f, ba)),
+
+      printf(fh, sconcat("  const double J", dir1, dir2, " = 4/dx[", d1, "]/dx[", d2, "];~%~%")),
+
       for i : 1 thru numBasis do (
+        kernel : integrate(integrate(integrate(integrate(
+                diff(diff(diff(doExpand(lst_g, ba), dir1), dir2) * diff(ba[i], dir1), dir2) * doExpand(lst_f, ba),
+                x, -1, 1), vx, -1, 1), vy, -1, 1), vz, -1, 1),
         printf(fh, "  out[~a] +=  J~a~a*(~a);~%", i-1, dir1, dir2,
-          float(expand(kernel[i])))
+          float(expand(kernel)))
       ),
       printf(fh, "~%")
     )
