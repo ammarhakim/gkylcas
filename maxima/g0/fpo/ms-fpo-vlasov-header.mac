@@ -29,6 +29,9 @@ for bIdx : 1 thru length(bNames) do (
     printf(fh, sconcat("GKYL_CU_DH double fpo_vlasov_diff_vol_1x3v_",
         sdowncase(bNames[bIdx]), "_p", polyOrder,
         "(const double* w, const double* dx, const double* D, const double* f, double* GKYL_RESTRICT out);~%")),
+    printf(fh, sconcat("GKYL_CU_DH void fpo_vlasov_D_vol_1x3v_",
+        sdowncase(bNames[bIdx]), "_p", polyOrder,
+        "(const double* w, const double* dx, const double* g, double* GKYL_RESTRICT out);~%")),
     for d1 : 1 thru 3 do (
       dir1 : dirs[d1],
       printf(fh, sconcat("GKYL_CU_DH void fpo_vlasov_drag_surf",

@@ -213,7 +213,7 @@ calcFpoDiffSurf1x3v(polyOrder, bName, d1, d2) := block(
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing~%"),
   printf(fh, "  // D: ~%"),
-  printf(fh, "  // f: ~%"),
+  printf(fh, "  // f: Input distribution function~%"),
   printf(fh, "  // out: Incremented output~%~%"),
   
   printf(fh, sconcat("  const double J", dir1, dir2,
