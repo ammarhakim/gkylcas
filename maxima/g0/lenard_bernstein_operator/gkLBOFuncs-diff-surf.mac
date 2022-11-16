@@ -3,7 +3,6 @@ load("out-scripts");
 load("recovery")$
 load("utilities")$
 load(stringproc)$
-
 fpprec : 24$
 
 /* This script generates the kernels for the surface term
@@ -11,7 +10,6 @@ fpprec : 24$
    in the gyrokinetic equation. */
 
 varsVAll  : [vpar, mu]$
-
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
@@ -19,6 +17,8 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
   NC : length(bC),  NP : length(bP),
 
   pDim    : cdim+vdim,
@@ -84,5 +84,3 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   writeCIncrExprs1(out, rdvSq4*makelist(diff_incr[i-1],i,1,NP)), 
   printf(fh, "} ~%")
 );
-
-

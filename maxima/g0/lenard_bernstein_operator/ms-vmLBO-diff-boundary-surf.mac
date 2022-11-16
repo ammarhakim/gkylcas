@@ -10,16 +10,13 @@ load(stringproc)$
 
 /* ...... USER INPUTS........ */
 
-/* Generate kernels for "uni"form, "nonuni"form or "both" grid types. */
-grid : "uni"$
-
 /* Serendipity basis. */
-minPolyOrder_Ser : 1$
+minPolyOrder_Ser : 2$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
-maxVdim_Ser : 3$
+minVdim_Ser : 2$    /* see begining of v loop below though. */
+maxCdim_Ser : 1$
+maxVdim_Ser : 2$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -45,10 +42,6 @@ vvarsAll : [vx, vy, vz]$
 
 /* Is non-uniform booleans. */
 
-if     grid="uni"    then (gridType : [false])
-elseif grid="nonuni" then (gridType : [true])
-elseif grid="both"   then (gridType : [false,true])$
-
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
@@ -57,18 +50,14 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       
-        for gridInd : 1 thru length(gridType) do (
-          isNonuniform : gridType[gridInd],
-          if isNonuniform then (gridStr : "nonuniform") else (gridStr : ""),
-          disp(printf(false,sconcat("Creating diff surface Vlasov LBO ~a",bName[bInd]," ~ax~av p~a"),gridStr,c,v,polyOrder)),
-          for dir:1 thru v do (
-            fname : sconcat("~/max-out/lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
-            fh : openw(fname),
-            funcName : sconcat("lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
-            calcBoundaryDiffUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, isNonuniform),
-            close(fh)
-          )
+        disp(printf(false,sconcat("Creating diff surface Vlasov LBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
+        for dir : 1 thru v do (
+          fname : sconcat("~/max-out/lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
+          fh : openw(fname),
+          funcName : sconcat("lbo_vlasov_diff_boundary_surf", vvarsAll[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
+          calcBoundaryDiffUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
+          close(fh)
         )
       )
     )

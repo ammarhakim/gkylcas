@@ -11,7 +11,7 @@ vvarsAll : [vx, vy, vz]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,bType,h_e,nuVtSqSum_e,temp_diff_c,diff_incr_c],
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,surfVar,bType,h_e,nuVtSqSum_e,temp_diff_c,diff_incr_c],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -19,18 +19,17 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   /* Number of basis monomials. */
   NP : length(bP),  NC : length(bC),
   
-  pDim : cdim+vdim,
-  /* Variables. */
-  vid1 : vidx1(cdim,vdim),
-  vv   : vvarsAll[dir],
-  surfVars : delete(vv,varsP),
+  pDim    : cdim+vdim,
+  vid1    : vidx1(cdim,vdim),
+  surfVar : vvarsAll[dir],
 
   /* Construct the recovery polynomial */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
     bType : "hyb"
   else
     bType : basisFun,
-  h_e : calcRecov1CellGen(bType, vv, varsP, polyOrder, 1, dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
+  h_e : calcRecov1CellGen(bType, surfVar, varsP, polyOrder, 1,
+    dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
     
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
@@ -54,7 +53,7 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   /* Write out the second derivative of the recovered distribution. */
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
     
-  temp_diff_c : calcInnerProdList(varsP, 1, bP, diff(h_e, vv, 2)),
+  temp_diff_c : calcInnerProdList(varsP, 1, bP, diff(h_e, surfVar, 2)),
   writeCExprs1(temp_diff, temp_diff_c),
   printf(fh, "~%"),
     
@@ -65,5 +64,3 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   writeCIncrExprs1(out, rdvSq4*makelist(diff_incr[i-1],i,1,NP)), 
   printf(fh, "} ~%")
 );
-
-
