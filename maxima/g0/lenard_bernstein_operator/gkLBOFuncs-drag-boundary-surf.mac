@@ -108,9 +108,11 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isN
   /* Write out fUpwindQuad for the far left edge */
   /* Within the skin cell, we need alpha_r (alpha evaluated at +1)
      just like how the skin cell is evaluated at +1 */
+  alphaSimp(a) := float(expand(fullratsimp(a))),
   basisStr : sconcat(basisFun, "_", cdim+vdim, "x"),
   rcoFac_r : 1.,  rcoFac_l : 1.,
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    alphaSimp(a) := fullratsimp(a),
     basisStr : sconcat("gkhyb_", cdim, "x", vdim, "v"),
     /* This subst eliminates the need for another variable, and removes
        the common factor (for p=1) which is not needed to determine sign. */
@@ -118,7 +120,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isN
     rcoFac_r : 1./(content(alphaOrd_r_n[1],alphaDrSurf[0])[1])
   ),
   for i : 1 thru numNodesConfig do (
-    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_r_n[i]*rcoFac_r)))),
+    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_r_n[i]*rcoFac_r)),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),
@@ -173,7 +175,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isN
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
      just like how the skin cell is evaluated at -1 */
   for i : 1 thru numNodesConfig do (
-    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_l_n[i]*rcoFac_l)))),
+    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_l_n[i]*rcoFac_l)),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),

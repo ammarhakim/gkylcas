@@ -109,9 +109,11 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
 
+  alphaSimp(a) := float(expand(fullratsimp(a))),
   basisStr : sconcat(basisFun, "_", cdim+vdim, "x"),
   rcoFac_l : 1.,  rcoFac_r : 1.,
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    alphaSimp(a) := fullratsimp(a),
     basisStr : sconcat("gkhyb_", cdim, "x", vdim, "v"),
     /* This subst eliminates the need for another variable, and removes
        the common factor (for p=1) which is not needed to determine sign. */
@@ -120,7 +122,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   ),
 
   for i : 1 thru numNodesConfig do (
-    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_l_n[i]*rcoFac_l)))),
+    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_l_n[i]*rcoFac_l)),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),
@@ -130,7 +132,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
     ),
     printf(fh, "  } ~%"),
     /* Drag term on right side of interface */
-    printf(fh, "  if (~a < 0) { ~%", float(expand(fullratsimp(alphaOrd_r_n[i]*rcoFac_r)))),
+    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_r_n[i]*rcoFac_r)),
     for j : 1 thru numNodesVel do (
       printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
     ),
