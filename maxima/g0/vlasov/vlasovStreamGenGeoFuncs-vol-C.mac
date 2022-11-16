@@ -1,0 +1,83 @@
+/* Compute the volume term for the streaming (v . grad(f)) term
+   in the Vlasov neutral eqn with general geometry. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+cidx1(cdim)      := makelist(i,i,0,cdim-1)$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
+
+calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,cid1,vid1,wDdx,dvDdx,dir,f_e,volTerm,clst,strOut,d],
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),
+  NP : length(bP),
+  varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
+  print(varsV),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *qmem, const double *f, const double *basisVecComp, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  cid1 : cidx1(cdim),
+  vid1 : vidx1(cdim,vdim),
+
+  wDdx  : makelist(eval_string(sconcat("w",vid1[i],"Ddx",cid1[i])),i,1,cdim),
+  dvDdx : makelist(eval_string(sconcat("dv",vid1[i],"Ddx",cid1[i])),i,1,cdim),
+
+  /* Cell center and cell length divided by velocity cell length. */
+  for dir : 1 thru cdim do (
+    printf(fh, "  double w~aDdx~a  = w[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir]),
+    printf(fh, "  double dv~aDdx~a = dxv[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir])
+  ),
+  printf(fh, "  double Gbar[~a] = {0.0}; ~%", NC),
+
+  printf(fh, "~%"),
+  /* Expand distribution function in phase basis. */
+  f_e : doExpand1(f, bP),
+  basisVecComp_e : doExpand1(basisVecComp, bC),
+
+  /*basisVecComp_e : psubst(makelist(tvComp[i]=tvComp[a0+i],i,0,NC-1),tvComp_e),*/
+  /* Use something like subst(a0=NC*(dir),basisVecComp_e)) */
+
+  /*incr_c :  makelist(0, i, 1, NP),*/
+  clst : append(wDdx,dvDdx),
+  /* Inner product of grad(psi) . v f, where psi is a basis function. */
+  for dir : 1 thru vdim do (
+     Gbar_temp_c : calcInnerProdList(varsV, 2*wDdx[dir]+dvDdx[dir]*varsV[dir], diff(bP,varsP[dir]), f_e),
+     for i : 1 thru NP do (
+       /* Project vel integral onto configuration basis */ 
+       if Gbar_temp_c[i] # 0 then ( 
+         Gbar_c : calcInnerProdList(varsC, 1, bC, Gbar_temp_c[i]),
+	 writeCExprsCollect1(Gbar,Gbar_c,clst),
+	 Gbar_e : doExpand1(Gbar, bC), /* Write out these coeff */
+	 incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir),basisVecComp_e))),
+	 /*print(incr_c),*/
+      	 printf(fh, "  ~a += ~a; ~%", out[i-1], incr_c),
+	 printf(fh, "~%")
+       )
+     )
+     /*writeCIncrExprsCollect1(out,incr_c,clst)*/
+  ),
+
+  clst : append(wDdx,dvDdx),
+  /* writeCIncrExprsCollect1(out,volTerm,clst),*/
+  printf(fh, "~%"),
+
+  strOut : sconcat("fabs(w",vid1[1],"Ddx",0,")+0.5*dv",vid1[1],"Ddx",0),
+  for d : 2 thru cdim do (
+    strOut : sconcat(strOut,"+fabs(w",vid1[d],"Ddx",d-1,")+0.5*dv",vid1[d],"Ddx",d-1)
+  ),
+  printf(fh, "  return ~a*(~a);~%",float(2*polyOrder+1),strOut),
+  printf(fh, "} ~%")
+)$
