@@ -11,7 +11,7 @@ vvarsAll : [vx, vy, vz]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
-  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,surfVar,bType,h_e,nuVtSqSum_e,temp_diff_c,diff_incr_c],
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,surfVar,bType,h_e,nuVtSqSum_e,f_xx_c,f_xx_e,incr_c],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -46,21 +46,30 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   printf(fh, "~%"),
 
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vid1[dir], vid1[dir]),
-  printf(fh, "  double temp_diff[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double diff_incr[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double incr[~a]; ~%", NP),
   printf(fh, "~%"),
-    
-  /* Write out the second derivative of the recovered distribution. */
+
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
     
-  temp_diff_c : calcInnerProdList(varsP, 1, bP, diff(h_e, surfVar, 2)),
-  writeCExprs1(temp_diff, temp_diff_c),
+  if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
+    /* This simplification only works for p=1 because it is a tensor product of
+       conf and velocity space (remains to be checked for tensor basis). */
+
+    /* Write out the second derivative of the recovered distribution. */
+    printf(fh, "  double f_xx[~a] = {0.0}; ~%", NP),
+    f_xx_c : calcInnerProdList(varsP, 1, bP, diff(h_e, surfVar, 2)),
+    writeCExprs1(f_xx, f_xx_c),
+    printf(fh, "~%"),
+
+    f_xx_e : doExpand(makelistNoZeros(f_xx_c, f_xx),bP)
+  ) else (
+    f_xx_e : diff(h_e, surfVar, 2)
+  ),
+
+  incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, f_xx_e),
+  writeCExprs1(incr, incr_c),
   printf(fh, "~%"),
     
-  diff_incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_diff,bP)),
-  writeCExprs1(diff_incr, diff_incr_c),
-  printf(fh, "~%"),
-  
-  writeCIncrExprs1(out, rdvSq4*makelist(diff_incr[i-1],i,1,NP)), 
+  writeCIncrExprs1(out, rdvSq4*makelistNoZeros(incr_c, incr)),
   printf(fh, "} ~%")
 );

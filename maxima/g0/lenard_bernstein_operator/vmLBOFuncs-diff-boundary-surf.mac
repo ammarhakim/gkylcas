@@ -14,7 +14,7 @@ vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pDim,vid1,surfVar,surfIntVars,bPp,fEdge_e,fSkin_e,bType,
    hl_e,hr_e,hOrder,hsol_l,hsol_r,nuVtSqSum_e,bSurf,facDiff_c,expr,i,facDiff_NoZero,
-   facDiff_e,vol_incr_e,Gdiff_c,Gdiff_e,edgeSurf_c,boundSurf_c,
+   facDiff_e,vol_incr_e,Gdiff_c,Gdiff_e,Gdiff2_c,Gdiff2_e,edgeSurf_c,boundSurf_c,
    edgeSurf_incr_c,boundSurf_incr_c,vol_out,diff_out,edge_out],
 
   /* Load basis of dimensionality requested. */
@@ -90,7 +90,7 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   facDiff_e : doExpand(facDiff_NoZero, bC),
 
-  /* Volume increment (dimensional factors included at the end). */
+  /* Volume increment (dimensional factor included later). */
   vol_incr_e : calcInnerProdList(varsP, 1, diff(bP,surfVar,2), facDiff_e*fSkin_e),
   printf(fh, "  double vol_incr[~a] = {0.0}; ~%", NP),
   writeCExprs1(vol_incr, vol_incr_e),
@@ -101,32 +101,78 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "~%"),
   printf(fh, "  if (edge == -1) { ~%~%"),
     
-  Gdiff_c  : calcInnerProdList(varsP,1,bP,nuVtSqSum_e*hsol_r[2]),
-  Gdiff_e  : doExpand(Gdiff_c, bP),
+  if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
+    /* This simplification only works for p=1 because it is a tensor product of
+       conf and velocity space (remains to be checked for tensor basis). */
 
-  edgeSurf_c : fullratsimp( calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP), subst(surfVar=1,Gdiff_e))
-                           -calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bPp), nuVtSqSum_e*hsol_r[1]) ),
-  writeCExprs1(edgeSurf_incr, edgeSurf_c),
+    Gdiff_c  : calcInnerProdList(surfIntVars,1,bSurf,hsol_r[2]),
+    Gdiff2_c : calcInnerProdList(surfIntVars,1,bSurf,hsol_r[1]),
+  
+    printf(fh, "  double edgeSurf[~a] = {0.0}; ~%", NP),
+    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bP), doExpand(Gdiff_c, bSurf))
+                            -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), doExpand(Gdiff2_c, bSurf))),
+    writeCExprs1(edgeSurf, edgeSurf_c),
+    printf(fh, "~%"),
+      
+    edgeSurf_incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(edgeSurf, bP)),
+  
+    printf(fh, "  double boundSurf[~a] = {0.0}; ~%", NP),
+    boundSurf_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), subst(surfVar=-1, fSkin_e)),
+    writeCExprs1(boundSurf, boundSurf_c),
+    printf(fh, "~%"),
+
+    boundSurf_incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(boundSurf, bP))
+  ) else (
+    Gdiff_c  : calcInnerProdList(varsP,1,bP,nuVtSqSum_e*hsol_r[2]),
+
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP), subst(surfVar=1,doExpand(Gdiff_c, bP)))
+                                 -calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bPp), nuVtSqSum_e*hsol_r[1])),
+  
+    boundSurf_incr_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), subst(surfVar=-1,nuVtSqSum_e*fSkin_e))
+  ),
+  writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
   printf(fh, "~%"),
-
-  boundSurf_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), subst(surfVar=-1,nuVtSqSum_e*fSkin_e)),
-  writeCExprs1(boundSurf_incr, boundSurf_c),
+  writeCExprs1(boundSurf_incr, boundSurf_incr_c),
   printf(fh, "~%"),
   
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
   
-  Gdiff_c  : calcInnerProdList(varsP,1,bP,nuVtSqSum_e*hsol_l[2]),
-  Gdiff_e  : doExpand(Gdiff_c, bP),
+  if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
+    /* This simplification only works for p=1 because it is a tensor product of
+       conf and velocity space (remains to be checked for tensor basis). */
 
-  edgeSurf_c : fullratsimp( calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,bP), subst(surfVar=-1,Gdiff_e))
-                           -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,bPp), nuVtSqSum_e*hsol_l[1]) ),
-  writeCExprs1(edgeSurf_incr, edgeSurf_c),
+    Gdiff_c  : calcInnerProdList(surfIntVars,1,bSurf,hsol_l[2]),
+    Gdiff2_c : calcInnerProdList(surfIntVars,1,bSurf,hsol_l[1]),
+
+    printf(fh, "  double edgeSurf[~a] = {0.0}; ~%", NP),
+    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bP), doExpand(Gdiff_c, bSurf))
+                            -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), doExpand(Gdiff2_c, bSurf))),
+    writeCExprs1(edgeSurf, edgeSurf_c),
+    printf(fh, "~%"),
+      
+    edgeSurf_incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(edgeSurf, bP)),
+
+    printf(fh, "  double boundSurf[~a] = {0.0}; ~%", NP),
+    boundSurf_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), subst(surfVar=1, fSkin_e)),
+    writeCExprs1(boundSurf, boundSurf_c),
+    printf(fh, "~%"),
+
+    boundSurf_incr_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(boundSurf, bP))
+  ) else (
+    Gdiff_c  : calcInnerProdList(varsP,1,bP,nuVtSqSum_e*hsol_l[2]),
+
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,bP), subst(surfVar=-1,doExpand(Gdiff_c, bP)))
+                                 -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,bPp), nuVtSqSum_e*hsol_l[1])),
+  
+    boundSurf_incr_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), subst(surfVar=1,nuVtSqSum_e*fSkin_e))
+  ),
+
+  writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
+  printf(fh, "~%"),
+  writeCExprs1(boundSurf_incr, boundSurf_incr_c),
   printf(fh, "~%"),
 
-  boundSurf_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), subst(surfVar=1,nuVtSqSum_e*fSkin_e)),
-  writeCExprs1(boundSurf_incr, boundSurf_c),
-  printf(fh, "~%"),
   printf(fh, "  } ~%"),
   printf(fh, "~%"),
 
