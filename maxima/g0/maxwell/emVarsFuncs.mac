@@ -31,7 +31,7 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_sqrt_with_sign.h> ~%", basisFun, cdim, polyOrder),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* GKYL_RESTRICT bvar) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* bvar) ~%{ ~%", funcNm),
   printf(fh, "  // em:   Input electromagnetic fields. ~%"),
   printf(fh, "  // bvar: b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
   printf(fh, " ~%"),
@@ -194,7 +194,7 @@ calcExB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_exp_sq.h> ~%", basisFun, cdim, polyOrder),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* GKYL_RESTRICT ExB) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* ExB) ~%{ ~%", funcNm),
   printf(fh, "  // em:  Input electromagnetic fields. ~%"),
   printf(fh, "  // ExB: E x B velocity = E x B/|B|^2. ~%"),
   printf(fh, " ~%"),
@@ -323,7 +323,7 @@ calcKappaInvB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_sqrt_with_sign.h> ~%", basisFun, cdim, polyOrder),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *bvar, const double *ExB, double* GKYL_RESTRICT kappa_inv_b) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *bvar, const double *ExB, double* kappa_inv_b) ~%{ ~%", funcNm),
   printf(fh, "  // bvar:        Input magnetic field unit vector and unit tensor. ~%"),
   printf(fh, "  // ExB:         Input E x B velocity. ~%"),
   printf(fh, "  // kappa_inv_b: b_i/kappa = B_i/|B| * sqrt(1 - |E x B|^2/(c^2 |B|^4)). ~%"),

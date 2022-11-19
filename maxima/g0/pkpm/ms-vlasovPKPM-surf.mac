@@ -1,4 +1,4 @@
-load("pkpm/vlasovPKPMFuncs-surf-div-P")$
+load("pkpm/vlasovPKPMFuncs-surf")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term contributions in the Vlasov 
@@ -8,9 +8,9 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */

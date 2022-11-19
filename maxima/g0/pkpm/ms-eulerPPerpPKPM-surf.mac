@@ -1,4 +1,4 @@
-load("pkpm/eulerPPerpPKPMFuncs-surf-div-P")$
+load("pkpm/euler-pkpm-E-perp-surfFuncs")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term due to an euler equation
@@ -8,9 +8,9 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 3$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 2$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */

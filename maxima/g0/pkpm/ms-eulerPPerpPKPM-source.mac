@@ -1,8 +1,8 @@
-load("pkpm/euler-pkpm-E-perp-volFuncs")$
+load("pkpm/euler-pkpm-E-perp-source")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to an euler equation
-   in the parallel-kinetic-perpendicular-moment (pkpm) model. */
+   source terms for the Euler equations in the 
+   parallel-kinetic-perpendicular-moment (pkpm) model. */
 
 /* ...... USER INPUTS........ */
 
@@ -10,7 +10,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$
+maxCdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -34,11 +34,11 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume euler PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating euler pkpm source kernel ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/euler_pkpm_source_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_vol_", d, "x_", bName[bInd]),
-      calcEulerPKPMVolUpdater(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("euler_pkpm_source_", d, "x_", bName[bInd]),
+      calcEulerPKPMSource(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )
