@@ -42,11 +42,11 @@ calcVlasovAlphaGenGeo(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,
   /* specify a point to evaluate alpha at for use in computing CFL */
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH ~a_p~a(const double *w, const double *dxv, const double *tvComp, const double *gxx, const double *gxy, const double *gxz, const double *gyy, const double *gyz, const double *gzz, double* GKYL_RESTRICT alpha_geo) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *w, const double *dxv, const double *tvComp, const double *gij, double* GKYL_RESTRICT alpha_geo) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:    Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:  Cell spacing.~%"),
   printf(fh, "  // tvComp[~a]: Components for tangent basis vectors.~%", NC*9),
-  printf(fh, "  // gij[~a]:    Contravariant components of metric tensor.~%", NC),
+  printf(fh, "  // gij[~a]:    Contravariant components of metric tensor.~%", NC*6),
   printf(fh, "  // v_i:        Covariant components of velocity.~%"),
   printf(fh, "  // alpha_geo:        Output alpha field.~%"),
 
@@ -58,6 +58,13 @@ calcVlasovAlphaGenGeo(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,
   printf(fh, "  double v_y[~a];~%", NP),
   printf(fh, "  double v_z[~a];~%", NP),
   printf(fh, "~%"),	
+
+  printf(fh, "  const double *gxx = &gij[~a]; ~%", NC*0),
+  printf(fh, "  const double *gxy = &gij[~a]; ~%", NC*1),
+  printf(fh, "  const double *gxz = &gij[~a]; ~%", NC*2),
+  printf(fh, "  const double *gyy = &gij[~a]; ~%", NC*3),
+  printf(fh, "  const double *gyz = &gij[~a]; ~%", NC*4),
+  printf(fh, "  const double *gzz = &gij[~a]; ~%", NC*5),
 
   tvComp_e : doExpand1(tvComp, bC),
   gxx_e : doExpand1(gxx, bC),
