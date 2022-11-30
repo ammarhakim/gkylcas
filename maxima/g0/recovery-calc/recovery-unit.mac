@@ -1,9 +1,11 @@
 load("recovery") $
 
+dn : pathname_directory(load_pathname) $
+
 testRecov(mode) := block(
   [fn, fh, tests, label, s, difference, nFailed],
-  fn : "~/max-unit/recovResults.txt",
-
+  fn : sconcat(dn, "recovery-results.txt"),
+  kill(dn),
   tests : append(
     [["2-cell 1D p1", calcRecov2CellGen("Ser", x, [x], 1, dg(qL), dg(qR))]],
     [["2-cell 1D p2", calcRecov2CellGen("Ser", x, [x], 2, dg(qL), dg(qR))]],
