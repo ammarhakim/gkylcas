@@ -5,9 +5,6 @@
    Note that this Maxima only sets the requisite matrices for the linear
    system to solve and an external *batched* linear solve is performed. */
 
-/* In the comments we refer to the rank 3 tensor E_M. This is
-   E_{M,i,j,k} = InnerProd(varsC,bC[i],bC[j],bC[k]). */
-
 load("modal-basis")$
 load("out-scripts")$
 load("nodal_operations/nodal_functions")$
@@ -30,14 +27,19 @@ writeCExprs1s(lhs, rhs) := block([expr],
   )
 )$
 
-calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcSelfPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,NC,udim,nodes,m0_c,m0_e,vtSq_c,vtSq_e,m1_c,m1_e,m0Corners,
    m2Corners,expr,eq,cM_c,cM_e,cE_c,cE_e,u_c,u_e,N,E,Eflat,Elhs,m1RHS_c],
 
-  if (sequal(substring(funcNm,1,7),"vlasov")) then
-    udim : vdim
-  else
+  if (sequal(substring(funcNm,1,7),"vlasov")) then (
+    /* Vlasov-Maxwell. */
+    udim     : vdim,
+    vdimPhys : vdim
+  ) else (
+    /* Gyrokinetics. */
     udim : 1,
+    vdimPhys : 2*vdim-1
+  )
 
   /* Load basis of dimensionality requested. */
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
@@ -157,8 +159,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     /* Flatten E for WriteCExprsB. */
     Eflat : list_matrix_entries(E),
   
-    /* Elhs     : list_matrix_entries(genmatrix(Ef,NC-1,NC-1,0,0)), */
-    Elhs     : list_matrix_entries(genmatrix(Ef,vd*NC-1,vd*NC-1,(vd-1)*NC,(vd-1)*NC)),
+    Elhs : list_matrix_entries(genmatrix(Ef,vd*NC-1,vd*NC-1,(vd-1)*NC,(vd-1)*NC)),
   
     printf(fh, "  // ....... Block from weak multiply of u~a and m0  .......... // ~%", varsCAll[vd]),
     writeCExprsA(Elhs,Eflat),
@@ -193,12 +194,7 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   
   /*........... Matrix block from correction to vtSq .............*/
-  if (sequal(substring(funcNm,1,7),"vlasov")) then
-    /* Vlasov-Maxwell. */
-    eq : calcInnerProdList(varsC,vtSq_e,bC,vdim*m0_e-cE_e)
-  else
-    /* Gyrokinetics. */
-    eq : calcInnerProdList(varsC,vtSq_e,bC,(2*vdim-1)*m0_e-cE_e),
+  eq : calcInnerProdList(varsC,vtSq_e,bC,vdimPhys*m0_e-cE_e),
   E : fullratsimp(coefmatrix(eq,vtSq_c)),
   /* Flatten E for WriteCExprsB. */
   Eflat : list_matrix_entries(E),
