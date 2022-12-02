@@ -46,9 +46,9 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         for dir : 1 thru c do ( 
-          if (dir = 1) then fname : sconcat("~/max-out/vlasov_stream_gen_geo_surfx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 2) then fname : sconcat("~/max-out/vlasov_stream_gen_geo_surfy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 3) then fname : sconcat("~/max-out/vlasov_stream_gen_geo_surfz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 1) then fname : sconcat("~/max-out/vlasov_gen_geo_surfx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 2) then fname : sconcat("~/max-out/vlasov_gen_geo_surfy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 3) then fname : sconcat("~/max-out/vlasov_gen_geo_surfz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_gen_geo_surf"),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),

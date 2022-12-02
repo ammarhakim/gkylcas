@@ -52,9 +52,10 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   numBasisP : length(bP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // alpha_geo: Fields used only for general geometry.~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells.~%"),
   printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
 
