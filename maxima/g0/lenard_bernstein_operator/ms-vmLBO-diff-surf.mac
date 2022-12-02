@@ -61,7 +61,7 @@ for bInd : 1 thru length(bName) do (
           isNonuniform : gridType[gridInd],
           if isNonuniform then (gridStr : "nonuniform") else (gridStr : ""),
           disp(printf(false,sconcat("Creating diff surface Vlasov LBO ~a",bName[bInd]," ~ax~av p~a"),gridStr,c,v,polyOrder)),
-          for dir:1 thru v do (
+          for dir : 1 thru v do (
             fname : sconcat("~/max-out/lbo_vlasov_diff_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
             fh : openw(fname),
             funcName : sconcat("lbo_vlasov_diff_surf", vvarsAll[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),

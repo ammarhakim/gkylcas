@@ -38,7 +38,7 @@ writeCExprs1s(lhs, rhs) := block([expr],
 
 calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [udim,vDegFreedom,basis,numB,expr,m0_e,m0_c,m2_e,m2_c,vtsq_self_e,vtsq_self_c,
-   vtsq_other_e,vtsq_other_c,vtSqCross_e,vtSqCross_c,cE_e,cE_c,N,bRHS_c,u_self_e,u_self_c,
+   vtsq_other_e,vtsq_other_c,vtSqCross_e,vtSqCross_c,cE_e,cE_c,N,u_self_e,u_self_c,
    u_other_e,u_other_c,m1_e,m1_c,cM_e,cM_c,uCross_e,uCross_c,eq,E,Eflat,Elhs,momRHS_c,
    ucMSelf_c,ucMSelf_e,ucMOther_c,ucMOther_e,uM1Self_c,uM1Self_e,uM1Other_c,uM1Other_e,
    uSumSq_c,uSumSq_e,enRHS1_c,enRHS2_c,enRHS_c,tempVars,sqCoeffs],
@@ -161,7 +161,6 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double momRHS[~a] = {0.0}; ~%", udim*numB),
   printf(fh, " ~%"),
 
-  bRHS_c  : [],
   for vd : 1 thru udim do (
     /* Expand u function and create a list of expansion coefficients. */
     u_self_c   : makelist(u_self[i-1],i,1,numB),
@@ -176,11 +175,11 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     cM_c       : subst(makelist(cMr[i]=cMr[(vd-1)*numB+i],i,0,numB-1),cM_c),
     uCross_c   : subst(makelist(uCross[i]=uCross[(vd-1)*numB+i],i,0,numB-1),uCross_c),
 
-    u_self_e   : doExpand(u_self_c,basis),
-    u_other_e  : doExpand(u_other_c,basis),
+    u_self_e   : doExpand(u_self_c, basis),
+    u_other_e  : doExpand(u_other_c, basis),
     m1_e       : doExpand(m1_c, basis),
     cM_e       : doExpand(cM_c, basis),
-    uCross_e   : doExpand(uCross_c,basis),
+    uCross_e   : doExpand(uCross_c, basis),
 
     /*........... Matrix block from weak multiply of M0 and uCross .............*/
     eq : calcInnerProdList(vars,2*uCross_e,basis,m0_e),
@@ -225,20 +224,19 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     printf(fh, " ~%"),
     momRHS_c  : makelist(momRHS[i],i,0,numB-1),
-    momRHS_c  : subst(makelist(momRHS[i]=momRHS[(vd-1)*numB+i],i,0,numB-1),momRHS_c),
-    bRHS_c : append(bRHS_c,momRHS_c)
+    momRHS_c  : subst(makelist(momRHS[i]=momRHS[(vd-1)*numB+i],i,0,numB-1),momRHS_c)
   ),
 
   /* Need the weak dot product of u_self and cM. */
   u_self_e   : doExpand1(u_self,basis),
-  u_self_e   : psubst(makelist(u_self[i]=u_self[a0+i],i,0,numB-1),u_self_e),
   u_other_e  : doExpand1(u_other,basis),
-  u_other_e  : psubst(makelist(u_other[i]=u_other[a0+i],i,0,numB-1),u_other_e),
   cM_e       : doExpand1(cMr, basis),
+  u_self_e   : psubst(makelist(u_self[i]=u_self[a0+i],i,0,numB-1),u_self_e),
+  u_other_e  : psubst(makelist(u_other[i]=u_other[a0+i],i,0,numB-1),u_other_e),
   cM_e       : psubst(makelist(cMr[i]=cMr[a0+i],i,0,numB-1),cM_e),
   ucMSelf_c  : calcInnerProdList(vars,u_self_e,basis,cM_e),
-  ucMSelf_e  : doExpand1(ucMSelf,basis),
   ucMOther_c : calcInnerProdList(vars,u_other_e,basis,cM_e),
+  ucMSelf_e  : doExpand1(ucMSelf,basis),
   ucMOther_e : doExpand1(ucMOther,basis),
   printf(fh, "  double ucMSelf[~a] = {0.0}; ~%", numB),
   printf(fh, "  double ucMOther[~a] = {0.0}; ~%", numB),
@@ -271,9 +269,11 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, " ~%"),
 
   /* Need the weak dot product of u_self + u_other and M1. */
+  m1_e        : doExpand1(m1r, basis),
+  m1_e        : psubst(makelist(m1r[i]=m1r[a0+i],i,0,numB-1),m1_e),
   uM1Self_c   : calcInnerProdList(vars,u_self_e,basis,m1_e),
-  uM1Self_e   : doExpand1(uM1Self,basis),
   uM1Other_c  : calcInnerProdList(vars,u_other_e,basis,m1_e),
+  uM1Self_e   : doExpand1(uM1Self,basis),
   uM1Other_e  : doExpand1(uM1Other,basis),
   uSumSq_c    : calcInnerProdList(vars,u_self_e - u_other_e,basis,u_self_e - u_other_e),
   uSumSq_e    : doExpand1(uSumSq,basis),
@@ -298,8 +298,10 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
-  enRHS1_c : calcInnerProdList(vars,greene_e/(m_self + m_other),basis,
-                               vDegFreedom*(m_other*vtsq_other_e - m_self*vtsq_self_e) + 0.5*(m_other - m_self)*uSumSq_e),
+  printf(fh, "  double m_sum = ~a;~%",m_self + m_other),
+  printf(fh, "  double m_diff = ~a;~%",m_other - m_self),
+  enRHS1_c : calcInnerProdList(vars,greene_e/m_sum,basis,
+                               vDegFreedom*(m_other*vtsq_other_e - m_self*vtsq_self_e) + 0.5*m_diff*uSumSq_e),
   enRHS2_c : calcInnerProdList(vars,1,basis,2*m2_e - uM1Self_e - uM1Other_e),
   enRHS_c  : enRHS1_c + enRHS2_c,
   printf(fh, "  double enRHS[~a] = {0.0}; ~%", numB),
