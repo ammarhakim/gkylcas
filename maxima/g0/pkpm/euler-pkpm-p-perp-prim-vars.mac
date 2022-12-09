@@ -1,20 +1,17 @@
 /* This script generates the kernels for calculating the primitive variables in the
    fluid equations of the parallel-kinetic-perpendicular-moment (pkpm) model.
    Variables also used by kinetic equations.
-   For E_perp fluid equation, includes u_i (flow velocity), u_perp_i (perpendicular flow velocity), 
-   rhou_perp_i (perpendicular momentum density), p_perp (perpendicular pressure), and p_ij (pressure tensor) */
+   For p_perp fluid equation, includes u_i (flow velocity) and p_ij (pressure tensor) */
 
 load("modal-basis")$
 load("out-scripts")$
 fpprec : 24$
 
 calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [varsC, bC, NC, rhoux_e, rhouy_e, rhouz_e, E_perp_e, 
+  [varsC, bC, NC, rhoux_e, rhouy_e, rhouz_e, p_perp_e, 
    rho_e, p_par_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, rho_inv_e, 
-   ux_c, uy_c, uz_c, ux_e, uy_e, uz_e, 
-   u_perp_x_c, u_perp_y_c, u_perp_z_c, u_perp_x_e, u_perp_y_e, u_perp_z_e, 
-   rhou_perp_x_c, rhou_perp_y_c, rhou_perp_z_c, rhou_perp_x_e, rhou_perp_y_e, rhou_perp_z_e, 
-   p_perp_c, p_perp_e, Pxx_c, Pxy_c, Pxz_c, Pyy_c, Pyz_c, Pzz_c],
+   ux_c, uy_c, uz_c, 
+   Pxx_c, Pxy_c, Pxz_c, Pyy_c, Pyz_c, Pzz_c],
 
   kill(varsC, bC),
 
@@ -26,21 +23,18 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
-  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, double* u_i, double* u_perp_i, double* rhou_perp_i, double* p_perp, double* p_ij) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, double* u_i, double* p_ij) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // bvar:             Magnetic field unit vector and tensor.~%"),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, q_parallel], Moments computed from kinetic equation in pkpm model.~%"),
-  printf(fh, "  // statevec:         [rho ux, rho uy, rho uz, E_perp], Fluid input state vector.~%"),
+  printf(fh, "  // statevec:         [rho ux, rho uy, rho uz, p_perp], Fluid input state vector.~%"),
   printf(fh, "  // u_i:              Output flow velocity [ux, uy, uz].~%"),
-  printf(fh, "  // u_perp_i:         Output perpendicular flow velocity, u - (u . b)b = [u_perp_x, u_perp_y, u_perp_z].~%"),
-  printf(fh, "  // rhou_perp_i:      Output perpendicular momentum density, rhou - (rhou . b)b = [rhou_perp_x, rhou_perp_y, rhou_perp_z].~%"),
-  printf(fh, "  // p_perp:           Output perpendicular pressure (E_perp = 1/2 rho u_perp^2 + p_perp).~%"),
   printf(fh, "  // p_ij:             Output pressure tensor, p_ij = (p_parallel - p_perp)bb + p_perp I.~%"),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux = &statevec[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy = &statevec[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz = &statevec[~a]; ~%", 2*NC),
-  printf(fh, "  const double *E_perp = &statevec[~a]; ~%", 3*NC),
+  printf(fh, "  const double *p_perp = &statevec[~a]; ~%", 3*NC),
 
   printf(fh, "  // Parallel pressure is first component of pkpm moment array and unit tensor are last six components of bvar array.~%"),
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
@@ -58,14 +52,6 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *uz = &u_i[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  double *u_perp_x = &u_perp_i[~a]; ~%", 0*NC),
-  printf(fh, "  double *u_perp_y = &u_perp_i[~a]; ~%", 1*NC),
-  printf(fh, "  double *u_perp_z = &u_perp_i[~a]; ~%", 2*NC),
-  printf(fh, "  double *rhou_perp_x = &rhou_perp_i[~a]; ~%", 0*NC),
-  printf(fh, "  double *rhou_perp_y = &rhou_perp_i[~a]; ~%", 1*NC),
-  printf(fh, "  double *rhou_perp_z = &rhou_perp_i[~a]; ~%", 2*NC),
-  printf(fh, "~%"),
-
   printf(fh, "  double *Pxx = &p_ij[~a]; ~%", 0*NC),
   printf(fh, "  double *Pxy = &p_ij[~a]; ~%", 1*NC),
   printf(fh, "  double *Pxz = &p_ij[~a]; ~%", 2*NC),
@@ -74,13 +60,12 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *Pzz = &p_ij[~a]; ~%", 5*NC),
   printf(fh, "~%"),
 
-  p_perp_e : doExpand1(p_perp, bC),
 
-  /* Expansion of momentum density, perpendicular energy, mass density, parallel pressure and magnetic field unit tensor */
+  /* Expansion of momentum density, perpendicular pressure, mass density, parallel pressure and magnetic field unit tensor */
   rhoux_e : doExpand1(rhoux, bC),
   rhouy_e : doExpand1(rhouy, bC),
   rhouz_e : doExpand1(rhouz, bC),
-  E_perp_e : doExpand1(E_perp, bC), 
+  p_perp_e : doExpand1(p_perp, bC),
   rho_e : doExpand1(rho, bC),
   p_par_e : doExpand1(p_parallel, bC),
   bxbx_e : doExpand1(bxbx, bC),
@@ -105,47 +90,6 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   writeCExprs1(uz, uz_c),
   printf(fh, "~%"),
-
-  ux_e : doExpand1(ux, bC),
-  uy_e : doExpand1(uy, bC),
-  uz_e : doExpand1(uz, bC),
-
-  u_perp_x_c : calcInnerProdList(varsC, 1, bC, ux_e - (ux_e*bxbx_e + uy_e*bxby_e + uz_e*bxbz_e)), 
-  u_perp_y_c : calcInnerProdList(varsC, 1, bC, uy_e - (ux_e*bxby_e + uy_e*byby_e + uz_e*bybz_e)), 
-  u_perp_z_c : calcInnerProdList(varsC, 1, bC, uz_e - (ux_e*bxbz_e + uy_e*bybz_e + uz_e*bzbz_e)), 
-
-  writeCExprs1(u_perp_x, u_perp_x_c),
-  printf(fh, "~%"),
-  writeCExprs1(u_perp_y, u_perp_y_c),
-  printf(fh, "~%"),
-  writeCExprs1(u_perp_z, u_perp_z_c),
-  printf(fh, "~%"),
-
-  u_perp_x_e : doExpand1(u_perp_x, bC),
-  u_perp_y_e : doExpand1(u_perp_y, bC),
-  u_perp_z_e : doExpand1(u_perp_z, bC),
-
-  rhou_perp_x_c : calcInnerProdList(varsC, 1, bC, rho_e*u_perp_x_e), 
-  rhou_perp_y_c : calcInnerProdList(varsC, 1, bC, rho_e*u_perp_y_e), 
-  rhou_perp_z_c : calcInnerProdList(varsC, 1, bC, rho_e*u_perp_z_e), 
-
-  writeCExprs1(rhou_perp_x, rhou_perp_x_c),
-  printf(fh, "~%"),
-  writeCExprs1(rhou_perp_y, rhou_perp_y_c),
-  printf(fh, "~%"),
-  writeCExprs1(rhou_perp_z, rhou_perp_z_c),
-  printf(fh, "~%"),
-
-  rhou_perp_x_e : doExpand1(rhou_perp_x, bC),
-  rhou_perp_y_e : doExpand1(rhou_perp_y, bC),
-  rhou_perp_z_e : doExpand1(rhou_perp_z, bC),
-
-  p_perp_c : calcInnerProdList(varsC, 1, bC, E_perp_e - 0.5*(rhou_perp_x_e*u_perp_x_e + rhou_perp_y_e*u_perp_y_e + rhou_perp_z_e*u_perp_z_e)), 
-
-  writeCExprs1(p_perp, p_perp_c),
-  printf(fh, "~%"),
-
-  p_perp_e : doExpand1(p_perp, bC),
 
   Pxx_c : calcInnerProdList(varsC, 1, bC, (p_par_e - p_perp_e)*bxbx_e + p_perp_e), 
   Pxy_c : calcInnerProdList(varsC, 1, bC, (p_par_e - p_perp_e)*bxby_e), 

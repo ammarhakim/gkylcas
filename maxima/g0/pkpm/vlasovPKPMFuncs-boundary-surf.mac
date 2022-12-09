@@ -20,7 +20,7 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC, bC, varsP, bP, NP, pDim, cid, vid, surfVars, bSurf, surfNodes, numNodes,
+  [varsC, bC, varsP, bP, NP, pDim, cid, vid, surfVars,  bSurf, NSurf, surfNodes, numNodes, basisStr, 
    fl_e, fc_e, fr_e, vTrans, 
    p_force_e, bb_grad_u_e, acc_e, 
    alphaSurf_l_c, alphaSurf_r_c, alst_l, alst_r, alphaSurf_l_e, alphaSurf_r_e,
@@ -37,13 +37,13 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
      const double *bb_grad_u, const double *p_force, 
      const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // p_force:   total pressure force = 1/rho (b . div(P) + p_perp div(b)) for Euler PKPM.~%"),
-  printf(fh, "  // bb_grad_u: bb : grad(u).~%"),
+  printf(fh, "  // w[NDIM]:     Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
+  printf(fh, "  // p_force:     total pressure force = 1/rho (b . div(P) + p_perp div(b)) for Euler PKPM.~%"),
+  printf(fh, "  // bb_grad_u:   bb : grad(u).~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
-  printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
+  printf(fh, "  // out:         Incremented distribution function in center cell.~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -76,11 +76,21 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   surfVars : delete(vx,varsP),
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vx dependence. */
+  /* Also generate necessary basis strings, and surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+    bSurf : basisFromVars("hyb",surfVars,polyOrder),
+    surf_cdim : cdim,  surf_vdim : 0,
+    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim),
+
+    basisStr : sconcat("hyb_", cdim, "x", vdim, "v", "_p", polyOrder)
   ) else (
-    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+    surfNodes : gaussOrd(polyOrder+1, pDim-1),
+
+    basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder)
   ),
+  numNodes : length(surfNodes),
+  NSurf : length(bSurf),
 
   /* Project alpha evaluated at interior surface onto surf basis. */
   clst : [dx0, dx1, dx2, dvpar, wvpar],
@@ -91,15 +101,6 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   alphaSurf_l_e : doExpand(alst_l, bSurf),
   alphaSurf_r_e : doExpand(alst_r, bSurf),
 
-  /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surf_cdim : cdim,  surf_vdim : 0,
-    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
-  ) else (
-    surfNodes : gaussOrd(polyOrder+1, pDim-1)
-  ),
-  numNodes : length(surfNodes),
-
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 
      In addition, it is continuous and does not vary with respect to the surface variable.
@@ -107,10 +108,10 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   alphaOrd_l_n : gcfac(float(evAtNodes(alphaSurf_l_e,surfNodes,surfVars))),
   alphaOrd_r_n : gcfac(float(evAtNodes(alphaSurf_r_e,surfNodes,surfVars))),
 
-  printf(fh, "  double alphaSurf[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alphaSurf[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double fUpwindQuad[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double fUpwind[~a] = {0.0};;~%", length(bSurf)),
-  printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double fUpwind[~a] = {0.0};;~%", NSurf),
+  printf(fh, "  double Ghat[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
   /* In addition we need the drag term evaluated at +1 (so alpha evaluated on the right) */
@@ -123,30 +124,19 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   /* Write out fUpwindQuad for the far left edge */
   /* Within the skin cell, we need alpha_r (alpha evaluated at +1)
      just like how the skin cell is evaluated at +1 */
+  for i : 1 thru length(alphaOrd_r_n) do (
+    printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisStr, cdim+1, i-1),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisStr, cdim+1, i-1),
+    printf(fh, "  } ~%")
+  ),
+  printf(fh, "~%"),
+  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-    for i : 1 thru length(alphaOrd_r_n) do (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, cdim, cdim+1, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, cdim, cdim+1, i-1),
-      printf(fh, "  } ~%")
-    ),
-
-    printf(fh, "~%"),
-    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-    printf(fh, "  hyb_~ax1v_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim)
+    printf(fh, "  ~a_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisStr)
   ) else (
-    for i : 1 thru length(alphaOrd_r_n) do (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-      printf(fh, "  } ~%")
-    ),
-
-    printf(fh, "~%"),
-    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, pDim, polyOrder)
+    printf(fh, "  ~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisStr)
   ),
   printf(fh, "~%"),
 
@@ -179,30 +169,19 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   /* Write out fUpwindQuad for the far right edge */
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
      just like how the skin cell is evaluated at -1 */
+  for i : 1 thru length(alphaOrd_l_n) do (
+    printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisStr, cdim+1, i-1),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisStr, cdim+1, i-1),
+    printf(fh, "  } ~%")
+  ),
+  printf(fh, "~%"),
+  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-    for i : 1 thru length(alphaOrd_l_n) do (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, cdim, cdim+1, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = hyb_~ax1v_p1_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, cdim, cdim+1, i-1),
-      printf(fh, "  } ~%")
-    ),
-
-    printf(fh, "~%"),
-    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-    printf(fh, "  hyb_~ax1v_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim)
+    printf(fh, "  ~a_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisStr)
   ) else (
-    for i : 1 thru length(alphaOrd_l_n) do (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, pDim, polyOrder, cdim+1, i-1),
-      printf(fh, "  } ~%")
-    ),
-
-    printf(fh, "~%"),
-    printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, pDim, polyOrder)
+    printf(fh, "  ~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisStr)
   ),
   printf(fh, "~%"),
 

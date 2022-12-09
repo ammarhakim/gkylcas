@@ -1,8 +1,10 @@
-load("pkpm/euler-pkpm-E-perp-recovery")$
+load("pkpm/euler-pkpm-p-perp-recovery")$
 load(stringproc)$
 /* This script calls the functions which calculate the gradient quantities with recovery
    for discretization of the parallel-kinetic-perpendicular-moment (pkpm) model. 
-   These include div(p), div(b), and bb : grad(u). Used by both kinetic and fluid equations */
+   These include div(p), div(b), bb : grad(u), the total pressure force p_force = div(p_parallel b_hat), 
+   and the perpendicular pressure source terms p_perp*(bb:grad(u) - div(u)).
+   Also computes hyper-viscosity (grad^4 rho u_i) for momentum which is included in div(p). */
 
 
 /* ...... USER INPUTS........ */
@@ -33,6 +35,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
+    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating euler pkpm recovery ",bName[bInd]," ~axp~a"),d,polyOrder)),

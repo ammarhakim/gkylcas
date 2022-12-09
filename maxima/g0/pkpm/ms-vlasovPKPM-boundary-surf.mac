@@ -1,4 +1,4 @@
-load("pkpm/vlasovPKPMFuncs-boundary-surf-div-P")$
+load("pkpm/vlasovPKPMFuncs-boundary-surf")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term contributions in the Vlasov 
@@ -33,6 +33,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
+    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating boundary surface Vlasov PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),

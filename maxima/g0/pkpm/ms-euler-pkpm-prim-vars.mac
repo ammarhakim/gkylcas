@@ -1,9 +1,8 @@
-load("pkpm/euler-pkpm-E-perp-prim-vars")$
+load("pkpm/euler-pkpm-p-perp-prim-vars")$
 load(stringproc)$
 /* This script calls the functions which calculates the primitive
    variables in the parallel-kinetic-perpendicular-moment (pkpm) model.
-   These include u, the flow velocity, u_perp (u - u : bb), rhou_perp (rho*u_perp),
-   p_perp (E_perp = 1/2 rho u_perp^2 + p_perp), and P = (p_parallel - p_perp)bb + p_perp I */
+   These include u, the flow velocity, and P = (p_parallel - p_perp)bb + p_perp I */
 
 /* ...... USER INPUTS........ */
 
@@ -33,6 +32,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
+    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating euler pkpm primitive variables",bName[bInd]," ~axp~a"),d,polyOrder)),
