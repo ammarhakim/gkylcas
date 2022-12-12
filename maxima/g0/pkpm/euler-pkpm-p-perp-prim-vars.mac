@@ -23,12 +23,14 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
-  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, double* u_i, double* p_ij) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, 
+  double* u_i, double* p_ij, double* T_ij) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // bvar:             Magnetic field unit vector and tensor.~%"),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, q_parallel], Moments computed from kinetic equation in pkpm model.~%"),
   printf(fh, "  // statevec:         [rho ux, rho uy, rho uz, p_perp], Fluid input state vector.~%"),
   printf(fh, "  // u_i:              Output flow velocity [ux, uy, uz].~%"),
   printf(fh, "  // p_ij:             Output pressure tensor, p_ij = (p_parallel - p_perp)bb + p_perp I.~%"),
+  printf(fh, "  // T_ij:             Output Temperature tensor for penalization T_ij = 3.0*p_ij/rho.~%"),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux = &statevec[~a]; ~%", 0*NC),
@@ -60,6 +62,11 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *Pzz = &p_ij[~a]; ~%", 5*NC),
   printf(fh, "~%"),
 
+  /* Only need the diagonal components for penalization */
+  printf(fh, "  double *Txx = &T_ij[~a]; ~%", 0*NC),
+  printf(fh, "  double *Tyy = &T_ij[~a]; ~%", 3*NC),
+  printf(fh, "  double *Tzz = &T_ij[~a]; ~%", 5*NC),
+  printf(fh, "~%"),
 
   /* Expansion of momentum density, perpendicular pressure, mass density, parallel pressure and magnetic field unit tensor */
   rhoux_e : doExpand1(rhoux, bC),
@@ -109,6 +116,23 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(Pyz, Pyz_c),
   printf(fh, "~%"),
   writeCExprs1(Pzz, Pzz_c),
+
+  Pxx_e : doExpand1(Pxx, bC),
+  Pxy_e : doExpand1(Pxy, bC),
+  Pxz_e : doExpand1(Pxz, bC),
+  Pyy_e : doExpand1(Pyy, bC),
+  Pyz_e : doExpand1(Pyz, bC),
+  Pzz_e : doExpand1(Pzz, bC),
+
+  Txx_c : calcInnerProdList(varsC, 1, bC, 3.0*rho_inv_e*Pxx_e),  
+  Tyy_c : calcInnerProdList(varsC, 1, bC, 3.0*rho_inv_e*Pyy_e), 
+  Tzz_c : calcInnerProdList(varsC, 1, bC, 3.0*rho_inv_e*Pzz_e), 
+
+  writeCExprs1(Txx, Txx_c),
+  printf(fh, "~%"),
+  writeCExprs1(Tyy, Tyy_c),
+  printf(fh, "~%"),
+  writeCExprs1(Tzz, Tzz_c),
 
   printf(fh, "} ~%")
 )$
