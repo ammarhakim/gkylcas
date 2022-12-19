@@ -45,15 +45,17 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* specify a point to evaluate alpha at for use in computing CFL */
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *bvar, const double *u_i, const double *bb_grad_u, const double *p_force, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // bvar:      magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // u_i:       flow velocity"),
-  printf(fh, "  // p_force:   total pressure force = 1/rho (b . div(P) + p_perp div(b)) for Euler PKPM.~%"),
-  printf(fh, "  // bb_grad_u: bb : grad(u).~%"),
-  printf(fh, "  // f:         Input distribution function.~%"),
-  printf(fh, "  // out:       Incremented output.~%"),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *bvar, const double *u_i, const double *bb_grad_u, const double *p_force, const double *div_b, const double *p_perp_source, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:       Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:     Cell spacing.~%"),
+  printf(fh, "  // bvar:          magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
+  printf(fh, "  // u_i:           flow velocity"),
+  printf(fh, "  // p_force:       total pressure force = 1/rho (div(p_parallel b_hat) - p_perp div(b)).~%"),
+  printf(fh, "  // bb_grad_u:     bb : grad(u).~%"),
+  printf(fh, "  // div_b:         divergence of the magnetic field unit vector.~%"),
+  printf(fh, "  // p_perp_source: perpendicular pressure source bb : grad(u) - div(u) - nu + nu rho vth^2/p_perp.~%"),
+  printf(fh, "  // f:             Input distribution function [F_0, T_perp G = T_perp (F_1 - F_0)].~%"),
+  printf(fh, "  // out:           Incremented output.~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -74,19 +76,28 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
   printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
   printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
-
   printf(fh, "~%"),
+
+  /* Access F_0 and T_perp G, first two Laguerre moments */
+  printf(fh, "  const double *F_0 = &f[~a]; ~%", 0),
+  printf(fh, "  const double *G_1 = &f[~a]; ~%", NP),  
+
+  /* Access the components of out for the first two Laguerre moments */
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),    
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
   printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", NP),
+  printf(fh, "  double alpha_G_1_source[~a] = {0.0}; ~%~%", NP),
 
   /* Coordinate transformation for velocity space */
   vTrans : vx*dvpar/2+wvpar,
-  /* Expand distribution function f in phase basis. */
-  f_e : doExpand1(f, bP),
+  /* Expand distribution functions F_0 and T_perp G in phase basis. */
+  F_0_e : doExpand1(F_0, bP),
+  G_1_e : doExpand1(G_1, bP),
 
   /* Expand u, b, pressure force 1/rho * (b_hat . div(P) + p_perp div(b_hat)), and bb : grad(u) in configuration space basis */
   ux_e : doExpand1(ux, bC),
@@ -101,8 +112,11 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   p_force_e : doExpand1(p_force, bC),
   bb_grad_u_e : doExpand1(bb_grad_u, bC),
+  div_b_e : doExpand1(div_b, bC),
+  p_perp_source_e : doExpand1(p_perp_source, bC),
 
-  incr_cdim : 0,
+  incr_cdim_F_0 : 0,
+  incr_cdim_G_1 : 0,
   /* alpha_cdim = [v_parallel b_hat + u] dot grad(f) */
   for cdir : 1 thru cdim do (
     alpha_cdim_c : calcInnerProdList(varsP, 1, bP, vTrans*b_e[cdir] + u_e[cdir]),
@@ -124,10 +138,11 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
 
     /* Volume increment from configuration space. */
-    incr_cdim : incr_cdim+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
+    incr_cdim_F_0 : incr_cdim_F_0+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*F_0_e)),
+    incr_cdim_G_1 : incr_cdim_G_1+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*G_1_e))
   ),
 
-  /* alpha_vdim = [1/rho * (b_hat . div(P) + p_perp div(b_hat)) - v_parallel bb : grad(u)] df/dvpar */
+  /* alpha_vdim = 1/rho (div(p_parallel b_hat) - p_perp div(b)) - v_parallel bb : grad(u)] df/dvpar */
   /* alpha_vdim consolidated as alpha_vdim = p_force - v_parallel bb_grad_u (pressure forces and bb_grad_u pre-computed) */
   alpha_vdim_c : calcInnerProdList(varsP, 1, bP, p_force_e - (vx*dvpar/2.0+wvpar)*bb_grad_u_e),
 
@@ -144,11 +159,26 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
   printf(fh, "~%"),
   /* Volume increment from configuration space. */
-  incr_vdim : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*f_e),
+  incr_vdim_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*F_0_e),
+  incr_vdim_G_1 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*G_1_e),
 
-  /* write out first attempts to simplify the radicals with radcan, e.g. force sqrt(3)*sqrt(5) = sqrt(15) */
-  /* outscripts loads scifac and uses the aggressive factorization routine "gcfac" */
-  writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
+  /* additional forces and sources on F_0 and T_perp G */
+  /* Note that G source does not involve an integration by parts and is just a pure source term */
+  incr_source_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), div_b_e*G_1_e*dv1par),
+
+  /* alpha_G_1_source = (bb : grad(u) - div(u) + v_parallel div(b)) T_perp G */
+  /* alpha_G_1_source consolidated as alpha_G_1_source = p_perp_source + v_parallel div(b) (p_perp_source pre-computed) */
+  alpha_G_1_source_c : calcInnerProdList(varsP, 1, bP, p_perp_source_e + div_b_e*(vx*dvpar/2.0+wvpar)),
+  writeCExprsCollect1(alpha_G_1_source, alpha_G_1_source_c, clst),
+  printf(fh, "~%"),
+
+  /* Zero out components of G_1 source which are empty. */
+  alpha_G_1_source_NoZero : doMakeExprLst(alpha_G_1_source_c, alpha_G_1_source),
+  alpha_G_1_source_NoZero_e : doExpand(alpha_G_1_source_NoZero, bP),
+  incr_source_G_1 : calcInnerProdList(varsP, 1, bP, alpha_G_1_source_NoZero_e*G_1_e),
+
+  writeCIncrExprs1(out_F_0, incr_cdim_F_0 + incr_vdim_F_0 + incr_source_F_0),
+  writeCIncrExprs1(out_G_1, incr_cdim_G_1 + incr_vdim_G_1 + incr_source_G_1),
 
   printf(fh, "~%"),
   printf(fh, "  return cflFreq_mid; ~%"),

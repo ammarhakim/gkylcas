@@ -68,19 +68,16 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_l = &statevecl[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_c = &statevecc[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_r = &statevecr[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0*NC),
@@ -96,44 +93,35 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *outrhou0 = &out[~a]; ~%", 0*NC),
   printf(fh, "  double *outrhou1 = &out[~a]; ~%", 1*NC),
   printf(fh, "  double *outrhou2 = &out[~a]; ~%", 2*NC),
-  printf(fh, "  double *outp_perp = &out[~a]; ~%", 3*NC),
-
   printf(fh, "~%"),
 
   rhouxl_e : doExpand1(rhoux_l, bC),
   rhouyl_e : doExpand1(rhouy_l, bC),
   rhouzl_e : doExpand1(rhouz_l, bC),
-  p_perpl_e : doExpand1(p_perp_l, bC),
 
   rhouxc_e : doExpand1(rhoux_c, bC),
   rhouyc_e : doExpand1(rhouy_c, bC),
   rhouzc_e : doExpand1(rhouz_c, bC),
-  p_perpc_e : doExpand1(p_perp_c, bC),
 
   rhouxr_e : doExpand1(rhoux_r, bC),
   rhouyr_e : doExpand1(rhouy_r, bC),
   rhouzr_e : doExpand1(rhouz_r, bC),
-  p_perpr_e : doExpand1(p_perp_r, bC),
 
   rhouxl_r : subst(cv=1, rhouxl_e),
   rhouyl_r : subst(cv=1, rhouyl_e),
   rhouzl_r : subst(cv=1, rhouzl_e),
-  p_perpl_r : subst(cv=1, p_perpl_e),
 
   rhouxc_l : subst(cv=-1, rhouxc_e),
   rhouyc_l : subst(cv=-1, rhouyc_e),
   rhouzc_l : subst(cv=-1, rhouzc_e),
-  p_perpc_l : subst(cv=-1, p_perpc_e),
 
   rhouxc_r : subst(cv=1, rhouxc_e),
   rhouyc_r : subst(cv=1, rhouyc_e),
   rhouzc_r : subst(cv=1, rhouzc_e),
-  p_perpc_r : subst(cv=1, p_perpc_e),
 
   rhouxr_l : subst(cv=-1, rhouxr_e),
   rhouyr_l : subst(cv=-1, rhouyr_e),
   rhouzr_l : subst(cv=-1, rhouzr_e),
-  p_perpr_l : subst(cv=-1, p_perpr_e),
 
   /* evaluate u at surface interfaces to find max */
   printf(fh, "  double ux_l_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_l); ~%", basisFun, cdim, polyOrder),
@@ -163,9 +151,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_rhouz_l : 0.5*(rhouzl_r*ux_l_r + rhouzc_l*ux_c_l),
   avg_rhouz_r : 0.5*(rhouzc_r*ux_c_r + rhouzr_l*ux_r_l),
 
-  avg_p_perp_l : 0.5*(p_perpl_r*ux_l_r + p_perpc_l*ux_c_l),
-  avg_p_perp_r : 0.5*(p_perpc_r*ux_c_r + p_perpr_l*ux_r_l),  
-
   jump_rhoux_l : 0.5*(rhouxc_l - rhouxl_r),
   jump_rhoux_r : 0.5*(rhouxr_l - rhouxc_r),
 
@@ -174,9 +159,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
-
-  jump_p_perp_l : 0.5*(p_perpc_l - p_perpl_r),
-  jump_p_perp_r : 0.5*(p_perpr_l - p_perpc_r),
 
   Ghat_rhoux_l_exp : avg_rhoux_l - max_speed_l*jump_rhoux_l,
   Ghat_rhoux_r_exp : avg_rhoux_r - max_speed_r*jump_rhoux_r,
@@ -187,9 +169,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   Ghat_rhouz_l_exp : avg_rhouz_l - max_speed_l*jump_rhouz_l,
   Ghat_rhouz_r_exp : avg_rhouz_r - max_speed_r*jump_rhouz_r,
 
-  Ghat_p_perp_l_exp : avg_p_perp_l - max_speed_l*jump_p_perp_l,
-  Ghat_p_perp_r_exp : avg_p_perp_r - max_speed_r*jump_p_perp_r,
-
   printf(fh, "  double Ghat_rhoux_l = ~a; ~%", float(expand(Ghat_rhoux_l_exp))),
   printf(fh, "  double Ghat_rhoux_r = ~a; ~%", float(expand(Ghat_rhoux_r_exp))),
 
@@ -198,9 +177,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double Ghat_rhouz_l = ~a; ~%", float(expand(Ghat_rhouz_l_exp))),
   printf(fh, "  double Ghat_rhouz_r = ~a; ~%", float(expand(Ghat_rhouz_r_exp))),   
-
-  printf(fh, "  double Ghat_p_perp_l = ~a; ~%", float(expand(Ghat_p_perp_l_exp))),
-  printf(fh, "  double Ghat_p_perp_r = ~a; ~%", float(expand(Ghat_p_perp_r_exp))),
 
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_rhoux_l),
   incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_rhoux_r),
@@ -211,11 +187,8 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_rhouz_l),
   incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_rhouz_r),
 
-  incr_p_perp_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_p_perp_l),
-  incr_p_perp_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_p_perp_r),
-
-  surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r,incr_p_perp_l + incr_p_perp_r],
-  for m : 1 thru 4 do (
+  surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
+  for m : 1 thru 3 do (
     surf : surfTerms[m],
     writeCIncrExprs1(lhs[m], dx1*surf),
     printf(fh, "~%")
@@ -275,19 +248,16 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_l = &statevecl[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_c = &statevecc[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_r = &statevecr[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *u_l = &u_il[~a]; ~%", (dir-1)*NC),
@@ -316,7 +286,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *outrhou0 = &out[~a]; ~%", 0*NC),
   printf(fh, "  double *outrhou1 = &out[~a]; ~%", 1*NC),
   printf(fh, "  double *outrhou2 = &out[~a]; ~%", 2*NC),
-  printf(fh, "  double *outp_perp = &out[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no cv dependence. */
@@ -341,11 +310,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double lax_rhouz_quad_r[~a] = {0.0};~%", numNodes),
   printf(fh, "  double lax_rhouz_modal_l[~a] = {0.0};~%", NSurf),
   printf(fh, "  double lax_rhouz_modal_r[~a] = {0.0};~%", NSurf),
-
-  printf(fh, "  double lax_p_perp_quad_l[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_p_perp_quad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_p_perp_modal_l[~a] = {0.0};;~%", NSurf),
-  printf(fh, "  double lax_p_perp_modal_r[~a] = {0.0};~%", NSurf),
   printf(fh, "~%"),
 
   printf(fh, "  double u_l_r = 0.0; ~%"),
@@ -381,11 +345,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rhouz_c_l = 0.0; ~%"),
   printf(fh, "  double rhouz_c_r = 0.0; ~%"),
   printf(fh, "  double rhouz_r_l = 0.0; ~%"),
-
-  printf(fh, "  double p_perp_l_r = 0.0; ~%"),
-  printf(fh, "  double p_perp_c_l = 0.0; ~%"),
-  printf(fh, "  double p_perp_c_r = 0.0; ~%"),
-  printf(fh, "  double p_perp_r_l = 0.0; ~%"),
   printf(fh, "~%"),
   for i : 1 thru numNodes do (
     printf(fh, "  u_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
@@ -422,11 +381,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  rhouz_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhouz_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
     printf(fh, "  rhouz_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhouz_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
 
-    printf(fh, "  p_perp_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(p_perp_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  p_perp_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(p_perp_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  p_perp_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(p_perp_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  p_perp_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(p_perp_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
-
     printf(fh, "  lax_rhoux_quad_l[~a] = 0.5*(rhoux_l_r*u_l_r + rhoux_c_l*u_c_l) - 0.5*max_speed_l*(rhoux_c_l - rhoux_l_r); ~%", i-1),
     printf(fh, "  lax_rhoux_quad_r[~a] = 0.5*(rhoux_c_r*u_c_r + rhoux_r_l*u_r_l) - 0.5*max_speed_r*(rhoux_r_l - rhoux_c_r); ~%", i-1),
 
@@ -435,9 +389,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
     printf(fh, "  lax_rhouz_quad_l[~a] = 0.5*(rhouz_l_r*u_l_r + rhouz_c_l*u_c_l) - 0.5*max_speed_l*(rhouz_c_l - rhouz_l_r); ~%", i-1),
     printf(fh, "  lax_rhouz_quad_r[~a] = 0.5*(rhouz_c_r*u_c_r + rhouz_r_l*u_r_l) - 0.5*max_speed_r*(rhouz_r_l - rhouz_c_r); ~%", i-1),
-
-    printf(fh, "  lax_p_perp_quad_l[~a] = 0.5*(p_perp_l_r*u_l_r + p_perp_c_l*u_c_l) - 0.5*max_speed_l*(p_perp_c_l - p_perp_l_r); ~%", i-1),
-    printf(fh, "  lax_p_perp_quad_r[~a] = 0.5*(p_perp_c_r*u_c_r + p_perp_r_l*u_r_l) - 0.5*max_speed_r*(p_perp_r_l - p_perp_c_r); ~%", i-1),
     printf(fh, "~%")
   ),
 
@@ -450,9 +401,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouz_quad_l, lax_rhouz_modal_l); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouz_quad_r, lax_rhouz_modal_r); ~%", basisFun, cdim, polyOrder),
-
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_p_perp_quad_l, lax_p_perp_modal_l); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_p_perp_quad_r, lax_p_perp_modal_r); ~%", basisFun, cdim, polyOrder),
   printf(fh, "~%"),
 
   /* Create expansions of u_i_max (|u_i_max| evaluated at the surface) on the left and right in the surface basis. */
@@ -465,9 +413,6 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   lax_rhouz_modal_l_e : doExpand1(lax_rhouz_modal_l, bSurf),
   lax_rhouz_modal_r_e : doExpand1(lax_rhouz_modal_r, bSurf),
 
-  lax_p_perp_modal_l_e : doExpand1(lax_p_perp_modal_l, bSurf),
-  lax_p_perp_modal_r_e : doExpand1(lax_p_perp_modal_r, bSurf),
-
   /* Compute the increments on the left and right from Ghat expansions */
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_rhoux_modal_l_e),
   incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_rhoux_modal_r_e),
@@ -478,11 +423,8 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_rhouz_modal_l_e),
   incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_rhouz_modal_r_e),
 
-  incr_p_perp_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_p_perp_modal_l_e),
-  incr_p_perp_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_p_perp_modal_r_e),
-
-  surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r,incr_p_perp_l + incr_p_perp_r],
-  for m : 1 thru 4 do (
+  surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
+  for m : 1 thru 3 do (
     surf : surfTerms[m],
     writeCIncrExprs1(lhs[m], dx1*surf),
     printf(fh, "~%")

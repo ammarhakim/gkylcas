@@ -1,4 +1,4 @@
-load("pkpm/vlasovPKPMFuncs-vol-div-P")$
+load("pkpm/vlasovPKPMFuncs-vol")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term contributions in the Vlasov 

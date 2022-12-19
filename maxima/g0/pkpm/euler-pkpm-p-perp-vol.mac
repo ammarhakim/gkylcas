@@ -33,7 +33,7 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // u_i:       bulk flow velocity (ux, uy, uz).~%"),
   printf(fh, "  // div_p:     divergence of the pressure tensor.~%"),
-  printf(fh, "  // statevec: [rho ux, rho uy, rho uz, p_perp], Fluid input state vector.~%"),
+  printf(fh, "  // statevec: [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
   printf(fh, "  // out: Incremented output.~%"),
   printf(fh, "~%"),
   for dir : 1 thru cdim do (
@@ -44,7 +44,6 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhoux = &statevec[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy = &statevec[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz = &statevec[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp = &statevec[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   /* access flow, pressure tensor, and heat flux data */
@@ -61,7 +60,6 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *outrhoux = &out[~a]; ~%", 0*NC),
   printf(fh, "  double *outrhouy = &out[~a]; ~%", 1*NC),
   printf(fh, "  double *outrhouz = &out[~a]; ~%", 2*NC),
-  printf(fh, "  double *outp_perp = &out[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
@@ -70,7 +68,6 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhoux_e : doExpand1(statevec[1], bC),
   rhouy_e : doExpand1(statevec[2], bC),
   rhouz_e : doExpand1(statevec[3], bC),
-  p_perp_e : doExpand1(statevec[4], bC),
 
   /* Expand flow, u_i, pressure tensor, P_ij, and parallel heat flux, q_parallel b_i, in configuration space basis */
   ux_e : doExpand1(ux, bC),
@@ -113,14 +110,9 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
      if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_e*uz_e))
      ),
   t4),
-  /* p_perp update, flux = p_perp*u */
-  t5 : (t5 : 0, for dir : 1 thru cdim do (
-     t5 : t5 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), p_perp_e*u_e[dir])
-     ),
-  t5),
 
-  volTerms : [t2,t3,t4,t5],
-  for m : 1 thru 4 do (
+  volTerms : [t2,t3,t4],
+  for m : 1 thru 3 do (
     vol : volTerms[m],
     writeCIncrExprs1(lhs[m], vol),
     printf(fh, "~%")

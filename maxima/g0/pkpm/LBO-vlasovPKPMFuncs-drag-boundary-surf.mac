@@ -31,15 +31,25 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nu, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nu:         collisionality. ~%"),
-  printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
-  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "  // w[~a]:       Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:     Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nu:          Collisionality. ~%"),
+  printf(fh, "  // fSkin/fEdge: Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in skin cell/last edge cell ~%"),
+  printf(fh, "  // out:         Incremented distribution function in cell ~%"),
 
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
+
+  /* Access F_0 and T_perp G, first two Laguerre moments */
+  printf(fh, "  const double *F_0Skin = &fSkin[~a]; ~%", 0),
+  printf(fh, "  const double *G_1Skin = &fSkin[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0Edge = &fEdge[~a]; ~%", 0),
+  printf(fh, "  const double *G_1Edge = &fEdge[~a]; ~%", NP), 
+
+  /* Access the components of out for the first two Laguerre moments */
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),  
 
   nu_e : doExpand1(nu,bC),
   printf(fh, "~%"),
@@ -47,8 +57,10 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   alphaDr : nu_e*((1.0/2.0)*dvpar*vx+wvpar),
 
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
-  fSkin_e : doExpand1(fSkin, bP),
-  fEdge_e : doExpand1(fEdge, bP),
+  F_0_Skin_e : doExpand1(F_0Skin, bP),
+  F_0_Edge_e : doExpand1(F_0Edge, bP),
+  G_1_Skin_e : doExpand1(G_1Skin, bP),
+  G_1_Edge_e : doExpand1(G_1Edge, bP),
 
   /* Surface basis. Equivalent to basis of one lower
      dimensionality without surface variable. */
@@ -67,7 +79,8 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   alphaDrSurf_r_e : doExpand(alst_r, bSurf),
 
   printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_F_0[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
   /* In addition we need the drag term evaluated at +1 (so alphaDr evaluated on the right) */
@@ -78,21 +91,23 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   writeCExprs1(alphaDrSurf, alphaDrSurf_r_c),
   printf(fh, "~%"),
 
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, fSkin_e)),
-  /* Ghat_c (coefficients of Ghat) is what gets written. From here
-  ** on we can simply refer to Ghat. */
-  writeCExprs1(Ghat, Ghat_c),
+  Ghat_F_0_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, F_0_Skin_e)),
+  Ghat_G_1_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, G_1_Skin_e)),
+  writeCExprs1(Ghat_F_0, Ghat_F_0_c),
+  writeCExprs1(Ghat_G_1, Ghat_G_1_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
+  Ghat_F_0_e       : doExpand1(Ghat_F_0, bSurf),
+  Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
-  incr : calcInnerProdList(surfVars, 1, subst(vx=1, bP), Ghat_e),
+  incr_F_0 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_G_1_e),
   
   /* Write out contribution */
-  writeCIncrExprs1(out, dv1par*incr),
+  writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
+  writeCIncrExprs1(out_G_1, dv1par*incr_G_1),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
@@ -102,21 +117,23 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   writeCExprs1(alphaDrSurf, alphaDrSurf_l_c),
   printf(fh, "~%"),
 
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, fSkin_e)),
-  /* Ghat_c (coefficients of Ghat) is what gets written. From here
-  ** on we can simply refer to Ghat. */
-  writeCExprs1(Ghat, Ghat_c),
+  Ghat_F_0_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, F_0_Skin_e)),
+  Ghat_G_1_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, G_1_Skin_e)),
+  writeCExprs1(Ghat_F_0, Ghat_F_0_c),
+  writeCExprs1(Ghat_G_1, Ghat_G_1_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Increments to the far left skin cell (some dimensional factors missing). */
-  incr : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_e),
+  Ghat_F_0_e       : doExpand1(Ghat_F_0, bSurf),
+  Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
+
+  /* Increments to the far right skin cell (some dimensional factors missing). */
+  incr_F_0 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_G_1_e),
   
   /* Write out contribution */
-  writeCIncrExprs1(out, dv1par*incr),
+  writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
+  writeCIncrExprs1(out_G_1, dv1par*incr_G_1),
   printf(fh, "~%"),
   printf(fh, "  } ~%"),
   printf(fh, "} ~%")

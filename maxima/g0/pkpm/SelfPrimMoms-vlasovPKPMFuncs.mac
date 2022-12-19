@@ -59,29 +59,32 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   nodes : eval_string(sconcat("nodesSer", cdim, "xp", 1)),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *p_ij, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // A:                    Matrix to be inverted to solve Ax = rhs (set by this function). ~%"),
   printf(fh, "  // rhs:                  right-hand side of Ax = rhs (set by this function). ~%"),
-  printf(fh, "  // moms:                 moments of the distribution function (Zeroth, vpar^2, vpar^3, only need Zeroth). ~%"),
-  printf(fh, "  // p_ij:                 Fluid pressure tensor (trace of pressure tensor used to obtain vt^2). ~%"),
+  printf(fh, "  // vlasov_pkpm_moms:     [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model. ~%"),
   printf(fh, "  // boundary_corrections: boundary corrections to vtSq. ~%"),
   printf(fh, " ~%"),
 
+  /* Get pointers to diagonal parts of pressure tensor. */
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
+  printf(fh, "  const double *p_parallel = &vlasov_pkpm_moms[~a]; ~%", 1*NC),
+  printf(fh, "  const double *p_perp = &vlasov_pkpm_moms[~a]; ~%", 2*NC),
+
   /* In order to avoid dividing by very small, negative or zero densities
-     use the cell average m0 when m0<0 at one of the corners. */
-  printf(fh, "  // If a corner value is below zero, use cell average m0.~%"),
+     use the cell average rho, p_parallel, p_perp when rho, p_parallel, or p_perp<0 at one of the corners. */
+  printf(fh, "  // If a corner value is below zero, use cell average.~%"),
   printf(fh, "  bool cellAvg = false;~%"),
   nodesub(f):=makelist(subst(makelist(varsC[j]=nodes[i][j],j,1,length(varsC)),f),i,1,length(nodes)),
-  m0Corners : gcfac(float(fullratsimp(nodesub(doExpand1(moms,bC))))),
+  rhoCorners : gcfac(float(fullratsimp(nodesub(doExpand1(rho,bC))))),
+  p_parCorners : gcfac(float(fullratsimp(nodesub(doExpand1(p_parallel,bC))))),
+  p_perpCorners : gcfac(float(fullratsimp(nodesub(doExpand1(p_perp,bC))))),
   for i : 1 thru length(nodes) do (
-    printf(fh, "  if (~a < 0) cellAvg = true; ~%", m0Corners[i])
+    printf(fh, "  if (~a < 0) cellAvg = true; ~%", rhoCorners[i]),
+    printf(fh, "  if (~a < 0) cellAvg = true; ~%", p_parCorners[i]),
+    printf(fh, "  if (~a < 0) cellAvg = true; ~%", p_perpCorners[i])
   ),
   printf(fh, " ~%"),
-
-  /* Get pointers to diagonal parts of pressure tensor. */
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0),
-  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC),
-  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC),
 
   /* Declare new buffers where moments and boundary corrections are stored. */
   printf(fh, "  double m0r[~a] = {0.0}; ~%", NC),
@@ -89,22 +92,22 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
 
   printf(fh, "  if (cellAvg) { ~%"),
   /* Use the cell average of m0. */
-  writeCExprs1s(m0r,append([moms[0]],makelist(0.0,i,1,NC-1))),
+  writeCExprs1s(m0r,append([rho[0]],makelist(0.0,i,1,NC-1))),
 
   writeCExprs1s(cEr,append([boundary_corrections[0]],makelist(0.0,i,1,NC-1))),
   /* For higher polynomial order use cell average of 2nd moment. */
-  expr : float(expand(append([Pxx[0]+Pyy[0]+Pzz[0]],makelist(0.0,i,1,NC-1)))),
+  expr : float(expand(append([p_parallel[0]+2.0*p_perp[0]],makelist(0.0,i,1,NC-1)))),
 
   for i : 1 thru length(expr) do (
     printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
   ),
   printf(fh, "  } else { ~%"),
   /* Use the original expansion polynomial. */
-  writeCExprs1s(m0r,makelist(moms[i],i,0,NC-1)),
+  writeCExprs1s(m0r,makelist(rho[i],i,0,NC-1)),
 
   writeCExprs1s(cEr,makelist(boundary_corrections[i],i,0,NC-1)),
 
-  expr : float(expand(makelist(Pxx[i]+Pyy[i]+Pzz[i],i,0,NC-1))),
+  expr : float(expand(makelist(p_parallel[i]+2.0*p_perp[i],i,0,NC-1))),
   for i : 1 thru length(expr) do (
     printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
   ),

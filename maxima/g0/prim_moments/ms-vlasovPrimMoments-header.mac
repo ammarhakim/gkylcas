@@ -33,16 +33,11 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   /* Primitive moments for collision terms. */
   printf(fh, "~avoid vlasov_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-
-  /* Primitive moments for Vlasov parallel kinetic with perp pressure model collision terms. */
-  printf(fh, "~avoid vlasov_with_fluid_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *fluid, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_with_fluid_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *fluid, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%")  
+  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi)
 )$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid vlasov_pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *p_ij, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid vlasov_pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
   printf(fh, "~%")  
 )$
 
@@ -71,7 +66,7 @@ for bInd : 1 thru length(bName) do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
     ),
-    for polyOrder : minPolyOrderB thru 3 do (
+    for polyOrder : minPolyOrderB thru 2 do (
       printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )    
   )

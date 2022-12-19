@@ -44,14 +44,15 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   const double *p_ijl, const double *p_ijc, const double *p_ijr, 
   const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr, 
   const double *statevecl, const double *statevecc, const double *statevecr, 
+  const double *nu, const double *nu_vthsq, 
   double* div_b, double* bb_grad_u, double* div_p, double* p_force, double* p_perp_source) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // nuHyp: Hyper-diffusion coefficient.~%"),
   printf(fh, "  // bvarl/bvarc/bvarr:  Input magnetic field unit vector in left/center/right cells.~%"),
   printf(fh, "  // u_il/u_ic/u_ir:     Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
   printf(fh, "  // p_ijl/p_ijc/p_ijr:  Input pressure tensor in left/center/right cells.~%"),
-  printf(fh, "  // vlasov_pkpm_momsl/vlasov_pkpm_momsc/vlasov_pkpm_momsr: Input pkpm moments (rho, p_parallel, q_parallel) in left/center/right cells.~%"),
-  printf(fh, "  // statevecl/statevecc/statevecr:          [rho ux, rho uy, rho uz, p_perp], Fluid input state vector in center cell.~%"),
+  printf(fh, "  // vlasov_pkpm_momsl/vlasov_pkpm_momsc/vlasov_pkpm_momsr: Input pkpm moments (rho, p_parallel, p_perp) in left/center/right cells.~%"),
+  printf(fh, "  // statevecl/statevecc/statevecr:          [rho ux, rho uy, rho uz], Fluid input state vector in center cell.~%"),
   printf(fh, "  // div_b:              Increment to volume expansion of div(b) in one direction.~%"),
   printf(fh, "  // bb_grad_u:          Increment to volume expansion of bb : grad(u) in one direction.~%"),
   printf(fh, "  // div_p:              Increment to volume expansion of div(p) in one direction.~%"),
@@ -124,25 +125,23 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *ppar_c = &vlasov_pkpm_momsc[~a]; ~%", NC),
   printf(fh, "  const double *ppar_r = &vlasov_pkpm_momsr[~a]; ~%", NC),
   printf(fh, "  const double *rho = &vlasov_pkpm_momsc[~a]; ~%", 0),
+  printf(fh, "  const double *p_perp = &vlasov_pkpm_momsc[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   /* rho u_i in left/center/right cells for hyper-diffusion of momentum */
   printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_l = &statevecl[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_c = &statevecc[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_r = &statevecr[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  double *div_p_x = &div_p[~a]; ~%", 0*NC),
@@ -243,10 +242,6 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   lst_rhouz_c : makelist(rhouz_c[i], i, 0, NC-1),
   lst_rhouz_r : makelist(rhouz_r[i], i, 0, NC-1),
 
-  lst_p_perp_l : makelist(p_perp_l[i], i, 0, NC-1),
-  lst_p_perp_c : makelist(p_perp_c[i], i, 0, NC-1),
-  lst_p_perp_r : makelist(p_perp_r[i], i, 0, NC-1),
-
   rhoux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
     dg(lst_rhoux_l), dg(lst_rhoux_c), dg(lst_rhoux_r)),
 
@@ -256,24 +251,21 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
     dg(lst_rhouz_l), dg(lst_rhouz_c), dg(lst_rhouz_r)),
 
-  p_perp_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
-    dg(lst_p_perp_l), dg(lst_p_perp_c), dg(lst_p_perp_r)),
-
   /* Need bb : grad(u), write out grad(u) for each component of u */
   printf(fh, "  double grad_u_x[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
 
-  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec , cv)),
-  writeCExprs1(grad_u_x, grad_u_x_c),
+  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec, cv)),
+  writeCExprs1(grad_u_x, dx1*grad_u_x_c),
   printf(fh, "~%"),
 
-  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec , cv)),
-  writeCExprs1(grad_u_y, grad_u_y_c),
+  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec, cv)),
+  writeCExprs1(grad_u_y, dx1*grad_u_y_c),
   printf(fh, "~%"),
 
-  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec , cv)),
-  writeCExprs1(grad_u_z, grad_u_z_c),
+  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec, cv)),
+  writeCExprs1(grad_u_z, dx1*grad_u_z_c),
   printf(fh, "~%"),
 
   /* Expand bb and grad(u) for each component of u */
@@ -295,10 +287,13 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bl_e : doExpand1(b_l, bC),
   bc_e : doExpand1(b_c, bC),
   br_e : doExpand1(b_r, bC),
+  p_perp_e : doExpand1(p_perp, bC), 
 
   printf(fh, "  double ppar_b_l[~a] = {0.0}; ~%", NC),
   printf(fh, "  double ppar_b_c[~a] = {0.0}; ~%", NC),
   printf(fh, "  double ppar_b_r[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double div_b_comp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC),
 
   ppar_b_l_c : calcInnerProdList(varsC, 1, bC, pparl_e*bl_e),
   writeCExprs1(ppar_b_l, ppar_b_l_c),
@@ -315,36 +310,47 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
-  b_prime_c : calcInnerProdList(varsC, 1, bC, diff(b_rec , cv)),
-  writeCIncrExprsCollect1lhsc(div_b, dx1*b_prime_c),  
+  b_prime_c : calcInnerProdList(varsC, 1, bC, diff(b_rec, cv)),
+  writeCExprs1(div_b_comp, dx1*b_prime_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  div_b_e : doExpand1(div_b_comp, bC),
+  div_b_c : calcInnerProdList(varsC, 1, bC, div_b_e),
+  writeCIncrExprsCollect1lhsc(div_b, div_b_c),  
   printf(fh, "~%"),
 
   if (dir = 1) then (  
     div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxx_rec, cv)),
     div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
     div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
-    bb_grad_u_c : calcInnerProdList(varsC, 1, bC, bxbx_e*grad_u_x_e + bxby_e*grad_u_y_e + bxbz_e*grad_u_z_e)
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbx_e*grad_u_x_e + bxby_e*grad_u_y_e + bxbz_e*grad_u_z_e)
   )
   elseif (dir = 2) then (
     div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
     div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyy_rec, cv)),
     div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
-    bb_grad_u_c : calcInnerProdList(varsC, 1, bC, bxby_e*grad_u_x_e + byby_e*grad_u_y_e + bybz_e*grad_u_z_e)
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxby_e*grad_u_x_e + byby_e*grad_u_y_e + bybz_e*grad_u_z_e)
   )
   elseif (dir = 3) then (
     div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
     div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
     div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pzz_rec, cv)),
-    bb_grad_u_c : calcInnerProdList(varsC, 1, bC, bxbz_e*grad_u_x_e + bybz_e*grad_u_y_e + bzbz_e*grad_u_z_e)
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbz_e*grad_u_x_e + bybz_e*grad_u_y_e + bzbz_e*grad_u_z_e)
   ),
 
   hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 4)),
   hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 4)),
   hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4)),
-  hyper_p_perp_c : calcInnerProdList(varsC, 1, bC, diff(p_perp_rec, cv, 4)),
 
-  writeCIncrExprsCollect1lhsc(bb_grad_u, dx1*bb_grad_u_c), 
+  writeCExprs1(bb_grad_u_comp, bb_grad_u_comp_c),
   printf(fh, "~%"),
+  flush_output(fh),
+  bb_grad_u_e : doExpand1(bb_grad_u_comp, bC),
+  bb_grad_u_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e),
+  writeCIncrExprsCollect1lhsc(bb_grad_u, bb_grad_u_c),  
+  printf(fh, "~%"),
+
   writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c + nuHyp*dx14*hyper_rhoux_c),
   printf(fh, "~%"),
   writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c + nuHyp*dx14*hyper_rhouy_c),
@@ -354,30 +360,40 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double div_ppar_b[~a] = {0.0}; ~%", NC),
   printf(fh, "  double rho_inv[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double T_perp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double T_perp_inv[~a] = {0.0}; ~%", NC),
   printf(fh, "  ~a_~ax_p~a_inv(rho, rho_inv); ~%", basisFun, cdim, polyOrder),
 
   div_ppar_b_c : calcInnerProdList(varsC, 1, bC, diff(ppar_b_rec , cv)),
-  writeCExprs1(div_ppar_b, div_ppar_b_c),
+  writeCExprs1(div_ppar_b, dx1*div_ppar_b_c),
   printf(fh, "~%"),
 
   rho_inv_e : doExpand1(rho_inv, bC),
+  T_perp_inv_e : doExpand1(T_perp_inv, bC),
   div_ppar_b_e : doExpand1(div_ppar_b, bC),
-  p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e),
-  writeCIncrExprsCollect1lhsc(p_force, dx1*p_force_c),  
+  T_perp_e : doExpand1(T_perp, bC),
+  nu_e : doExpand1(nu, bC),
+  nu_vthsq_e : doExpand1(nu_vthsq, bC),
+
+  T_perp_c : calcInnerProdList(varsC, 1, bC, p_perp_e*rho_inv_e),
+  writeCExprs1(T_perp, T_perp_c),
+  printf(fh, "~%"),
+  printf(fh, "  ~a_~ax_p~a_inv(T_perp, T_perp_inv); ~%", basisFun, cdim, polyOrder),
+
+  p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e - T_perp_e*div_b_e),
+  writeCIncrExprsCollect1lhsc(p_force, p_force_c),  
   printf(fh, "~%"),
 
-  p_perp_c_e : doExpand1(p_perp_c, bC), 
-  bb_grad_u_e : doExpand1(bb_grad_u, bC), 
   if (dir = 1) then (  
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, p_perp_c_e*bb_grad_u_e - dx1*p_perp_c_e*grad_u_x_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_x_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_inv_e)
   )
   elseif (dir = 2) then (
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, p_perp_c_e*bb_grad_u_e - dx1*p_perp_c_e*grad_u_y_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_y_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_inv_e)
   )
   elseif (dir = 3) then (
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, p_perp_c_e*bb_grad_u_e - dx1*p_perp_c_e*grad_u_z_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_z_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_inv_e)
   ),  
-  writeCIncrExprsCollect1lhsc(p_perp_source, p_perp_source_c - nuHyp*dx14*hyper_p_perp_c), 
+  writeCIncrExprsCollect1lhsc(p_perp_source, p_perp_source_c), 
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

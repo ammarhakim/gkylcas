@@ -31,26 +31,42 @@ calcVlasovPKPMLBODragSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nu, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nu:         collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // fl/fc/fr:      distribution function in cells ~%"),
-  printf(fh, "  // out:           incremented distribution function in cell ~%"),
+  printf(fh, "  // w[~a]:    cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:  cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nu:       collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // fl/fc/fr: Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in left/center/right cells ~%"),
+  printf(fh, "  // out:      incremented distribution function in cell ~%"),
   printf(fh, "~%"),
 
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
 
+  /* Access F_0 and T_perp G, first two Laguerre moments */
+  printf(fh, "  const double *F_0l = &fl[~a]; ~%", 0),
+  printf(fh, "  const double *G_1l = &fl[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0c = &fc[~a]; ~%", 0),
+  printf(fh, "  const double *G_1c = &fc[~a]; ~%", NP), 
+  printf(fh, "  const double *F_0r = &fr[~a]; ~%", 0),
+  printf(fh, "  const double *G_1r = &fr[~a]; ~%", NP), 
+
+  /* Access the components of out for the first two Laguerre moments */
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),  
+
   nu_e : doExpand1(nu,bC),
   printf(fh, "~%"),
   /* Calculate the alpha-velocity due to drag. */
   alphaDr : nu_e*((1.0/2.0)*dvpar*vx+wvpar),
     
-  /* Create expansions of f_left, f_center, and f_right on volume basis. */
-  fl_e : doExpand1(fl, bP),
-  fc_e : doExpand1(fc, bP),
-  fr_e : doExpand1(fr, bP),
+  /* Create expansions of F_0 and G_1 in left/center/right cells on volume basis. */
+  F_0_l_e : doExpand1(F_0l, bP),
+  F_0_c_e : doExpand1(F_0c, bP),
+  F_0_r_e : doExpand1(F_0r, bP),
+
+  G_1_l_e : doExpand1(G_1l, bP),
+  G_1_c_e : doExpand1(G_1c, bP),
+  G_1_r_e : doExpand1(G_1r, bP),
 
   /* Surface basis. Equivalent to basis of one lower
      dimensionality without surface variable. */
@@ -74,74 +90,65 @@ calcVlasovPKPMLBODragSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
 
-  printf(fh, "  double Ghat_r[~a]; ~%", length(bSurf)),
-  printf(fh, "  double Ghat_l[~a]; ~%", length(bSurf)),
-  
+  printf(fh, "  double Ghat_F_0_r[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_F_0_l[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1_r[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1_l[~a]; ~%", length(bSurf)),
+
   printf(fh, "  if (~a>0) { ~%~%",wvpar),
 
   /* Because v > 0, need left edge value */
   /* Evaluate surface projection of Ghat_r = nu*v f_r (v evaluated at +1). */
-  Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=-1, fr_e)),
-  writeCExprsCollect1lhsc(Ghat_r, radcan(Ghat_r_c)),
+  Ghat_F_0_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=-1, F_0_r_e)),
+  Ghat_G_1_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=-1, G_1_r_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_r, radcan(Ghat_F_0_r_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_r, radcan(Ghat_G_1_r_c)),
   printf(fh, "~%"),
   flush_output(fh),
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = nu*v f_c (v evaluated at -1). */
-  Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=-1, fc_e)),
-  writeCExprsCollect1lhsc(Ghat_l, radcan(Ghat_l_c)),
+  Ghat_F_0_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=-1, F_0_c_e)),
+  Ghat_G_1_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=-1, G_1_c_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_l, radcan(Ghat_F_0_l_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_l, radcan(Ghat_G_1_l_c)),
   printf(fh, "~%"),
   flush_output(fh),
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   printf(fh, "  } else { ~%~%"),
   
   /* Because v < 0, need right edge value */
   /* Evaluate surface projection of Ghat_r = v f_r. */
-  Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=1, fc_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
-  ) else (
-    writeCExprs1(Ghat_r, Ghat_r_c)
-  ),
+  Ghat_F_0_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=1, F_0_c_e)),
+  Ghat_G_1_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=1, G_1_c_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_r, radcan(Ghat_F_0_r_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_r, radcan(Ghat_G_1_r_c)),
   printf(fh, "~%"),
   flush_output(fh),
-
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = v f_c. */
-  Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=1, fl_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
-  ) else (
-    writeCExprs1(Ghat_l, Ghat_l_c)
-  ),
+  Ghat_F_0_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=1, F_0_l_e)),
+  Ghat_G_1_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=1, G_1_l_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_l, radcan(Ghat_F_0_l_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_l, radcan(Ghat_G_1_l_c)),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
-  
   printf(fh, "  } ~%"),
-  /* Compute surface contribution integral(phi^- Ghat) on the right. */
-  incr_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_l_e),
-  incr_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_r_e),
-  writeCIncrExprsCollect1lhsc(out, dv1par*incr_l + dv1par*incr_r),    
+
+  /* Expand G_hat in surface basis. */
+  Ghat_F_0_l_e       : doExpand1(Ghat_F_0_l, bSurf),
+  Ghat_G_1_l_e       : doExpand1(Ghat_G_1_l, bSurf),
+  Ghat_F_0_r_e       : doExpand1(Ghat_F_0_r, bSurf),
+  Ghat_G_1_r_e       : doExpand1(Ghat_G_1_r, bSurf),
+
+  /* Compute surface contribution integral(phi^- Ghat). */
+  incr_F_0_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_F_0_l_e),
+  incr_F_0_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_F_0_r_e),
+  incr_G_1_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_G_1_l_e),
+  incr_G_1_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_G_1_r_e),
+
+  writeCIncrExprsCollect1lhsc(out_F_0, dv1par*incr_F_0_l + dv1par*incr_F_0_r),  
+  writeCIncrExprsCollect1lhsc(out_G_1, dv1par*incr_G_1_l + dv1par*incr_G_1_r),  
   printf(fh, "} ~%")
 );
 

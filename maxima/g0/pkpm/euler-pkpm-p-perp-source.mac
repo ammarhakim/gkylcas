@@ -22,13 +22,10 @@ calcEulerPKPMSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
   NC : length(bC),
 
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *qmem, const double *nu, const double *nu_vth_sq, const double *vlasov_pkpm_moms, const double *euler_pkpm, const double *p_perp_source, double* out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // qmem:             q/m*EM fields.~%"),
-  printf(fh, "  // nu:               Collisionality.~%"),
-  printf(fh, "  // nu_vth_sq:        nu*vth^2 = nu*T/m.~%"),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, q_parallel], Moments computed from kinetic equation in pkpm model.~%"),
   printf(fh, "  // euler_pkpm:       Input fluid variables.~%"),
-  printf(fh, "  // p_perp_source:    Input perpendicular pressure compression source (p_perp div(u) - p_perp bb : grad(u)).~%"),
   printf(fh, "  // out:              Output increment"),
   printf(fh, "~%"),
 
@@ -44,13 +41,11 @@ calcEulerPKPMSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC),
   printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC),
   printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC),  
-  printf(fh, "  const double *p_perp = &euler_pkpm[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  double *outrhoux = &out[~a]; ~%", 0*NC),
   printf(fh, "  double *outrhouy = &out[~a]; ~%", 1*NC),
   printf(fh, "  double *outrhouz = &out[~a]; ~%", 2*NC),
-  printf(fh, "  double *outp_perp = &out[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   rho_e : doExpand1(rho, bC),
@@ -65,13 +60,6 @@ calcEulerPKPMSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouy_e : doExpand1(rhouy, bC),
   rhouz_e : doExpand1(rhouz, bC),
 
-  p_perp_e : doExpand1(p_perp, bC),
-
-  nu_e : doExpand1(nu, bC),
-  nu_vth_sq_e : doExpand1(nu_vth_sq, bC),
-
-  p_perp_source_e : doExpand1(p_perp_source, bC), 
-
   incr_rhoux : calcInnerProdList(varsC, 1, bC, rho_e*Ex_e + rhouy_e*Bz_e - rhouz_e*By_e),
   writeCIncrExprs1(outrhoux, incr_rhoux),
   printf(fh, "~%"),
@@ -84,11 +72,6 @@ calcEulerPKPMSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   incr_rhouz : calcInnerProdList(varsC, 1, bC, rho_e*Ez_e + rhoux_e*By_e - rhouy_e*Bx_e),
   writeCIncrExprs1(outrhouz, incr_rhouz),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  incr_p_perp : calcInnerProdList(varsC, 1, bC, nu_vth_sq_e*rho_e - nu_e*p_perp_e + p_perp_source_e),
-  writeCIncrExprs1(outp_perp, incr_p_perp),
   printf(fh, "~%"),
   flush_output(fh),
 

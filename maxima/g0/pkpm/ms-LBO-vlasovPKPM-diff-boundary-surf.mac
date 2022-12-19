@@ -27,8 +27,9 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-      maxPolyOrderB : maxPolyOrder[bInd],
-      minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    minPolyOrderB : minPolyOrder[bInd],
+    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_diff_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),c,polyOrder)),

@@ -31,6 +31,7 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
+    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     /* Vlasov moment calculators. */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
