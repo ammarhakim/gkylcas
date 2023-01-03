@@ -1,0 +1,68 @@
+/* This script generates the kernels for calculating the distribution function
+   in the mirror force for the T_perp/m*G = T_perp/m*(F_0 - F_1) kinetic equation,
+   g_dist_source = 2.0*(T_perp/m*G) - T_perp/m*F_0 + T_perp/m*F_2
+   Note that T_perp/m*G is the evolved quantity for the first Laguerre moment. 
+   Also outputs F_1 from T_perp/m*G for the evolution of F_2 if F_2 is present. 
+   To simplify internal Gkeyll logic, kernels assume F_2 is present and outputs F_1 even if F_2 = 0.0. */
+
+load("modal-basis")$
+load("out-scripts")$
+fpprec : 24$
+
+calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, varsP, bP, NC, NP],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+
+  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double* T_perp_over_m, const double* f, const double* F_k_p_1, double* g_dist_source, double* F_k_m_1) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // T_perp_over_m: Input T_perp/m = p_perp/rho.~%"),
+  printf(fh, "  // f:             Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // F_k_p_1:       Input k+1 distribution function. F_2 expansion is the first NP coefficients. ~%"),
+  printf(fh, "  // g_dist_source: Output 2*T_perp/m*G - T_perp/m*(F_0 - F_2).~%"), 
+  printf(fh, "  // F_k_m_1:       Output k-1 distribution function. F_1 expansion is the first NP coefficients. ~%"),
+  printf(fh, "~%"),
+
+  /* Access F_0 and T_perp/m G, first two Laguerre moments */
+  printf(fh, "  const double *F_0 = &f[~a]; ~%", 0),
+  printf(fh, "  const double *G_1 = &f[~a]; ~%", NP),
+  printf(fh, "  const double *F_2 = &F_k_p_1[~a]; ~%", 0),  
+
+  /* Access the output components of the g_dist_source = [F_1, 2 T_perp/m*(F_1 - F_2)]
+     and the output components of F_k_m_1 (only first NP components are F_1) */
+  printf(fh, "  double *out_F_0_source = &g_dist_source[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1_source = &g_dist_source[~a]; ~%", NP),
+  printf(fh, "  double *out_F_1 = &F_k_m_1[~a]; ~%", 0), 
+
+  /* Expand distribution functions F_0 and T_perp/m G in phase basis. */
+  F_0_e : doExpand1(F_0, bP),
+  G_1_e : doExpand1(G_1, bP),
+  F_2_e : doExpand1(F_2, bP),
+
+  T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
+
+  printf(fh, "  double tmp_T_perp_F_0[~a] = {0.0}; ~%~%", NP),
+  printf(fh, "  double tmp_T_perp_F_1[~a] = {0.0}; ~%~%", NP),
+  T_perp_F_0_c : calcInnerProdList(varsP, 1, bP, T_perp_over_m_e*F_0_e),
+  writeCExprs1(tmp_T_perp_F_0, T_perp_F_0_c),
+  printf(fh, "~%"),  
+
+  T_perp_F_0_e : doExpand1(tmp_T_perp_F_0, bP),
+  T_perp_F_1_c : calcInnerProdList(varsP, 1, bP, T_perp_F_0_e - G_1_e), 
+  writeCExprs1(tmp_T_perp_F_1, T_perp_F_1_c),
+  printf(fh, "~%"),  
+
+  T_perp_F_1_e : doExpand1(tmp_T_perp_F_1, bP),
+  out_T_perp_F_1_c : calcInnerProdList(varsP, 1, bP, T_perp_F_1_e),
+  out_T_perp2_F_1_c : calcInnerProdList(varsP, 1, bP, 2.0*T_perp_over_m_e*T_perp_F_1_e),
+  writeCExprs1(out_F_0_source, out_T_perp_F_1_c),
+  writeCExprs1(out_G_1_source, out_T_perp2_F_1_c),
+
+  printf(fh, "} ~%")
+)$
