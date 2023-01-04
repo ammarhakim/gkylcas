@@ -383,7 +383,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   nu_e : doExpand1(nu, bC),
   nu_vthsq_e : doExpand1(nu_vthsq, bC),
 
-  p_force_F_0_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e),
+  p_force_F_0_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e - T_perp_over_m_e*div_b_e),
   p_force_G_1_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e + T_perp_over_m_e*div_b_e),
   writeCIncrExprsCollect1lhsc(p_force_F_0, p_force_F_0_c),  
   writeCIncrExprsCollect1lhsc(p_force_G_1, p_force_G_1_c),  

@@ -470,7 +470,7 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // bb_grad_u:          bb : grad(u).~%"),
   printf(fh, "  // div_b:              divergence of the magnetic field unit vector.~%"),
   printf(fh, "  // p_perp_div_b:       2*p_perp/rho*div(b).~%"),  
-  printf(fh, "  // g_dist_sourcel/c/r: 2*T_perp/m*G - T_perp/m*F_0 in left/center/right cells.~%"), 
+  printf(fh, "  // g_dist_sourcel/c/r: [T_perp/m G, 2 (T_perp/m)^2 (F_2 - F_1)] in left/center/right cells.~%"), 
   printf(fh, "  // fl/fc/fr:           Input Distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)] in left/center/right cells.~%"),
   printf(fh, "  // out:                Incremented distribution function in center cell.~%"),
 
@@ -671,10 +671,10 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Check sign of each quadrature point and choose appropriate distribution function at 
      quadrature points. 
-     If div_b_Surf < 0, need f_l and f_c (at +1) else f_c and f_r (at -1).
+     If div_b_Surf > 0, need f_l and f_c (at +1) else f_c and f_r (at -1).
      Can fetch both left and right values because div_b_Surf does not depend on velocity space. */
   for i : 1 thru length(div_b_Ord_n) do (
-    printf(fh, "  if (~a < 0) { ~%", div_b_Ord_n[i]),
+    printf(fh, "  if (~a > 0) { ~%", div_b_Ord_n[i]),
     printf(fh, "    F_0_div_b_UpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_r(F_0_sourcel); ~%", i-1, basisStr, cdim+1, i-1),
     printf(fh, "    F_0_div_b_UpwindQuad_r[~a] = ~a_surfx~a_eval_quad_node_~a_r(F_0_sourcec); ~%", i-1, basisStr, cdim+1, i-1),
     printf(fh, "    G_1_div_b_UpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_r(G_1_sourcel); ~%", i-1, basisStr, cdim+1, i-1),
@@ -759,11 +759,10 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incr_G_1_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_G_1_l_e),
   incr_G_1_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_G_1_r_e),
 
-  /* Note opposite sign of p_perp/rho div(b) force */
-  incr_F_0_div_b_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_F_0_div_b_l_e),
-  incr_F_0_div_b_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_F_0_div_b_r_e),
-  incr_G_1_div_b_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_G_1_div_b_l_e),
-  incr_G_1_div_b_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_G_1_div_b_r_e),
+  incr_F_0_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_F_0_div_b_l_e),
+  incr_F_0_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_F_0_div_b_r_e),
+  incr_G_1_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_G_1_div_b_l_e),
+  incr_G_1_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_G_1_div_b_r_e),
 
   writeCIncrExprsCollect1lhsc(out_F_0, dv1par*incr_F_0_l + dv1par*incr_F_0_r + dv1par*incr_F_0_div_b_l + dv1par*incr_F_0_div_b_r),  
   writeCIncrExprsCollect1lhsc(out_G_1, dv1par*incr_G_1_l + dv1par*incr_G_1_r + dv1par*incr_G_1_div_b_l + dv1par*incr_G_1_div_b_r),  

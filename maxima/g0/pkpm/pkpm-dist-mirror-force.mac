@@ -25,7 +25,7 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // T_perp_over_m: Input T_perp/m = p_perp/rho.~%"),
   printf(fh, "  // f:             Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
   printf(fh, "  // F_k_p_1:       Input k+1 distribution function. F_2 expansion is the first NP coefficients. ~%"),
-  printf(fh, "  // g_dist_source: Output 2*T_perp/m*G - T_perp/m*(F_0 - F_2).~%"), 
+  printf(fh, "  // g_dist_source: Output [T_perp/m G, -(T_perp/m)^2 F_1]].~%"), 
   printf(fh, "  // F_k_m_1:       Output k-1 distribution function. F_1 expansion is the first NP coefficients. ~%"),
   printf(fh, "~%"),
 
@@ -59,8 +59,8 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),  
 
   T_perp_F_1_e : doExpand1(tmp_T_perp_F_1, bP),
-  out_T_perp_F_1_c : calcInnerProdList(varsP, 1, bP, T_perp_F_1_e),
-  out_T_perp2_F_1_c : calcInnerProdList(varsP, 1, bP, 2.0*T_perp_over_m_e*T_perp_F_1_e),
+  out_T_perp_F_1_c : calcInnerProdList(varsP, 1, bP, G_1_e),
+  out_T_perp2_F_1_c : calcInnerProdList(varsP, 1, bP, -2.0*T_perp_over_m_e*T_perp_F_1_e),
   writeCExprs1(out_F_0_source, out_T_perp_F_1_c),
   writeCExprs1(out_G_1_source, out_T_perp2_F_1_c),
 

@@ -196,9 +196,9 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incr_vdim_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_F_0_NoZero_e*F_0_e),
   incr_vdim_G_1 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_G_1_NoZero_e*G_1_e),
 
-  /* additional forces and sources on F_0 and T_perp/m G = [div(b) T_perp/m F_1, div(b) (T_perp/m)^2 F_1] */
-  /* First project -1.0*div(b) onto phase basis; minus sign due to integration by parts */
-  alpha_div_b_c : calcInnerProdList(varsP, 1, bP, -1.0*div_b_e),
+  /* additional forces and sources on F_0 and T_perp/m G = [div(b) T_perp/m G, div(b) -2(T_perp/m)^2 F_1] */
+  /* First project div(b) onto phase basis; Note minus sign absorbed into F_1 */
+  alpha_div_b_c : calcInnerProdList(varsP, 1, bP, div_b_e),
 
   writeCExprsCollect1(alpha_div_b, alpha_div_b_c*dv1par, clst),
   printf(fh, "~%"),
@@ -207,11 +207,10 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   alpha_div_b_NoZero : doMakeExprLst(alpha_div_b_c, alpha_div_b),
   alpha_div_b_NoZero_e : doExpand(alpha_div_b_NoZero, bP),
 
-  /* addition force on F_0 = d/dvpar ((p_perp/rho*div(b) F_1) 
-     additional force on F_0 consolidated as = d/dvpar (p_perp_div_b*F_0_source) */
+  /* addition force on F_0 = d/dvpar (div(b) T_perp/m G) */
   incr_F_0_div_b : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_div_b_NoZero_e*F_0_source_e),
 
-  /* additional force on G_1 = d/dvpar (p_perp/rho*div(b) * (2*T_perp/m (F_0 - F_2))) 
+  /* additional force on G_1 = d/dvpar (div(b) * (2*(T_perp/m)^2 [F_2 - F_1])) 
      additional force on G_1 consolidated as = d/dvpar (p_perp_div_b*G_1_source) */
   incr_G_1_div_b : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_div_b_NoZero_e*G_1_source_e),
 
