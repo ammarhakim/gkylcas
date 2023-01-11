@@ -28,14 +28,17 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, 
-  double* u_i, double* p_ij, double* T_ij, double* T_perp_over_m) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // bvar:             Magnetic field unit vector and tensor.~%"),
-  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
-  printf(fh, "  // statevec:         [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
-  printf(fh, "  // u_i:              Output flow velocity [ux, uy, uz].~%"),
-  printf(fh, "  // p_ij:             Output pressure tensor, p_ij = (p_parallel - p_perp)bb + p_perp I.~%"),
-  printf(fh, "  // T_ij:             Output Temperature tensor for penalization T_ij = 3.0*p_ij/rho.~%"),
-  printf(fh, "  // T_perp_over_m:    Output T_perp/m = p_perp/rho.~%"),
+  double* u_i, double* p_ij, double* T_ij, 
+  double* rho_inv, double* T_perp_over_m, double* T_perp_over_m_inv) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // bvar:              Magnetic field unit vector and tensor.~%"),
+  printf(fh, "  // vlasov_pkpm_moms:  [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // statevec:          [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
+  printf(fh, "  // u_i:               Output flow velocity [ux, uy, uz].~%"),
+  printf(fh, "  // p_ij:              Output pressure tensor, p_ij = (p_parallel - p_perp)bb + p_perp I.~%"),
+  printf(fh, "  // T_ij:              Output Temperature tensor for penalization T_ij = 3.0*p_ij/rho.~%"),
+  printf(fh, "  // rho_inv:           Output 1/rho.~%"),
+  printf(fh, "  // T_perp_over_m:     Output p_perp/rho = T_perp/m.~%"),
+  printf(fh, "  // T_perp_over_m_inv: Output (T_perp/m)^-1.~%"),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rhoux = &statevec[~a]; ~%", 0*NC),
@@ -88,8 +91,6 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   bzbz_e : doExpand1(bzbz, bC),
 
   rho_inv_e : doExpand1(rho_inv, bC),
-
-  printf(fh, "  double rho_inv[~a] = {0.0}; ~%", NC),
   printf(fh, "  ~a_~ax_p~a_inv(rho, rho_inv); ~%", basisFun, cdim, polyOrder),
 
   ux_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*rhoux_e), 
@@ -142,6 +143,7 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   T_perp_over_m_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*p_perp_e),  
   writeCExprs1(T_perp_over_m, T_perp_over_m_c),
+  printf(fh, "  ~a_~ax_p~a_inv(T_perp_over_m, T_perp_over_m_inv); ~%", basisFun, cdim, polyOrder),
 
   printf(fh, "} ~%")
 )$

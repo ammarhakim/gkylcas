@@ -48,22 +48,16 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, 
   const double *bvar, const double *u_i, 
-  const double *bb_grad_u, const double *p_force, 
-  const double *div_b, const double *p_perp_source, 
-  const double *p_perp_div_b, const double *g_dist_source, 
+  const double *pkpm_accel_vars, const double *g_dist_source, 
   const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // w[NDIM]:       Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:     Cell spacing.~%"),
-  printf(fh, "  // bvar:          magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // u_i:           flow velocity"),
-  printf(fh, "  // p_force:       total pressure force; for F_0 = 1/rho (div(p_parallel b_hat), for G_1 = 1/rho (div(p_parallel b_hat) + 3*T_perp/m*div(b).~%"),
-  printf(fh, "  // bb_grad_u:     bb : grad(u).~%"),
-  printf(fh, "  // div_b:         divergence of the magnetic field unit vector.~%"),
-  printf(fh, "  // p_perp_source: perpendicular pressure source bb : grad(u) - div(u) - nu + nu rho vth^2/p_perp.~%"),
-  printf(fh, "  // p_perp_div_b:  p_perp/rho*div(b) = T_perp/m*div(b).~%"),  
-  printf(fh, "  // g_dist_source: [-F_1, -2 T_perp/m*(F_0 - F_2)].~%"), 
-  printf(fh, "  // f:             Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
-  printf(fh, "  // out:           Incremented output.~%"),
+  printf(fh, "  // w[NDIM]:         Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
+  printf(fh, "  // bvar:            magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
+  printf(fh, "  // u_i:             flow velocity"),
+  printf(fh, "  // pkpm_accel_vars: pkpm acceleration variables~%"),
+  printf(fh, "  // g_dist_source:   2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0)).~%"), 
+  printf(fh, "  // f:               Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // out:             Incremented output.~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -86,30 +80,37 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
   printf(fh, "~%"),
 
-  /* Access pressure force for F_0 ( 1/rho div(p_parallel b_hat) ) and G_1 ( 1/rho div(p_parallel b_hat) + 3*T_perp/m*div(b) ) */
-  printf(fh, "  const double *p_force_F_0 = &p_force[~a]; ~%", 0),
-  printf(fh, "  const double *p_force_G_1 = &p_force[~a]; ~%", NC),
-
   /* Access F_0 and T_perp/m G, first two Laguerre moments */
   printf(fh, "  const double *F_0 = &f[~a]; ~%", 0),
   printf(fh, "  const double *G_1 = &f[~a]; ~%", NP),  
 
-  /* Access source distribution functions for mirror force */
-  printf(fh, "  const double *F_0_source = &g_dist_source[~a]; ~%", 0),
-  printf(fh, "  const double *G_1_source = &g_dist_source[~a]; ~%", NP),  
+  /* Access source distribution functions for mirror force
+     F_0 source = T_perp/m G_1; G_1 source = 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0)) */
+  printf(fh, "  const double *F_0_source = &f[~a]; ~%", NP),
+  printf(fh, "  const double *G_1_source = &g_dist_source[~a]; ~%", 0),  
+
+  /* Access pkpm acceleration variables for forces and sources */
+  printf(fh, "  const double *div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
+  printf(fh, "  const double *bb_grad_u = &pkpm_accel_vars[~a]; ~%", 1*NC),
+  printf(fh, "  const double *p_force = &pkpm_accel_vars[~a]; ~%", 2*NC),
+  printf(fh, "  const double *p_perp_source = &pkpm_accel_vars[~a]; ~%", 3*NC),
+  printf(fh, "  const double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 4*NC),
+  printf(fh, "~%"),
 
   /* Access the components of out for the first two Laguerre moments */
   printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
   printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),    
+  printf(fh, "~%"),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
+  printf(fh, "~%"),
 
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*NP),
-  printf(fh, "  double alpha_vdim_F_0[~a] = {0.0}; ~%~%", NP),
-  printf(fh, "  double alpha_vdim_G_1[~a] = {0.0}; ~%~%", NP),
-  printf(fh, "  double alpha_div_b[~a] = {0.0}; ~%~%", NP),
-  printf(fh, "  double alpha_G_1_source[~a] = {0.0}; ~%~%", NP),
+  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double alpha_div_b[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double alpha_G_1_source[~a] = {0.0}; ~%", NP),
+  printf(fh, "~%"),
 
   /* Coordinate transformation for velocity space */
   vTrans : vx*dvpar/2+wvpar,
@@ -117,7 +118,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand distribution functions F_0 and T_perp/m G in phase basis. */
   F_0_e : doExpand1(F_0, bP),
   G_1_e : doExpand1(G_1, bP),
-  /* Expand F_0_source = -F_1 and G_1_source = -2*T_perp/m*(F_0 - F_2) */
+  /* Expand F_0_source = T_perp/m G_1 and G_1_source = 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0)) */
   F_0_source_e : doExpand1(F_0_source, bP),
   G_1_source_e : doExpand1(G_1_source, bP),
 
@@ -134,8 +135,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   bz_e : doExpand1(bz, bC),
   b_e : [bx_e, by_e, bz_e],
 
-  p_force_F_0_e : doExpand1(p_force_F_0, bC),
-  p_force_G_1_e : doExpand1(p_force_G_1, bC),
+  p_force_e : doExpand1(p_force, bC),
   bb_grad_u_e : doExpand1(bb_grad_u, bC),
   div_b_e : doExpand1(div_b, bC),
   p_perp_source_e : doExpand1(p_perp_source, bC),
@@ -152,7 +152,8 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     for i : 1 thru NP do (
       if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], expr[i]*dx11[cdir])
     ),
-
+    printf(fh, "~%"),
+    
     /* zero out components of alpha which are empty */
     alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
@@ -168,36 +169,31 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     incr_cdim_G_1 : incr_cdim_G_1+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*G_1_e))
   ),
 
-  /* alpha_vdim_F_0 = 1/rho div(p_parallel b_hat) - v_parallel bb : grad(u)] 
-     alpha_vdim_G_1 = 1/rho div(p_parallel b_hat) + T_perp/m div(b) - v_parallel bb : grad(u)] 
+  /* alpha_vdim = ( 1/rho div(p_parallel b_hat) - T_perp/m*div(b)) - v_parallel bb : grad(u)] 
      alpha_vdim consolidated as alpha_vdim = p_force - v_parallel bb_grad_u (pressure forces and bb_grad_u pre-computed) */
-  alpha_vdim_F_0_c : calcInnerProdList(varsP, 1, bP, p_force_F_0_e - vTrans*bb_grad_u_e),
-  alpha_vdim_G_1_c : calcInnerProdList(varsP, 1, bP, p_force_G_1_e - vTrans*bb_grad_u_e),
+  alpha_vdim_c : calcInnerProdList(varsP, 1, bP, p_force_e - vTrans*bb_grad_u_e),
 
   clst : [dv1par, dvpar, wvpar],
-  writeCExprsCollect1(alpha_vdim_F_0, alpha_vdim_F_0_c*dv1par, clst),
-  printf(fh, "~%"),
-  writeCExprsCollect1(alpha_vdim_G_1, alpha_vdim_G_1_c*dv1par, clst),
+  writeCExprsCollect1(alpha_vdim, alpha_vdim_c*dv1par, clst),
   printf(fh, "~%"),
 
   /* Zero out components of alpha_vdim for F_0 and G_1 which are empty. */
-  alpha_vdim_F_0_NoZero : doMakeExprLst(alpha_vdim_F_0_c, alpha_vdim_F_0),
-  alpha_vdim_F_0_NoZero_e : doExpand(alpha_vdim_F_0_NoZero, bP),
-
-  alpha_vdim_G_1_NoZero : doMakeExprLst(alpha_vdim_G_1_c, alpha_vdim_G_1),
-  alpha_vdim_G_1_NoZero_e : doExpand(alpha_vdim_G_1_NoZero, bP),
+  alpha_vdim_NoZero : doMakeExprLst(alpha_vdim_c, alpha_vdim),
+  alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
   /* evaluate alpha_vdim at cflPt to approximate
   ** max(abs(alpha_vdim))/(dx_i/(2p+1)). The flux for G_1 is more restrictive so use alpha_vdim_G_1 to estimate time step */
-  amid_vdim : gcfac(float(expand(subst(cflPt,0.5*alpha_vdim_G_1_NoZero_e)))),
+  amid_vdim : gcfac(float(expand(subst(cflPt,0.5*alpha_vdim_NoZero_e)))),
   printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid_vdim),
   printf(fh, "~%"),
   /* Volume increment from configuration space. */
-  incr_vdim_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_F_0_NoZero_e*F_0_e),
-  incr_vdim_G_1 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_G_1_NoZero_e*G_1_e),
+  incr_vdim_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*F_0_e),
+  incr_vdim_G_1 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*G_1_e),
 
-  /* additional forces and sources on F_0 and T_perp/m G = [div(b) T_perp/m G, div(b) -2(T_perp/m)^2 F_1] */
-  /* First project div(b) onto phase basis; Note minus sign absorbed into F_1 */
+  /* additional forces and sources on F_0 and T_perp/m G_1
+     additional force on F_0 -> div(b) T_perp/m G_1, 
+     additional force on G_1 -> div(b) 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0))] = div(b) g_dist_source */
+  /* First project div(b) onto phase basis */
   alpha_div_b_c : calcInnerProdList(varsP, 1, bP, div_b_e),
 
   writeCExprsCollect1(alpha_div_b, alpha_div_b_c*dv1par, clst),
@@ -210,14 +206,14 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* addition force on F_0 = d/dvpar (div(b) T_perp/m G) */
   incr_F_0_div_b : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_div_b_NoZero_e*F_0_source_e),
 
-  /* additional force on G_1 = d/dvpar (div(b) * (2*(T_perp/m)^2 [F_2 - F_1])) 
-     additional force on G_1 consolidated as = d/dvpar (p_perp_div_b*G_1_source) */
+  /* additional force on G_1 = d/dvpar (div(b) * 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0))) 
+     additional force on G_1 consolidated as = d/dvpar (div(b)*g_dist_source) */
   incr_G_1_div_b : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_div_b_NoZero_e*G_1_source_e),
 
   /* evaluate additional force p_perp_div_b = (p_perp/rho*div(b)) at cflPt for further 
      time step restriction */
   amid_div_b : gcfac(float(expand(subst(cflPt,0.5*p_perp_div_b_e)))),
-  printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid_div_b),
+  printf(fh, "  cflFreq_mid += ~a*fabs(~a)*dv1par; ~%", float(2*pOrderV+1), amid_div_b),
   printf(fh, "~%"),
 
   /* Note that G source does not involve an integration by parts and is just a pure source term 
