@@ -39,7 +39,6 @@ for bInd : 1 thru length(bName) do (
       fname : sconcat("~/max-out/mom_vlasov_pkpm_", c, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
       funcName : sconcat("mom_vlasov_pkpm"),
-      printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
 
       calcPKPMMoments(fh, funcName, c, 1, bName[bInd], polyOrder),
       close(fh)

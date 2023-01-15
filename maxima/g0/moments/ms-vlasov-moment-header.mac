@@ -54,6 +54,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid mom_vlasov_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid mom_vlasov_pkpm_diag_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~%")  
 )$
 
@@ -77,7 +78,7 @@ for bInd : 1 thru length(bName) do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
     ),
-    for polyOrder : minPolyOrderB thru 3 do (
+    for polyOrder : minPolyOrderB thru 2 do (
       printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )    
   )
