@@ -16,7 +16,8 @@ load(stringproc)$
 fpprec : 24$
 
 calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [bC, NC, Bx_e, By_e, Bz_e, BxSq_e, BySq_e, BzSq_e, magB_sq_inv_e, 
+  [bC, NC, Bx_e, By_e, Bz_e, BxSq_e, BySq_e, BzSq_e, magB_sq_inv_e,
+   Bx2Corners, By2Corners, Bz2Corners,  
    bxbx_c, bxby_c, bxbz_c, byby_c, bybz_c, bzbz_c],
 
   kill(varsC, basisC),
@@ -106,9 +107,14 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  bool notCellAvg = true;~%"),
   nodes : getNodes(basisFun, cdim, 1),
-  magB2Corners : expand(float(evAtNodes(magBSq_e,nodes,varsC))),
+  Bx2Corners : expand(float(evAtNodes(BxSq_e,nodes,varsC))),
+  By2Corners : expand(float(evAtNodes(BySq_e,nodes,varsC))),
+  Bz2Corners : expand(float(evAtNodes(BzSq_e,nodes,varsC))),
+  printf(fh, "  // Check if either Bx^2, By^2, or Bz^2 < 0 at control points. ~%"),
   for i : 1 thru length(nodes) do (
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", magB2Corners[i])
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bx2Corners[i]),
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", By2Corners[i]),
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bz2Corners[i])
   ),
 
   printf(fh, "  double magB_sq_inv[~a] = {0.0}; ~%~%", NC),
@@ -149,7 +155,7 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   printf(fh, "  } else { ~%"),
-  printf(fh, "  // If |B|^2 < 0 at control points, only use cell average to get 1/|B|^2. ~%"),
+  printf(fh, "  // If either Bx^2, By^2, or Bz^2 < 0 at control points, only use cell average to get 1/|B|^2. ~%"),
   unit : calcInnerProdList(varsC, 1, bC, 1.0),
   printf(fh, "  magB_sq_inv[0] = ~a/magB_sq[0]; ~%", float(expand(unit[1]*unit[1]))),
   printf(fh, "  bxbx[0] = ~a; ~%", float(expand(bxbx_c[1]))),
