@@ -80,8 +80,11 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
   printf(fh, "~%"),
 
   /* Project alpha onto surface basis, and print resulting coefficients. */
-  alphal_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, alpha_geo_e)),
-  alphar_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, alpha_geo_e)),
+  /*alphal_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, alpha_geo_e)),
+  alphar_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, alpha_geo_e)),*/
+  /* for testing, set equal to streaming values */
+  alphal_c : calcInnerProdList(surfVars, 1, bSurf, wv+(dv/2)*vv),
+  alphar_c : calcInnerProdList(surfVars, 1, bSurf, wv+(dv/2)*vv),
   /* writeCExprsCollect1lhsc(alpha, radcan(alpha_c)), /* Or use "writeCExprs1()" here instead? */ */
   writeCExprs1(alphal, radcan(alphal_c)),
   writeCExprs1(alphar, radcan(alphar_c)),

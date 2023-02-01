@@ -50,7 +50,8 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   f_e : doExpand1(f, bP),
   cot_vec_e : doExpand1(cot_vec, bC),
 
-  /*cot_vec_e : psubst(makelist(tvComp[i]=tvComp[a0+i],i,0,NC-1),tvComp_e),*/
+  cot_vec_e : psubst(makelist(cot_vec[i]=cot_vec[a0+i],i,0,NC-1),cot_vec_e),
+  print(cot_vec_e),
   /* Use something like subst(a0=NC*(dir),cot_vec_e)) */
 
   /*incr_c :  makelist(0, i, 1, NP),*/
@@ -64,7 +65,7 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
          Gbar_c : calcInnerProdList(varsC, 1, bC, Gbar_temp_c[i]),
 	 writeCExprsCollect1(Gbar,Gbar_c,clst),
 	 Gbar_e : doExpand1(Gbar, bC), /* Write out these coeff */
-	 incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir),cot_vec_e))),
+	 incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir-1),cot_vec_e))),
 	 /*print(incr_c),*/
       	 printf(fh, "  ~a += ~a; ~%", out[i-1], incr_c),
 	 printf(fh, "~%")
