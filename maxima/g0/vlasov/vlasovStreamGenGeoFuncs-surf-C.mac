@@ -67,24 +67,23 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
   fr_e : doExpand1(fr, bP),
   printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
-  printf(fh, "  double Ghat_r[~a]; ~%", length(bSurf)),
-  printf(fh, "  double Ghat_l[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),      
 
   printf(fh, "  const double *ag~a = &alpha_geo[~a]; ~%", dir-1, numBasisP*(dir-1)),
   printf(fh, "~%"),
 
   alpha_geo_e : doExpand1(alphaFld[dir], bP),
-  printf(fh, "  double alphal[~a]; ~%", length(bSurf)),
-  printf(fh, "  double alphar[~a]; ~%", length(bSurf)),
+  printf(fh, "  double alphal[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alphar[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
 
   /* Project alpha onto surface basis, and print resulting coefficients. */
   alphal_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, alpha_geo_e)),
   alphar_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, alpha_geo_e)),
-  /* writeCExprsCollect1lhsc(alpha, radcan(alpha_c)), /* Or use "writeCExprs1()" here instead? */ */
-  writeCExprs1(alphal, radcan(alphal_c)),
-  writeCExprs1(alphar, radcan(alphar_c)),
+  writeCExprs1(alphal, alphal_c),
+  writeCExprs1(alphar, alphar_c),
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
@@ -110,19 +109,6 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
   printf(fh, "  double fUpwind_l[~a] = {0.0};;~%", length(bSurf)),
   printf(fh, "  double fUpwind_r[~a] = {0.0};~%", length(bSurf)),
   printf(fh, "~%"),
-  /* Check sign of each quadrature point and choose appropriate distribution function at 
-     quadrature points. If alpha > 0, need f_l (at +1) and f_c (at +1). If alpha < 0, 
-     need f_c (at -1) and f_r (at -1). */
-  /* for i : 1 thru length(alphaOrdL_n) do (
-    printf(fh, "  if (~a > 0) { ~%", alphaOrdL_n[i]),
-    printf(fh, "    fUpwindQuad_l[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fl); ~%", i-1, cdim, vdim, dir, i-1),
-    printf(fh, "    fUpwindQuad_r[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fc); ~%", i-1, cdim, vdim, dir, i-1)
-    printf(fh, "  } else { ~%"),
-    printf(fh, "    fUpwindQuad_l[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fc); ~%", i-1, cdim, vdim, dir, i-1),
-    printf(fh, "    fUpwindQuad_r[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fr); ~%", i-1, cdim, vdim, dir, i-1),
-    printf(fh, "  } ~%")
-  ), */
-
   /* Check sign of each quadrature point and choose appropriate distribution function at 
      quadrature points. If alpha > 0, need f_l (at +1) and f_c (at +1). If alpha < 0, 
      need f_c (at -1) and f_r (at -1). */
@@ -153,39 +139,19 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
 
   /* Print C exprs for Ghat across surface boundary, (LEFT BOUNDARY) */
   Ghat_l_c : fullratsimp(innerProd(surfVars, alphal_e, bSurf, fHatSurf_l_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
-  ) else (
-    writeCExprs1(Ghat_l, Ghat_l_c)
-  ),
+  writeCExprs1(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
   flush_output(fh),
-
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
   Ghat_r_c : fullratsimp(innerProd(surfVars, alphar_e, bSurf, fHatSurf_r_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
-  ) else (
-    writeCExprs1(Ghat_r, Ghat_r_c)
-  ),
+  writeCExprs1(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
+  /* Expand G_hat in surface basis. */
+  Ghat_l_e : doExpand1(Ghat_l, bSurf),
+  Ghat_r_e : doExpand1(Ghat_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
