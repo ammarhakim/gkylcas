@@ -99,6 +99,9 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
+    ),
+    for polyOrder : minPolyOrderB thru 2 do (
+      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )
   )
 );
