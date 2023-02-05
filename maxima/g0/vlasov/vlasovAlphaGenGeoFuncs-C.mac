@@ -31,7 +31,6 @@ calcVlasovAlphaGenGeo(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,
   NC : length(bC),
   NP : length(bP),
   print("NP", NP),
-  print(bP),
   varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
   print(varsV),
 
