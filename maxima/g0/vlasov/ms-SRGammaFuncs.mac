@@ -1,8 +1,11 @@
 load("vlasov/SRGammaFuncs")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-    Gamma^2 = 1/(1 - V^2/c^2), the square of the Lorentz
-    Boost factor. */
+/* This script calls the functions which calculate various 
+   quantities related to the Lorentz boost factor, including
+   1. Gamma^2 = 1/(1 - V^2/c^2),
+   2. Gamma = 1/sqrt(1 - V^2/c^2),
+   3. Gamma_inv = sqrt(1 - V^2/c^2).
+   where V is the bulk velocity. */
 
 /* ...... USER INPUTS........ */
 
@@ -10,7 +13,9 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -18,7 +23,9 @@ maxCdim_Ser : 1$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
+minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -26,19 +33,36 @@ bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
-
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 for bInd : 1 thru length(bName) do (
-  for d : minCdim[bInd] thru maxCdim[bInd] do (
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for v : minVdim[bInd] thru maxVdim[bInd] do (
 
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      fname : sconcat("~/max-out/Gamma2_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("Gamma2_", d, "x_", bName[bInd]),
-      calcGamma2(fh, funcName, d, 3, bName[bInd], polyOrder),
-      close(fh)
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        fname : sconcat("~/max-out/sr_Gamma2_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("sr_Gamma2_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcGamma2(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh),
+
+        fname : sconcat("~/max-out/sr_Gamma_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("sr_Gamma_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcGamma(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh),
+
+        fname : sconcat("~/max-out/sr_Gamma_inv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("sr_Gamma_inv_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcGammaInv(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 );

@@ -60,10 +60,10 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* specify a point to evaluate alpha at for use in computing CFL */
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *qmem, const double *cot_vec, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // qmem:      q/m*EM fields.~%"),
+  printf(fh, "  // field:      q/m*EM fields.~%"),
   printf(fh, "  // cot_vec:   Only used in gen geo.~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
@@ -80,7 +80,7 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* set cell-spacing and access q/m*EM field data */
   for dir : 1 thru vdim do (
     printf(fh, "  const double dv1~a = 2/dxv[~a]; ~%", dir-1, vid[dir]),
-    printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, NC*(dir-1)),
+    printf(fh, "  const double *E~a = &field[~a]; ~%", dir-1, NC*(dir-1)),
     printf(fh, "  const double dv~a = dxv[~a], wv~a = w[~a]; ~%", dir, vid[dir], dir, vid[dir])
   ),
   printf(fh, "~%"),
@@ -88,11 +88,11 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   if vdim > 1 then (
     if vdim = 2 then (
       /* in 2 velocity dimensions, only Bz */
-      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, NC*2+3*NC)
+      printf(fh, "  const double *B~a = &field[~a]; ~%", 2, NC*2+3*NC)
     ),
     if vdim = 3 then (
       for dir : 1 thru 3 do (
-        printf(fh, "  const double *B~a = &qmem[~a]; ~%", dir-1, NC*(dir-1)+3*NC)
+        printf(fh, "  const double *B~a = &field[~a]; ~%", dir-1, NC*(dir-1)+3*NC)
       )            
     )
   ),

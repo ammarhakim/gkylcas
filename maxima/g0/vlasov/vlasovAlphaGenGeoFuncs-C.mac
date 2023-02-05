@@ -49,9 +49,9 @@ calcVlasovAlphaGenGeo(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,
   vid : vidx(cdim,vdim),
 
   printf(fh, "~%"),
-  printf(fh, "  double v_x[~a];~%", NP),
-  printf(fh, "  double v_y[~a];~%", NP),
-  printf(fh, "  double v_z[~a];~%", NP),
+  printf(fh, "  double v_x[~a] = {0.0};~%", NP),
+  printf(fh, "  double v_y[~a] = {0.0};~%", NP),
+  printf(fh, "  double v_z[~a] = {0.0};~%", NP),
   printf(fh, "~%"),	
 
   printf(fh, "  const double *gxx = &gij[~a]; ~%", NC*0),
@@ -72,7 +72,6 @@ calcVlasovAlphaGenGeo(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,
 
   /* For multiple components, change indices. */
   tvComp_e : psubst(makelist(tvComp[i]=tvComp[a0+i],i,0,NC-1),tvComp_e),
-  print(tvComp_e),
 
   vTemp_c :  makelist(0, i, 1, vdim), 				 
   /* Calculate v_i components: v_x = v_X*dX/dx + v_Y*dY/dx + v_Z*dZ/dx, ...  */

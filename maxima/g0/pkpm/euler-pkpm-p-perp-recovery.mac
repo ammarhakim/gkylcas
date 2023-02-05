@@ -1,0 +1,411 @@
+/* This script generates the kernels for the gradient quantities with recovery
+   for discretization of the parallel-kinetic-perpendicular-moment (pkpm)
+   model. These include div(p), div(b), bb : grad(u), and p_force = 1/rho*div(p_parallel b). 
+   For p_perp fluid equation, also computes p_perp div(u) - p_perp bb : grad(u).
+   Used by both kinetic and fluid equations */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("scifac")$
+load("recovery")$
+fpprec : 24$
+cvars : [x, y, z]$
+
+calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, cv, 
+  lst_b_l, lst_b_c, lst_b_r, b_rec, 
+  lst_ux_l, lst_ux_c, lst_ux_r, lst_uy_l, lst_uy_c, lst_uy_r, lst_uz_l, lst_uz_c, lst_uz_r, 
+  ux_rec, uy_rec, uz_rec, 
+  lst_Pxx_l, lst_Pxx_c, lst_Pxx_r, lst_Pxy_l, lst_Pxy_c, lst_Pxy_r, lst_Pxz_l, lst_Pxz_c, lst_Pxz_r, 
+  lst_Pyy_l, lst_Pyy_c, lst_Pyy_r, lst_Pyz_l, lst_Pyz_c, lst_Pyz_r, lst_Pzz_l, lst_Pzz_c, lst_Pzz_r, 
+  Pxx_rec, Pxy_rec, Pxz_rec, Pyy_rec, Pyz_rec, Pzz_rec, 
+  lst_ppar_b_l, lst_ppar_b_c, lst_ppar_b_r, ppar_b_rec, 
+  lst_rhoux_l, lst_rhoux_c, lst_rhoux_r, rhoux_rec, 
+  lst_rhouy_l, lst_rhouy_c, lst_rhouy_r, rhouy_rec, 
+  lst_rhouz_l, lst_rhouz_c, lst_rhouz_r, rhouz_rec, 
+  grad_u_x_c, grad_u_y_c, grad_u_z_c,
+  bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e,  
+  grad_u_x_e, grad_u_y_e, grad_u_z_e,
+  pparl_e, pparc_e, pparr_e, bl_e, bc_e, br_e, p_perp_e, 
+  ppar_b_l_c, ppar_b_c_c, ppar_b_r_c, b_prime_c, div_b_e, div_b_c, 
+  bb_grad_u_comp_c, div_p_x_c, div_p_y_c, div_p_z_c, 
+  hyper_rhoux_c, hyper_rhouy_c, hyper_rhouz_c, bb_grad_u_e, bb_grad_u_c, div_ppar_b_c, 
+  rho_inv_e, T_perp_over_m_inv_e, div_ppar_b_e, T_perp_over_m_e, nu_e, nu_vthsq_e, 
+  p_force_c, p_perp_source_c, p_perp_div_b_c],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  /* cv = variable to perform recovery in. */
+  cv : varsC[dir],
+
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *dxv, double nuHyp, 
+  const double *bvarl, const double *bvarc, const double *bvarr, 
+  const double *u_il, const double *u_ic, const double *u_ir, 
+  const double *p_ijl, const double *p_ijc, const double *p_ijr, 
+  const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr, 
+  const double *statevecl, const double *statevecc, const double *statevecr, 
+  const double *rho_inv, const double *T_perp_over_m, const double *T_perp_over_m_inv, 
+  const double *nu, const double *nu_vthsq, 
+  double* div_p, double* pkpm_accel_vars) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "  // dxv[NDIM]:             Cell spacing.~%"),
+  printf(fh, "  // nuHyp:                 Hyper-diffusion coefficient.~%"),
+  printf(fh, "  // bvarl/c/r:             Input magnetic field unit vector in left/center/right cells.~%"),
+  printf(fh, "  // u_il/c/r:              Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
+  printf(fh, "  // p_ijl/c/r:             Input pressure tensor in left/center/right cells.~%"),
+  printf(fh, "  // vlasov_pkpm_momsl/c/r: Input pkpm moments (rho, p_parallel, p_perp) in left/center/right cells.~%"),
+  printf(fh, "  // statevecl/c/r:         [rho ux, rho uy, rho uz], Fluid input state vector in center cell.~%"),
+  printf(fh, "  // T_perp_over_m_inv:     Input 1/rho in center cell.~%"),
+  printf(fh, "  // T_perp_over_m:         Input p_perp/rho = T_perp/m in center cell.~%"),
+  printf(fh, "  // T_perp_over_m_inv:     Input (T_perp/m)^-1 in center cell.~%"),
+  printf(fh, "  // nu:                    Input collisionality in center cell.~%"),
+  printf(fh, "  // nu_vthsq:              Input nu*vth^2 in center cell.~%"),
+  printf(fh, "  // div_p:                 Increment to volume expansion of div(p) in one direction; includes hyper-diffusion for momentum.~%"),
+  printf(fh, "  // pkpm_accel_vars:       Increment to volume expansion of pkpm acceleration variables.~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
+  /* Hyper diffusion Jacobian factor */
+  printf(fh, "  const double dx14 = dx1*dx1*dx1*dx1; ~%"),
+  printf(fh, "~%"),
+
+  /* b_hat in direction dir for div(b) */
+  printf(fh, "  const double *b_l = &bvarl[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *b_c = &bvarc[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *b_r = &bvarr[~a]; ~%", (dir-1)*NC),
+  printf(fh, "~%"),
+
+  /* u_i and bb for bb : grad(u). Need bb in center cell. */
+  printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0),
+  printf(fh, "  const double *uy_l = &u_il[~a]; ~%", NC),
+  printf(fh, "  const double *uz_l = &u_il[~a]; ~%", NC*2),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *ux_c = &u_ic[~a]; ~%", 0),
+  printf(fh, "  const double *uy_c = &u_ic[~a]; ~%", NC),
+  printf(fh, "  const double *uz_c = &u_ic[~a]; ~%", NC*2),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *ux_r = &u_ir[~a]; ~%", 0),
+  printf(fh, "  const double *uy_r = &u_ir[~a]; ~%", NC),
+  printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", NC*2),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *bxbx = &bvarc[~a]; ~%", NC*3),
+  printf(fh, "  const double *bxby = &bvarc[~a]; ~%", NC*4),
+  printf(fh, "  const double *bxbz = &bvarc[~a]; ~%", NC*5),
+  printf(fh, "  const double *byby = &bvarc[~a]; ~%", NC*6),
+  printf(fh, "  const double *bybz = &bvarc[~a]; ~%", NC*7),
+  printf(fh, "  const double *bzbz = &bvarc[~a]; ~%", NC*8),
+  printf(fh, "~%"),
+
+  /* p_ij for div(p) */
+  printf(fh, "  const double *Pxx_l = &p_ijl[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_l = &p_ijl[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_l = &p_ijl[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_l = &p_ijl[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_l = &p_ijl[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_l = &p_ijl[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_c = &p_ijc[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_c = &p_ijc[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_c = &p_ijc[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_c = &p_ijc[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_c = &p_ijc[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_c = &p_ijc[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_r = &p_ijr[~a]; ~%", 0),
+  printf(fh, "  const double *Pxy_r = &p_ijr[~a]; ~%", NC),
+  printf(fh, "  const double *Pxz_r = &p_ijr[~a]; ~%", NC*2),
+  printf(fh, "  const double *Pyy_r = &p_ijr[~a]; ~%", NC*3),
+  printf(fh, "  const double *Pyz_r = &p_ijr[~a]; ~%", NC*4),
+  printf(fh, "  const double *Pzz_r = &p_ijr[~a]; ~%", NC*5),
+  printf(fh, "~%"),
+
+  /* rho and p_parallel for p_force. Need rho in center cell */
+  printf(fh, "  const double *ppar_l = &vlasov_pkpm_momsl[~a]; ~%", NC),
+  printf(fh, "  const double *ppar_c = &vlasov_pkpm_momsc[~a]; ~%", NC),
+  printf(fh, "  const double *ppar_r = &vlasov_pkpm_momsr[~a]; ~%", NC),
+  printf(fh, "  const double *rho = &vlasov_pkpm_momsc[~a]; ~%", 0),
+  printf(fh, "  const double *p_perp = &vlasov_pkpm_momsc[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  /* rho u_i in left/center/right cells for hyper-diffusion of momentum */
+  printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *div_p_x = &div_p[~a]; ~%", 0*NC),
+  printf(fh, "  double *div_p_y = &div_p[~a]; ~%", 1*NC),
+  printf(fh, "  double *div_p_z = &div_p[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
+  printf(fh, "  double *bb_grad_u = &pkpm_accel_vars[~a]; ~%", 1*NC),
+  printf(fh, "  double *p_force = &pkpm_accel_vars[~a]; ~%", 2*NC),
+  printf(fh, "  double *p_perp_source = &pkpm_accel_vars[~a]; ~%", 3*NC),
+  printf(fh, "  double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 4*NC),
+  printf(fh, "~%"),
+
+  /* We use recovery to compute div(b), grad(u), div(p), and div(p_parallel b) */
+  lst_b_l : makelist(b_l[i], i, 0, NC-1),
+  lst_b_c : makelist(b_c[i], i, 0, NC-1),
+  lst_b_r : makelist(b_r[i], i, 0, NC-1),
+
+  b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_b_l), dg(lst_b_c), dg(lst_b_r)),
+
+  lst_ux_l : makelist(ux_l[i], i, 0, NC-1),
+  lst_ux_c : makelist(ux_c[i], i, 0, NC-1),
+  lst_ux_r : makelist(ux_r[i], i, 0, NC-1),
+
+  lst_uy_l : makelist(uy_l[i], i, 0, NC-1),
+  lst_uy_c : makelist(uy_c[i], i, 0, NC-1),
+  lst_uy_r : makelist(uy_r[i], i, 0, NC-1),
+
+  lst_uz_l : makelist(uz_l[i], i, 0, NC-1),
+  lst_uz_c : makelist(uz_c[i], i, 0, NC-1),
+  lst_uz_r : makelist(uz_r[i], i, 0, NC-1),
+
+  ux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_ux_l), dg(lst_ux_c), dg(lst_ux_r)),
+
+  uy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_uy_l), dg(lst_uy_c), dg(lst_uy_r)),
+
+  uz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_uz_l), dg(lst_uz_c), dg(lst_uz_r)),
+
+  /* Compute the recovery for all components of p_ij, even though
+     we only need 3 based on direction of update */
+  lst_Pxx_l : makelist(Pxx_l[i], i, 0, NC-1),
+  lst_Pxx_c : makelist(Pxx_c[i], i, 0, NC-1),
+  lst_Pxx_r : makelist(Pxx_r[i], i, 0, NC-1),
+
+  lst_Pxy_l : makelist(Pxy_l[i], i, 0, NC-1),
+  lst_Pxy_c : makelist(Pxy_c[i], i, 0, NC-1),
+  lst_Pxy_r : makelist(Pxy_r[i], i, 0, NC-1),
+
+  lst_Pxz_l : makelist(Pxz_l[i], i, 0, NC-1),
+  lst_Pxz_c : makelist(Pxz_c[i], i, 0, NC-1),
+  lst_Pxz_r : makelist(Pxz_r[i], i, 0, NC-1),
+
+  lst_Pyy_l : makelist(Pyy_l[i], i, 0, NC-1),
+  lst_Pyy_c : makelist(Pyy_c[i], i, 0, NC-1),
+  lst_Pyy_r : makelist(Pyy_r[i], i, 0, NC-1),
+
+  lst_Pyz_l : makelist(Pyz_l[i], i, 0, NC-1),
+  lst_Pyz_c : makelist(Pyz_c[i], i, 0, NC-1),
+  lst_Pyz_r : makelist(Pyz_r[i], i, 0, NC-1),
+
+  lst_Pzz_l : makelist(Pzz_l[i], i, 0, NC-1),
+  lst_Pzz_c : makelist(Pzz_c[i], i, 0, NC-1),
+  lst_Pzz_r : makelist(Pzz_r[i], i, 0, NC-1),
+
+  Pxx_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxx_l), dg(lst_Pxx_c), dg(lst_Pxx_r)),
+
+  Pxy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxy_l), dg(lst_Pxy_c), dg(lst_Pxy_r)),
+
+  Pxz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pxz_l), dg(lst_Pxz_c), dg(lst_Pxz_r)),
+
+  Pyy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pyy_l), dg(lst_Pyy_c), dg(lst_Pyy_r)),
+
+  Pyz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pyz_l), dg(lst_Pyz_c), dg(lst_Pyz_r)),
+
+  Pzz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_Pzz_l), dg(lst_Pzz_c), dg(lst_Pzz_r)),
+
+  lst_ppar_b_l : makelist(ppar_b_l[i], i, 0, NC-1),
+  lst_ppar_b_c : makelist(ppar_b_c[i], i, 0, NC-1),
+  lst_ppar_b_r : makelist(ppar_b_r[i], i, 0, NC-1),
+
+  ppar_b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_ppar_b_l), dg(lst_ppar_b_c), dg(lst_ppar_b_r)),
+ 
+  /* Note that this recovery is higher order as we will take more derivatives */
+  lst_rhoux_l : makelist(rhoux_l[i], i, 0, NC-1),
+  lst_rhoux_c : makelist(rhoux_c[i], i, 0, NC-1),
+  lst_rhoux_r : makelist(rhoux_r[i], i, 0, NC-1),
+
+  lst_rhouy_l : makelist(rhouy_l[i], i, 0, NC-1),
+  lst_rhouy_c : makelist(rhouy_c[i], i, 0, NC-1),
+  lst_rhouy_r : makelist(rhouy_r[i], i, 0, NC-1),
+
+  lst_rhouz_l : makelist(rhouz_l[i], i, 0, NC-1),
+  lst_rhouz_c : makelist(rhouz_c[i], i, 0, NC-1),
+  lst_rhouz_r : makelist(rhouz_r[i], i, 0, NC-1),
+
+  rhoux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+    dg(lst_rhoux_l), dg(lst_rhoux_c), dg(lst_rhoux_r)),
+
+  rhouy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+    dg(lst_rhouy_l), dg(lst_rhouy_c), dg(lst_rhouy_r)),
+
+  rhouz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+    dg(lst_rhouz_l), dg(lst_rhouz_c), dg(lst_rhouz_r)),
+
+  /* Need bb : grad(u), write out grad(u) for each component of u */
+  printf(fh, "  double grad_u_x[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
+
+  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec, cv)),
+  writeCExprs1(grad_u_x, dx1*grad_u_x_c),
+  printf(fh, "~%"),
+
+  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec, cv)),
+  writeCExprs1(grad_u_y, dx1*grad_u_y_c),
+  printf(fh, "~%"),
+
+  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec, cv)),
+  writeCExprs1(grad_u_z, dx1*grad_u_z_c),
+  printf(fh, "~%"),
+
+  /* Expand bb and grad(u) for each component of u */
+  bxbx_e : doExpand1(bxbx, bC),
+  bxby_e : doExpand1(bxby, bC),
+  bxbz_e : doExpand1(bxbz, bC),
+  byby_e : doExpand1(byby, bC),
+  bybz_e : doExpand1(bybz, bC),
+  bzbz_e : doExpand1(bzbz, bC),
+
+  grad_u_x_e : doExpand1(grad_u_x, bC),
+  grad_u_y_e : doExpand1(grad_u_y, bC),
+  grad_u_z_e : doExpand1(grad_u_z, bC),
+
+  /* get pparallel, b, and 1/rho from expansions */
+  pparl_e : doExpand1(ppar_l, bC),
+  pparc_e : doExpand1(ppar_c, bC),
+  pparr_e : doExpand1(ppar_r, bC),
+  bl_e : doExpand1(b_l, bC),
+  bc_e : doExpand1(b_c, bC),
+  br_e : doExpand1(b_r, bC),
+  p_perp_e : doExpand1(p_perp, bC), 
+
+  printf(fh, "  double ppar_b_l[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double ppar_b_c[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double ppar_b_r[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double div_b_comp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC),
+
+  ppar_b_l_c : calcInnerProdList(varsC, 1, bC, pparl_e*bl_e),
+  writeCExprs1(ppar_b_l, ppar_b_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  ppar_b_c_c : calcInnerProdList(varsC, 1, bC, pparc_e*bc_e),
+  writeCExprs1(ppar_b_c, ppar_b_c_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  ppar_b_r_c : calcInnerProdList(varsC, 1, bC, pparr_e*br_e),
+  writeCExprs1(ppar_b_r, ppar_b_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  b_prime_c : calcInnerProdList(varsC, 1, bC, diff(b_rec, cv)),
+  writeCExprs1(div_b_comp, dx1*b_prime_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  div_b_e : doExpand1(div_b_comp, bC),
+  div_b_c : calcInnerProdList(varsC, 1, bC, div_b_e),
+  writeCIncrExprsCollect1lhsc(div_b, div_b_c),  
+  printf(fh, "~%"),
+
+  if (dir = 1) then (  
+    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxx_rec, cv)),
+    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
+    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbx_e*grad_u_x_e + bxby_e*grad_u_y_e + bxbz_e*grad_u_z_e)
+  )
+  elseif (dir = 2) then (
+    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
+    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyy_rec, cv)),
+    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxby_e*grad_u_x_e + byby_e*grad_u_y_e + bybz_e*grad_u_z_e)
+  )
+  elseif (dir = 3) then (
+    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
+    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
+    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pzz_rec, cv)),
+    bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbz_e*grad_u_x_e + bybz_e*grad_u_y_e + bzbz_e*grad_u_z_e)
+  ),
+
+  hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 4)),
+  hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 4)),
+  hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4)),
+
+  writeCExprs1(bb_grad_u_comp, bb_grad_u_comp_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  bb_grad_u_e : doExpand1(bb_grad_u_comp, bC),
+  bb_grad_u_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e),
+  writeCIncrExprsCollect1lhsc(bb_grad_u, bb_grad_u_c),  
+  printf(fh, "~%"),
+
+  writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c + nuHyp*dx14*hyper_rhoux_c),
+  printf(fh, "~%"),
+  writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c + nuHyp*dx14*hyper_rhouy_c),
+  printf(fh, "~%"),
+  writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c + nuHyp*dx14*hyper_rhouz_c),
+  printf(fh, "~%"),
+
+  printf(fh, "  double div_ppar_b[~a] = {0.0}; ~%", NC),
+  div_ppar_b_c : calcInnerProdList(varsC, 1, bC, diff(ppar_b_rec , cv)),
+  writeCExprs1(div_ppar_b, dx1*div_ppar_b_c),
+  printf(fh, "~%"),
+
+  rho_inv_e : doExpand1(rho_inv, bC),
+  T_perp_over_m_inv_e : doExpand1(T_perp_over_m_inv, bC),
+  div_ppar_b_e : doExpand1(div_ppar_b, bC),
+  T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
+  nu_e : doExpand1(nu, bC),
+  nu_vthsq_e : doExpand1(nu_vthsq, bC),
+
+  p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e - T_perp_over_m_e*div_b_e),
+  writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
+  printf(fh, "~%"),
+
+  if (dir = 1) then (  
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_x_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+  )
+  elseif (dir = 2) then (
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_y_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+  )
+  elseif (dir = 3) then (
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_z_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+  ),  
+  writeCIncrExprsCollect1lhsc(p_perp_source, p_perp_source_c), 
+  printf(fh, "~%"),
+
+  p_perp_div_b_c : calcInnerProdList(varsC, 1, bC, T_perp_over_m_e*div_b_e),
+  writeCIncrExprsCollect1lhsc(p_perp_div_b, p_perp_div_b_c),  
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$

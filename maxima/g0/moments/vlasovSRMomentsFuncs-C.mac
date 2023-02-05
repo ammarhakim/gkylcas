@@ -29,16 +29,21 @@ wTrans  : [wx1, wx2, wx3]$
 dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 p_over_gamma_fld : [p0_over_gamma, p1_over_gamma, p2_over_gamma]$
 
+/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
+
 /* Number density */
 /* M0 = < f > */
-calcSRM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+calcSRM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, varsP, bP, NP, NC, fl, M],
+  kill(varsC, varsP, bC, bP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
   
-  printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   fl : doExpand1(f, bP),
   M : calcInnerProdList(varsP, 1, bC, fl),
@@ -50,19 +55,25 @@ calcSRM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
 
 /* Momentum */
 calcSRM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [],
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, M, clst],
   kill(varsC, varsP, basisC, basisP),
   load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
   /* Generate basis in velocity space only. */
-  bV : subst(pVsub,basisC[polyOrder]),
-  NV : length(bV),
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
   
   kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
   
   printf(fh, "GKYL_CU_DH void ~a_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -84,8 +95,251 @@ calcSRM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "} ~%")
 )$
 
+/* 4-Momentum (GammaV*n, GammaV*n*V) */
+calcSRNi(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, M0, M1, clst, Ni],
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
+  
+  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  
+  printf(fh, "GKYL_CU_DH void ~a_Ni_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", i-1, NV*(i-1))
+  ),
+  
+  fl : doExpand1(f, bP),
+
+  M0 : calcInnerProdList(varsP, 1, bC, fl),
+  
+  M1 : (M1 : [],
+    for dir : 1 thru vdim do (
+      M1 : append(M1, calcInnerProdList(varsP, doExpand1(p_over_gamma_fld[dir], bV), bC, fl))
+    ),
+  M1),
+  
+  clst : [volFact],
+  Ni : [],
+  Ni : append(Ni, volFact*M0),
+  Ni : append(Ni, volFact*M1),
+  writeCIncrExprsCollect1(out, Ni, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+/* Energy = gamma*mc^2 moment */
+calcSREnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, Energy, clst],
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
+  
+  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  
+  printf(fh, "GKYL_CU_DH void ~a_Energy_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+
+  fl : doExpand1(f, bP),
+  
+  Energy : calcInnerProdList(varsP, doExpand1(gamma, bV), bC, fl),
+  
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*Energy, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+/* total fluid-frame pressure = n*T where n is the fluid-frame density */
+calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC,
+  Vx_e, Vy_e, Vz_e, VxSq_e, VySq_e, VzSq_e,
+  temp_c, temp_sq_c, tempNoZero, temp_e, tempSqNoZero, tempSq_e, 
+  p_fac_c, p_facNoZero, 
+  gamma_inv_e, gamma_e, GammaV2_e, p_fac_e, fl, Pressure, clst],
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
+  
+  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+
+  printf(fh, "GKYL_CU_DH void ~a_Pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma_inv, const double *gamma, const double *GammaV2, const double *V_drift, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  const double wx~a_sq = wx~a*wx~a, dv~a_sq = dv~a*dv~a; ~%", i, i, i, i, i, i),
+    printf(fh, "  const double *V_drift_~a = &V_drift[~a]; ~%", i-1, NC*(i-1)),
+    printf(fh, "  double V_drift_~a_sq[~a] = {0.0}; ~%", i-1, NC),
+    printf(fh, "  ~a_~ax_p~a_exp_sq(V_drift_~a, V_drift_~a_sq); ~%", basisFun, cdim, polyOrder, i-1, i-1),
+    printf(fh, " ~%")
+  ),
+
+  Vx_e : doExpand1(V_drift_0, bC),
+  Vy_e : doExpand1(V_drift_1, bC),
+  Vz_e : doExpand1(V_drift_2, bC),
+
+  VxSq_e : doExpand1(V_drift_0_sq, bC),
+  VySq_e : doExpand1(V_drift_1_sq, bC),
+  VzSq_e : doExpand1(V_drift_2_sq, bC),
+
+  gamma_inv_e : doExpand1(gamma_inv, bV),
+  gamma_e : doExpand1(gamma, bV),
+  GammaV2_e : doExpand1(GammaV2, bC),
+
+  printf(fh, "  double temp[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double temp_sq[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double p_fac[~a] = {0.0}; ~%", NP),
+  if (vdim = 1) then (
+    temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e),
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e)
+  )
+  elseif (vdim = 2) then (
+    temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e),
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e)
+  )
+  else (
+    temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e + vTrans[3]*Vz_e),
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e + vTrans[3]*vTrans[3]*GammaV2_e*VzSq_e)
+  ),
+  writeCExprs1(temp, temp_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  temp_sq_c : map(letsimp, temp_sq_c),
+  writeCExprs1(temp_sq, temp_sq_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Zero out components of p . V_drift which are empty. */
+  tempNoZero : doMakeExprLst(temp_c, temp),
+  temp_e     : doExpand(tempNoZero, bP),
+
+  tempSqNoZero : doMakeExprLst(temp_sq_c, temp_sq),
+  tempSq_e     : doExpand(tempSqNoZero, bP),
+
+  p_fac_c : calcInnerProdList(varsP, 1, bP, gamma_e*GammaV2_e - 2*GammaV2_e*temp_e + gamma_inv_e*(tempSq_e - 1)),
+  writeCExprs1(p_fac, p_fac_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Zero out components of p . V_drift which are empty. */
+  p_facNoZero : doMakeExprLst(p_fac_c, p_fac),
+  p_fac_e     : doExpand(p_facNoZero, bP),
+
+  fl : doExpand1(f, bP),
+  
+  Pressure : calcInnerProdList(varsP, p_fac_e, bC, fl),
+  
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact/vdim*Pressure, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+/* Stress-energy tensor (Energy, Energy flux (vdim components), Stress tensor (vdim*(vdim+1))/2 components)) */
+calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, Energy, M3, M2, clst, Tij],
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
+  
+  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  
+  printf(fh, "GKYL_CU_DH void ~a_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", i-1, NV*(i-1))
+  ),
+  
+  fl : doExpand1(f, bP),
+
+  Energy : calcInnerProdList(varsP, doExpand1(gamma, bV), bC, fl),
+  
+  M3 : (M3 : [],
+    for dir : 1 thru vdim do (
+      M3 : append(M3, calcInnerProdList(varsP, vTrans[dir], bC, fl))
+    ),
+  M3),
+
+  M2 : (M2 : [],
+    for dir : 1 thru vdim do (
+      for dir2 : dir thru vdim do (
+        M2 : append(M2, calcInnerProdList(varsP, doExpand1(p_over_gamma_fld[dir], bV)*vTrans[dir2], bC, fl))
+      )
+    ),
+  M2),
+  
+  clst : [volFact],
+  Tij : [],
+  Tij : append(Tij, volFact*Energy),
+  Tij : append(Tij, volFact*M3),
+  Tij : append(Tij, volFact*M2),
+  writeCIncrExprsCollect1(out, Tij, clst),
+  
+  printf(fh, "} ~%")
+)$
+
 calcSRMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_exp_sq.h> ~%", basisFun, cdim, polyOrder),
   calcSRM0(fh, funcNm, cdim, vdim, basisFun, polyOrder),
-  calcSRM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+  calcSRM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcSRNi(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcSREnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$

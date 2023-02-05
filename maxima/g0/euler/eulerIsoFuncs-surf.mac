@@ -173,8 +173,14 @@ calcEulerIso1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   ur_2_l : subst(cv=-1, ur_2_e),
 
   /* Ghat_rho = 1/2 * (u_l*rho_l + u_r*rho_r) - 1/2 * max(|u_l|, |u_r|) (rho_r - rho_l) */
-  avg_rho_flux_l : 0.5*(ul_0_r*rhol_r + uc_0_l*rhoc_l),
-  avg_rho_flux_r : 0.5*(uc_0_r*rhoc_r + ur_0_l*rhor_l),
+  avg_rhoux_l : 0.5*(rhouxl_r + rhouxc_l),
+  avg_rhoux_r : 0.5*(rhouxc_r + rhouxr_l),
+
+  avg_rhouy_l : 0.5*(rhouyl_r + rhouyc_l),
+  avg_rhouy_r : 0.5*(rhouyc_r + rhouyr_l),
+
+  avg_rhouz_l : 0.5*(rhouzl_r + rhouzc_l),
+  avg_rhouz_r : 0.5*(rhouzc_r + rhouzr_l),
 
   avg_ux_l : 0.5*(ul_0_r + uc_0_l),
   avg_ux_r : 0.5*(uc_0_r + ur_0_l),
@@ -187,6 +193,15 @@ calcEulerIso1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   avg_rho_l : 0.5*(rhol_r + rhoc_l),
   avg_rho_r : 0.5*(rhoc_r + rhor_l),
+
+  avg_rhoux_advect_l : 0.5*((rhouxl_r*ul_0_r+rhouxc_l*uc_0_l)+(rhouxl_r*ul_1_r+rhouxc_l*uc_1_l)+(rhouxl_r*ul_2_r+rhouxc_l*uc_2_l)),
+  avg_rhoux_advect_r : 0.5*((rhouxc_r*uc_0_r+rhouxr_l*ur_0_l)+(rhouxc_r*uc_1_r+rhouxr_l*ur_1_l)+(rhouxc_r*uc_2_r+rhouxr_l*ur_2_l)),
+
+  avg_rhouy_advect_l : 0.5*((rhouyl_r*ul_0_r+rhouyc_l*uc_0_l)+(rhouyl_r*ul_1_r+rhouyc_l*uc_1_l)+(rhouyl_r*ul_2_r+rhouyc_l*uc_2_l)),
+  avg_rhouy_advect_r : 0.5*((rhouyc_r*uc_0_r+rhouyr_l*ur_0_l)+(rhouyc_r*uc_1_r+rhouyr_l*ur_1_l)+(rhouyc_r*uc_2_r+rhouyr_l*ur_2_l)),
+
+  avg_rhouz_advect_l : 0.5*((rhouxl_r*ul_0_r+rhouxc_l*uc_0_l)+(rhouxl_r*ul_1_r+rhouxc_l*uc_1_l)+(rhouxl_r*ul_2_r+rhouxc_l*uc_2_l)),
+  avg_rhouz_advect_r : 0.5*((rhouxc_r*uc_0_r+rhouxr_l*ur_0_l)+(rhouxc_r*uc_1_r+rhouxr_l*ur_1_l)+(rhouxc_r*uc_2_r+rhouxr_l*ur_2_l)),
 
   jump_rho_l : 0.5*(rhoc_l - rhol_r),
   jump_rho_r : 0.5*(rhor_l - rhoc_r),
@@ -214,17 +229,17 @@ calcEulerIso1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   /* Expanded Ghat for re-use */
   /* Momentum flux is Ghat_rho*u_avg + vth^2*rho_avg, where u_avg and rho_avg are common values on the interface from averaging */
-  Ghat_rho_l_exp : avg_rho_flux_l - u_max_l*jump_rho_l,
-  Ghat_rho_r_exp : avg_rho_flux_r - u_max_r*jump_rho_r,
+  Ghat_rho_l_exp : avg_rhoux_l - (u_max_l+vth)*jump_rho_l,
+  Ghat_rho_r_exp : avg_rhoux_r - (u_max_r+vth)*jump_rho_r,
 
-  Ghat_rhoux_l_exp : Ghat_rho_l*avg_ux_l + vthsq*avg_rho_l - u_max_l*jump_rhoux_l,
-  Ghat_rhoux_r_exp : Ghat_rho_r*avg_ux_r + vthsq*avg_rho_r - u_max_r*jump_rhoux_r,
+  Ghat_rhoux_l_exp : avg_rhoux_advect_l + vthsq*avg_rho_l - (u_max_l+vth)*jump_rhoux_l,
+  Ghat_rhoux_r_exp : avg_rhoux_advect_r + vthsq*avg_rho_r - (u_max_r+vth)*jump_rhoux_r,
 
-  Ghat_rhouy_l_exp : Ghat_rho_l*avg_uy_l - u_max_l*jump_rhouy_l,
-  Ghat_rhouy_r_exp : Ghat_rho_r*avg_uy_r - u_max_r*jump_rhouy_r,
+  Ghat_rhouy_l_exp : avg_rhouy_advect_l - (u_max_l+vth)*jump_rhouy_l,
+  Ghat_rhouy_r_exp : avg_rhouy_advect_r - (u_max_r+vth)*jump_rhouy_r,
 
-  Ghat_rhouz_l_exp : Ghat_rho_l*avg_uz_l - u_max_l*jump_rhouz_l,
-  Ghat_rhouz_r_exp : Ghat_rho_r*avg_uz_r - u_max_r*jump_rhouz_r,
+  Ghat_rhouz_l_exp : avg_rhouz_advect_l - (u_max_l+vth)*jump_rhouz_l,
+  Ghat_rhouz_r_exp : avg_rhouz_advect_r - (u_max_r+vth)*jump_rhouz_r,
 
   printf(fh, "  double Ghat_rho_l = ~a; ~%", float(expand(Ghat_rho_l_exp))),
   printf(fh, "  double Ghat_rho_r = ~a; ~%", float(expand(Ghat_rho_r_exp))),
@@ -236,7 +251,7 @@ calcEulerIso1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double Ghat_rhouy_r = ~a; ~%", float(expand(Ghat_rhouy_r_exp))),
 
   printf(fh, "  double Ghat_rhouz_l = ~a; ~%", float(expand(Ghat_rhouz_l_exp))),
-  printf(fh, "  double Ghat_rhouz_r = ~a; ~%", float(expand(Ghat_rhouz_r_exp))),  
+  printf(fh, "  double Ghat_rhouz_r = ~a; ~%", float(expand(Ghat_rhouz_r_exp))),
 
   printf(fh, "~%"),
 
@@ -507,7 +522,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
     /* Zero out components of mass flux which are empty. */
     Ghat_rho_l_e : doExpandLst(doMakeExprLst(Ghat_rho_l_c, Ghat_rho_l), bSurf),
-    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),    
+    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),
 
     /* Expansions of remaining fluxes (momentum) */
     Ghat_rhoux_l_exp : Ghat_rho_l_e*avg_ux_l + vthsq*avg_rho_l - uMax_l_e*jump_rhoux_l,
@@ -528,7 +543,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
     /* Zero out components of mass flux which are empty. */
     Ghat_rho_l_e : doExpandLst(doMakeExprLst(Ghat_rho_l_c, Ghat_rho_l), bSurf),
-    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),    
+    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),
 
     /* Expansions of remaining fluxes (momentum) */
     Ghat_rhoux_l_exp : Ghat_rho_l_e*avg_ux_l - uMax_l_e*jump_rhoux_l,
@@ -549,7 +564,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
     /* Zero out components of mass flux which are empty. */
     Ghat_rho_l_e : doExpandLst(doMakeExprLst(Ghat_rho_l_c, Ghat_rho_l), bSurf),
-    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),    
+    Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),
 
     /* Expansions of remaining fluxes (momentum) */
     Ghat_rhoux_l_exp : Ghat_rho_l_e*avg_ux_l - uMax_l_e*jump_rhoux_l,
@@ -586,7 +601,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   writeCExprs1(Ghat_rhouz_l, Ghat_rhouz_l_c),
   printf(fh, "~%"),
-  flush_output(fh),  
+  flush_output(fh),
 
   /* Zero out components of Ghat_l which are empty. */
   Ghat_rhoux_l_e : doExpandLst(doMakeExprLst(Ghat_rhoux_l_c, Ghat_rhoux_l), bSurf),
@@ -608,7 +623,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   writeCExprs1(Ghat_rhouz_r, Ghat_rhouz_r_c),
   printf(fh, "~%"),
-  flush_output(fh),  
+  flush_output(fh),
 
   /* Zero out components of Ghat_r which are empty. */
   Ghat_rhoux_r_e : doExpandLst(doMakeExprLst(Ghat_rhoux_r_c, Ghat_rhoux_r), bSurf),

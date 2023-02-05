@@ -220,8 +220,8 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
 
-  jump_energy_l : 0.5*((energyl_r+pl_r) - (energyc_l+pc_l)),
-  jump_energy_r : 0.5*((energyc_r+pc_r) - (energyr_l+pr_l)),
+  jump_energy_l : 0.5*((energyc_l+pc_l) - (energyl_r+pl_r)),
+  jump_energy_r : 0.5*((energyr_l+pr_l) - (energyc_r+pc_r)),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
   /* evaluate u at surface interfaces to find max */
@@ -544,8 +544,8 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
 
-  jump_energy_l : 0.5*((energyl_r+pl_r) - (energyc_l+pc_l)),
-  jump_energy_r : 0.5*((energyc_r+pc_r) - (energyr_l+pr_l)),
+  jump_energy_l : 0.5*((energyc_l+pc_l) - (energyl_r+pl_r)),
+  jump_energy_r : 0.5*((energyr_l+pr_l) - (energyc_r+pc_r)),
 
   /* Ghat_rho = 1/2 * (u_l*rho_l + u_r*rho_r) - 1/2 * max(|u_l|, |u_r|) (rho_r - rho_l) */
   /* Ghat_rhou_i = Ghat_rho*avg_u_i - 1/2 * max(|u_l|, |u_r|) (rhou_i_r - rhou_i_l) + avg_p */
