@@ -141,7 +141,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
     printf(fh, "  double bFacFskin[~a] = {0.0}; ~%", NP),
     writeCExprs1(bFacFskin, bFacFskin_c),
     printf(fh, "~%"),
-    bFacFskin_c : makelistNoZeros(bFacFskin_c, bFacFskin),
+    bFacFskin_c : makelistNoZeros1(bFacFskin_c, bFacFskin),
 
     vol_incr_c : calcInnerProdList(varsP, 1, bP, facDiff_e*doExpand(bFacFskin_c, bP))
   ) else (
