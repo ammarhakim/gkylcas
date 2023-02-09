@@ -386,8 +386,8 @@ calcAndWrite_upwindIncr_wSurfAvgAlpha(fH,bP,polyOrder,surfDir,sideStr,alphaSurf_
 calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr,
                                        alphaSurf_e,alphaUpSurf_e,fLR,isStep2) := block(
   [varsP,numP,pDim,surfIntVars,vdim,cdim,surf_cvars,surf_vvars,surfNodes,
-   numNodes,fL_e,fR_e,fOrdL_n,fOrdR_n,alphaOrd_n,surf_cdim,surf_vdim,
-   fUpOrd_n,fUp_c,fHatSurf_e,replaceList,Ghat_c,evPoint],
+   numNodes,fL_e,fR_e,fOrdL_n,fOrdR_n,alphaOrd_n,
+   fHatSurf_e,replaceList,Ghat_c,evPoint],
   /* Compute the common increment to left/right cells with upwinding based on
      the quadrature-node values of the phase-space velocity alpha. Write them
      out. The actual output should be these increments scaled by some
@@ -409,10 +409,12 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
-    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
+    basisStr  : sconcat("gkhyb_", cdim, "x", vdim, "v", "_p", polyOrder)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
-    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
+    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder),
+    basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder) 
   ),
   numNodes  : length(surfNodes),
 
@@ -420,42 +422,34 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
   fL_e : doExpand1(fLR[1],bP),
   fR_e : doExpand1(fLR[2],bP),
 
-  /* Evaluate fL, fR, and alpha at surface quadrature nodes. */
-  fOrdL_n : gcfac(float(evAtNodes(subst(surfVar=+1,fL_e),surfNodes,surfIntVars))),
-  fOrdR_n : gcfac(float(evAtNodes(subst(surfVar=-1,fR_e),surfNodes,surfIntVars))),
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. */
   alphaOrd_n : gcfac(float(evAtNodes(alphaUpSurf_e,surfNodes,surfIntVars))),
   /* Determine upwinding at each surface quadrature node. */
   printf(fH, "  double fUpOrd~a[~a] = {0.};~%", sideStr, numNodes),
   for i : 1 thru numNodes do (
-    printf(fH, "  if (~a > 0.) {~%",float(expand(fullratsimp(alphaOrd_n[i]/abs(content(args(alphaOrd_n[i])[1])[1]))))),
-    printf(fH, "    fUpOrd~a[~a] = ~a; ~%", sideStr, i-1, fOrdL_n[i]),
-    printf(fH, "  } else {~%"),
-    printf(fH, "    fUpOrd~a[~a] = ~a; ~%", sideStr, i-1, fOrdR_n[i]),
-    printf(fH, "  }~%")
+    printf(fH, "  if (~a > 0.) {~%", float(expand(fullratsimp(alphaOrd_n[i]/abs(content(args(alphaOrd_n[i])[1])[1]))))),
+    printf(fh, "    fUpOrd~a[~a] = ~a_surfx~a_eval_quad_node_~a_r(~a); ~%", sideStr, i-1, basisStr, surfDir, i-1, fLR[1]),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpOrd~a[~a] = ~a_surfx~a_eval_quad_node_~a_l(~a); ~%", sideStr, i-1, basisStr, surfDir, i-1, fLR[2]),
+    printf(fh, "  } ~%")
   ),
   printf(fH, "~%"),
   flush_output(fH),
 
-  /* Get (quadrature) nodal surface expansion of fUp. */
-  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surf_cdim  : length(surf_cvars),  surf_vdim : length(surf_vvars),
-    basisNodal : getVarsNodalBasisWithNodesHyb("gkhyb", surf_cdim, surf_vdim, surfIntVars, surfNodes)
-  ) else (
-    basisNodal : getVarsNodalBasisWithNodes("tensor", pDim-1, polyOrder, surfIntVars, surfNodes)
-  ),
-  fUpNodal_e : sum(eval_string(sconcat("fUpOrd",sideStr))[i-1]*basisNodal[i], i, 1, length(basisNodal)),
-  fUp_c : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fUpNodal_e)),
   /* Write coefficients of modal surface expansion fupwind. */
+  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
   printf(fH, "  double fUp~a[~a] = {0.};~%", sideStr, length(bSurf)),
-  writeCExprs1(eval_string(sconcat("fUp",sideStr)), fUp_c),
-  printf(fH, "~%"),
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    dirStr : "x",
+    if surfDir = cdim+1 then (dirStr : "vpar") elseif surfDir = cdim+2 then (dirStr : "mu"),
+    printf(fh, "  ~a_~adir_upwind_quad_to_modal(fUpOrd~a, fUp~a); ~%", basisStr, dirStr, sideStr, sideStr)
+  ) else (
+    printf(fh, "  ~a_upwind_quad_to_modal(fUpOrd~a, fUp~a); ~%", basisStr, sideStr, sideStr)
+  ),
+  printf(fh, "~%"),
   flush_output(fH),
-  
-  /* Zero out components of fUp which are empty and make new lists with right variable name. */
-  fUp_NoZero : doMakeExprLst(fUp_c, eval_string(sconcat("fUp",sideStr))),
-  fHatSurf_e : doExpand(fUp_NoZero, bSurf),
+  fHatSurf_e : doExpand1(eval_string(sconcat("fUp",sideStr)), bSurf),
 
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
 
