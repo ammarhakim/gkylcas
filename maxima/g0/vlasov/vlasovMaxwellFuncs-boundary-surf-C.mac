@@ -122,7 +122,7 @@ calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyO
     printf(fh, "~%"),
 
     /* Compute surface contribution integral(phi^- Ghat) on the left/right. */
-    incrOut : calcInnerProdList(surfVars, 1, subst(cv=evAt, bP), Ghat_e),
+    incrOut : calcInnerProdList(surfVars, -evAt, subst(cv=evAt, bP), Ghat_e),
     return(incrOut)
   ),
 
