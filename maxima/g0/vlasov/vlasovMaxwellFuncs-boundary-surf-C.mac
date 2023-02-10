@@ -6,6 +6,7 @@ load("out-scripts");
 load(stringproc)$
 load("scifac")$
 load("nodal_operations/nodal_functions")$
+load("utilities")$
 fpprec : 24$
 
 varsV : [vx, vy, vz]$
@@ -40,9 +41,108 @@ calcAccel(vdir, vdim, bc) :=
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
+calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [numBasisP,cid,vid,cv,vv,surfVars,bSurf,fSkin_e,fEdge_e,incr],
+
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  numBasisP : length(bP),
+
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  // w[NDIM]:     Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
+  printf(fh, "  // alpha_geo:   Fields used only for general geometry.~%"),
+  printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
+  printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
+  printf(fh, "  // out:         Incremented distribution function in center cell.~%"),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+
+  /* cv = variable in direction of surface update. */
+  cv : varsP[dir],
+  vv : varsV[dir],
+
+  /* Surface variables to integrate over. */
+  surfVars : delete(cv,varsP),
+
+  /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Create expansions of f_skin, f_edge on volume basis. */
+  fSkin_e : doExpand1(fSkin, bP),
+  fEdge_e : doExpand1(fEdge, bP),
+
+  printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
+  printf(fh, "  double Ghat[~a]; ~%", length(bSurf)),
+    printf(fh, "~%"),
+
+  /* Function that computes the surface increment (without a 2/dx factor)
+     with upwinding based on the grid velocity. */
+  evSurfIncr(fL_e, fR_e, evAt) := block([Ghat_c,GhatNoZero_c,Ghat_e,incrOut],
+    printf(fh, "  if (~a>0) { ~%~%",wv),
+
+    /* Evaluate surface projection of Ghat = v f_left. */
+    Ghat_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=1, fL_e)),
+    writeCExprsCollect1lhsc(Ghat, radcan(Ghat_c)),
+    printf(fh, "~%"),
+    flush_output(fh),
+    /* Zero out components of Ghat which are empty. */
+    GhatNoZero_c : makelistNoZeros1(Ghat_c, Ghat),
+    Ghat_e       : doExpand(GhatNoZero_c, bSurf),
+
+    printf(fh, "  } else { ~%~%"),
+
+    /* Evaluate surface projection of Ghat = v f_right. */
+    Ghat_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=-1, fR_e)),
+
+    /* Clever factorization is possible for polyOrder = 1, but for higher
+       polynomial orders, factorization is *too* clever and can lead to
+       deeply nested parentheses, not ideal for compiler optimizations */
+    if (polyOrder = 1) then (
+      writeCExprsNoExpand1(Ghat, Ghat_c)
+    ) else (
+      writeCExprs1(Ghat, Ghat_c)
+    ),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Zero out components of Ghat which are empty. */
+    GhatNoZero_c : makelistNoZeros1(Ghat_c, Ghat),
+    Ghat_e       : doExpand(GhatNoZero_c, bSurf),
+
+    printf(fh, "  } ~%"),
+    printf(fh, "~%"),
+
+    /* Compute surface contribution integral(phi^- Ghat) on the left/right. */
+    incrOut : calcInnerProdList(surfVars, 1, subst(cv=evAt, bP), Ghat_e),
+    return(incrOut)
+  ),
+
+  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  incr : evSurfIncr(fSkin_e, fEdge_e, 1.0),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+
+  /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
+  printf(fh, "~%  } else { ~%~%"),
+
+  incr : evSurfIncr(fEdge_e, fSkin_e, -1.0),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+
+  printf(fh, "~%  } ~%"),
+
+  printf(fh, "} ~%")
+)$
 
 calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bC,bP,numC,numP,pDim,cid,vid,vv,surfVars,bSurf,fSkin_e,fEdge_e,acc_e,
@@ -55,7 +155,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       q/m*EM fields.~%"),
@@ -134,7 +234,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero : doMakeExprLst(alphaV_c, alpha),
+  alphaNoZero : makelistNoZeros1(alphaV_c, alpha),
   alpha_e     : doExpand(alphaNoZero, bSurf),
 
   /* Evaluate alpha at ordinates.

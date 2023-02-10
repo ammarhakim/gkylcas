@@ -82,6 +82,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
+
   printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
   printf(fh, "  double Ghat_r[~a]; ~%", length(bSurf)),
