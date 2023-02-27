@@ -40,10 +40,8 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   /* Get the Gaussian quadrature weights and ordinates (in [-1,1] space) for
      quadrature in one dimension lower. */
   if dim>1 then (
-    ordWeight : gaussOrdWeight(numQuad,dim-1),
-    normOrds  : float(ordWeight[1]),
-    weights   : float(ordWeight[2]),
-    ordNum    : length(normOrds)
+    [normOrds, weights] : gaussOrdWeight(numQuad,dim-1),
+    ordNum : length(normOrds)
   ),
 
   boundaryStr : ["lower","upper"],
@@ -87,10 +85,12 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
     m0Ion_e : doExpand(m0Ion_c,basis),
 
     m0IonS_c : calcInnerProdList(vars, 1, basis, subst(sheathVar=skinEvSign[bS],m0Ion_e)),
+    printf(fh,"  // Particle number density evaluate at the sheath entrance~%"),
     expr : float(m0IonS_c),
     for i : 1 thru length(expr) do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", out[(bS-1)*2*numB+i-1], gcfac(expr[i]))
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", out[i-1], gcfac(expr[i]))
     ),
+    printf(fh,"~%"),
 
     /* Compute the sheath potential
          phiS = (T_e/q_e)*log( sqrt(2*pi)*GammaJac_i/(n_i*sqrt(T_e/m_e)) )
@@ -138,14 +138,15 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
         )
       ),
       writeCExprsNoExpand1(phiSlowD, phiSlowD_c),
-      phiSlowD_e : doExpand(phiSlowD_c, basisLowD)
+      phiSlowD_e : doExpand(phiSlowD_c, basisLowD),
+      printf(fh,"~%")
     ),
-    printf(fh,"~%"),
 
     phiS_c : calcInnerProdList(vars, 1, basis, phiSlowD_e),
+    printf(fh,"  // Sheath potential~%"),
     expr : float(phiS_c),
     for i : 1 thru length(expr) do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", out[((bS-1)*2+1)*numB+i-1], gcfac(expr[i]))
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", out[numB+i-1], gcfac(expr[i]))
     ),
     printf(fh,"~%"),
 
@@ -156,7 +157,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
 
 genPhiCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   /* Compute the potential in the domain volume using Gaussian quadrature. */
-  [numQuad,vars,basis,numB,ordWeight,normOrds,weights,ordNum,m0JacIon_e,
+  [numQuad,vars,basis,numB,normOrds,weights,ordNum,m0JacIon_e,
   jacInv_e,m0Ion_c,m0Ion_e,m0Ion_noZero_c,m0IonS_e,phiS_e,m0Ion_n,m0IonS_n,
   phiS_n,nOrd,cSub,phi_n,phi_c],
 
@@ -166,10 +167,8 @@ genPhiCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   numB : length(basis),
 
   /* Get the Gaussian quadrature weights and ordinates (in [-1,1] space) */
-  ordWeight : gaussOrdWeight(numQuad,dim),
-  normOrds  : float(ordWeight[1]),
-  weights   : float(ordWeight[2]),
-  ordNum    : length(normOrds),
+  [normOrds, weights] : gaussOrdWeight(numQuad,dim),
+  ordNum : length(normOrds),
 
   printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(double q_e, double T_e, const double *jacInv, const double *m0JacIon, const double *sheathvals, double *phi) ~%{ ~%")),
   printf(fh,"  // q_e:        electron change.~%"),
