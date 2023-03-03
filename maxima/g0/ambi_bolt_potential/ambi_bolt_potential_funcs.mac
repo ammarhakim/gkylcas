@@ -48,7 +48,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   ghostEvSign : [1, -1],  skinEvSign  : [-1, 1],
 
   for bS : 1 thru 2 do ( /* One kernel for each of lower and upper boundaries. */
-    printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(const double sheathDirDx, double q_e, double m_e, double T_e, const double *jacInv, const double *GammaJac_i, const double *m0JacIon, double *out) ~%{ ~%"), boundaryStr[bS]),
+    printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(double sheathDirDx, double q_e, double m_e, double T_e, const double *jacInv, const double *GammaJac_i, const double *m0JacIon, double *out) ~%{ ~%"), boundaryStr[bS]),
     printf(fh,"  // sheathDirDx: cell length in direction of the sheath.~%"),
     printf(fh,"  // q_e:         electron change.~%"),
     printf(fh,"  // m_e:         electron mass.~%"),
