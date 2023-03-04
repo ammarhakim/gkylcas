@@ -35,8 +35,15 @@ expandInputFields(bC,bmagBasis) := block(
 )$
 
 calcAndWrite_HamilES(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr) := block(
-  [varsP,numP,hamil_c,subList,hamilNoZero_c],
+  [varsP,numP,pDim,vdim,bmag_e,phi_e,hamil_e,hamil_c,replaceList,hamilCvar,hamilNoZero_c],
   /* Expand the Hamiltonian, and write them out. */
+
+  varsP : listofvars(bP),
+  numP  : length(bP),
+  pDim  : length(varsP),
+  vdim  : 0,
+  if isInList(vpar,varsP) then vdim : vdim+1,
+  if isInList(mu,varsP) then vdim : vdim+1,
 
   /* Extract magnetic field and electrostatic potential. */
   bmag_e : inFlds[1],
@@ -45,9 +52,6 @@ calcAndWrite_HamilES(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr) := block(
   hamil_e : charge*phi_e,
   if vdim > 0 then ( hamil_e : hamil_e + (1/2)*mass*(wv[1] + vpar/rdv2[1])^2 ),
   if vdim > 1 then ( hamil_e : hamil_e + (wv[2]+mu/rdv2[2])*bmag_e ),
-
-  varsP : listofvars(bP),
-  numP  : length(bP),
 
   /* Project Hamiltonian onto basis functions */
   hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
