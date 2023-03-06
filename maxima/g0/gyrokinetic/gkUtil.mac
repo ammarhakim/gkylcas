@@ -462,7 +462,7 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
 
   Ghat_c : calcInnerProdList(surfIntVars, alphaSurf_e, bSurf, fHatSurf_e),
   Ghat_e : doExpand(Ghat_c, bSurf),
-  printf(fH, "  double Ghat~a[~a] = {0.}; ~%", sideStr, numP),
+  printf(fH, "  double Ghat~a[~a] = {0.}; ~%", sideStr, length(bSurf)),
   writeCExprs1(eval_string(sconcat("Ghat",sideStr)), Ghat_c),
   printf(fH, "~%"),
   flush_output(fH),
