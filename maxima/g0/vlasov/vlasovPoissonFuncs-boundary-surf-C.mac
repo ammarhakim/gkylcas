@@ -10,6 +10,7 @@ load("out-scripts")$
 load(stringproc)$
 load("scifac")$
 load("nodal_operations/nodal_functions")$
+load("utilities")$
 fpprec : 24$
 
 vvars : [vx, vy, vz]$
@@ -24,10 +25,6 @@ Afld : [A0, A1, A2]$
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,numC,numP,pDim,d,cid,vid,vv,surfVars,bSurf,fSkin_e,fEdge_e,phi_e,acc_e,
@@ -120,7 +117,7 @@ calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero : doMakeExprLst(alphaV_c, alpha),
+  alphaNoZero : makelistNoZeros1(alphaV_c, alpha),
   alpha_e     : doExpand(alphaNoZero, bSurf),
 
   /* Evaluate alpha at ordinates.
@@ -344,7 +341,7 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero : doMakeExprLst(alphaV_c, alpha),
+  alphaNoZero : makelistNoZeros1(alphaV_c, alpha),
   alpha_e     : doExpand(alphaNoZero, bSurf),
 
   /* Evaluate alpha at ordinates.
