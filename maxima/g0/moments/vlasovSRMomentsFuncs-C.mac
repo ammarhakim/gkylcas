@@ -235,11 +235,20 @@ calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   )
   elseif (vdim = 2) then (
     temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e),
-    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e)
+    /* (v . p)^2 = v_x^2 p_x^2 + v_y^2 p_y^2 + 2.0 v_x p_x v_y p_y */
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e 
+                                              + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e
+                                              + 2.0*vTrans[1]*Vx_e*vTrans[2]*Vy_e)
   )
   else (
     temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e + vTrans[3]*Vz_e),
-    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e + vTrans[3]*vTrans[3]*GammaV2_e*VzSq_e)
+    /* (v . p)^2 = v_x^2 p_x^2 + v_y^2 p_y^2 + v_z^2 p_z^2 + 2.0 v_x p_x v_y p_y + 2.0 v_x p_x v_z p_z + 2.0 v_y p_y v_z p_z */
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e 
+                                              + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e 
+                                              + vTrans[3]*vTrans[3]*GammaV2_e*VzSq_e
+                                              + 2.0*vTrans[1]*Vx_e*vTrans[2]*Vy_e
+                                              + 2.0*vTrans[1]*Vx_e*vTrans[3]*Vz_e
+                                              + 2.0*vTrans[2]*Vy_e*vTrans[3]*Vz_e)
   ),
   writeCExprs1(temp, temp_c),
   printf(fh, "~%"),
