@@ -48,16 +48,16 @@ printf(fh, "~%")$
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : minVdim[bInd] thru maxVdim[bInd] do (
+    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
-    )  
+    )
   )
 );
 printf(fh, "EXTERN_C_END ~%")$

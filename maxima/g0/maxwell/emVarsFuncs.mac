@@ -105,24 +105,21 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
-  printf(fh, "  bool notCellAvg = true;~%"),
-  nodes : gaussOrd(polyOrder+1, cdim),
+  printf(fh, "  bool notCellAvgMagB = true;~%"),
   nodesCorners : getNodes(basisFun, cdim, 1),
-  Bx2Corners : expand(float(evAtNodes(BxSq_e,nodes,varsC))),
-  By2Corners : expand(float(evAtNodes(BySq_e,nodes,varsC))),
-  Bz2Corners : expand(float(evAtNodes(BzSq_e,nodes,varsC))),
   magBCorners : expand(float(evAtNodes(magBSq_e,nodesCorners,varsC))),
-  printf(fh, "  // Check if either Bx^2, By^2, or Bz^2 < 0 at control points (Gauss-Legendre quadrature points). ~%"),
-  printf(fh, "  // Or if |B|^2 < 0 at cell corners. ~%"),
-  for i : 1 thru length(nodes) do (
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bx2Corners[i]),
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", By2Corners[i]),
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bz2Corners[i])
-  ),
+  printf(fh, "  // Check if |B|^2 < 0 at cell corners. ~%"),
   for i : 1 thru length(nodesCorners) do (
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", magBCorners[i])
+    printf(fh, "  if (notCellAvgMagB && (~a < 0)) notCellAvgMagB = false; ~%", magBCorners[i])
   ),
   printf(fh, "  double magB_sq_inv[~a] = {0.0}; ~%~%", NC),
+  printf(fh, "  if (notCellAvgMagB) { ~%"),
+  printf(fh, "  ~a_~ax_p~a_inv(magB_sq, magB_sq_inv); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  } else { ~%"),
+  printf(fh, "  // If either Bx^2, By^2, or Bz^2 < 0 at control points, only use cell average to get 1/|B|^2. ~%"),
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  printf(fh, "  magB_sq_inv[0] = ~a/magB_sq[0]; ~%", float(expand(unit[1]*unit[1]))),
+  printf(fh, "  } ~%"),
 
   printf(fh, "  // Calculate expansions of B_i B_j/|B|^2, which can be calculated free of aliasing errors. ~%"),
   bxbx_c : calcInnerProdList(varsC, 1, bC, BxSq_e*magB_sq_inv_e),
@@ -132,13 +129,36 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   bybz_c : calcInnerProdList(varsC, 1, bC, ByBz_e*magB_sq_inv_e),
   bzbz_c : calcInnerProdList(varsC, 1, bC, BzSq_e*magB_sq_inv_e),
 
-  printf(fh, "  if (notCellAvg) { ~%"),
-  printf(fh, "  ~a_~ax_p~a_inv(magB_sq, magB_sq_inv); ~%", basisFun, cdim, polyOrder),
-
+  /* First write B_i^2/|B|^2, i=x,y,z so we can check the sign at quadrature points */
   writeCExprs1(bxbx, bxbx_c),
   printf(fh, "~%"),
   flush_output(fh),
 
+  writeCExprs1(byby, byby_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(bzbz, bzbz_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  bool notCellAvg = true;~%"),
+  nodes : gaussOrd(polyOrder+1, cdim),
+  bxbx_e : doExpand1(bxbx, bC),
+  byby_e : doExpand1(byby, bC),
+  bzbz_e : doExpand1(bzbz, bC), 
+  Bx2Corners : expand(float(evAtNodes(bxbx_e,nodes,varsC))),
+  By2Corners : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
+  Bz2Corners : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
+  printf(fh, "  // Check if either Bx^2/|B|^2, By^2/|B|^2, or Bz^2/|B|^2 < 0 at control points (Gauss-Legendre quadrature points). ~%"),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bx2Corners[i]),
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", By2Corners[i]),
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bz2Corners[i])
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "  if (notCellAvg && notCellAvgMagB) { ~%"),
   writeCExprs1(bxby, bxby_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -147,28 +167,15 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
-  writeCExprs1(byby, byby_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
   writeCExprs1(bybz, bybz_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  writeCExprs1(bzbz, bzbz_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
   printf(fh, "  } else { ~%"),
-  printf(fh, "  // If either Bx^2, By^2, or Bz^2 < 0 at control points, only use cell average to get 1/|B|^2. ~%"),
-  unit : calcInnerProdList(varsC, 1, bC, 1.0),
-  printf(fh, "  magB_sq_inv[0] = ~a/magB_sq[0]; ~%", float(expand(unit[1]*unit[1]))),
-  printf(fh, "  bxbx[0] = ~a; ~%", float(expand(bxbx_c[1]))),
+  printf(fh, "  // If either Bx^2/|B|^2, By^2/|B|^2, or Bz^2/|B|^2 < 0 at control points, only use cell average to get bb tensor. ~%"),
   printf(fh, "  bxby[0] = ~a; ~%", float(expand(bxby_c[1]))),
   printf(fh, "  bxbz[0] = ~a; ~%", float(expand(bxbz_c[1]))),
-  printf(fh, "  byby[0] = ~a; ~%", float(expand(byby_c[1]))),
   printf(fh, "  bybz[0] = ~a; ~%", float(expand(bybz_c[1]))),
-  printf(fh, "  bzbz[0] = ~a; ~%", float(expand(bzbz_c[1]))),
   printf(fh, "~%"),
   for i : 2 thru NC do (
     printf(fh, "  bxbx[~a] = 0.0; ~%", i-1),

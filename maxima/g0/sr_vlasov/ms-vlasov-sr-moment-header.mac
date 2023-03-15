@@ -1,4 +1,4 @@
-/* Generate the header file for the Vlasov moment and integrated moment kernels. */
+/* Generate the header file for the Special Relativistic Vlasov moment and integrated moment kernels. */
 
 /* ...... USER INPUTS........ */
 
@@ -33,19 +33,17 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
-  printf(fh, "~avoid vlasov_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%"), 
+  printf(fh, "~avoid vlasov_sr_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_sr_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Ni_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Energy_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma_inv, const double *gamma, const double *GammaV2, const double *V_drift, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *GammaV_inv, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 
-fh : openw("~/max-out/gkyl_mom_vlasov_kernels.h")$
+fh : openw("~/max-out/gkyl_mom_vlasov_sr_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
