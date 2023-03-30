@@ -89,6 +89,7 @@ for bInd : 1 thru length(bName) do (
 )$
 close(fh)$
 
+**/
 
 /* LHS stencil kernels. */
 disp(printf(false,"Creating fem_poisson_lhs_stencil.c"))$
@@ -98,14 +99,12 @@ printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    funcName : sconcat("fem_poisson_lhs_stencil_", c, "x_", bName[bInd]),
     disp(printf(false,sconcat("Working on fem_poisson_lhs_stencil_", c, "x_", bName[bInd]))),
+    funcName : sconcat("fem_poisson_lhs_stencil_", c, "x_", bName[bInd]),
     generate_fem_poisson_lhs_stencil(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
   )
 )$
 close(fh)$
-
-**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil.c"))$
@@ -115,12 +114,14 @@ printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
+    disp(printf(false,sconcat("Working on fem_poisson_src_stencil_", c, "x_", bName[bInd]))),
     funcName : sconcat("fem_poisson_src_stencil_", c, "x_", bName[bInd]),
     generate_fem_poisson_src_stencil(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
   )
 )$
 close(fh)$
 
+/**
 /* Solution nodal-to-modal kernels. */
 disp(printf(false,"Creating fem_poisson_sol_stencil.c"))$
 fname : "~/max-out/fem_poisson_sol_stencil.c"$
@@ -134,3 +135,4 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/

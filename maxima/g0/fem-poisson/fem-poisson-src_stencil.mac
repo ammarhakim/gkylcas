@@ -15,7 +15,7 @@ fpprec : 24$
 generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
   [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,
    massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,domSurfs,phi_e,surf_c,insertVal,dirichletDirs,opStr,dir,
-   dirichletNodesI,volumeFac,dirVar,surfVars,phip_e,off3,bcValues,dphidnBC,
+   dirichletNodesI,volumeFac,dirVar,surfVars,off3,k0,bcValues,dphidnBC,
    sI,d,bcsInDir,i,bcI,polyOrder,dI,k],
 
   kill(varsC, varsP, basisC, basisP),
@@ -117,15 +117,15 @@ generate_fem_poisson_src_stencil(fh, funcNm, dim, basisFun, pMax) := block(
           dir      : domSurfs[dI],
           dirVar   : vars[dir],
           surfVars : delete(dirVar,vars),
-          phip_e   : diff(phi_e,dirVar),
 
           off3 : 3*((stencilLoc[sI][dir]+1)/2),
+          k0   : 6*(dir-1)+off3,
           if currBC[dir]=2 then (
             /* Neumman. */
-            bcValues : [0, 1, bcVals[6*(dir-1)+2+off3]]
+            bcValues : [0, 1, bcVals[k0+2]]
           ) elseif currBC[dir]=3 then (
             /* Robin. */
-            bcValues : [bcVals[6*(dir-1)+off3], bcVals[6*(dir-1)+off3+1], bcVals[6*(dir-1)+off3+2]]
+            bcValues : [bcVals[k0], bcVals[k0+1], bcVals[k0+2]]
           ),
 
           dphidnBC : (bcValues[3] - bcValues[1]*phi_e)/bcValues[2],
