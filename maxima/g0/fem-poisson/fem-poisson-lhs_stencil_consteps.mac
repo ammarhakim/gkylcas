@@ -1,13 +1,7 @@
 /*
-   Generate kernels computing the LHS of the Poisson equation with a
-   tensor diffusion coefficient/permittivity, i.e.
-     -\int psi_k*epsilon^{ij}*d(phi)/dx_j dS_i + \int d(psi_k)/dx_i * epsilon^{ij}*d(phi)/dx_j dV
+   Generate kernels computing the LHS of the Poisson equation, i.e.
+     -epsilon*\int psi_k*d(phi)/dx dS + epsilon*\int d(psi_k)/dx * d(phi)/dx dV
    where the surface term is only applied on skin cells.
-
-   Note that in this case
-     - Neumann BCs mean epsilon^{ij}*d(phi)/dx_j
-     - Robin BCs mean lambda*phi+beta*epsilon^{ij}*d(phi)/dx_j
-   is known on the an i-th surface.
 */
 
 load("modal-basis");
@@ -17,11 +11,11 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,mod2nod,
-   varCombos,epsSup_l,eps,eps_e,idx,eps_c,rdx_ij,phi_c,phi_e,vol_c,domSurfs,surf_c,lhs_c,insertVal,
-   dirichletDirs,vals_k,triplesStr,val,dir,dirichletBoundaryNodes,dirichletBoundaryNodesI,
-   dirVar,surfVars,off3,k0,bcValues,eps_dphidnBC,sI,d,i,bcI,polyOrder,bcsInDir,dI,k,m],
+generate_fem_poisson_lhs_stencil_consteps(fh, funcNm, dim, basisFun, pMax) := block(
+  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,phi_c,
+   phi_e,vol_c,domSurfs,surf_c,lhs_c,insertVal,dirichletDirs,vals_k,triplesStr,val,dir,dirichletBoundaryNodes,
+   dirichletBoundaryNodesI,dirVar,surfVars,off3,k0,bcValues,dphidnBC,
+   sI,d,i,bcI,polyOrder,bcsInDir,dI,k,m],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -72,49 +66,25 @@ generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := bloc
 
       for polyOrder : 1 thru pMax do (
 
-        bN   : getNodalBasis(basisFun, dim, polyOrder),
-        numB : length(bN),
-        vars : listofvars(bN),
-
         printf(fh, "void ~a_p~a~a(const double *epsilon, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri) ~%{ ~%", funcNm, polyOrder, stencilStr),
-        printf(fh, "  // epsilon: permittivity tensor.~%"),
+        printf(fh, "  // epsilon: permittivity.~%"),
         printf(fh, "  // dx: cell length in each direction.~%"),
-        printf(fh, "  // bcVals: values to impose as BCs, i.e. bcVals[off+0]*phi+bcVals[off+1]*epsilon^{ij}*d(phi)/dx_j=bcVals[off+2].~%"),
+        printf(fh, "  // bcVals[3]: values to impose as BCs, i.e. bcVals[0]*phi+bcVals[1]*d(phi)/dx=bcVals[2].~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // tri: triples object (i,j,val), i.e. contribute val to i,j element of the global matrix.~%"),
         printf(fh, "~%"),
 
+        bN   : getNodalBasis(basisFun, dim, polyOrder),
+        numB : length(bN),
+        vars : listofvars(bN),
+
         nodes    : args(getNodes(basisFun, dim, polyOrder)),
         numNodes : length(nodes),
 
-        mod2nod : calcModToNod(basisFun, dim, polyOrder),
-
-        /* Pointers to components of (symmetric) permittivity tensor. */
-        varCombos : listify(cartesian_product(setify(vars),setify(vars))),
-        epsSup_l  : unique(makelist(sort(varCombos[i]),i,1,length(varCombos))),
-        eps : [],  eps_e : [],
-        for i : 1 thru dim do (
-          eps   : endcons([],eps), 
-          eps_e : endcons([],eps_e), 
-          for j : 1 thru dim do (
-            eps[i] : endcons(eval_string(simplode(["eps",vars[i],vars[j]])),eps[i]), 
-            idx : sublist_indices(epsSup_l, lambda([w], w=sort([vars[i],vars[j]])))[1],
-            printf(fh, "  const double *~a = &epsilon[~a];~%", eps[i][j], (idx-1)*numB),
-            eps_c : mod2nod . makelist(eps[i][j][k-1],k,1,numB),
-            eps_c : makelist(fullratsimp(eps_c[i][1]),i,1,numB),
-            eps_e[i] : endcons(doExpand(eps_c,bN), eps_e[i]) 
-          )
-        ),
-        printf(fh, "~%"),
-
         /* Calculate the volume term. */
-        rdx_ij : [], 
-        for i : 1 thru dim do (
-          rdx_ij : endcons([],rdx_ij), 
-          for j : 1 thru dim do (
-            rdx_ij[i] : endcons(eval_string(simplode([rdx,i-1,j-1])),rdx_ij[i]), 
-            printf(fh, "  double ~a = 4.0/(dx[~a]*dx[~a]);~%", rdx_ij[i][j], i-1, j-1)
-          )
+        printf(fh, "  double rdx2Sq[~a];~%", dim),
+        for d : 1 thru dim do (
+          printf(fh, "  rdx2Sq[~a] = 4.0/(dx[~a]*dx[~a]);~%", d-1, d-1, d-1)
         ),
         printf(fh, "~%"),
 
@@ -122,26 +92,16 @@ generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := bloc
         phi_e : doExpand(phi_c,bN),
 
         vol_c : makelist(0,k,1,numB),
-        for i : 1 thru dim do (
-          for j : 1 thru dim do (
-            vol_c : vol_c+rdx_ij[i][j]*calcInnerProdList(vars,eps_e[i][j],diff(bN,vars[i]),diff(phi_e,vars[j]))
-          )
+        for d : 1 thru dim do (
+          vol_c : vol_c+epsilon[0]*rdx2Sq[d-1]*calcInnerProdList(vars,1,diff(bN,vars[d]),diff(phi_e,vars[d]))
         ),
         
         /* Calculate the surface term (for Neumann and Robin BCs). Some of
            these contributions don't affect the LHS matrix and instead add
            contributions to the RHS vector (see RHS source stencils too). */
         /* Only domain surface terms with non-periodic and non-Dirichlet BCs contribute a surface term. */
-        domSurfs : sublist_indices(currBC, lambda([x],x # 0 and x # 1)),
-        if length(domSurfs)>0 then ( 
-          /* Surface factors based on cell lengths. */
-          printf(fh, "  double rdx2[~a]; ~%", dim),
-          for d : 1 thru dim do (
-            printf(fh, "  rdx2[~a] = 2.0/dx[~a]; ~%", d-1, d-1)
-          ),
-          printf(fh, "~%")
-        ),
         surf_c : makelist(0,k,1,numB),
+        domSurfs : sublist_indices(currBC, lambda([x],x # 0 and x # 1)),
         for dI : 1 thru length(domSurfs) do (
           dir      : domSurfs[dI],
           dirVar   : vars[dir],
@@ -157,12 +117,11 @@ generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := bloc
             bcValues : [bcVals[k0], bcVals[k0+1], bcVals[k0+2]]
           ),
 
-          /* Here eps_dphidnBC = epsilon^{ij}*d(phi)/dx_j. */
-          eps_dphidnBC : (bcValues[3] - bcValues[1]*phi_e)/bcValues[2],
+          dphidnBC : (bcValues[3] - bcValues[1]*phi_e)/bcValues[2],
 
-          surf_c : surf_c-stencilLoc[sI][dir]*rdx2[dir-1]
+          surf_c : surf_c-epsilon[0]*stencilLoc[sI][dir]*rdx2Sq[dir-1]
                   *calcInnerProdList(surfVars,1,subst(dirVar=stencilLoc[sI][dir],bN),
-                                                subst(dirVar=stencilLoc[sI][dir],eps_dphidnBC))
+                                                subst(dirVar=stencilLoc[sI][dir],dphidnBC))
         ),
 
         lhs_c : surf_c + vol_c,
@@ -173,7 +132,7 @@ generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := bloc
         dirichletDirs : append([], sublist_indices(currBC, lambda([x],x = 1))),
         for dI : 1 thru length(dirichletDirs) do (
           dir : dirichletDirs[dI],
-          dirichletBoundaryNodes  : copylist(sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir]))),
+          dirichletBoundaryNodes :  copylist(sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir]))),
           dirichletBoundaryNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletBoundaryNodes) do (
             lhs_c[dirichletBoundaryNodesI[k]] : phi_c[dirichletBoundaryNodesI[k]],
@@ -193,8 +152,7 @@ generate_fem_poisson_vareps_lhs_stencil(fh, funcNm, dim, basisFun, pMax) := bloc
         ),
         printf(fh, "~%"),
 
-        printf(fh, "}~%"),
-        printf(fh, "~%")
+        printf(fh, "}~%")
 
       )
     )
