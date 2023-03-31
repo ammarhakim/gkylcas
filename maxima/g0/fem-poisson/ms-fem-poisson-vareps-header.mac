@@ -20,10 +20,10 @@ bcTypesNP : [0, 9]$
 bcStrsNP  : ["periodic", "nonperiodic"]$
 bcKeyNP   : makelist([bcTypesNP[i],bcStrsNP[i]],i,1,length(bcTypesNP))$
 
-fh : openw("~/max-out/gkyl_fem_poisson_kernels.h")$
+fh : openw("~/max-out/gkyl_fem_poisson_vareps_kernels.h")$
 printf(fh, "// Gkyl ------------------------------------------------------------------------~%")$
 printf(fh, "//~%")$
-printf(fh, "// Header file for FEM Poisson solver.~%")$
+printf(fh, "// Header file for FEM Poisson solver with varying permittivity tensor.~%")$
 printf(fh, "//~%")$
 printf(fh, "//    _______     ___~%")$
 printf(fh, "// + 6 @ |||| # P ||| +~%")$
@@ -117,11 +117,11 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* LHS stencil kernels to populate the global matrix. */
-      findCombos(fh, "void", "fem_poisson_lhs_stencil", "const double epsilon, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "void", "fem_poisson_vareps_lhs_stencil", "const double *epsilon, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%"),
 
       /* RHS source stencil kernels to populate the right side vector. */
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil", "double epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_vareps_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%"),
 
       /* Solution stencil kernels. */
