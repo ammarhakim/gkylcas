@@ -29,7 +29,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    alpha_div_b_c, alpha_div_b_NoZero, alpha_div_b_NoZero_e, amid_div_b, 
    incr_F_0_div_b, incr_G_1_div_b, alpha_G_1_source_c, alpha_G_1_source_NoZero, alpha_G_1_source_NoZero_e, incr_source_G_1],
 
-  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_vlasov_pkpm_kernels.h> ~%"),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),

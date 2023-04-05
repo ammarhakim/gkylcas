@@ -113,7 +113,7 @@ calcPKPMDiagMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 )$
 
 calcPKPMMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_mom_vlasov_pkpm_kernels.h> ~%"),
   calcPKPMUpdateMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcPKPMDiagMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$

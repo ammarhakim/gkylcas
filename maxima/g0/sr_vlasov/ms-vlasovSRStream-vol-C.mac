@@ -1,4 +1,4 @@
-load("vlasov/vlasovSRStreamFuncs-vol-C")$
+load("sr_vlasov/vlasovSRStreamFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term due to the streaming

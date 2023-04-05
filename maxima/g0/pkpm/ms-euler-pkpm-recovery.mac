@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
         if (dir = 3) then fname : sconcat("~/max-out/euler_pkpm_recovery_z_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("euler_pkpm_recovery_"),
-        printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
         calcEulerPKPMRecovery(dir, fh, funcName, d, bName[bInd], polyOrder),
         close(fh)
       )

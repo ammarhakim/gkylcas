@@ -23,7 +23,7 @@ calcEulerPKPMVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
 
   /* specify a point to evaluate maximum speed at for use in computing CFL */
   cflPt : makelist(varsC[d]=0, d, 1, length(varsC)),

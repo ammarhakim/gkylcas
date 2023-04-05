@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
       fname : sconcat("~/max-out/vlasov_pkpm_boundary_surfvpar_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
       funcName : sconcat("vlasov_pkpm_boundary_surfvpar"),
-      printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+      printf(fh, "#include <gkyl_vlasov_pkpm_kernels.h> ~%"),
       if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
         printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", d, 1, d+1),
         printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", d, 1)

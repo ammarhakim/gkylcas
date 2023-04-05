@@ -65,7 +65,7 @@ calcVlasovMaxwellSRVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   /* Load basis of dimensionality requested. */
   load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
 
-  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_vlasov_sr_kernels.h> ~%"),
 
   /* Polynomial basis and its derivatives. */
   bP : basisP[polyOrder],

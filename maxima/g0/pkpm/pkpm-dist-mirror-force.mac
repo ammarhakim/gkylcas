@@ -23,7 +23,7 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NP : length(bP),
   NC : length(bC),
 
-  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double* T_perp_over_m, const double* T_perp_over_m_inv, const double* f, const double* F_k_p_1, double* g_dist_source, double* F_k_m_1) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // T_perp_over_m: Input p_perp/rho = T_perp/m.~%"),
   printf(fh, "  // T_perp_over_m_inv: Input (T_perp/m)^-1.~%"),
