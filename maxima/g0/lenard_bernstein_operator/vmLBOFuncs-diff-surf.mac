@@ -61,7 +61,7 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
     writeCExprs1(f_xx, f_xx_c),
     printf(fh, "~%"),
 
-    f_xx_e : doExpand(makelistNoZeros(f_xx_c, f_xx),bP)
+    f_xx_e : doExpand(makelistNoZeros1(f_xx_c, f_xx),bP)
   ) else (
     f_xx_e : diff(h_e, surfVar, 2)
   ),
@@ -70,6 +70,6 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   writeCExprs1(incr, incr_c),
   printf(fh, "~%"),
     
-  writeCIncrExprs1(out, rdvSq4*makelistNoZeros(incr_c, incr)),
+  writeCIncrExprs1(out, rdvSq4*makelistNoZeros1(incr_c, incr)),
   printf(fh, "} ~%")
 );

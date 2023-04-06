@@ -1,0 +1,80 @@
+/* Generate kernels to that evaluate v*f at the boundaries
+   and integrate it (the integral is global).
+   This is used to correct vtSq in the primMoments updater
+   for the parallel-kinetic-perpendicular-moment model.
+   Note that there is no u correction between the Vlasov equation
+   in this model is in the local rest frame already. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,i,e,modNm,vv,surfVars,dv,fbIn_lower_e,fbIn_upper_e,
+   mBlo_e,mBup_e,fBlo_c,fBup_c,dvSurf,surfExpr,expr,expr_v,param,param_v],
+    
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),  
+  NC : length(bC),
+        
+  printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double mass, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // edge:      indicator of which velocity grid edge is being considered (VX/VPAR). ~%"),
+  printf(fh, "  // vBoundary: velocity at the boundary of the velocity grid. ~%"),
+  printf(fh, "  // dxv[~a]:    cell length in each direction. ~%", cdim+vdim),
+  printf(fh, "  // mass:      species mass. ~%", cdim+vdim),
+  printf(fh, "  // fIn[~a]:    distribution function at lower/upper velocity boundaries. ~%", NP),
+  printf(fh, "  // out:       \int dS of vf^(vmax)_(vmin). ~%"),
+  printf(fh, " ~%"),
+
+  surfVars : delete(vx,varsP),
+
+  /* Expand the distribution function in the cells at the
+     lower and upper boundaries of the velocity domain. */
+  fbIn_lower_e : doExpand1(fIn,bP),
+  fbIn_upper_e : doExpand1(fIn,bP),
+  /* if atLower=true this is -(vf)_(vmin),
+     if atLower=false this is (vf)^(vmax).
+     integrated over the velocity boundary surface, and
+     projected onto the configuration space basis function.
+     Note that in parallel-kinetic-perpendicular-moment model
+     There is only one velocity dimension (v_parallel) */
+
+  mBlo_e : -subst(vx=-1,fbIn_lower_e),
+  mBup_e :  subst(vx=1,fbIn_upper_e),
+
+  fBlo_c : calcInnerProdList(surfVars,1,bC,mBlo_e),
+  fBup_c : calcInnerProdList(surfVars,1,bC,mBup_e),
+
+  printf(fh, "  if (edge == GKYL_VX_LOWER) {~%"),
+
+  expr : float(expand((mass*vBoundary[0]*fBlo_c))),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param_v : cons(expr[i], [vBoundary, mass]),
+      e : apply(collectterms, param_v),
+      printf(fh, "    ~a += ~a; ~%", out[i-1], e)
+    )
+  ),
+
+  printf(fh, "  } ~%  else if (edge == GKYL_VX_UPPER) {~%"),
+
+  expr : float(expand((mass*vBoundary[1]*fBup_c))),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param_v : cons(expr[i], [vBoundary, mass]),
+      e : apply(collectterms, param_v),
+      printf(fh, "    ~a += ~a; ~%", out[i-1], e)
+    )
+  ),
+  printf(fh, "  }~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+

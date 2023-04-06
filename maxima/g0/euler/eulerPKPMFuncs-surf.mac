@@ -241,14 +241,14 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_Pxz_l : 0.5*(Pxz_l_r + Pxz_c_l),
   avg_Pxz_r : 0.5*(Pxz_c_r + Pxz_r_l),
 
-  jump_energyx_l : 0.5*((energyl_r + Pxx_l_r) - (energyc_l + Pxx_c_l)),
-  jump_energyx_r : 0.5*((energyc_r + Pxx_c_r) - (energyr_l + Pxx_r_l)),
+  jump_energyx_l : 0.5*((energyc_l + Pxx_c_l) - (energyl_r + Pxx_l_r)),
+  jump_energyx_r : 0.5*((energyr_l + Pxx_r_l) - (energyc_r + Pxx_c_r)),
 
-  jump_energyy_l : 0.5*(Pxy_l_r - Pxy_c_l),
-  jump_energyy_r : 0.5*(Pxy_c_r - Pxy_r_l),
+  jump_energyy_l : 0.5*(Pxy_c_l - Pxy_l_r),
+  jump_energyy_r : 0.5*(Pxy_r_l - Pxy_c_r),
 
-  jump_energyz_l : 0.5*(Pxz_l_r - Pxz_c_l),
-  jump_energyz_r : 0.5*(Pxz_c_r - Pxz_r_l),
+  jump_energyz_l : 0.5*(Pxz_c_l - Pxz_l_r),
+  jump_energyz_r : 0.5*(Pxz_r_l - Pxz_c_r),
 
   Ghat_rhoux_l_exp : rho_flux_l[0]*avg_ux_l + avg_Pxx_l,
   Ghat_rhoux_r_exp : rho_flux_r[0]*avg_ux_r + avg_Pxx_r,
@@ -665,14 +665,14 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     avg_energy_l : 0.5*(ux_l_r*(energyl_r + Pxx_l_r) + uy_l_r*Pxy_l_r + uz_l_r*Pxz_l_r + ux_c_l*(energyc_l + Pxx_c_l) + uy_c_l*Pxy_c_l + uz_c_l*Pxz_c_l),
     avg_energy_r : 0.5*(ux_c_r*(energyc_r + Pxx_c_r) + uy_c_r*Pxy_c_r + uz_c_r*Pxz_c_r + ux_r_l*(energyr_l + Pxx_r_l) + uy_r_l*Pxy_r_l + uz_r_l*Pxz_r_l),
 
-    jump_energyx_l : 0.5*((energyl_r + Pxx_l_r) - (energyc_l + Pxx_c_l)),
-    jump_energyx_r : 0.5*((energyc_r + Pxx_c_r) - (energyr_l + Pxx_r_l)),
+    jump_energyx_l : 0.5*((energyc_l + Pxx_c_l) - (energyl_r + Pxx_l_r)),
+    jump_energyx_r : 0.5*((energyr_l + Pxx_r_l) - (energyc_r + Pxx_c_r)),
 
-    jump_energyy_l : 0.5*(Pxy_l_r - Pxy_c_l),
-    jump_energyy_r : 0.5*(Pxy_c_r - Pxy_r_l),
+    jump_energyy_l : 0.5*(Pxy_c_l - Pxy_l_r),
+    jump_energyy_r : 0.5*(Pxy_r_l - Pxy_c_r),
 
-    jump_energyz_l : 0.5*(Pxz_l_r - Pxz_c_l),
-    jump_energyz_r : 0.5*(Pxz_c_r - Pxz_r_l)
+    jump_energyz_l : 0.5*(Pxz_c_l - Pxz_l_r),
+    jump_energyz_r : 0.5*(Pxz_r_l - Pxz_c_r)
   )
   elseif (dir = 2) then (
     Ghat_rhoux_l_exp : rho_flux_l_e*avg_ux_l + avg_Pxy_l,
@@ -692,14 +692,14 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     avg_energy_l : 0.5*(uy_l_r*(energyl_r + Pyy_l_r) + ux_l_r*Pxy_l_r + uz_l_r*Pyz_l_r + uy_c_l*(energyc_l + Pyy_c_l) + ux_c_l*Pxy_c_l + uz_c_l*Pyz_c_l),
     avg_energy_r : 0.5*(uy_c_r*(energyc_r + Pyy_c_r) + ux_c_r*Pxy_c_r + uz_c_r*Pyz_c_r + uy_r_l*(energyr_l + Pyy_r_l) + ux_r_l*Pxy_r_l + uz_r_l*Pyz_r_l),
 
-    jump_energyx_l : 0.5*(Pxy_l_r - Pxy_c_l),
-    jump_energyx_r : 0.5*(Pxy_c_r - Pxy_r_l),
+    jump_energyx_l : 0.5*(Pxy_c_l - Pxy_l_r),
+    jump_energyx_r : 0.5*(Pxy_r_l - Pxy_c_r),
 
-    jump_energyy_l : 0.5*((energyl_r + Pyy_l_r) - (energyc_l + Pyy_c_l)),
-    jump_energyy_r : 0.5*((energyc_r + Pyy_c_r) - (energyr_l + Pyy_r_l)),
+    jump_energyy_l : 0.5*((energyc_l + Pyy_c_l) - (energyl_r + Pyy_l_r)),
+    jump_energyy_r : 0.5*((energyr_l + Pyy_r_l) - (energyc_r + Pyy_c_r)),
 
-    jump_energyz_l : 0.5*(Pyz_l_r - Pyz_c_l),
-    jump_energyz_r : 0.5*(Pyz_c_r - Pyz_r_l)
+    jump_energyz_l : 0.5*(Pyz_c_l - Pyz_l_r),
+    jump_energyz_r : 0.5*(Pyz_r_l - Pyz_c_r)
   )
   elseif (dir = 3) then (
     Ghat_rhoux_l_exp : rho_flux_l_e*avg_ux_l + avg_Pxz_l,
@@ -719,14 +719,14 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     avg_energy_l : 0.5*(uz_l_r*(energyl_r + Pzz_l_r) + ux_l_r*Pxz_l_r + uy_l_r*Pyz_l_r + uz_c_l*(energyc_l + Pzz_c_l) + ux_c_l*Pxz_c_l + uy_c_l*Pyz_c_l),
     avg_energy_r : 0.5*(uz_c_r*(energyc_r + Pzz_c_r) + ux_c_r*Pxz_c_r + uy_c_r*Pyz_c_r + uz_r_l*(energyr_l + Pzz_r_l) + ux_r_l*Pxz_r_l + uy_r_l*Pyz_r_l),
 
-    jump_energyx_l : 0.5*(Pxz_l_r - Pxz_c_l),
-    jump_energyx_r : 0.5*(Pxz_c_r - Pxz_r_l),
+    jump_energyx_l : 0.5*(Pxz_c_l - Pxz_l_r),
+    jump_energyx_r : 0.5*(Pxz_r_l - Pxz_c_r),
 
-    jump_energyy_l : 0.5*(Pyz_l_r - Pyz_c_l),
-    jump_energyy_r : 0.5*(Pyz_c_r - Pyz_r_l),
+    jump_energyy_l : 0.5*(Pyz_c_l - Pyz_l_r),
+    jump_energyy_r : 0.5*(Pyz_r_l - Pyz_c_r),
 
-    jump_energyz_l : 0.5*((energyl_r + Pzz_l_r) - (energyc_l + Pzz_c_l)),
-    jump_energyz_r : 0.5*((energyc_r + Pzz_c_r) - (energyr_l + Pzz_r_l))
+    jump_energyz_l : 0.5*((energyc_l + Pzz_c_l) - (energyl_r + Pzz_l_r)),
+    jump_energyz_r : 0.5*((energyr_l + Pzz_r_l) - (energyc_r + Pzz_c_r))
   ),
 
   Ghat_rhoux_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, Ghat_rhoux_l_exp)),

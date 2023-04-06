@@ -24,10 +24,9 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
   print(varsV),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *qmem, const double *cot_vec, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // qmem:      q/m*EM fields (unused in streaming-only update).~%"),
   printf(fh, "  // cot_vec:   cotangent vectors.~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
@@ -50,7 +49,7 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   f_e : doExpand1(f, bP),
   cot_vec_e : doExpand1(cot_vec, bC),
 
-  /*cot_vec_e : psubst(makelist(tvComp[i]=tvComp[a0+i],i,0,NC-1),tvComp_e),*/
+  cot_vec_e : psubst(makelist(cot_vec[i]=cot_vec[a0+i],i,0,NC-1),cot_vec_e),
   /* Use something like subst(a0=NC*(dir),cot_vec_e)) */
 
   /*incr_c :  makelist(0, i, 1, NP),*/
@@ -61,13 +60,12 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
      for i : 1 thru NP do (
        /* Project vel integral onto configuration basis */ 
        if Gbar_temp_c[i] # 0 then ( 
-         Gbar_c : calcInnerProdList(varsC, 1, bC, Gbar_temp_c[i]),
-	 writeCExprsCollect1(Gbar,Gbar_c,clst),
-	 Gbar_e : doExpand1(Gbar, bC), /* Write out these coeff */
-	 incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir),cot_vec_e))),
-	 /*print(incr_c),*/
-      	 printf(fh, "  ~a += ~a; ~%", out[i-1], incr_c),
-	 printf(fh, "~%")
+        Gbar_c : calcInnerProdList(varsC, 1, bC, Gbar_temp_c[i]),
+        writeCExprsCollect1(Gbar,Gbar_c,clst),
+        Gbar_e : doExpand1(Gbar, bC), /* Write out these coeff */
+        incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir-1),cot_vec_e))),
+        printf(fh, "  ~a += ~a; ~%", out[i-1], incr_c),
+        printf(fh, "~%")
        )
      )
      /*writeCIncrExprsCollect1(out,incr_c,clst)*/

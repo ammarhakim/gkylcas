@@ -82,6 +82,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
+
   printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
   printf(fh, "  double Ghat_r[~a]; ~%", length(bSurf)),
@@ -166,10 +167,11 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // qmem:      q/m*EM fields.~%"),
+  printf(fh, "  // field:     q/m*EM fields.~%"),
+  printf(fh, "  // ext_field: external q/m*EM fields (unused).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%"),
 
@@ -181,16 +183,16 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
     printf(fh, "  const double dv~a = dxv[~a], wv~a = w[~a]; ~%", d, vid[d], d, vid[d])
   ),
 
-  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, numC*(dir-1)),
+  printf(fh, "  const double *E~a = &field[~a]; ~%", dir-1, numC*(dir-1)),
   /* If vdim = 1, then no magnetic field. */
   if vdim > 1 then (
     if vdim = 2 then (
       /* In 2 velocity dimensions, only Bz. */
-      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, numC*2+3*numC)
+      printf(fh, "  const double *B~a = &field[~a]; ~%", 2, numC*2+3*numC)
     ),
     if vdim = 3 then (
       for d : 1 thru 3 do (
-        printf(fh, "  const double *B~a = &qmem[~a]; ~%", d-1, numC*(d-1)+3*numC)
+        printf(fh, "  const double *B~a = &field[~a]; ~%", d-1, numC*(d-1)+3*numC)
       )            
     )
   ),
@@ -203,11 +205,23 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   surfVars : delete(vv,varsP),
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
+  /* Also generate necessary basis strings and surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+    bSurf : basisFromVars("hyb",surfVars,polyOrder),
+
+    surf_cdim : cdim,  surf_vdim : vdim-1,
+    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim),
+
+    basisStr : sconcat("hyb_", cdim, "x", vdim, "v", "_p", polyOrder)
   ) else (
-    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder), 
+
+    surfNodes : gaussOrd(polyOrder+1, pDim-1),
+
+    basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder)
   ),
+  NSurf : length(bSurf),
+  numNodes : length(surfNodes),
 
   /* alpha is the phase space flux at the surface. */
   /* NOTE: Due to the form of the Vlasov-Maxwell system of equations, this phase space
@@ -228,15 +242,6 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   alphaNoZero : doMakeExprLst(alphaV_c, alpha),
   alpha_e     : doExpand(alphaNoZero, bSurf),
 
-  /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surf_cdim : cdim,  surf_vdim : vdim-1,
-    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
-  ) else (
-    surfNodes : gaussOrd(polyOrder+1, pDim-1)
-  ),
-  numNodes : length(surfNodes),
-
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 
      In addition, it is continuous and does not vary with respect to the surface variable.
@@ -254,27 +259,13 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
      quadrature points. If alpha > 0, need f_l (at +1) and f_c (at +1). If alpha < 0, 
      need f_c (at -1) and f_r (at -1). */
   for i : 1 thru length(alphaOrd_n) do (
-    /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
-    if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-      rcoFac : 1./(content(alphaOrd_n[1],alpha[0])[1]),
-      printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad_l[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fl); ~%", i-1, cdim, vdim, cdim+dir, i-1),
-      printf(fh, "    fUpwindQuad_r[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_r(fc); ~%", i-1, cdim, vdim, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fc); ~%", i-1, cdim, vdim, cdim+dir, i-1),
-      printf(fh, "    fUpwindQuad_r[~a] = hyb_~ax~av_p1_surfx~a_eval_quad_node_~a_l(fr); ~%", i-1, cdim, vdim, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    ) else (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", i-1, basisFun, pDim, polyOrder, cdim+dir, i-1),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", i-1, basisFun, pDim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fc); ~%", i-1, basisFun, pDim, polyOrder, cdim+dir, i-1),
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fr); ~%", i-1, basisFun, pDim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    )
+    printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),
+    printf(fh, "    fUpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_r(fl); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "    fUpwindQuad_r[~a] = ~a_surfx~a_eval_quad_node_~a_r(fc); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_l(fc); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "    fUpwindQuad_r[~a] = ~a_surfx~a_eval_quad_node_~a_l(fr); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } ~%")
   ),
 
   printf(fh, "~%"),
@@ -294,39 +285,19 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
 
   /* Print C exprs for Ghat across surface boundary, (LEFT BOUNDARY) */
   Ghat_l_c : fullratsimp(innerProd(surfVars, alpha_e, bSurf, fHatSurf_l_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
-  ) else (
-    writeCExprs1(Ghat_l, Ghat_l_c)
-  ),
+  writeCExprs1(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
   flush_output(fh),
-
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
   Ghat_r_c : fullratsimp(innerProd(surfVars, alpha_e, bSurf, fHatSurf_r_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
-  ) else (
-    writeCExprs1(Ghat_r, Ghat_r_c)
-  ),
+  writeCExprs1(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
+  /* Expand G_hat in surface basis. */
+  Ghat_l_e : doExpand1(Ghat_l, bSurf),
+  Ghat_r_e : doExpand1(Ghat_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
   incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),

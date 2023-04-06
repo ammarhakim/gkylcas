@@ -101,7 +101,13 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     /* Polynomial order factor in CFL frequency. */
     polyFact : (polyOrder+1)^2,
 
-    BmagInv_e : doExpand1(bmag_inv,bC),
+    /* Load a basis that only has the variables B depends on (we assume it
+       doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
+    bmagBasis : copylist(bC),
+    for i : 1 thru NC do (
+      if not freeof(y,bC[i]) then ( bmagBasis[i] : 0 )
+    ),
+    BmagInv_e : doExpand1(bmag_inv,bmagBasis),
 
     if polyOrder>1 then (
 
