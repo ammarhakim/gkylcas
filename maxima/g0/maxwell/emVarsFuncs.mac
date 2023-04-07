@@ -7,7 +7,7 @@
     the magnetic field unit vector divided by the E x B lorentz boost factor.
     Uses basis_exp_sq (obtain expansion of A^2 for a DG field A),
     basis_inv (obtain expansion of 1/A for a DG field A),
-    basis_sqrt (obtain expansion of sqrt(A) for a DG field A) */
+    basis_sqrt_with_sign (obtain expansion of sqrt(A^2) for a DG field A, keeping the sign of A) */
 
 load("modal-basis");
 load("out-scripts");
@@ -105,21 +105,15 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
-  printf(fh, "  bool notCellAvgMagB = true;~%"),
-  nodesCorners : getNodes(basisFun, cdim, 1),
-  magBCorners : expand(float(evAtNodes(magBSq_e,nodesCorners,varsC))),
-  printf(fh, "  // Check if |B|^2 < 0 at cell corners. ~%"),
-  for i : 1 thru length(nodesCorners) do (
-    printf(fh, "  if (notCellAvgMagB && (~a < 0)) notCellAvgMagB = false; ~%", magBCorners[i])
+  printf(fh, "  bool notCellAvg = true;~%"),
+  nodes : getNodes(basisFun, cdim, 1),
+  magB2Corners : expand(float(evAtNodes(magBSq_e,nodes,varsC))),
+  printf(fh, "  // Check if |B|^2 < 0 at control points. ~%"),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", magB2Corners[i])
   ),
+
   printf(fh, "  double magB_sq_inv[~a] = {0.0}; ~%~%", NC),
-  printf(fh, "  if (notCellAvgMagB) { ~%"),
-  printf(fh, "  ~a_~ax_p~a_inv(magB_sq, magB_sq_inv); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  } else { ~%"),
-  printf(fh, "  // If either Bx^2, By^2, or Bz^2 < 0 at control points, only use cell average to get 1/|B|^2. ~%"),
-  unit : calcInnerProdList(varsC, 1, bC, 1.0),
-  printf(fh, "  magB_sq_inv[0] = ~a/magB_sq[0]; ~%", float(expand(unit[1]*unit[1]))),
-  printf(fh, "  } ~%"),
 
   printf(fh, "  // Calculate expansions of B_i B_j/|B|^2, which can be calculated free of aliasing errors. ~%"),
   bxbx_c : calcInnerProdList(varsC, 1, bC, BxSq_e*magB_sq_inv_e),
@@ -129,36 +123,13 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   bybz_c : calcInnerProdList(varsC, 1, bC, ByBz_e*magB_sq_inv_e),
   bzbz_c : calcInnerProdList(varsC, 1, bC, BzSq_e*magB_sq_inv_e),
 
-  /* First write B_i^2/|B|^2, i=x,y,z so we can check the sign at quadrature points */
+  printf(fh, "  if (notCellAvg) { ~%"),
+  printf(fh, "  ~a_~ax_p~a_inv(magB_sq, magB_sq_inv); ~%", basisFun, cdim, polyOrder),
+
   writeCExprs1(bxbx, bxbx_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  writeCExprs1(byby, byby_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  writeCExprs1(bzbz, bzbz_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  printf(fh, "  bool notCellAvg = true;~%"),
-  nodes : gaussOrd(polyOrder+1, cdim),
-  bxbx_e : doExpand1(bxbx, bC),
-  byby_e : doExpand1(byby, bC),
-  bzbz_e : doExpand1(bzbz, bC), 
-  Bx2Corners : expand(float(evAtNodes(bxbx_e,nodes,varsC))),
-  By2Corners : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
-  Bz2Corners : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
-  printf(fh, "  // Check if either Bx^2/|B|^2, By^2/|B|^2, or Bz^2/|B|^2 < 0 at control points (Gauss-Legendre quadrature points). ~%"),
-  for i : 1 thru length(nodes) do (
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bx2Corners[i]),
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", By2Corners[i]),
-    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", Bz2Corners[i])
-  ),
-  printf(fh, "~%"),
-
-  printf(fh, "  if (notCellAvg && notCellAvgMagB) { ~%"),
   writeCExprs1(bxby, bxby_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -167,15 +138,28 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
+  writeCExprs1(byby, byby_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
   writeCExprs1(bybz, bybz_c),
   printf(fh, "~%"),
   flush_output(fh),
 
+  writeCExprs1(bzbz, bzbz_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
   printf(fh, "  } else { ~%"),
-  printf(fh, "  // If either Bx^2/|B|^2, By^2/|B|^2, or Bz^2/|B|^2 < 0 at control points, only use cell average to get bb tensor. ~%"),
+  printf(fh, "  // If |B|^2 at control points, only use cell average to get 1/|B|^2. ~%"),
+  unit : calcInnerProdList(varsC, 1, bC, 1.0),
+  printf(fh, "  magB_sq_inv[0] = ~a/magB_sq[0]; ~%", float(expand(unit[1]*unit[1]))),
+  printf(fh, "  bxbx[0] = ~a; ~%", float(expand(bxbx_c[1]))),
   printf(fh, "  bxby[0] = ~a; ~%", float(expand(bxby_c[1]))),
   printf(fh, "  bxbz[0] = ~a; ~%", float(expand(bxbz_c[1]))),
+  printf(fh, "  byby[0] = ~a; ~%", float(expand(byby_c[1]))),
   printf(fh, "  bybz[0] = ~a; ~%", float(expand(bybz_c[1]))),
+  printf(fh, "  bzbz[0] = ~a; ~%", float(expand(bzbz_c[1]))),
   printf(fh, "~%"),
   for i : 2 thru NC do (
     printf(fh, "  bxbx[~a] = 0.0; ~%", i-1),
@@ -189,9 +173,11 @@ calcBvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  } ~%"),
 
   printf(fh, "  // Calculate b_i = B_i/|B| by taking square root of B_i^2/|B|^2 at quadrature points. ~%"),
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(bxbx, bx); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(byby, by); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(bzbz, bz); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  // Uses the sign of B_i at quadrature points to get the correct sign of b_i. ~%"),
+  printf(fh, "  // Also checks if B_i^2/|B|^2 < 0.0 at quadrature points and zeros out the value there. ~%"),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_x, bxbx, bx); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_y, byby, by); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_z, bzbz, bz); ~%", basisFun, cdim, polyOrder),
 
   printf(fh, "} ~%"),
   printf(fh, " ~%")
@@ -347,6 +333,9 @@ calcKappaInvB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  // kappa_inv_b: b_i/kappa = B_i/|B| * sqrt(1 - |E x B|^2/(c^2 |B|^4)). ~%"),
   printf(fh, " ~%"),
 
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
   printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
   printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
   printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
@@ -403,9 +392,11 @@ calcKappaInvB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
 
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(kappa_inv_bx_sq, kappa_inv_bx); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(kappa_inv_by_sq, kappa_inv_by); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(kappa_inv_bz_sq, kappa_inv_bz); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  // Calculate b_i/kappa = (B_i/|B|)/kappa at quadrature points. ~%"),
+  printf(fh, "  // Uses the sign of b_i at quadrature points to get the correct sign of b_i/kappa. ~%"),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(bx, kappa_inv_bx_sq, kappa_inv_bx); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(by, kappa_inv_by_sq, kappa_inv_by); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(bz, kappa_inv_bz_sq, kappa_inv_bz); ~%", basisFun, cdim, polyOrder),
 
   printf(fh, "} ~%"),
   printf(fh, " ~%")
