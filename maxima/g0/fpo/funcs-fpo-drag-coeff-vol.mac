@@ -1,0 +1,44 @@
+/* This script generates the kernels to calculate the drag coefficient 
+   from an input potential.
+   a = 2 * Gamma * grad(H)
+*/
+load("modal-basis")$
+load("out-scripts")$
+load("recovery")$
+
+/* Variables that will probably be inputs for kernel generation.
+   Code beyond here should be agnostic to these exact values
+*/
+basisFun : "Ser"$
+polyOrder : 1$
+cdim : 1$
+dir : 1$
+
+
+/* Clear variables for safety, then load basis */
+kill(varsC, bC)$
+[varsC, bC] : loadBasis(basisFun, cdim, polyOrder)$
+
+/* Number of basis monomials */
+NC : length(bC)$
+
+/* Variable to perform recovery in */
+cv : varsC[dir]$
+
+/* Expansions of H in left, center, and right cells */
+lst_H_l : makelist(H_l[i], i, 0, NC-1)$
+lst_H_c : makelist(H_c[i], i, 0, NC-1)$
+lst_H_r : makelist(H_r[i], i, 0, NC-1)$
+
+/* 1-Cell recovery of  H */
+H_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+    dg(lst_H_l), dg(lst_H_c), dg(lst_H_r))$
+
+/* a = dH/dvi, project derivative */ 
+a : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv))$
+
+fname : "~/max-out/fpo-test.txt"$
+fh : openw(fname)$
+writeCExprs1(drag_coeff, a);
+printf(fh, "~%");
+close(fh);
