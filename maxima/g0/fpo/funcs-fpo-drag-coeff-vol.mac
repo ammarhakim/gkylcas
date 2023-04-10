@@ -4,6 +4,7 @@
 */
 load("modal-basis")$
 load("out-scripts")$
+load(stringproc)$
 load("recovery")$
 
 /* Variables that will probably be inputs for kernel generation.
@@ -14,31 +15,39 @@ polyOrder : 1$
 cdim : 1$
 dir : 1$
 
+calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
+  [varsC, bC, NC, cv, lst_H_l, lst_H_c, lst_H_r, H_rec, drag_coeff],
 
-/* Clear variables for safety, then load basis */
-kill(varsC, bC)$
-[varsC, bC] : loadBasis(basisFun, cdim, polyOrder)$
+  /* Clear variables for safety, then load basis */
+  kill(varsC, bC),
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  
+  /* Number of basis monomials */
+  NC : length(bC),
+  
+  /* Variable to perform recovery in */
+  cv : varsC[dir],
 
-/* Number of basis monomials */
-NC : length(bC)$
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(double *dxv, double *H_l, double *H_c, double *H_r)~%", funcNm, cv, cdim, basisFun, polyOrder),
+  printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
+  printf(fh, "  // H_l/c/r:   Input potential in left/center/right cells.~%  "),
+  printf(fh, "~%"),
 
-/* Variable to perform recovery in */
-cv : varsC[dir]$
+  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1),
 
-/* Expansions of H in left, center, and right cells */
-lst_H_l : makelist(H_l[i], i, 0, NC-1)$
-lst_H_c : makelist(H_c[i], i, 0, NC-1)$
-lst_H_r : makelist(H_r[i], i, 0, NC-1)$
+  /* Expansions of H in left, center, and right cells */
+  lst_H_l : makelist(H_l[i], i, 0, NC-1),
+  lst_H_c : makelist(H_c[i], i, 0, NC-1),
+  lst_H_r : makelist(H_r[i], i, 0, NC-1),
+  
+  /* 1-Cell recovery of  H */
+  H_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+      dg(lst_H_l), dg(lst_H_c), dg(lst_H_r)),
+  
+  /* a = dH/dvi, project derivative */ 
+  a_c : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv)),
+  writeCExprs1(drag_coeff, a_c),
+  printf(fh, "~%"),
 
-/* 1-Cell recovery of  H */
-H_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_H_l), dg(lst_H_c), dg(lst_H_r))$
-
-/* a = dH/dvi, project derivative */ 
-a : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv))$
-
-fname : "~/max-out/fpo-test.txt"$
-fh : openw(fname)$
-writeCExprs1(drag_coeff, a);
-printf(fh, "~%");
-close(fh);
+  printf(fh, "} ~%")
+)$
