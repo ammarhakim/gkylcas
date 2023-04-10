@@ -7,20 +7,12 @@ load("out-scripts")$
 load(stringproc)$
 load("recovery")$
 
-/* Variables that will probably be inputs for kernel generation.
-   Code beyond here should be agnostic to these exact values
-*/
-basisFun : "Ser"$
-polyOrder : 1$
-cdim : 1$
-dir : 1$
-
 calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
   [varsC, bC, NC, cv, lst_H_l, lst_H_c, lst_H_r, H_rec, drag_coeff],
 
   /* Clear variables for safety, then load basis */
   kill(varsC, bC),
-  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsC, bC] : loadBasis(basisFunc, cdim, polyOrder),
   
   /* Number of basis monomials */
   NC : length(bC),
@@ -28,7 +20,7 @@ calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
   /* Variable to perform recovery in */
   cv : varsC[dir],
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(double *dxv, double *H_l, double *H_c, double *H_r)~%", funcNm, cv, cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(double *dxv, double *H_l, double *H_c, double *H_r)~%", funcNm, cv, cdim, basisFunc, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
   printf(fh, "  // H_l/c/r:   Input potential in left/center/right cells.~%  "),
   printf(fh, "~%"),
@@ -41,7 +33,7 @@ calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
   lst_H_r : makelist(H_r[i], i, 0, NC-1),
   
   /* 1-Cell recovery of  H */
-  H_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+  H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
       dg(lst_H_l), dg(lst_H_c), dg(lst_H_r)),
   
   /* a = dH/dvi, project derivative */ 
