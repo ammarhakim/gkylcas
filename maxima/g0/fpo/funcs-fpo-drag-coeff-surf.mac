@@ -1,5 +1,5 @@
 /* This script generates the kernels to calculate the drag coefficient 
-   from an input potential.
+   from an input potential in an edge cell.
    a = 2 * Gamma * grad(H)
 */
 load("modal-basis")$
@@ -7,8 +7,8 @@ load("out-scripts")$
 load(stringproc)$
 load("recovery")$
 
-calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
-  [varsC, bC, NC, cv, lst_H_l, lst_H_c, lst_H_r, H_rec, drag_coeff],
+calcFPODragCoeffSurf(dir, edge, fh, funcNm, cdim, basisFunc, polyOrder) := block(
+  [varsC, bC, NC, cv, lst_H_skin, lst_H_edge, H_rec, drag_coeff],
 
   /* Clear variables for safety, then load basis */
   kill(varsC, bC),
@@ -22,19 +22,20 @@ calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH void ~av~a_~av_~a_p~a(double *dxv, double *H_l, double *H_c, double *H_r)~%", funcNm, cv, cdim, basisFunc, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
-  printf(fh, "  // H_l/c/r:   Input potential in left/center/right cells.~%  "),
+  printf(fh, "  // H_skin/edge:   Input potential in skin/edge cells.~%  "),
   printf(fh, "~%"),
 
   printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1),
 
-  /* Expansions of H in left, center, and right cells */
-  lst_H_l : makelist(H_l[i], i, 0, NC-1),
-  lst_H_c : makelist(H_c[i], i, 0, NC-1),
-  lst_H_r : makelist(H_r[i], i, 0, NC-1),
-  
-  /* 1-Cell recovery of  H */
+  /* Expansions of H in skin and edge cells */
+  lst_H_skin : makelist(H_skin[i], i, 0, NC-1),
+  lst_H_edge : makelist(H_edge[i], i, 0, NC-1),
+
+  H_edge_e : doExpand(H_edge, bC),
+  /* 1-Cell recovery of  H using the surface values of H 
+    as the constraint on one side */
   H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
-      dg(lst_H_l), dg(lst_H_c), dg(lst_H_r)),
+      dg(lst_H_skin), dg(lst_H_edge), bc(D=1, N=0, val=subst(edge, cv, H_edge_e))),
   
   /* a = dH/dvi, project derivative */ 
   a_c : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv)),

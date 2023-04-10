@@ -1,4 +1,4 @@
-load("fpo/funcs-fpo-drag-coeff-vol")$
+load("fpo/funcs-fpo-drag-coeff-surf")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -34,13 +34,15 @@ for bInd : 1 thru length(bName) do (
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false, sconcat("Creating FPO recovery ", bName[bInd], " ~axp~a"), d, polyOrder)),
       for dir : 1 thru d do ( 
-        if (dir = 1) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_vx_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 2) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_vy_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 3) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_vz_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 1) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_surf_vx_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_surf_vy_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_surf_vz_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("fpo_drag_coeff_"),
         printf(fh, "#include <gkyl_fpo_kernels.h> ~%"),
-        calcFPODragCoeff(dir, fh, funcName, d, bName[bInd], polyOrder),
+        funcName : sconcat("fpo_drag_coeff_surf_upper_"),
+        calcFPODragCoeffSurf(dir, 1, fh, funcName, d, bName[bInd], polyOrder),
+        funcName : sconcat("fpo_drag_coeff_surf_lower_"),
+        calcFPODragCoeffSurf(dir, -1, fh, funcName, d, bName[bInd], polyOrder),
         close(fh)
       )
     )
