@@ -34,9 +34,12 @@ calcFPODragCoeffSurf(dir, edge, fh, funcNm, cdim, basisFunc, polyOrder) := block
   H_edge_e : doExpand(H_edge, bC),
   /* 1-Cell recovery of  H using the surface values of H 
     as the constraint on one side */
-  H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
-      dg(lst_H_skin), dg(lst_H_edge), bc(D=1, N=0, val=subst(edge, cv, H_edge_e))),
-  
+  if (edge = 1)
+    then H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
+      dg(lst_H_skin), dg(lst_H_edge), bc(D=1, N=0, val=subst(edge, cv, H_edge_e)))
+    else H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
+      bc(D=1, N=0, val=subst(edge, cv, H_edge_e)), dg(lst_H_edge), dg(lst_H_skin)),
+
   /* a = dH/dvi, project derivative */ 
   a_c : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv)),
   writeCExprs1(drag_coeff, dv1*a_c),
