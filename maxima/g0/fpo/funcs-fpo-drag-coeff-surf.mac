@@ -20,7 +20,7 @@ calcFPODragCoeffSurf(dir, edge, fh, funcNm, cdim, basisFunc, polyOrder) := block
   /* Variable to perform recovery in */
   cv : varsC[dir],
 
-  printf(fh, "GKYL_CU_DH void ~av~a_~av_~a_p~a(double *dxv, double *H_l, double *H_c, double *H_r)~%", funcNm, cv, cdim, basisFunc, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~av~a_~av_~a_p~a(const double *dxv, const double *H_skin, const double *H_edge, double *drag_coeff) {~%", funcNm, cv, cdim, basisFunc, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
   printf(fh, "  // H_skin/edge:   Input potential in skin/edge cells.~%  "),
   printf(fh, "~%"),

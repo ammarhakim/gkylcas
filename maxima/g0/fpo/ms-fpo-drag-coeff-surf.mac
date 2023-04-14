@@ -38,7 +38,7 @@ for bInd : 1 thru length(bName) do (
         if (dir = 2) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_surf_vy_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
         if (dir = 3) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_surf_vz_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        printf(fh, "#include <gkyl_fpo_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
         funcName : sconcat("fpo_drag_coeff_surf_upper_"),
         calcFPODragCoeffSurf(dir, 1, fh, funcName, d, bName[bInd], polyOrder),
         funcName : sconcat("fpo_drag_coeff_surf_lower_"),

@@ -39,7 +39,7 @@ for bInd : 1 thru length(bName) do (
         if (dir = 3) then fname : sconcat("~/max-out/fpo_drag_coeff_recovery_vz_", d, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("fpo_drag_coeff_"),
-        printf(fh, "#include <gkyl_fpo_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
         calcFPODragCoeff(dir, fh, funcName, d, bName[bInd], polyOrder),
         close(fh)
       )
