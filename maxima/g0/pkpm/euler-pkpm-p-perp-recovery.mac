@@ -31,7 +31,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   ppar_b_l_c, ppar_b_c_c, ppar_b_r_c, b_prime_c, div_b_e, div_b_c, 
   bb_grad_u_comp_c, div_p_x_c, div_p_y_c, div_p_z_c, 
   hyper_rhoux_c, hyper_rhouy_c, hyper_rhouz_c, bb_grad_u_e, bb_grad_u_c, div_ppar_b_c, 
-  rho_inv_e, T_perp_over_m_inv_e, div_ppar_b_e, T_perp_over_m_e, nu_e, nu_vthsq_e, 
+  rho_inv_e, T_perp_over_m_inv_e, div_ppar_b_e, T_perp_over_m_e, nu_e, 
   p_force_c, p_perp_source_c, p_perp_div_b_c],
 
   kill(varsC, bC),
@@ -51,8 +51,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   const double *p_ijl, const double *p_ijc, const double *p_ijr, 
   const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr, 
   const double *statevecl, const double *statevecc, const double *statevecr, 
-  const double *rho_inv, const double *T_perp_over_m, const double *T_perp_over_m_inv, 
-  const double *nu, const double *nu_vthsq, 
+  const double *rho_inv, const double *T_perp_over_m, const double *T_perp_over_m_inv, const double *nu, 
   double* div_p, double* pkpm_accel_vars) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // dxv[NDIM]:             Cell spacing.~%"),
   printf(fh, "  // nuHyp:                 Hyper-diffusion coefficient.~%"),
@@ -65,7 +64,6 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  // T_perp_over_m:         Input p_perp/rho = T_perp/m in center cell.~%"),
   printf(fh, "  // T_perp_over_m_inv:     Input (T_perp/m)^-1 in center cell.~%"),
   printf(fh, "  // nu:                    Input collisionality in center cell.~%"),
-  printf(fh, "  // nu_vthsq:              Input nu*vth^2 in center cell.~%"),
   printf(fh, "  // div_p:                 Increment to volume expansion of div(p) in one direction; includes hyper-diffusion for momentum.~%"),
   printf(fh, "  // pkpm_accel_vars:       Increment to volume expansion of pkpm acceleration variables.~%"),
   printf(fh, "~%"),
@@ -385,20 +383,20 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   div_ppar_b_e : doExpand1(div_ppar_b, bC),
   T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
   nu_e : doExpand1(nu, bC),
-  nu_vthsq_e : doExpand1(nu_vthsq, bC),
 
   p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e - T_perp_over_m_e*div_b_e),
   writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
   printf(fh, "~%"),
 
+  /* Configuration space components of vperp characteristics source: bb : grad(u) - div(u) - 2 nu */
   if (dir = 1) then (  
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_x_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_x_e - 2.0/cdim*nu_e)
   )
   elseif (dir = 2) then (
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_y_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_y_e - 2.0/cdim*nu_e)
   )
   elseif (dir = 3) then (
-    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_z_e - 1.0/cdim*nu_e + 1.0/cdim*nu_vthsq_e*T_perp_over_m_inv_e)
+    p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_z_e - 2.0/cdim*nu_e)
   ),  
   writeCIncrExprsCollect1lhsc(p_perp_source, p_perp_source_c), 
   printf(fh, "~%"),
