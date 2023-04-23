@@ -33,14 +33,17 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    quadPolyOrder : 4 - (d-1),
+    /* Optional parameter to make the quadrature higher order
+       Actually seems to have *worse* properties than just polyOrder + 1 
+       quadrature points */
+    /* quadPolyOrder : 4, */
     if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       fname : sconcat("~/max-out/gkyl_basis_",  bName[bInd], "_", d, "x_p", polyOrder, "_sqrt_with_sign.h"),
       fh : openw(fname),
       funcName : sconcat(bName[bInd], "_", d, "x_p", polyOrder, "_sqrt_with_sign"),
-      calcDGExpSqrtSign(fh, funcName, d, bName[bInd], polyOrder, quadPolyOrder),
+      calcDGExpSqrtSign(fh, funcName, d, bName[bInd], polyOrder, polyOrder),
       close(fh)
     )
   )
