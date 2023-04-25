@@ -7,42 +7,66 @@ load("out-scripts")$
 load(stringproc)$
 load("recovery")$
 
-calcFPODragCoeffSurf(dir, edge, fh, funcNm, cdim, basisFunc, polyOrder) := block(
+calcFPODragCoeffSurf(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block(
   [varsC, bC, NC, cv, lst_H_skin, lst_H_edge, H_rec, drag_coeff],
 
   /* Clear variables for safety, then load basis */
   kill(varsC, bC),
-  [varsC, bC] : loadBasis(basisFunc, cdim, polyOrder),
+  [varsC, bC] : loadBasis(basisFunc, cdim + vdim, polyOrder),
   
   /* Number of basis monomials */
   NC : length(bC),
   
   /* Variable to perform recovery in */
-  cv : varsC[dir],
-
-  printf(fh, "GKYL_CU_DH void ~av~a_~av_~a_p~a(const double *dxv, const double *H_skin, const double *H_edge, double *drag_coeff) {~%", funcNm, cv, cdim, basisFunc, polyOrder),
+  recovDir : dir + cdim,
+  cv : varsC[recovDir],
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const int edge, const double *dxv, const double *H_skin, const double *H_edge, double *drag_coeff) {~%", funcNm, cv, cdim, vdim, basisFunc, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
-  printf(fh, "  // H_skin/edge:   Input potential in skin/edge cells.~%  "),
+  printf(fh, "  // H_skin/edge:   Input potential in skin/edge cells in recovery direction.~%  "),
   printf(fh, "~%"),
 
-  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1),
+  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1+cdim),
+
+  printf(fh, "  double *drag_coeff_x = &drag_coeff[~a]; ~%", 0*NC),
+  printf(fh, "  double *drag_coeff_y = &drag_coeff[~a]; ~%", 1*NC),
+  printf(fh, "  double *drag_coeff_z = &drag_coeff[~a]; ~%", 2*NC),
+
+  printf(fh, "  if (edge == 1) {~%"),
 
   /* Expansions of H in skin and edge cells */
   lst_H_skin : makelist(H_skin[i], i, 0, NC-1),
   lst_H_edge : makelist(H_edge[i], i, 0, NC-1),
 
-  H_edge_e : doExpand(H_edge, bC),
+  H_edge_e : doExpand1(H_edge, bC),
   /* 1-Cell recovery of  H using the surface values of H 
     as the constraint on one side */
-  if (edge = 1)
-    then H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
-      dg(lst_H_skin), dg(lst_H_edge), bc(D=1, N=0, val=subst(edge, cv, H_edge_e)))
-    else H_rec : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
-      bc(D=1, N=0, val=subst(edge, cv, H_edge_e)), dg(lst_H_edge), dg(lst_H_skin)),
-
+  H_rec_upper : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
+      dg(lst_H_skin), dg(lst_H_edge), bc(D=1, N=0, val=subst(cv = 1, H_edge_e))),
+  H_rec_lower : calcRecov1CellGen(basisFunc, cv, varsC, polyOrder, 0, 
+      bc(D=1, N=0, val=subst(cv = -1, H_edge_e)), dg(lst_H_edge), dg(lst_H_skin)),
   /* a = dH/dvi, project derivative */ 
-  a_c : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv)),
-  writeCExprs1(drag_coeff, dv1*a_c),
-  printf(fh, "} ~%"),
-  printf(fh, "~%")
+  a_c_upper : calcInnerProdList(varsC, 1, bC, diff(H_rec_upper, cv)),
+  if (dir = 1) then (
+    writeCExprs1(drag_coeff_x, dv1*a_c_upper)
+  )
+  elseif (dir = 2) then (
+    writeCExprs1(drag_coeff_y, dv1*a_c_upper)
+  )
+  elseif (dir = 3) then (
+    writeCExprs1(drag_coeff_z, dv1*a_c_upper)
+  ),
+  printf(fh, "  } else {~%"),
+
+  a_c_lower : calcInnerProdList(varsC, 1, bC, diff(H_rec_lower, cv)),
+  if (dir = 1) then (
+    writeCExprs1(drag_coeff_x, dv1*a_c_lower)
+  )
+  elseif (dir = 2) then (
+    writeCExprs1(drag_coeff_y, dv1*a_c_lower)
+  )
+  elseif (dir = 3) then (
+    writeCExprs1(drag_coeff_z, dv1*a_c_lower)
+  ), 
+  printf(fh, "  } ~%"),
+  printf(fh, "}~%")
 )$

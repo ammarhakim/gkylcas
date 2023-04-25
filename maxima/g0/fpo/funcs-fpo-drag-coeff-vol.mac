@@ -7,26 +7,30 @@ load("out-scripts")$
 load(stringproc)$
 load("recovery")$
 
-calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
+calcFPODragCoeff(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block(
   [varsC, bC, NC, cv, lst_H_l, lst_H_c, lst_H_r, H_rec, drag_coeff],
 
   /* Clear variables for safety, then load basis */
   kill(varsC, bC),
-  [varsC, bC] : loadBasis(basisFunc, cdim, polyOrder),
+  [varsC, bC] : loadBasis(basisFunc, vdim + cdim, polyOrder),
   
   /* Number of basis monomials */
   NC : length(bC),
   
   /* Variable to perform recovery in */
-  cv : varsC[dir],
-
-  printf(fh, "GKYL_CU_DH void ~av~a_~av_~a_p~a(const double *dxv, const double *H_l, const double *H_c, const double *H_r, double *drag_coeff) {~%", funcNm, cv, cdim, basisFunc, polyOrder),
+  recovDir : dir + cdim,
+  cv : varsC[recovDir],
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *dxv, const double *H_l, const double *H_c, const double *H_r, double *drag_coeff) {~%", funcNm, cv, cdim, vdim, basisFunc, polyOrder),
   printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
-  printf(fh, "  // H_l/c/r:   Input potential in left/center/right cells.~%  "),
+  printf(fh, "  // H_l/c/r:   Input potential in left/center/right cells in recovery direction.~%  "),
   printf(fh, "~%"),
 
-  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1),
+  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1+cdim),
 
+  printf(fh, "  double *drag_coeff_x = &drag_coeff[~a]; ~%", 0*NC),
+  printf(fh, "  double *drag_coeff_y = &drag_coeff[~a]; ~%", 1*NC),
+  printf(fh, "  double *drag_coeff_z = &drag_coeff[~a]; ~%", 2*NC),
+ 
   /* Expansions of H in left, center, and right cells */
   lst_H_l : makelist(H_l[i], i, 0, NC-1),
   lst_H_c : makelist(H_c[i], i, 0, NC-1),
@@ -38,7 +42,16 @@ calcFPODragCoeff(dir, fh, funcNm, cdim, basisFunc, polyOrder) := block(
   
   /* a = dH/dvi, project derivative */ 
   a_c : calcInnerProdList(varsC, 1, bC, diff(H_rec, cv)),
-  writeCExprs1(drag_coeff, dv1*a_c),
+  if (dir = 1) then (
+    writeCExprs1(drag_coeff_x, dv1*a_c)
+  )
+  elseif (dir = 2) then (
+    writeCExprs1(drag_coeff_y, dv1*a_c)
+  )
+  elseif (dir = 3) then (
+    writeCExprs1(drag_coeff_z, dv1*a_c)
+  ),
+
   printf(fh, "} ~%"),
   printf(fh, "~%")
 )$
