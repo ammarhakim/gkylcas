@@ -1,4 +1,4 @@
-/* Create header file for Poisson solver. */
+/* Create header file for Helmholtz/Poisson solver. */
 polyOrderMax : 2$
 load("bvp_utilities/bvp-util")$
 
@@ -23,7 +23,7 @@ bcKeyNP   : makelist([bcTypesNP[i],bcStrsNP[i]],i,1,length(bcTypesNP))$
 fh : openw("~/max-out/gkyl_fem_poisson_kernels.h")$
 printf(fh, "// Gkyl ------------------------------------------------------------------------~%")$
 printf(fh, "//~%")$
-printf(fh, "// Header file for FEM Poisson solver.~%")$
+printf(fh, "// Header file for FEM Helmholtz/Poisson solver.~%")$
 printf(fh, "//~%")$
 printf(fh, "//    _______     ___~%")$
 printf(fh, "// + 6 @ |||| # P ||| +~%")$
@@ -117,8 +117,8 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* LHS stencil kernels to populate the global matrix. */
-      findCombos(fh, "void", "fem_poisson_lhs_stencil_consteps", "const double *epsilon, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      findCombos(fh, "void", "fem_poisson_lhs_stencil_vareps", "const double *epsilon, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "void", "fem_poisson_lhs_stencil_consteps", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "void", "fem_poisson_lhs_stencil_vareps", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%"),
 
       /* RHS source stencil kernels to populate the right side vector. */
