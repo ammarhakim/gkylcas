@@ -164,6 +164,10 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 4*NC),
   printf(fh, "~%"),
 
+  ux_e : doExpand1(ux_c, bC),
+  uy_e : doExpand1(uy_c, bC),
+  uz_e : doExpand1(uz_c, bC),
+
   /* We use recovery to compute div(b), grad(u), div(p), and div(p_parallel b) */
   lst_b_l : makelist(b_l[i], i, 0, NC-1),
   lst_b_c : makelist(b_c[i], i, 0, NC-1),
@@ -271,15 +275,15 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
 
-  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec, cv)),
+  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_e, cv)),
   writeCExprs1(grad_u_x, dx1*grad_u_x_c),
   printf(fh, "~%"),
 
-  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec, cv)),
+  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_e, cv)),
   writeCExprs1(grad_u_y, dx1*grad_u_y_c),
   printf(fh, "~%"),
 
-  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec, cv)),
+  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_e, cv)),
   writeCExprs1(grad_u_z, dx1*grad_u_z_c),
   printf(fh, "~%"),
 

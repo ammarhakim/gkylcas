@@ -121,9 +121,9 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "  double alpha_c[~a] = {0.0}; ~%", NP),
   printf(fh, "  double alpha_r[~a] = {0.0}; ~%", NP),
 
-  alpha_l_c : calcInnerProdList(varsP, 1, bP, vTrans*bl_e),
-  alpha_c_c : calcInnerProdList(varsP, 1, bP, vTrans*bc_e),
-  alpha_r_c : calcInnerProdList(varsP, 1, bP, vTrans*br_e),
+  alpha_l_c : calcInnerProdList(varsP, 1, bP, vTrans*bl_e + ul_e),
+  alpha_c_c : calcInnerProdList(varsP, 1, bP, vTrans*bc_e + uc_e),
+  alpha_r_c : calcInnerProdList(varsP, 1, bP, vTrans*br_e + ur_e),
 
   writeCExprs1(alpha_l, alpha_l_c),
   printf(fh, "~%"),
@@ -388,16 +388,16 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     printf(fh, "  F_0_c_r = ~a_surfx~a_eval_quad_node_~a_r(F_0c); ~%", basisStr, dir, i-1),
     printf(fh, "  F_0_r_l = ~a_surfx~a_eval_quad_node_~a_l(F_0r); ~%", basisStr, dir, i-1),
 
-    printf(fh, "  lax_F_0_quad_l[~a] = 0.5*(alpha_l_r*F_0_l_r + alpha_c_l*F_0_c_l) - 0.5*max_speed_l*(F_0_c_l - F_0_l_r); ~%", i-1),
-    printf(fh, "  lax_F_0_quad_r[~a] = 0.5*(alpha_c_r*F_0_c_r + alpha_r_l*F_0_r_l) - 0.5*max_speed_r*(F_0_r_l - F_0_c_r); ~%", i-1),
+    printf(fh, "  lax_F_0_quad_l[~a] = - 0.5*max_speed_l*(F_0_c_l - F_0_l_r); ~%", i-1),
+    printf(fh, "  lax_F_0_quad_r[~a] = - 0.5*max_speed_r*(F_0_r_l - F_0_c_r); ~%", i-1),
 
     printf(fh, "  G_1_l_r = ~a_surfx~a_eval_quad_node_~a_r(G_1l); ~%", basisStr, dir, i-1),
     printf(fh, "  G_1_c_l = ~a_surfx~a_eval_quad_node_~a_l(G_1c); ~%", basisStr, dir, i-1),
     printf(fh, "  G_1_c_r = ~a_surfx~a_eval_quad_node_~a_r(G_1c); ~%", basisStr, dir, i-1),
     printf(fh, "  G_1_r_l = ~a_surfx~a_eval_quad_node_~a_l(G_1r); ~%", basisStr, dir, i-1),
 
-    printf(fh, "  lax_G_1_quad_l[~a] = 0.5*(alpha_l_r*G_1_l_r + alpha_c_l*G_1_c_l) - 0.5*max_speed_l*(G_1_c_l - G_1_l_r); ~%", i-1),
-    printf(fh, "  lax_G_1_quad_r[~a] = 0.5*(alpha_c_r*G_1_c_r + alpha_r_l*G_1_r_l) - 0.5*max_speed_r*(G_1_r_l - G_1_c_r); ~%", i-1),
+    printf(fh, "  lax_G_1_quad_l[~a] = - 0.5*max_speed_l*(G_1_c_l - G_1_l_r); ~%", i-1),
+    printf(fh, "  lax_G_1_quad_r[~a] = - 0.5*max_speed_r*(G_1_r_l - G_1_c_r); ~%", i-1),
 
     printf(fh, "~%")
   ),

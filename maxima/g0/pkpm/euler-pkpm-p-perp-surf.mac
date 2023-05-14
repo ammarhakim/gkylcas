@@ -43,16 +43,17 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   /* Number of basis monomials. */
   NC : length(bC),
-
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
+  const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr,
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *T_ijl, const double *T_ijc, const double *T_ijr,
   const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:                       Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:                     Cell spacing.~%"),
+  printf(fh, "  // vlasov_pkpm_momsl/vlasov_pkpm_momsc/vlasov_pkpm_momsr: Input pkpm moments in left/center/right cells.~%"),
   printf(fh, "  // u_il/u_ic/u_ir:                Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
   printf(fh, "  // T_ijl/T_ijc/T_ijr:             Input Temperature tensor/mass (for penalization) in left/center/right cells.~%"),
-  printf(fh, "  // statevecl/statevecc/statevecr: [rho ux, rho uy, rho uz, p_perp], Fluid input state vector in left/center/right cells.~%"),
+  printf(fh, "  // statevecl/statevecc/statevecr: [rho ux, rho uy, rho uz], Fluid input state vector in left/center/right cells.~%"),
   printf(fh, "  // out: Incremented output.~%"),
   printf(fh, "~%"),
 
@@ -80,9 +81,24 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
+  printf(fh, "  const double *rho_l = &vlasov_pkpm_momsl[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rho_c = &vlasov_pkpm_momsc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rho_r = &vlasov_pkpm_momsr[~a]; ~%", 0*NC),
+  printf(fh, "~%"),
+
   printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0*NC),
   printf(fh, "  const double *ux_c = &u_ic[~a]; ~%", 0*NC),
   printf(fh, "  const double *ux_r = &u_ir[~a]; ~%", 0*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *uy_l = &u_il[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_c = &u_ic[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_r = &u_ir[~a]; ~%", 1*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *uz_l = &u_il[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_c = &u_ic[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", 0),
@@ -106,6 +122,66 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouxr_e : doExpand1(rhoux_r, bC),
   rhouyr_e : doExpand1(rhouy_r, bC),
   rhouzr_e : doExpand1(rhouz_r, bC),
+
+  rhol_e : doExpand1(rho_l, bC), 
+  rhoc_e : doExpand1(rho_c, bC), 
+  rhor_e : doExpand1(rho_r, bC), 
+
+  rhol_r : subst(cv=1, rhol_e),
+  rhoc_l : subst(cv=-1, rhoc_e),
+  rhoc_r : subst(cv=1, rhoc_e),
+  rhor_l : subst(cv=-1, rhor_e),
+
+  /* We use recovery to compute the interface u_i values for momentum fluxes */
+  /* Create safety lists for recovery */
+  lst_ux_l : makelist(ux_l[i], i, 0, NC-1),
+  lst_ux_c : makelist(ux_c[i], i, 0, NC-1),
+  lst_ux_r : makelist(ux_r[i], i, 0, NC-1),
+
+  lst_uy_l : makelist(uy_l[i], i, 0, NC-1),
+  lst_uy_c : makelist(uy_c[i], i, 0, NC-1),
+  lst_uy_r : makelist(uy_r[i], i, 0, NC-1),
+
+  lst_uz_l : makelist(uz_l[i], i, 0, NC-1),
+  lst_uz_c : makelist(uz_c[i], i, 0, NC-1),
+  lst_uz_r : makelist(uz_r[i], i, 0, NC-1),
+
+  /* Recovery */
+  ux_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_ux_l), dg(lst_ux_c)),
+  ux_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_ux_c), dg(lst_ux_r)),
+
+  uy_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_uy_l), dg(lst_uy_c)),
+  uy_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_uy_c), dg(lst_uy_r)),
+
+  uz_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_uz_l), dg(lst_uz_c)),
+  uz_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
+    dg(lst_uz_c), dg(lst_uz_r)),
+
+  /* Evaluate recovery u at surface interfaces to find sign and value.
+     Only need sign of u_i at normal interface (i.e., ux at x interfaces) */
+  printf(fh, "  double uxrec_l = ~a; ~%", float(expand(subst(cv=0, ux_rec_l)))),
+  printf(fh, "  double uxrec_r = ~a; ~%", float(expand(subst(cv=0, ux_rec_r)))),
+  printf(fh, "  double uxrec_l2 = uxrec_l*uxrec_l; ~%"), 
+  printf(fh, "  double uxrec_r2 = uxrec_r*uxrec_r; ~%"), 
+  printf(fh, "~%"),
+  printf(fh, "  double uyrec_l = ~a; ~%", float(expand(subst(cv=0, uy_rec_l)))),
+  printf(fh, "  double uyrec_r = ~a; ~%", float(expand(subst(cv=0, uy_rec_r)))),
+  printf(fh, "~%"),
+  printf(fh, "  double uzrec_l = ~a; ~%", float(expand(subst(cv=0, uz_rec_l)))),
+  printf(fh, "  double uzrec_r = ~a; ~%", float(expand(subst(cv=0, uz_rec_r)))),
+  printf(fh, "~%"),
+
+  printf(fh, "  double Ghat_rhoux_l = 0.0; ~%"),
+  printf(fh, "  double Ghat_rhoux_r = 0.0; ~%"),
+  printf(fh, "  double Ghat_rhouy_l = 0.0; ~%"),
+  printf(fh, "  double Ghat_rhouy_r = 0.0; ~%"),
+  printf(fh, "  double Ghat_rhouz_l = 0.0; ~%"),
+  printf(fh, "  double Ghat_rhouz_r = 0.0; ~%"),  
 
   rhouxl_r : subst(cv=1, rhouxl_e),
   rhouyl_r : subst(cv=1, rhouyl_e),
@@ -142,15 +218,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double max_speed_r = ux_max_r + vth_max_r; ~%"),
   printf(fh, "~%"),
 
-  avg_rhoux_l : 0.5*(rhouxl_r*ux_l_r + rhouxc_l*ux_c_l),
-  avg_rhoux_r : 0.5*(rhouxc_r*ux_c_r + rhouxr_l*ux_r_l),
-
-  avg_rhouy_l : 0.5*(rhouyl_r*ux_l_r + rhouyc_l*ux_c_l),
-  avg_rhouy_r : 0.5*(rhouyc_r*ux_c_r + rhouyr_l*ux_r_l),
-
-  avg_rhouz_l : 0.5*(rhouzl_r*ux_l_r + rhouzc_l*ux_c_l),
-  avg_rhouz_r : 0.5*(rhouzc_r*ux_c_r + rhouzr_l*ux_r_l),
-
   jump_rhoux_l : 0.5*(rhouxc_l - rhouxl_r),
   jump_rhoux_r : 0.5*(rhouxr_l - rhouxc_r),
 
@@ -160,23 +227,44 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
 
-  Ghat_rhoux_l_exp : avg_rhoux_l - max_speed_l*jump_rhoux_l,
-  Ghat_rhoux_r_exp : avg_rhoux_r - max_speed_r*jump_rhoux_r,
+  Ghat_rhoux_l_exp : - max_speed_l*jump_rhoux_l,
+  Ghat_rhoux_r_exp : - max_speed_r*jump_rhoux_r,
 
-  Ghat_rhouy_l_exp : avg_rhouy_l - max_speed_l*jump_rhouy_l,
-  Ghat_rhouy_r_exp : avg_rhouy_r - max_speed_r*jump_rhouy_r,
+  Ghat_rhouy_l_exp : - max_speed_l*jump_rhouy_l,
+  Ghat_rhouy_r_exp : - max_speed_r*jump_rhouy_r,
 
-  Ghat_rhouz_l_exp : avg_rhouz_l - max_speed_l*jump_rhouz_l,
-  Ghat_rhouz_r_exp : avg_rhouz_r - max_speed_r*jump_rhouz_r,
+  Ghat_rhouz_l_exp : - max_speed_l*jump_rhouz_l,
+  Ghat_rhouz_r_exp : - max_speed_r*jump_rhouz_r,
 
-  printf(fh, "  double Ghat_rhoux_l = ~a; ~%", float(expand(Ghat_rhoux_l_exp))),
-  printf(fh, "  double Ghat_rhoux_r = ~a; ~%", float(expand(Ghat_rhoux_r_exp))),
+  printf(fh, "  if (uxrec_l > 0) { ~%"),
 
-  printf(fh, "  double Ghat_rhouy_l = ~a; ~%", float(expand(Ghat_rhouy_l_exp))),
-  printf(fh, "  double Ghat_rhouy_r = ~a; ~%", float(expand(Ghat_rhouy_r_exp))),
+  printf(fh, "  Ghat_rhoux_l = ~a; ~%", uxrec_l2*float(expand(rhol_r)) + float(expand(Ghat_rhoux_l_exp))),
+  printf(fh, "  Ghat_rhouy_l = ~a; ~%", uyrec_l*uxrec_l*float(expand(rhol_r)) + float(expand(Ghat_rhouy_l_exp))),
+  printf(fh, "  Ghat_rhouz_l = ~a; ~%", uzrec_l*uxrec_l*float(expand(rhol_r)) + float(expand(Ghat_rhouz_l_exp))),
 
-  printf(fh, "  double Ghat_rhouz_l = ~a; ~%", float(expand(Ghat_rhouz_l_exp))),
-  printf(fh, "  double Ghat_rhouz_r = ~a; ~%", float(expand(Ghat_rhouz_r_exp))),   
+  printf(fh, "  } else { ~%"),
+
+  printf(fh, "  Ghat_rhoux_l = ~a; ~%", uxrec_l2*float(expand(rhoc_l)) + float(expand(Ghat_rhoux_l_exp))),
+  printf(fh, "  Ghat_rhouy_l = ~a; ~%", uyrec_l*uxrec_l*float(expand(rhoc_l)) + float(expand(Ghat_rhouy_l_exp))),
+  printf(fh, "  Ghat_rhouz_l = ~a; ~%", uzrec_l*uxrec_l*float(expand(rhoc_l)) + float(expand(Ghat_rhouz_l_exp))),
+
+  printf(fh, "  } ~%"),
+
+  printf(fh, "  if (uxrec_r > 0) { ~%"),
+
+  printf(fh, "  Ghat_rhoux_r = ~a; ~%", uxrec_r2*float(expand(rhoc_r)) + float(expand(Ghat_rhoux_r_exp))),
+  printf(fh, "  Ghat_rhouy_r = ~a; ~%", uyrec_r*uxrec_r*float(expand(rhoc_r)) + float(expand(Ghat_rhouy_r_exp))),
+  printf(fh, "  Ghat_rhouz_r = ~a; ~%", uzrec_r*uxrec_r*float(expand(rhoc_r)) + float(expand(Ghat_rhouz_r_exp))), 
+
+  printf(fh, "  } else { ~%"),
+
+  printf(fh, "  Ghat_rhoux_r = ~a; ~%", uxrec_r2*float(expand(rhor_l)) + float(expand(Ghat_rhoux_r_exp))),
+  printf(fh, "  Ghat_rhouy_r = ~a; ~%", uyrec_r*uxrec_r*float(expand(rhor_l)) + float(expand(Ghat_rhouy_r_exp))),
+  printf(fh, "  Ghat_rhouz_r = ~a; ~%", uzrec_r*uxrec_r*float(expand(rhor_l)) + float(expand(Ghat_rhouz_r_exp))), 
+
+  printf(fh, "  } ~%"),
+
+  printf(fh, "~%"),
 
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_rhoux_l),
   incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_rhoux_r),
@@ -218,6 +306,7 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   NC : length(bC),
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv,
+  const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr,
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *T_ijl, const double *T_ijc, const double *T_ijr,
   const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
