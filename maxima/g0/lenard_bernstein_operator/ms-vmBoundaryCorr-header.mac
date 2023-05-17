@@ -41,7 +41,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([],
 fh : openw("~/max-out/gkyl_mom_bcorr_lbo_vlasov_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "#include <math.h>~%")$
-printf(fh, "#include <gkyl_mom_calc_bcorr.h>~%")$
+printf(fh, "#include <gkyl_eqn_type.h>~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
