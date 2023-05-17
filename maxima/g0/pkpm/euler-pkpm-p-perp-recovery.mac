@@ -69,9 +69,6 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
 
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
-  /* Hyper diffusion Jacobian factor */
-  printf(fh, "  const double dx14 = dx1*dx1*dx1*dx1; ~%"),
-  printf(fh, "~%"),
 
   /* b_hat in direction dir for div(b) */
   printf(fh, "  const double *b_l = &bvarl[~a]; ~%", (dir-1)*NC),
@@ -261,29 +258,50 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   lst_rhouz_c : makelist(rhouz_c[i], i, 0, NC-1),
   lst_rhouz_r : makelist(rhouz_r[i], i, 0, NC-1),
 
-  rhoux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
-    dg(lst_rhoux_l), dg(lst_rhoux_c), dg(lst_rhoux_r)),
+  if (polyOrder = 1 or polyOrder = 2) then (
+    /* Hyper diffusion Jacobian factor 4th order with p=1 */
+    printf(fh, "  const double dxHyp = dx1*dx1*dx1*dx1; ~%"),
+    printf(fh, "~%"),
 
-  rhouy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
-    dg(lst_rhouy_l), dg(lst_rhouy_c), dg(lst_rhouy_r)),
+    rhoux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+      dg(lst_rhoux_l), dg(lst_rhoux_c), dg(lst_rhoux_r)),
 
-  rhouz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
-    dg(lst_rhouz_l), dg(lst_rhouz_c), dg(lst_rhouz_r)),
+    rhouy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+      dg(lst_rhouy_l), dg(lst_rhouy_c), dg(lst_rhouy_r)),
+
+    rhouz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
+      dg(lst_rhouz_l), dg(lst_rhouz_c), dg(lst_rhouz_r))
+  ),
+  /*
+  elseif (polyOrder = 2) then (
+    /* Hyper diffusion Jacobian factor 6th order with p=2 */
+    printf(fh, "  const double dxHyp = dx1*dx1*dx1*dx1*dx1*dx1; ~%"),
+    printf(fh, "~%"),
+
+    rhoux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 2, 
+      dg(lst_rhoux_l), dg(lst_rhoux_c), dg(lst_rhoux_r)),
+
+    rhouy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 2, 
+      dg(lst_rhouy_l), dg(lst_rhouy_c), dg(lst_rhouy_r)),
+
+    rhouz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 2, 
+      dg(lst_rhouz_l), dg(lst_rhouz_c), dg(lst_rhouz_r))
+  ), */
 
   /* Need bb : grad(u), write out grad(u) for each component of u */
   printf(fh, "  double grad_u_x[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
 
-  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_e, cv)),
+  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec, cv)),
   writeCExprs1(grad_u_x, dx1*grad_u_x_c),
   printf(fh, "~%"),
 
-  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_e, cv)),
+  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec, cv)),
   writeCExprs1(grad_u_y, dx1*grad_u_y_c),
   printf(fh, "~%"),
 
-  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_e, cv)),
+  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec, cv)),
   writeCExprs1(grad_u_z, dx1*grad_u_z_c),
   printf(fh, "~%"),
 
@@ -358,10 +376,6 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbz_e*grad_u_x_e + bybz_e*grad_u_y_e + bzbz_e*grad_u_z_e)
   ),
 
-  hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 4)),
-  hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 4)),
-  hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4)),
-
   writeCExprs1(bb_grad_u_comp, bb_grad_u_comp_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -370,12 +384,33 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(bb_grad_u, bb_grad_u_c),  
   printf(fh, "~%"),
 
-  writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c + nuHyp*dx14*hyper_rhoux_c),
-  printf(fh, "~%"),
-  writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c + nuHyp*dx14*hyper_rhouy_c),
-  printf(fh, "~%"),
-  writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c + nuHyp*dx14*hyper_rhouz_c),
-  printf(fh, "~%"),
+  if (polyOrder = 1 or polyOrder = 2) then (
+    /* Hyper diffusion Jacobian factor 4th order with p=1 */
+    hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 4)),
+    hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 4)),
+    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4)),
+
+    writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c + nuHyp*dxHyp*hyper_rhoux_c),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c + nuHyp*dxHyp*hyper_rhouy_c),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c + nuHyp*dxHyp*hyper_rhouz_c),
+    printf(fh, "~%")
+  ),
+  /*
+  elseif polyOrder = 2 then (
+    /* Hyper diffusion Jacobian factor 6th order with p=2 (NOTE MINUS SIGN) */
+    hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 6)),
+    hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 6)),
+    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 6)),
+
+    writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c - nuHyp*dxHyp*hyper_rhoux_c),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c - nuHyp*dxHyp*hyper_rhouy_c),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c - nuHyp*dxHyp*hyper_rhouz_c),
+    printf(fh, "~%")
+  ), */
 
   printf(fh, "  double div_ppar_b[~a] = {0.0}; ~%", NC),
   div_ppar_b_c : calcInnerProdList(varsC, 1, bC, diff(ppar_b_rec , cv)),

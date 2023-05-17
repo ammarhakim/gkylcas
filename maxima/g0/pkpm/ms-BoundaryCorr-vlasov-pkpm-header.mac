@@ -14,7 +14,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 1$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -38,7 +38,7 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([],
 fh : openw("~/max-out/gkyl_mom_bcorr_lbo_vlasov_pkpm_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "#include <math.h>~%")$
-printf(fh, "#include <gkyl_mom_calc_bcorr.h>~%")$
+printf(fh, "#include <gkyl_eqn_type.h>~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG ~%")$

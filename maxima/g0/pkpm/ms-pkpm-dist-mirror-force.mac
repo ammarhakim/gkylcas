@@ -25,7 +25,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 1$
 
 /* ...... END OF USER INPUTS........ */
 
