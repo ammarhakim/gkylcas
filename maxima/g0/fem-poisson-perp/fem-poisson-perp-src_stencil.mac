@@ -20,7 +20,7 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMax) := block(
+generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := block(
   [dimPerp,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,
    massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,domSurfs,phi_e,surf_c,insertVal,dirichletDirs,opStr,dir,
    dirichletNodesI,dirVar,surfVars,off3,k0,bcValues,eps_dphidnBC,sI,fh,d,bcsInDir,i,bcI,polyOrder,dI,k],
@@ -90,7 +90,7 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMax) := block(
                      assoc(stencilLoc[sI][d],coordVarS)[d],"_",assoc(currBC[d],bcKey),string(varsC[d]))
       ),
 
-      for polyOrder : 1 thru pMax do (
+      for polyOrder : pMin thru pMax do (
 
         printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // epsilon: permittivity tensor.~%"),

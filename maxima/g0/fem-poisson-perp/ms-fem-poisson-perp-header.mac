@@ -1,10 +1,24 @@
 /* Create header file for perpendicular Helmholtz/Poisson solver. */
-polyOrderMax : 2$
-cdim : 3$
-dimPerp : 2$
 load("bvp_utilities/bvp-util")$
 
-bName : ["ser"]$
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+
+cdim : 3$
+dimPerp : 2$
 
 /* Types of boundary conditions for which to generate kernels.
      =0 periodic
@@ -111,7 +125,7 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
 
 for bInd : 1 thru length(bName) do (
 
-  for polyOrder : 1 thru polyOrderMax do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
 
     /* Compute the number of nodes in the whole domain. */
     findCombos(fh, "long", "fem_poisson_perp_num_nodes_global", "const int *numCells", bName[bInd], cdim, polyOrder, bcKeyNP, false, true),

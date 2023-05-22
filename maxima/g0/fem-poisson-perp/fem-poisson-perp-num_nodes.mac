@@ -9,7 +9,7 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
+generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := block(
   [dimPerp,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,d,i,bcI,currBC,stencilStr,polyOrder,
    numCellsProb,bN,numB,numNodes,storedNodes,numNodesOut,sI,numStoredNodes,numBoundCells],
 
@@ -54,7 +54,7 @@ generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
       stencilStr : sconcat(stencilStr,"_",assoc(currBC[d],bcKey),string(varsC[d]))
     ),
 
-    for polyOrder : 1 thru pMax do (
+    for polyOrder : pMin thru pMax do (
 
       printf(fh, "long ~a_p~a~a(const int *numCells) ~%{ ~%", funcNm, polyOrder, stencilStr),
       printf(fh, "  // numCells: number of cells in each direction.~%"),

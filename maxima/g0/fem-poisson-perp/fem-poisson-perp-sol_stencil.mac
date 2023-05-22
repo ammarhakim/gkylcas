@@ -9,7 +9,7 @@ load("nodal_operations/nodal_functions");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_perp_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
+generate_fem_poisson_perp_sol_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
   [bN,numB,vars,stencil,sol,sol_c,polyOrder,k],
 
   kill(varsC, varsP, basisC, basisP),
@@ -41,6 +41,4 @@ generate_fem_poisson_perp_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
     printf(fh, "}~%")
 
   )
-
-
 )$

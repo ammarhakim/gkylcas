@@ -19,7 +19,7 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMax) := block(
+generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := block(
   [dimPerp,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,mod2nod,
    varCombos,epsSup_l,eps,eps_e,idx,eps_c,rdx_ij,phi_c,phi_e,vol_c,domSurfs,surf_c,lhs_c,insertVal,
    dirichletDirs,vals_k,triplesStr,val,dir,dirichletBoundaryNodes,dirichletBoundaryNodesI,
@@ -90,7 +90,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMax) := block(
                      assoc(stencilLoc[sI][d],coordVarS)[d],"_",assoc(currBC[d],bcKey),string(varsC[d]))
       ),
 
-      for polyOrder : 1 thru pMax do (
+      for polyOrder : pMin thru pMax do (
 
         bN   : getNodalBasis(basisFun, dim, polyOrder),
         numB : length(bN),
