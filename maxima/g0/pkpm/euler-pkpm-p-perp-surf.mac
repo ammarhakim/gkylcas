@@ -20,21 +20,25 @@ lhs : [outrhou0, outrhou1, outrhou2, outp_perp]$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
+let(uxl_r^2, uxl_r_sq)$
+let(uxc_l^2, uxc_l_sq)$
+let(uxc_r^2, uxc_r_sq)$
+let(uxr_l^2, uxr_l_sq)$
+
 /* 1D Euler special since only involves evaluations */
 calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,NC,cid,cv,surfVars,
-  rhouxl_e,rhouyl_e,rhouzl_e,p_perpl_e,
-  rhouxc_e,rhouyc_e,rhouzc_e,p_perpc_e,
-  rhouxr_e,rhouyr_e,rhouzr_e,p_perpr_e,
-  uxl_e,uxc_e,uxr_e,
-  uyl_e,uyc_e,uyr_e,
-  uzl_e,uzc_e,uzr_e,
-  rhouxl_r,rhouyl_r,rhouzl_r,p_perpl_r,
-  rhouxc_l,rhouyc_l,rhouzc_l,p_perpc_l,
-  rhouxc_r,rhouyc_r,rhouzc_r,p_perpc_r,
-  rhouxr_l,rhouyr_l,rhouzr_l,p_perpr_l,
-  Ghat_rhoux_l_exp,Ghat_rhoux_r_exp,Ghat_rhouy_l_exp,Ghat_rhouy_r_exp,Ghat_rhouz_l_exp,Ghat_rhouz_r_exp,Ghat_p_perp_l_exp,Ghat_p_perp_r_exp,
-  incr_rhoux_l,incr_rhoux_r,incr_rhouy_l,incr_rhouy_r,incr_rhouz_l,incr_rhouz_r,incr_p_perp_l,incr_p_perp_r],
+  rhouxl_e,rhouyl_e,rhouzl_e,rhol_e,
+  rhouxc_e,rhouyc_e,rhouzc_e,rhoc_e,
+  rhouxr_e,rhouyr_e,rhouzr_e,rhor_e,
+  rhouxl_r,rhouyl_r,rhouzl_r,rhol_r,
+  rhouxc_l,rhouyc_l,rhouzc_l,rhoc_l,
+  rhouxc_r,rhouyc_r,rhouzc_r,rhoc_r,
+  rhouxr_l,rhouyr_l,rhouzr_l,rhor_l,
+  avg_rho_l, avg_rho_r, avg_ux_l, avg_ux_r, avg_uy_l, avg_uy_r, avg_uz_l, avg_uz_r, 
+  Ghat_rho_l_exp, Ghat_rho_r_exp, jump_rhoux_l, jump_rhoux_r, jump_rhouy_l, jump_rhouy_r, jump_rhouz_l, jump_rhouz_r, 
+  Ghat_rhoux_l_exp,Ghat_rhoux_r_exp,Ghat_rhouy_l_exp,Ghat_rhouy_r_exp,Ghat_rhouz_l_exp,Ghat_rhouz_r_exp,
+  incr_rhoux_l,incr_rhoux_r,incr_rhouy_l,incr_rhouy_r,incr_rhouz_l,incr_rhouz_r],
 
   kill(varsC, bC),
 
@@ -132,50 +136,6 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhoc_r : subst(cv=1, rhoc_e),
   rhor_l : subst(cv=-1, rhor_e),
 
-  /* We use recovery to compute the interface u_i values for momentum fluxes */
-  /* Create safety lists for recovery */
-  lst_ux_l : makelist(ux_l[i], i, 0, NC-1),
-  lst_ux_c : makelist(ux_c[i], i, 0, NC-1),
-  lst_ux_r : makelist(ux_r[i], i, 0, NC-1),
-
-  lst_uy_l : makelist(uy_l[i], i, 0, NC-1),
-  lst_uy_c : makelist(uy_c[i], i, 0, NC-1),
-  lst_uy_r : makelist(uy_r[i], i, 0, NC-1),
-
-  lst_uz_l : makelist(uz_l[i], i, 0, NC-1),
-  lst_uz_c : makelist(uz_c[i], i, 0, NC-1),
-  lst_uz_r : makelist(uz_r[i], i, 0, NC-1),
-
-  /* Recovery */
-  ux_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_ux_l), dg(lst_ux_c)),
-  ux_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_ux_c), dg(lst_ux_r)),
-
-  uy_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_uy_l), dg(lst_uy_c)),
-  uy_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_uy_c), dg(lst_uy_r)),
-
-  uz_rec_l : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_uz_l), dg(lst_uz_c)),
-  uz_rec_r : calcRecov2CellGen(basisFun, cv, varsC, polyOrder,
-    dg(lst_uz_c), dg(lst_uz_r)),
-
-  /* Evaluate recovery u at surface interfaces to find sign and value.
-     Only need sign of u_i at normal interface (i.e., ux at x interfaces) */
-  printf(fh, "  double uxrec_l = ~a; ~%", float(expand(subst(cv=0, ux_rec_l)))),
-  printf(fh, "  double uxrec_r = ~a; ~%", float(expand(subst(cv=0, ux_rec_r)))),
-  printf(fh, "  double uxrec_l2 = uxrec_l*uxrec_l; ~%"), 
-  printf(fh, "  double uxrec_r2 = uxrec_r*uxrec_r; ~%"), 
-  printf(fh, "~%"),
-  printf(fh, "  double uyrec_l = ~a; ~%", float(expand(subst(cv=0, uy_rec_l)))),
-  printf(fh, "  double uyrec_r = ~a; ~%", float(expand(subst(cv=0, uy_rec_r)))),
-  printf(fh, "~%"),
-  printf(fh, "  double uzrec_l = ~a; ~%", float(expand(subst(cv=0, uz_rec_l)))),
-  printf(fh, "  double uzrec_r = ~a; ~%", float(expand(subst(cv=0, uz_rec_r)))),
-  printf(fh, "~%"),
-
   printf(fh, "  double Ghat_rhoux_l = 0.0; ~%"),
   printf(fh, "  double Ghat_rhoux_r = 0.0; ~%"),
   printf(fh, "  double Ghat_rhouy_l = 0.0; ~%"),
@@ -200,23 +160,53 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouzr_l : subst(cv=-1, rhouzr_e),
 
   /* evaluate u at surface interfaces to find max */
-  printf(fh, "  double ux_l_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_l); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  double ux_c_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(ux_c); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  double ux_c_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_c); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  double ux_r_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(ux_r); ~%", basisFun, cdim, polyOrder),
-
+  printf(fh, "  double uxl_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_l); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uxc_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(ux_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uxc_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uxr_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(ux_r); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "~%"),
+  printf(fh, "  double uxl_r_sq = uxl_r*uxl_r; ~%"),
+  printf(fh, "  double uxc_l_sq = uxc_l*uxc_l; ~%"),
+  printf(fh, "  double uxc_r_sq = uxc_r*uxc_r; ~%"),
+  printf(fh, "  double uxr_l_sq = uxr_l*uxr_l; ~%"),
+  printf(fh, "~%"),  
+  printf(fh, "  double uyl_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uy_l); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uyc_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uy_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uyc_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uy_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uyr_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uy_r); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "~%"),
+  printf(fh, "  double uzl_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uz_l); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uzc_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uz_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uzc_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(uz_c); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  double uzr_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(uz_r); ~%", basisFun, cdim, polyOrder),  
+  printf(fh, "~%"),
   printf(fh, "  double vth_sq_l_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(vth_sql); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  double vth_sq_c_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(vth_sqc); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  double vth_sq_c_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(vth_sqc); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  double vth_sq_r_l = ~a_~ax_p~a_surfx1_eval_quad_node_0_l(vth_sqr); ~%", basisFun, cdim, polyOrder),
   printf(fh, "~%"),
-  printf(fh, "  double ux_max_l = fmax(fabs(ux_l_r), fabs(ux_c_l)); ~%"),
-  printf(fh, "  double ux_max_r = fmax(fabs(ux_c_r), fabs(ux_r_l)); ~%"),
+  printf(fh, "  double ux_max_l = fmax(fabs(uxl_r), fabs(uxc_l)); ~%"),
+  printf(fh, "  double ux_max_r = fmax(fabs(uxc_r), fabs(uxr_l)); ~%"),
   printf(fh, "  double vth_max_l = fmax(sqrt(fabs(vth_sq_l_r)), sqrt(fabs(vth_sq_c_l))); ~%"),
   printf(fh, "  double vth_max_r = fmax(sqrt(fabs(vth_sq_c_r)), sqrt(fabs(vth_sq_r_l))); ~%"),
   printf(fh, "  double max_speed_l = ux_max_l + vth_max_l; ~%"),
   printf(fh, "  double max_speed_r = ux_max_r + vth_max_r; ~%"),
   printf(fh, "~%"),
+
+  avg_ux_l : 0.5*(uxc_l + uxl_r),
+  avg_ux_r : 0.5*(uxr_l + uxc_r),
+
+  avg_uy_l : 0.5*(uyc_l + uyl_r),
+  avg_uy_r : 0.5*(uyr_l + uyc_r),
+
+  avg_uz_l : 0.5*(uzc_l + uzl_r),
+  avg_uz_r : 0.5*(uzr_l + uzc_r),
+
+  avg_rho_l : 0.5*(rhoc_l + rhol_r),
+  avg_rho_r : 0.5*(rhor_l + rhoc_r),
+
+  Ghat_rho_l_exp : avg_rho_l*avg_ux_l,
+  Ghat_rho_r_exp : avg_rho_r*avg_ux_r,
 
   jump_rhoux_l : 0.5*(rhouxc_l - rhouxl_r),
   jump_rhoux_r : 0.5*(rhouxr_l - rhouxc_r),
@@ -227,42 +217,25 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
 
-  Ghat_rhoux_l_exp : - max_speed_l*jump_rhoux_l,
-  Ghat_rhoux_r_exp : - max_speed_r*jump_rhoux_r,
+  Ghat_rhoux_l_exp : Ghat_rho_l_exp*avg_ux_l - max_speed_l*jump_rhoux_l,
+  Ghat_rhoux_r_exp : Ghat_rho_r_exp*avg_ux_r - max_speed_r*jump_rhoux_r,
 
-  Ghat_rhouy_l_exp : - max_speed_l*jump_rhouy_l,
-  Ghat_rhouy_r_exp : - max_speed_r*jump_rhouy_r,
+  Ghat_rhoux_l_exp : map(letsimp, Ghat_rhoux_l_exp),
+  Ghat_rhoux_r_exp : map(letsimp, Ghat_rhoux_r_exp),
 
-  Ghat_rhouz_l_exp : - max_speed_l*jump_rhouz_l,
-  Ghat_rhouz_r_exp : - max_speed_r*jump_rhouz_r,
+  Ghat_rhouy_l_exp : Ghat_rho_l_exp*avg_uy_l - max_speed_l*jump_rhouy_l,
+  Ghat_rhouy_r_exp : Ghat_rho_r_exp*avg_uy_r - max_speed_r*jump_rhouy_r,
 
-  printf(fh, "  if (uxrec_l > 0) { ~%"),
+  Ghat_rhouz_l_exp : Ghat_rho_l_exp*avg_uz_l - max_speed_l*jump_rhouz_l,
+  Ghat_rhouz_r_exp : Ghat_rho_r_exp*avg_uz_r - max_speed_r*jump_rhouz_r,
 
-  printf(fh, "  Ghat_rhoux_l = ~a; ~%", uxrec_l2*float(expand(rhol_r)) + float(expand(Ghat_rhoux_l_exp))),
-  printf(fh, "  Ghat_rhouy_l = ~a; ~%", uyrec_l*uxrec_l*float(expand(rhol_r)) + float(expand(Ghat_rhouy_l_exp))),
-  printf(fh, "  Ghat_rhouz_l = ~a; ~%", uzrec_l*uxrec_l*float(expand(rhol_r)) + float(expand(Ghat_rhouz_l_exp))),
+  printf(fh, "  Ghat_rhoux_l = ~a; ~%", float(expand(Ghat_rhoux_l_exp))),
+  printf(fh, "  Ghat_rhouy_l = ~a; ~%", float(expand(Ghat_rhouy_l_exp))),
+  printf(fh, "  Ghat_rhouz_l = ~a; ~%", float(expand(Ghat_rhouz_l_exp))),
 
-  printf(fh, "  } else { ~%"),
-
-  printf(fh, "  Ghat_rhoux_l = ~a; ~%", uxrec_l2*float(expand(rhoc_l)) + float(expand(Ghat_rhoux_l_exp))),
-  printf(fh, "  Ghat_rhouy_l = ~a; ~%", uyrec_l*uxrec_l*float(expand(rhoc_l)) + float(expand(Ghat_rhouy_l_exp))),
-  printf(fh, "  Ghat_rhouz_l = ~a; ~%", uzrec_l*uxrec_l*float(expand(rhoc_l)) + float(expand(Ghat_rhouz_l_exp))),
-
-  printf(fh, "  } ~%"),
-
-  printf(fh, "  if (uxrec_r > 0) { ~%"),
-
-  printf(fh, "  Ghat_rhoux_r = ~a; ~%", uxrec_r2*float(expand(rhoc_r)) + float(expand(Ghat_rhoux_r_exp))),
-  printf(fh, "  Ghat_rhouy_r = ~a; ~%", uyrec_r*uxrec_r*float(expand(rhoc_r)) + float(expand(Ghat_rhouy_r_exp))),
-  printf(fh, "  Ghat_rhouz_r = ~a; ~%", uzrec_r*uxrec_r*float(expand(rhoc_r)) + float(expand(Ghat_rhouz_r_exp))), 
-
-  printf(fh, "  } else { ~%"),
-
-  printf(fh, "  Ghat_rhoux_r = ~a; ~%", uxrec_r2*float(expand(rhor_l)) + float(expand(Ghat_rhoux_r_exp))),
-  printf(fh, "  Ghat_rhouy_r = ~a; ~%", uyrec_r*uxrec_r*float(expand(rhor_l)) + float(expand(Ghat_rhouy_r_exp))),
-  printf(fh, "  Ghat_rhouz_r = ~a; ~%", uzrec_r*uxrec_r*float(expand(rhor_l)) + float(expand(Ghat_rhouz_r_exp))), 
-
-  printf(fh, "  } ~%"),
+  printf(fh, "  Ghat_rhoux_r = ~a; ~%", float(expand(Ghat_rhoux_r_exp))),
+  printf(fh, "  Ghat_rhouy_r = ~a; ~%", float(expand(Ghat_rhouy_r_exp))),
+  printf(fh, "  Ghat_rhouz_r = ~a; ~%", float(expand(Ghat_rhouz_r_exp))), 
 
   printf(fh, "~%"),
 
@@ -286,16 +259,25 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 );
 
 calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [bC,NC,cid,cv,surfVars,
-  rhouxl_e,rhouyl_e,rhouzl_e,E_perpl_e,p_perpl_e,
-  rhouxc_e,rhouyc_e,rhouzc_e,E_perpc_e,p_perpc_e,
-  rhouxr_e,rhouyr_e,rhouzr_e,E_perpr_e,p_perpr_e,
-  rhouxl_r,rhouyl_r,rhouzl_r,E_perpl_r,p_perpl_r,
-  rhouxc_l,rhouyc_l,rhouzc_l,E_perpc_l,p_perpc_l,
-  rhouxc_r,rhouyc_r,rhouzc_r,E_perpc_r,p_perpc_r,
-  rhouxr_l,rhouyr_l,rhouzr_l,E_perpr_l,p_perpr_l,
-  Ghat_rhoux_l_exp,Ghat_rhoux_r_exp,Ghat_rhouy_l_exp,Ghat_rhouy_r_exp,Ghat_rhouz_l_exp,Ghat_rhouz_r_exp,Ghat_E_perp_l_exp,Ghat_E_perp_r_exp,
-  incr_rhoux_l,incr_rhoux_r,incr_rhouy_l,incr_rhouy_r,incr_rhouz_l,incr_rhouz_r,incr_E_perp_l,incr_E_perp_r],
+  [bC,NC,cid,cv,surfVars,bSurf,nSurf,surfNodes,numNodes,
+  rhouxl_e,rhouyl_e,rhouzl_e,rhol_e,
+  rhouxc_e,rhouyc_e,rhouzc_e,rhoc_e,
+  rhouxr_e,rhouyr_e,rhouzr_e,rhor_e,
+  rhouxl_r,rhouyl_r,rhouzl_r,rhol_r,
+  rhouxc_l,rhouyc_l,rhouzc_l,rhoc_l,
+  rhouxc_r,rhouyc_r,rhouzc_r,rhoc_r,
+  rhouxr_l,rhouyr_l,rhouzr_l,rhor_l,
+  uxl_e,uxc_e,uxr_e,uxl_r,uxc_l,uxc_r,uxr_l,
+  uyl_e,uyc_e,uyr_e,uyl_r,uyc_l,uyc_r,uyr_l,
+  uzl_e,uzc_e,uzr_e,uzl_r,uzc_l,uzc_r,uzr_l,
+  avg_rho_l, avg_rho_r, avg_u_l, avg_u_r, 
+  flux_rho_l_c, flux_rho_r_c, flux_rho_l_e, flux_rho_r_e, 
+  avg_ux_l_c, avg_ux_r_c, avg_uy_l_c, avg_uy_r_c, avg_uz_l_c, avg_uz_r_c, 
+  avg_ux_l_e, avg_ux_r_e, avg_uy_l_e, avg_uy_r_e, avg_uz_l_e, avg_uz_r_e, 
+  jump_rhoux_l_c, jump_rhoux_r_c, jump_rhouy_l_c, jump_rhouy_r_c, jump_rhouz_l_c, jump_rhouz_r_c, 
+  jump_rhoux_l_e, jump_rhoux_r_e, jump_rhouy_l_e, jump_rhouy_r_e, jump_rhouz_l_e, jump_rhouz_r_e,
+  max_speed_modal_l_e, max_speed_modal_r_e, 
+  incr_rhoux_l,incr_rhoux_r,incr_rhouy_l,incr_rhouy_r,incr_rhouz_l,incr_rhouz_r],
 
   kill(varsC, bC),
 
@@ -349,6 +331,27 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
+  printf(fh, "  const double *rho_l = &vlasov_pkpm_momsl[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rho_c = &vlasov_pkpm_momsc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rho_r = &vlasov_pkpm_momsr[~a]; ~%", 0*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_c = &u_ic[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_r = &u_ir[~a]; ~%", 0*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *uy_l = &u_il[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_c = &u_ic[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_r = &u_ir[~a]; ~%", 1*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *uz_l = &u_il[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_c = &u_ic[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  // Get another pointer for u in direction of update for ease of flux calculation. ~%"),
   printf(fh, "  const double *u_l = &u_il[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *u_c = &u_ic[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *u_r = &u_ir[~a]; ~%", (dir-1)*NC),
@@ -385,132 +388,262 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   surfNodes : gaussOrd(polyOrder+1, cdim-1),
   numNodes : length(surfNodes),
 
-  printf(fh, "  double lax_rhoux_quad_l[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhoux_quad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhoux_modal_l[~a] = {0.0};~%", NSurf),
-  printf(fh, "  double lax_rhoux_modal_r[~a] = {0.0};~%", NSurf),
+  printf(fh, "  double flux_rho_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double flux_rho_r[~a] = {0.0}; ~%", NSurf),
 
-  printf(fh, "  double lax_rhouy_quad_l[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhouy_quad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhouy_modal_l[~a] = {0.0};~%", NSurf),
-  printf(fh, "  double lax_rhouy_modal_r[~a] = {0.0};~%", NSurf),
+  printf(fh, "  double avg_ux_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_ux_r[~a] = {0.0}; ~%", NSurf),
 
-  printf(fh, "  double lax_rhouz_quad_l[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhouz_quad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double lax_rhouz_modal_l[~a] = {0.0};~%", NSurf),
-  printf(fh, "  double lax_rhouz_modal_r[~a] = {0.0};~%", NSurf),
+  printf(fh, "  double avg_uy_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_uy_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double avg_uz_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_uz_r[~a] = {0.0}; ~%", NSurf),  
+
+  printf(fh, "  double jump_rhoux_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double jump_rhoux_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double jump_rhouy_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double jump_rhouy_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double jump_rhouz_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double jump_rhouz_r[~a] = {0.0}; ~%", NSurf),  
+
+  printf(fh, "  double max_speed_quad_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double max_speed_quad_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double max_speed_modal_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double max_speed_modal_r[~a] = {0.0}; ~%", NSurf),
+
+  rhol_e : doExpand1(rho_l, bC), 
+  rhoc_e : doExpand1(rho_c, bC), 
+  rhor_e : doExpand1(rho_r, bC), 
+
+  ul_e : doExpand1(u_l, bC),
+  uc_e : doExpand1(u_c, bC),
+  ur_e : doExpand1(u_r, bC),
+
+  rhol_r : subst(cv=1, rhol_e),
+  rhoc_l : subst(cv=-1, rhoc_e),
+  rhoc_r : subst(cv=1, rhoc_e),
+  rhor_l : subst(cv=-1, rhor_e),
+
+  ul_r : subst(cv=1, ul_e),
+  uc_l : subst(cv=-1, uc_e),
+  uc_r : subst(cv=1, uc_e),
+  ur_l : subst(cv=-1, ur_e),
+
+  avg_rho_l : 0.5*(rhol_r + rhoc_l),
+  avg_rho_r : 0.5*(rhoc_r + rhor_l),
+  avg_u_l : 0.5*(ul_r + uc_l),
+  avg_u_r : 0.5*(uc_r + ur_l),  
+
+  flux_rho_l_c : calcInnerProdList(surfVars, 1, bSurf, avg_rho_l*avg_u_l),
+  flux_rho_r_c : calcInnerProdList(surfVars, 1, bSurf, avg_rho_r*avg_u_r),
+
+  writeCExprs1(flux_rho_l, flux_rho_l_c),
   printf(fh, "~%"),
+  flush_output(fh),
 
-  printf(fh, "  double u_l_r = 0.0; ~%"),
-  printf(fh, "  double u_c_l = 0.0; ~%"),
-  printf(fh, "  double u_c_r = 0.0; ~%"),
-  printf(fh, "  double u_r_l = 0.0; ~%"),
+  writeCExprs1(flux_rho_r, flux_rho_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  flux_rho_l_e : doExpand1(flux_rho_l, bSurf),
+  flux_rho_r_e : doExpand1(flux_rho_r, bSurf),
+
+  uxl_e : doExpand1(ux_l, bC),
+  uyl_e : doExpand1(uy_l, bC),
+  uzl_e : doExpand1(uz_l, bC),
+
+  uxc_e : doExpand1(ux_c, bC),
+  uyc_e : doExpand1(uy_c, bC),
+  uzc_e : doExpand1(uz_c, bC),
+
+  uxr_e : doExpand1(ux_r, bC),
+  uyr_e : doExpand1(uy_r, bC),
+  uzr_e : doExpand1(uz_r, bC),
+
+  uxl_r : subst(cv=1, uxl_e),
+  uyl_r : subst(cv=1, uyl_e),
+  uzl_r : subst(cv=1, uzl_e),
+
+  uxc_l : subst(cv=-1, uxc_e),
+  uyc_l : subst(cv=-1, uyc_e),
+  uzc_l : subst(cv=-1, uzc_e),
+
+  uxc_r : subst(cv=1, uxc_e),
+  uyc_r : subst(cv=1, uyc_e),
+  uzc_r : subst(cv=1, uzc_e),
+
+  uxr_l : subst(cv=-1, uxr_e),
+  uyr_l : subst(cv=-1, uyr_e),
+  uzr_l : subst(cv=-1, uzr_e),
+
+  avg_ux_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uxl_r + uxc_l)),
+  avg_ux_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uxc_r + uxr_l)),
+
+  avg_uy_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uyl_r + uyc_l)),
+  avg_uy_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uyc_r + uyr_l)),
+
+  avg_uz_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uzl_r + uzc_l)),
+  avg_uz_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(uzc_r + uzr_l)),  
+
+  writeCExprs1(avg_ux_l, avg_ux_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(avg_ux_r, avg_ux_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(avg_uy_l, avg_uy_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(avg_uy_r, avg_uy_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),    
+
+  writeCExprs1(avg_uz_l, avg_uz_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(avg_uz_r, avg_uz_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  avg_ux_l_e : doExpand1(avg_ux_l, bSurf),
+  avg_ux_r_e : doExpand1(avg_ux_r, bSurf),
+
+  avg_uy_l_e : doExpand1(avg_uy_l, bSurf),
+  avg_uy_r_e : doExpand1(avg_uy_r, bSurf),    
+
+  avg_uz_l_e : doExpand1(avg_uz_l, bSurf),
+  avg_uz_r_e : doExpand1(avg_uz_r, bSurf),
+
+  rhouxl_e : doExpand1(rhoux_l, bC),
+  rhouyl_e : doExpand1(rhouy_l, bC),
+  rhouzl_e : doExpand1(rhouz_l, bC),
+
+  rhouxc_e : doExpand1(rhoux_c, bC),
+  rhouyc_e : doExpand1(rhouy_c, bC),
+  rhouzc_e : doExpand1(rhouz_c, bC),
+
+  rhouxr_e : doExpand1(rhoux_r, bC),
+  rhouyr_e : doExpand1(rhouy_r, bC),
+  rhouzr_e : doExpand1(rhouz_r, bC),
+
+  rhouxl_r : subst(cv=1, rhouxl_e),
+  rhouyl_r : subst(cv=1, rhouyl_e),
+  rhouzl_r : subst(cv=1, rhouzl_e),
+
+  rhouxc_l : subst(cv=-1, rhouxc_e),
+  rhouyc_l : subst(cv=-1, rhouyc_e),
+  rhouzc_l : subst(cv=-1, rhouzc_e),
+
+  rhouxc_r : subst(cv=1, rhouxc_e),
+  rhouyc_r : subst(cv=1, rhouyc_e),
+  rhouzc_r : subst(cv=1, rhouzc_e),
+
+  rhouxr_l : subst(cv=-1, rhouxr_e),
+  rhouyr_l : subst(cv=-1, rhouyr_e),
+  rhouzr_l : subst(cv=-1, rhouzr_e),
+
+  jump_rhoux_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouxc_l - rhouxl_r)),
+  jump_rhoux_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouxr_l - rhouxc_r)),
+
+  jump_rhouy_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouyc_l - rhouyl_r)),
+  jump_rhouy_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouyr_l - rhouyc_r)),
+
+  jump_rhouz_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouzc_l - rhouzl_r)),
+  jump_rhouz_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(rhouzr_l - rhouzc_r)),  
+
+  writeCExprs1(jump_rhoux_l, jump_rhoux_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(jump_rhoux_r, jump_rhoux_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(jump_rhouy_l, jump_rhouy_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(jump_rhouy_r, jump_rhouy_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),    
+
+  writeCExprs1(jump_rhouz_l, jump_rhouz_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(jump_rhouz_r, jump_rhouz_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  jump_rhoux_l_e : doExpand1(jump_rhoux_l, bSurf),
+  jump_rhoux_r_e : doExpand1(jump_rhoux_r, bSurf),
+
+  jump_rhouy_l_e : doExpand1(jump_rhouy_l, bSurf),
+  jump_rhouy_r_e : doExpand1(jump_rhouy_r, bSurf),    
+
+  jump_rhouz_l_e : doExpand1(jump_rhouz_l, bSurf),
+  jump_rhouz_r_e : doExpand1(jump_rhouz_r, bSurf),
+
+  printf(fh, "  double ul_r = 0.0; ~%"),
+  printf(fh, "  double uc_l = 0.0; ~%"),
+  printf(fh, "  double uc_r = 0.0; ~%"),
+  printf(fh, "  double ur_l = 0.0; ~%"),
 
   printf(fh, "  double uQuad_l = 0.0; ~%"),
   printf(fh, "  double uQuad_r = 0.0; ~%"),
+  printf(fh, "~%"),
 
-  printf(fh, "  double vth_sq_l_r = 0.0; ~%"),
-  printf(fh, "  double vth_sq_c_l = 0.0; ~%"),
-  printf(fh, "  double vth_sq_c_r = 0.0; ~%"),
-  printf(fh, "  double vth_sq_r_l = 0.0; ~%"),
+  printf(fh, "  double vth_sql_r = 0.0; ~%"),
+  printf(fh, "  double vth_sqc_l = 0.0; ~%"),
+  printf(fh, "  double vth_sqc_r = 0.0; ~%"),
+  printf(fh, "  double vth_sqr_l = 0.0; ~%"),
 
   printf(fh, "  double vthQuad_l = 0.0; ~%"),
   printf(fh, "  double vthQuad_r = 0.0; ~%"),
-
-  printf(fh, "  double max_speed_l = 0.0; ~%"),
-  printf(fh, "  double max_speed_r = 0.0; ~%"),
-
-  printf(fh, "  double rhoux_l_r = 0.0; ~%"),
-  printf(fh, "  double rhoux_c_l = 0.0; ~%"),
-  printf(fh, "  double rhoux_c_r = 0.0; ~%"),
-  printf(fh, "  double rhoux_r_l = 0.0; ~%"),
-
-  printf(fh, "  double rhouy_l_r = 0.0; ~%"),
-  printf(fh, "  double rhouy_c_l = 0.0; ~%"),
-  printf(fh, "  double rhouy_c_r = 0.0; ~%"),
-  printf(fh, "  double rhouy_r_l = 0.0; ~%"),
-
-  printf(fh, "  double rhouz_l_r = 0.0; ~%"),
-  printf(fh, "  double rhouz_c_l = 0.0; ~%"),
-  printf(fh, "  double rhouz_c_r = 0.0; ~%"),
-  printf(fh, "  double rhouz_r_l = 0.0; ~%"),
   printf(fh, "~%"),
+
   for i : 1 thru numNodes do (
-    printf(fh, "  u_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  u_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(u_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  u_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  u_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(u_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  ul_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  uc_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(u_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  uc_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(u_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  ur_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(u_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
 
-    printf(fh, "  uQuad_l = fmax(fabs(u_l_r), fabs(u_c_l)); ~%"),
-    printf(fh, "  uQuad_r = fmax(fabs(u_c_r), fabs(u_r_l)); ~%"),
+    printf(fh, "  uQuad_l = fmax(fabs(ul_r), fabs(uc_l)); ~%"),
+    printf(fh, "  uQuad_r = fmax(fabs(uc_r), fabs(ur_l)); ~%"),
 
-    printf(fh, "  vth_sq_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(vth_sql); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  vth_sq_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(vth_sqc); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  vth_sq_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(vth_sqc); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  vth_sq_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(vth_sqr); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  vth_sql_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(vth_sql); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  vth_sqc_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(vth_sqc); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  vth_sqc_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(vth_sqc); ~%", basisFun, cdim, polyOrder, dir, i-1),
+    printf(fh, "  vth_sqr_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(vth_sqr); ~%", basisFun, cdim, polyOrder, dir, i-1),
 
-    printf(fh, "  vthQuad_l = fmax(sqrt(fabs(vth_sq_l_r)), sqrt(fabs(vth_sq_c_l))); ~%"),
-    printf(fh, "  vthQuad_r = fmax(sqrt(fabs(vth_sq_c_r)), sqrt(fabs(vth_sq_r_l))); ~%"),
+    printf(fh, "  vthQuad_l = fmax(sqrt(fabs(vth_sql_r)), sqrt(fabs(vth_sqc_l))); ~%"),
+    printf(fh, "  vthQuad_r = fmax(sqrt(fabs(vth_sqc_r)), sqrt(fabs(vth_sqr_l))); ~%"),
 
-    printf(fh, "  max_speed_l = uQuad_l + vthQuad_l; ~%"),
-    printf(fh, "  max_speed_r = uQuad_r + vthQuad_r; ~%"),
-
-    printf(fh, "  rhoux_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhoux_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhoux_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhoux_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhoux_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhoux_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhoux_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhoux_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
-
-    printf(fh, "  rhouy_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhouy_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouy_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhouy_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouy_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhouy_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouy_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhouy_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
-
-    printf(fh, "  rhouz_l_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhouz_l); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouz_c_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhouz_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouz_c_r = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(rhouz_c); ~%", basisFun, cdim, polyOrder, dir, i-1),
-    printf(fh, "  rhouz_r_l = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(rhouz_r); ~%", basisFun, cdim, polyOrder, dir, i-1),
-
-    printf(fh, "  lax_rhoux_quad_l[~a] = 0.5*(rhoux_l_r*u_l_r + rhoux_c_l*u_c_l) - 0.5*max_speed_l*(rhoux_c_l - rhoux_l_r); ~%", i-1),
-    printf(fh, "  lax_rhoux_quad_r[~a] = 0.5*(rhoux_c_r*u_c_r + rhoux_r_l*u_r_l) - 0.5*max_speed_r*(rhoux_r_l - rhoux_c_r); ~%", i-1),
-
-    printf(fh, "  lax_rhouy_quad_l[~a] = 0.5*(rhouy_l_r*u_l_r + rhouy_c_l*u_c_l) - 0.5*max_speed_l*(rhouy_c_l - rhouy_l_r); ~%", i-1),
-    printf(fh, "  lax_rhouy_quad_r[~a] = 0.5*(rhouy_c_r*u_c_r + rhouy_r_l*u_r_l) - 0.5*max_speed_r*(rhouy_r_l - rhouy_c_r); ~%", i-1),
-
-    printf(fh, "  lax_rhouz_quad_l[~a] = 0.5*(rhouz_l_r*u_l_r + rhouz_c_l*u_c_l) - 0.5*max_speed_l*(rhouz_c_l - rhouz_l_r); ~%", i-1),
-    printf(fh, "  lax_rhouz_quad_r[~a] = 0.5*(rhouz_c_r*u_c_r + rhouz_r_l*u_r_l) - 0.5*max_speed_r*(rhouz_r_l - rhouz_c_r); ~%", i-1),
-    printf(fh, "~%")
+    printf(fh, "  max_speed_quad_l[~a] = uQuad_l + vthQuad_l; ~%", i-1),
+    printf(fh, "  max_speed_quad_r[~a] = uQuad_r + vthQuad_r; ~%", i-1)
   ),
-
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhoux_quad_l, lax_rhoux_modal_l); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhoux_quad_r, lax_rhoux_modal_r); ~%", basisFun, cdim, polyOrder),
-
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouy_quad_l, lax_rhouy_modal_l); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouy_quad_r, lax_rhouy_modal_r); ~%", basisFun, cdim, polyOrder),
-
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouz_quad_l, lax_rhouz_modal_l); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(lax_rhouz_quad_r, lax_rhouz_modal_r); ~%", basisFun, cdim, polyOrder),
-  printf(fh, "~%"),
-
-  /* Create expansions of u_i_max (|u_i_max| evaluated at the surface) on the left and right in the surface basis. */
-  lax_rhoux_modal_l_e : doExpand1(lax_rhoux_modal_l, bSurf),
-  lax_rhoux_modal_r_e : doExpand1(lax_rhoux_modal_r, bSurf),
-
-  lax_rhouy_modal_l_e : doExpand1(lax_rhouy_modal_l, bSurf),
-  lax_rhouy_modal_r_e : doExpand1(lax_rhouy_modal_r, bSurf),
-
-  lax_rhouz_modal_l_e : doExpand1(lax_rhouz_modal_l, bSurf),
-  lax_rhouz_modal_r_e : doExpand1(lax_rhouz_modal_r, bSurf),
+  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(max_speed_quad_l, max_speed_modal_l); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(max_speed_quad_r, max_speed_modal_r); ~%", basisFun, cdim, polyOrder),
+  max_speed_modal_l_e : doExpand1(max_speed_modal_l,bSurf),
+  max_speed_modal_r_e : doExpand1(max_speed_modal_r,bSurf),
 
   /* Compute the increments on the left and right from Ghat expansions */
-  incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_rhoux_modal_l_e),
-  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_rhoux_modal_r_e),
+  incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_ux_l_e - max_speed_modal_l_e*jump_rhoux_l_e),
+  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_ux_r_e - max_speed_modal_r_e*jump_rhoux_r_e),
 
-  incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_rhouy_modal_l_e),
-  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_rhouy_modal_r_e),
+  incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uy_l_e - max_speed_modal_l_e*jump_rhouy_l_e),
+  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uy_r_e - max_speed_modal_r_e*jump_rhouy_r_e),
 
-  incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), lax_rhouz_modal_l_e),
-  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), lax_rhouz_modal_r_e),
+  incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uz_l_e - max_speed_modal_l_e*jump_rhouz_l_e),
+  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uz_r_e - max_speed_modal_r_e*jump_rhouz_r_e),
 
   surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
   for m : 1 thru 3 do (

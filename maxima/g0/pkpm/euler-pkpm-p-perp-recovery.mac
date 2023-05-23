@@ -44,6 +44,8 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   /* cv = variable to perform recovery in. */
   cv : varsC[dir],
+  /* Surface variables to integrate over. */
+  surfVars : delete(cv,varsC),
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *dxv, double nuHyp, 
   const double *bvarl, const double *bvarc, const double *bvarr, 
@@ -92,6 +94,9 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", NC*2),
   printf(fh, "~%"),
 
+  printf(fh, "  const double *bx = &bvarc[~a]; ~%", NC*0),
+  printf(fh, "  const double *by = &bvarc[~a]; ~%", NC*1),
+  printf(fh, "  const double *bz = &bvarc[~a]; ~%", NC*2),
   printf(fh, "  const double *bxbx = &bvarc[~a]; ~%", NC*3),
   printf(fh, "  const double *bxby = &bvarc[~a]; ~%", NC*4),
   printf(fh, "  const double *bxbz = &bvarc[~a]; ~%", NC*5),
@@ -161,11 +166,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 4*NC),
   printf(fh, "~%"),
 
-  ux_e : doExpand1(ux_c, bC),
-  uy_e : doExpand1(uy_c, bC),
-  uz_e : doExpand1(uz_c, bC),
-
-  /* We use recovery to compute div(b), grad(u), div(p), and div(p_parallel b) */
+  /* We use recovery to compute div(b) */
   lst_b_l : makelist(b_l[i], i, 0, NC-1),
   lst_b_c : makelist(b_c[i], i, 0, NC-1),
   lst_b_r : makelist(b_r[i], i, 0, NC-1),
@@ -173,77 +174,172 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
     dg(lst_b_l), dg(lst_b_c), dg(lst_b_r)),
 
-  lst_ux_l : makelist(ux_l[i], i, 0, NC-1),
-  lst_ux_c : makelist(ux_c[i], i, 0, NC-1),
-  lst_ux_r : makelist(ux_r[i], i, 0, NC-1),
+  /* Expand variables we will compute the gradients of */
+  bl_e : doExpand1(b_l, bC), 
+  bc_e : doExpand1(b_c, bC), 
+  br_e : doExpand1(b_r, bC), 
 
-  lst_uy_l : makelist(uy_l[i], i, 0, NC-1),
-  lst_uy_c : makelist(uy_c[i], i, 0, NC-1),
-  lst_uy_r : makelist(uy_r[i], i, 0, NC-1),
+  uxl_e : doExpand1(ux_l, bC),
+  uyl_e : doExpand1(uy_l, bC),
+  uzl_e : doExpand1(uz_l, bC),
 
-  lst_uz_l : makelist(uz_l[i], i, 0, NC-1),
-  lst_uz_c : makelist(uz_c[i], i, 0, NC-1),
-  lst_uz_r : makelist(uz_r[i], i, 0, NC-1),
+  uxc_e : doExpand1(ux_c, bC),
+  uyc_e : doExpand1(uy_c, bC),
+  uzc_e : doExpand1(uz_c, bC),
 
-  ux_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_ux_l), dg(lst_ux_c), dg(lst_ux_r)),
+  uxr_e : doExpand1(ux_r, bC),
+  uyr_e : doExpand1(uy_r, bC),
+  uzr_e : doExpand1(uz_r, bC),
 
-  uy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_uy_l), dg(lst_uy_c), dg(lst_uy_r)),
+  Pxxl_e : doExpand1(Pxx_l, bC),
+  Pxyl_e : doExpand1(Pxy_l, bC),
+  Pxzl_e : doExpand1(Pxz_l, bC),
+  Pyyl_e : doExpand1(Pyy_l, bC),
+  Pyzl_e : doExpand1(Pyz_l, bC),
+  Pzzl_e : doExpand1(Pzz_l, bC),
 
-  uz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_uz_l), dg(lst_uz_c), dg(lst_uz_r)),
+  Pxxc_e : doExpand1(Pxx_c, bC),
+  Pxyc_e : doExpand1(Pxy_c, bC),
+  Pxzc_e : doExpand1(Pxz_c, bC),
+  Pyyc_e : doExpand1(Pyy_c, bC),
+  Pyzc_e : doExpand1(Pyz_c, bC),
+  Pzzc_e : doExpand1(Pzz_c, bC),
 
-  /* Compute the recovery for all components of p_ij, even though
-     we only need 3 based on direction of update */
-  lst_Pxx_l : makelist(Pxx_l[i], i, 0, NC-1),
-  lst_Pxx_c : makelist(Pxx_c[i], i, 0, NC-1),
-  lst_Pxx_r : makelist(Pxx_r[i], i, 0, NC-1),
+  Pxxr_e : doExpand1(Pxx_r, bC),
+  Pxyr_e : doExpand1(Pxy_r, bC),
+  Pxzr_e : doExpand1(Pxz_r, bC),
+  Pyyr_e : doExpand1(Pyy_r, bC),
+  Pyzr_e : doExpand1(Pyz_r, bC),
+  Pzzr_e : doExpand1(Pzz_r, bC),
 
-  lst_Pxy_l : makelist(Pxy_l[i], i, 0, NC-1),
-  lst_Pxy_c : makelist(Pxy_c[i], i, 0, NC-1),
-  lst_Pxy_r : makelist(Pxy_r[i], i, 0, NC-1),
+  /* Evaluate expansions at left and right interfaces 
+     Left cell evaluated at right interface, center cell evaluated
+     at both interfaces, right cell evaluated at left interface */
+  uxl_r : subst(cv=1, uxl_e),
+  uyl_r : subst(cv=1, uyl_e),
+  uzl_r : subst(cv=1, uzl_e),
 
-  lst_Pxz_l : makelist(Pxz_l[i], i, 0, NC-1),
-  lst_Pxz_c : makelist(Pxz_c[i], i, 0, NC-1),
-  lst_Pxz_r : makelist(Pxz_r[i], i, 0, NC-1),
+  uxc_l : subst(cv=-1, uxc_e),
+  uyc_l : subst(cv=-1, uyc_e),
+  uzc_l : subst(cv=-1, uzc_e),
 
-  lst_Pyy_l : makelist(Pyy_l[i], i, 0, NC-1),
-  lst_Pyy_c : makelist(Pyy_c[i], i, 0, NC-1),
-  lst_Pyy_r : makelist(Pyy_r[i], i, 0, NC-1),
+  uxc_r : subst(cv=1, uxc_e),
+  uyc_r : subst(cv=1, uyc_e),
+  uzc_r : subst(cv=1, uzc_e),
 
-  lst_Pyz_l : makelist(Pyz_l[i], i, 0, NC-1),
-  lst_Pyz_c : makelist(Pyz_c[i], i, 0, NC-1),
-  lst_Pyz_r : makelist(Pyz_r[i], i, 0, NC-1),
+  uxr_l : subst(cv=-1, uxr_e),
+  uyr_l : subst(cv=-1, uyr_e),
+  uzr_l : subst(cv=-1, uzr_e),
 
-  lst_Pzz_l : makelist(Pzz_l[i], i, 0, NC-1),
-  lst_Pzz_c : makelist(Pzz_c[i], i, 0, NC-1),
-  lst_Pzz_r : makelist(Pzz_r[i], i, 0, NC-1),
+  Pxxl_r : subst(cv=1, Pxxl_e),
+  Pxyl_r : subst(cv=1, Pxyl_e),
+  Pxzl_r : subst(cv=1, Pxzl_e),
+  Pyyl_r : subst(cv=1, Pyyl_e),
+  Pyzl_r : subst(cv=1, Pyzl_e),
+  Pzzl_r : subst(cv=1, Pzzl_e),
 
-  Pxx_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pxx_l), dg(lst_Pxx_c), dg(lst_Pxx_r)),
+  Pxxc_l : subst(cv=-1, Pxxc_e),
+  Pxyc_l : subst(cv=-1, Pxyc_e),
+  Pxzc_l : subst(cv=-1, Pxzc_e),
+  Pyyc_l : subst(cv=-1, Pyyc_e),
+  Pyzc_l : subst(cv=-1, Pyzc_e),
+  Pzzc_l : subst(cv=-1, Pzzc_e),
 
-  Pxy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pxy_l), dg(lst_Pxy_c), dg(lst_Pxy_r)),
+  Pxxc_r : subst(cv=1, Pxxc_e),
+  Pxyc_r : subst(cv=1, Pxyc_e),
+  Pxzc_r : subst(cv=1, Pxzc_e),
+  Pyyc_r : subst(cv=1, Pyyc_e),
+  Pyzc_r : subst(cv=1, Pyzc_e),
+  Pzzc_r : subst(cv=1, Pzzc_e),
 
-  Pxz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pxz_l), dg(lst_Pxz_c), dg(lst_Pxz_r)),
+  Pxxr_l : subst(cv=-1, Pxxr_e),
+  Pxyr_l : subst(cv=-1, Pxyr_e),
+  Pxzr_l : subst(cv=-1, Pxzr_e),
+  Pyyr_l : subst(cv=-1, Pyyr_e),
+  Pyzr_l : subst(cv=-1, Pyzr_e),
+  Pzzr_l : subst(cv=-1, Pzzr_e),
 
-  Pyy_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pyy_l), dg(lst_Pyy_c), dg(lst_Pyy_r)),
+  bl_r : subst(cv=1, bl_e),
+  bc_l : subst(cv=-1, bc_e),
+  bc_r : subst(cv=1, bc_e),
+  br_l : subst(cv=-1, br_e),
 
-  Pyz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pyz_l), dg(lst_Pyz_c), dg(lst_Pyz_r)),
+  /* Average of variable at interface for use in surface expansion */
+  avg_ux_l : 0.5*(uxc_l + uxl_r),
+  avg_ux_r : 0.5*(uxr_l + uxc_r),
 
-  Pzz_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_Pzz_l), dg(lst_Pzz_c), dg(lst_Pzz_r)),
+  avg_uy_l : 0.5*(uyc_l + uyl_r),
+  avg_uy_r : 0.5*(uyr_l + uyc_r),
 
-  lst_ppar_b_l : makelist(ppar_b_l[i], i, 0, NC-1),
-  lst_ppar_b_c : makelist(ppar_b_c[i], i, 0, NC-1),
-  lst_ppar_b_r : makelist(ppar_b_r[i], i, 0, NC-1),
+  avg_uz_l : 0.5*(uzc_l + uzl_r),
+  avg_uz_r : 0.5*(uzr_l + uzc_r),
 
-  ppar_b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
-    dg(lst_ppar_b_l), dg(lst_ppar_b_c), dg(lst_ppar_b_r)),
+  avg_Pxx_l : 0.5*(Pxxc_l + Pxxl_r),
+  avg_Pxx_r : 0.5*(Pxxr_l + Pxxc_r),
+
+  avg_Pxy_l : 0.5*(Pxyc_l + Pxyl_r),
+  avg_Pxy_r : 0.5*(Pxyr_l + Pxyc_r),
+
+  avg_Pxz_l : 0.5*(Pxzc_l + Pxzl_r),
+  avg_Pxz_r : 0.5*(Pxzr_l + Pxzc_r),
+
+  avg_Pyy_l : 0.5*(Pyyc_l + Pyyl_r),
+  avg_Pyy_r : 0.5*(Pyyr_l + Pyyc_r),
+
+  avg_Pyz_l : 0.5*(Pyzc_l + Pyzl_r),
+  avg_Pyz_r : 0.5*(Pyzr_l + Pyzc_r),
+
+  avg_Pzz_l : 0.5*(Pzzc_l + Pzzl_r),
+  avg_Pzz_r : 0.5*(Pzzr_l + Pzzc_r),
+
+  avg_b_l : 0.5*(bc_l + bl_r),
+  avg_b_r : 0.5*(br_l + bc_r),
+
+  /* Volume component of gradient expansion */
+  vol_ux_c : calcInnerProdList(varsC, 1, diff(bC, cv), uxc_e),
+  vol_uy_c : calcInnerProdList(varsC, 1, diff(bC, cv), uyc_e),
+  vol_uz_c : calcInnerProdList(varsC, 1, diff(bC, cv), uzc_e),
+
+  vol_Pxx_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pxxc_e),
+  vol_Pxy_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pxyc_e),
+  vol_Pxz_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pxzc_e),
+  vol_Pyy_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pyyc_e),
+  vol_Pyz_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pyzc_e),
+  vol_Pzz_c : calcInnerProdList(varsC, 1, diff(bC, cv), Pzzc_e),
+
+  vol_b_c : calcInnerProdList(varsC, 1, diff(bC, cv), bc_e),
+
+  /* Surface componet of gradient expansion */
+  /* Negative sign on left surface for unit normal pointing into cell */
+  surf_ux_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_ux_l),
+  surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_ux_r),
+
+  surf_uy_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_uy_l),
+  surf_uy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_uy_r),
+
+  surf_uz_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_uz_l),
+  surf_uz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_uz_r),
+
+  surf_Pxx_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pxx_l),
+  surf_Pxx_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pxx_r),
+
+  surf_Pxy_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pxy_l),
+  surf_Pxy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pxy_r),
+
+  surf_Pxz_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pxz_l),
+  surf_Pxz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pxz_r),
+
+  surf_Pyy_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pyy_l),
+  surf_Pyy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pyy_r),
+
+  surf_Pyz_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pyz_l),
+  surf_Pyz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pyz_r),
+
+  surf_Pzz_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_Pzz_l),
+  surf_Pzz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_Pzz_r),
+
+  surf_b_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), avg_b_l),
+  surf_b_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), avg_b_r),
  
   /* Note that this recovery is higher order as we will take more derivatives */
   lst_rhoux_l : makelist(rhoux_l[i], i, 0, NC-1),
@@ -293,19 +389,20 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
   printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
 
-  grad_u_x_c : calcInnerProdList(varsC, 1, bC, diff(ux_rec, cv)),
-  writeCExprs1(grad_u_x, dx1*grad_u_x_c),
+  /* Volume term has overall minus sign from integration by parts */
+  writeCExprs1(grad_u_x, dx1*(-vol_ux_c + surf_ux_l + surf_ux_r)),
   printf(fh, "~%"),
 
-  grad_u_y_c : calcInnerProdList(varsC, 1, bC, diff(uy_rec, cv)),
-  writeCExprs1(grad_u_y, dx1*grad_u_y_c),
+  writeCExprs1(grad_u_y, dx1*(-vol_uy_c + surf_uy_l + surf_uy_r)),
   printf(fh, "~%"),
 
-  grad_u_z_c : calcInnerProdList(varsC, 1, bC, diff(uz_rec, cv)),
-  writeCExprs1(grad_u_z, dx1*grad_u_z_c),
+  writeCExprs1(grad_u_z, dx1*(-vol_uz_c + surf_uz_l + surf_uz_r)),
   printf(fh, "~%"),
 
-  /* Expand bb and grad(u) for each component of u */
+  /* Expand b, bb, 1/rho, and grad(u) for each component of u */
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
   bxbx_e : doExpand1(bxbx, bC),
   bxby_e : doExpand1(bxby, bC),
   bxbz_e : doExpand1(bxbz, bC),
@@ -313,37 +410,33 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
 
+  rho_inv_e : doExpand1(rho_inv, bC),
+
   grad_u_x_e : doExpand1(grad_u_x, bC),
   grad_u_y_e : doExpand1(grad_u_y, bC),
   grad_u_z_e : doExpand1(grad_u_z, bC),
 
-  /* get pparallel, b, and 1/rho from expansions */
-  pparl_e : doExpand1(ppar_l, bC),
-  pparc_e : doExpand1(ppar_c, bC),
-  pparr_e : doExpand1(ppar_r, bC),
-  bl_e : doExpand1(b_l, bC),
-  bc_e : doExpand1(b_c, bC),
-  br_e : doExpand1(b_r, bC),
-  p_perp_e : doExpand1(p_perp, bC), 
-
-  printf(fh, "  double ppar_b_l[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double ppar_b_c[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double ppar_b_r[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double bx_over_rho[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double by_over_rho[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double bz_over_rho[~a] = {0.0}; ~%", NC),
   printf(fh, "  double div_b_comp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double div_p_x_comp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double div_p_y_comp[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double div_p_z_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC),
 
-  ppar_b_l_c : calcInnerProdList(varsC, 1, bC, pparl_e*bl_e),
-  writeCExprs1(ppar_b_l, ppar_b_l_c),
+  bx_over_rho_c : calcInnerProdList(varsC, 1, bC, bx_e*rho_inv_e),
+  writeCExprs1(bx_over_rho, bx_over_rho_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  ppar_b_c_c : calcInnerProdList(varsC, 1, bC, pparc_e*bc_e),
-  writeCExprs1(ppar_b_c, ppar_b_c_c),
+  by_over_rho_c : calcInnerProdList(varsC, 1, bC, by_e*rho_inv_e),
+  writeCExprs1(by_over_rho, by_over_rho_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  ppar_b_r_c : calcInnerProdList(varsC, 1, bC, pparr_e*br_e),
-  writeCExprs1(ppar_b_r, ppar_b_r_c),
+  bz_over_rho_c : calcInnerProdList(varsC, 1, bC, bz_e*rho_inv_e),
+  writeCExprs1(bz_over_rho, bz_over_rho_c),
   printf(fh, "~%"),
   flush_output(fh),
 
@@ -358,24 +451,32 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
 
   if (dir = 1) then (  
-    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxx_rec, cv)),
-    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
-    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
+    writeCIncrExprsCollect1lhsc(div_p_x_comp, dx1*(-vol_Pxx_c + surf_Pxx_l + surf_Pxx_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_y_comp, dx1*(-vol_Pxy_c + surf_Pxy_l + surf_Pxy_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_z_comp, dx1*(-vol_Pxz_c + surf_Pxz_l + surf_Pxz_r)),
+    printf(fh, "~%"),
     bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbx_e*grad_u_x_e + bxby_e*grad_u_y_e + bxbz_e*grad_u_z_e)
   )
   elseif (dir = 2) then (
-    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxy_rec, cv)),
-    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyy_rec, cv)),
-    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
+    writeCIncrExprsCollect1lhsc(div_p_x_comp, dx1*(-vol_Pxy_c + surf_Pxy_l + surf_Pxy_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_y_comp, dx1*(-vol_Pyy_c + surf_Pyy_l + surf_Pyy_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_z_comp, dx1*(-vol_Pyz_c + surf_Pyz_l + surf_Pyz_r)),
+    printf(fh, "~%"),
     bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxby_e*grad_u_x_e + byby_e*grad_u_y_e + bybz_e*grad_u_z_e)
   )
   elseif (dir = 3) then (
-    div_p_x_c : calcInnerProdList(varsC, 1, bC, diff(Pxz_rec, cv)),
-    div_p_y_c : calcInnerProdList(varsC, 1, bC, diff(Pyz_rec, cv)),
-    div_p_z_c : calcInnerProdList(varsC, 1, bC, diff(Pzz_rec, cv)),
+    writeCIncrExprsCollect1lhsc(div_p_x_comp, dx1*(-vol_Pxz_c + surf_Pxz_l + surf_Pxz_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_y_comp, dx1*(-vol_Pyz_c + surf_Pyz_l + surf_Pyz_r)),
+    printf(fh, "~%"),
+    writeCIncrExprsCollect1lhsc(div_p_z_comp, dx1*(-vol_Pzz_c + surf_Pzz_l + surf_Pzz_r)),
+    printf(fh, "~%"),
     bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbz_e*grad_u_x_e + bybz_e*grad_u_y_e + bzbz_e*grad_u_z_e)
   ),
-
   writeCExprs1(bb_grad_u_comp, bb_grad_u_comp_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -384,46 +485,41 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(bb_grad_u, bb_grad_u_c),  
   printf(fh, "~%"),
 
+  div_p_x_comp_e : doExpand1(div_p_x_comp, bC),
+  div_p_y_comp_e : doExpand1(div_p_y_comp, bC),
+  div_p_z_comp_e : doExpand1(div_p_z_comp, bC),
+  div_p_x_c : calcInnerProdList(varsC, 1, bC, div_p_x_comp_e),
+  div_p_y_c : calcInnerProdList(varsC, 1, bC, div_p_y_comp_e),
+  div_p_z_c : calcInnerProdList(varsC, 1, bC, div_p_z_comp_e),
+
   if (polyOrder = 1 or polyOrder = 2) then (
     /* Hyper diffusion Jacobian factor 4th order with p=1 */
     hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 4)),
     hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 4)),
-    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4)),
-
-    writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c + nuHyp*dxHyp*hyper_rhoux_c),
-    printf(fh, "~%"),
-    writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c + nuHyp*dxHyp*hyper_rhouy_c),
-    printf(fh, "~%"),
-    writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c + nuHyp*dxHyp*hyper_rhouz_c),
-    printf(fh, "~%")
+    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 4))
   ),
   /*
   elseif polyOrder = 2 then (
     /* Hyper diffusion Jacobian factor 6th order with p=2 (NOTE MINUS SIGN) */
-    hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, diff(rhoux_rec, cv, 6)),
-    hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, diff(rhouy_rec, cv, 6)),
-    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, diff(rhouz_rec, cv, 6)),
-
-    writeCIncrExprsCollect1lhsc(div_p_x, dx1*div_p_x_c - nuHyp*dxHyp*hyper_rhoux_c),
-    printf(fh, "~%"),
-    writeCIncrExprsCollect1lhsc(div_p_y, dx1*div_p_y_c - nuHyp*dxHyp*hyper_rhouy_c),
-    printf(fh, "~%"),
-    writeCIncrExprsCollect1lhsc(div_p_z, dx1*div_p_z_c - nuHyp*dxHyp*hyper_rhouz_c),
-    printf(fh, "~%")
+    hyper_rhoux_c : calcInnerProdList(varsC, 1, bC, -diff(rhoux_rec, cv, 6)),
+    hyper_rhouy_c : calcInnerProdList(varsC, 1, bC, -diff(rhouy_rec, cv, 6)),
+    hyper_rhouz_c : calcInnerProdList(varsC, 1, bC, -diff(rhouz_rec, cv, 6))
   ), */
 
-  printf(fh, "  double div_ppar_b[~a] = {0.0}; ~%", NC),
-  div_ppar_b_c : calcInnerProdList(varsC, 1, bC, diff(ppar_b_rec , cv)),
-  writeCExprs1(div_ppar_b, dx1*div_ppar_b_c),
+  writeCIncrExprsCollect1lhsc(div_p_x, div_p_x_c + nuHyp*dxHyp*hyper_rhoux_c),
+  printf(fh, "~%"),
+  writeCIncrExprsCollect1lhsc(div_p_y, div_p_y_c + nuHyp*dxHyp*hyper_rhouy_c),
+  printf(fh, "~%"),
+  writeCIncrExprsCollect1lhsc(div_p_z, div_p_z_c + nuHyp*dxHyp*hyper_rhouz_c),
   printf(fh, "~%"),
 
-  rho_inv_e : doExpand1(rho_inv, bC),
-  T_perp_over_m_inv_e : doExpand1(T_perp_over_m_inv, bC),
-  div_ppar_b_e : doExpand1(div_ppar_b, bC),
+  bx_over_rho_e : doExpand1(bx_over_rho, bC),
+  by_over_rho_e : doExpand1(by_over_rho, bC),
+  bz_over_rho_e : doExpand1(bz_over_rho, bC),
   T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
   nu_e : doExpand1(nu, bC),
 
-  p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*div_ppar_b_e - T_perp_over_m_e*div_b_e),
+  p_force_c : calcInnerProdList(varsC, 1, bC, bx_over_rho_e*div_p_x_comp_e + by_over_rho_e*div_p_y_comp_e + bz_over_rho_e*div_p_z_comp_e),
   writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
   printf(fh, "~%"),
 
