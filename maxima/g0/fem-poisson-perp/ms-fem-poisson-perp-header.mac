@@ -140,11 +140,11 @@ for bInd : 1 thru length(bName) do (
     printf(fh, "~%"),
 
     /* RHS source stencil kernels to populate the right side vector. */
-    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
+    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
     printf(fh, "~%"),
 
     /* Solution stencil kernels. */
-    printf(fh, "GKYL_CU_DH void fem_poisson_perp_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, const long *globalIdxs, double *sol_modal_local);~%", cdim, bName[bInd], polyOrder),
+    printf(fh, "GKYL_CU_DH void fem_poisson_perp_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long perpOff, const long *globalIdxs, double *sol_modal_local);~%", cdim, bName[bInd], polyOrder),
     printf(fh, "~%")
   )
 

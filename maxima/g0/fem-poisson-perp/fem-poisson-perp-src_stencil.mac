@@ -92,10 +92,11 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
 
       for polyOrder : pMin thru pMax do (
 
-        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // epsilon: permittivity tensor.~%"),
         printf(fh, "  // rho: right side source.~%"),
         printf(fh, "  // bcVals: values to impose as BCs, i.e. bcVals[off+0]*phi+bcVals[off+1]*epsilon^{ij}*d(phi)/dx_j=bcVals[off+2].~%"),
+        printf(fh, "  // perpOff: memory offset due to other perpendicular planes (perp index * global number of nodes).~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // bsrc: global right side source vector.~%"),
         printf(fh, "~%"),
@@ -179,14 +180,14 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
           printf(fh, "  #ifdef __CUDA_ARCH__~%"),
           if insertVal[k] then (
             opStr : "atomicExch",
-            printf(fh, "  ~a((unsigned long long int*) &bsrc[globalIdxs[~a]],__double_as_longlong(~a));~%",opStr,k-1,expand(float(src_c[k])))
+            printf(fh, "  ~a((unsigned long long int*) &bsrc[perpOff+globalIdxs[~a]],__double_as_longlong(~a));~%",opStr,k-1,expand(float(src_c[k])))
           ) else (
             opStr : "atomicAdd",
-            printf(fh, "  ~a(&bsrc[globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
+            printf(fh, "  ~a(&bsrc[perpOff+globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
           ),
           printf(fh, "  #else~%"),
           if insertVal[k] then (opStr : "=") else (opStr : "+="),
-          printf(fh, "  bsrc[globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
+          printf(fh, "  bsrc[perpOff+globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
           printf(fh, "  #endif~%")
         ),
         printf(fh, "~%"),
