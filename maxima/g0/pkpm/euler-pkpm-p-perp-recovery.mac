@@ -53,7 +53,8 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   const double *p_ijl, const double *p_ijc, const double *p_ijr, 
   const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr, 
   const double *statevecl, const double *statevecc, const double *statevecr, 
-  const double *rho_inv, const double *T_perp_over_m, const double *T_perp_over_m_inv, const double *nu, 
+  const double *pkpm_div_ppar, const double *rho_inv, const double *T_perp_over_m, 
+  const double *T_perp_over_m_inv, const double *nu, 
   double* div_p, double* pkpm_accel_vars) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // dxv[NDIM]:             Cell spacing.~%"),
   printf(fh, "  // nuHyp:                 Hyper-diffusion coefficient.~%"),
@@ -62,7 +63,8 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  // p_ijl/c/r:             Input pressure tensor in left/center/right cells.~%"),
   printf(fh, "  // vlasov_pkpm_momsl/c/r: Input pkpm moments (rho, p_parallel, p_perp) in left/center/right cells.~%"),
   printf(fh, "  // statevecl/c/r:         [rho ux, rho uy, rho uz], Fluid input state vector in center cell.~%"),
-  printf(fh, "  // T_perp_over_m_inv:     Input 1/rho in center cell.~%"),
+  printf(fh, "  // pkpm_div_ppar:         Input div(p_parallel b_hat) in center cell.~%"),
+  printf(fh, "  // rho_inv:               Input 1/rho in center cell.~%"),
   printf(fh, "  // T_perp_over_m:         Input p_perp/rho = T_perp/m in center cell.~%"),
   printf(fh, "  // T_perp_over_m_inv:     Input (T_perp/m)^-1 in center cell.~%"),
   printf(fh, "  // nu:                    Input collisionality in center cell.~%"),
@@ -76,6 +78,10 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *b_l = &bvarl[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *b_c = &bvarc[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *b_r = &bvarr[~a]; ~%", (dir-1)*NC),
+  printf(fh, "~%"),
+
+  /* div(p_parallel b_hat) in direction dir */
+  printf(fh, "  const double *pkpm_div_ppar_c = &pkpm_div_ppar[~a]; ~%", (dir-1)*NC),
   printf(fh, "~%"),
 
   /* u_i and bb for bb : grad(u). Need bb in center cell. */
@@ -94,9 +100,6 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", NC*2),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *bx = &bvarc[~a]; ~%", NC*0),
-  printf(fh, "  const double *by = &bvarc[~a]; ~%", NC*1),
-  printf(fh, "  const double *bz = &bvarc[~a]; ~%", NC*2),
   printf(fh, "  const double *bxbx = &bvarc[~a]; ~%", NC*3),
   printf(fh, "  const double *bxby = &bvarc[~a]; ~%", NC*4),
   printf(fh, "  const double *bxbz = &bvarc[~a]; ~%", NC*5),
@@ -171,7 +174,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   lst_b_c : makelist(b_c[i], i, 0, NC-1),
   lst_b_r : makelist(b_r[i], i, 0, NC-1),
 
-  b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 0, 
+  b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
     dg(lst_b_l), dg(lst_b_c), dg(lst_b_r)),
 
   /* Expand variables we will compute the gradients of */
@@ -399,10 +402,7 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(grad_u_z, dx1*(-vol_uz_c + surf_uz_l + surf_uz_r)),
   printf(fh, "~%"),
 
-  /* Expand b, bb, 1/rho, and grad(u) for each component of u */
-  bx_e : doExpand1(bx, bC),
-  by_e : doExpand1(by, bC),
-  bz_e : doExpand1(bz, bC),
+  /* Expand bb and grad(u) for each component of u */
   bxbx_e : doExpand1(bxbx, bC),
   bxby_e : doExpand1(bxby, bC),
   bxbz_e : doExpand1(bxbz, bC),
@@ -410,35 +410,15 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
 
-  rho_inv_e : doExpand1(rho_inv, bC),
-
   grad_u_x_e : doExpand1(grad_u_x, bC),
   grad_u_y_e : doExpand1(grad_u_y, bC),
   grad_u_z_e : doExpand1(grad_u_z, bC),
 
-  printf(fh, "  double bx_over_rho[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double by_over_rho[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double bz_over_rho[~a] = {0.0}; ~%", NC),
   printf(fh, "  double div_b_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double div_p_x_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double div_p_y_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double div_p_z_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC),
-
-  bx_over_rho_c : calcInnerProdList(varsC, 1, bC, bx_e*rho_inv_e),
-  writeCExprs1(bx_over_rho, bx_over_rho_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  by_over_rho_c : calcInnerProdList(varsC, 1, bC, by_e*rho_inv_e),
-  writeCExprs1(by_over_rho, by_over_rho_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  bz_over_rho_c : calcInnerProdList(varsC, 1, bC, bz_e*rho_inv_e),
-  writeCExprs1(bz_over_rho, bz_over_rho_c),
-  printf(fh, "~%"),
-  flush_output(fh),
 
   b_prime_c : calcInnerProdList(varsC, 1, bC, diff(b_rec, cv)),
   writeCExprs1(div_b_comp, dx1*b_prime_c),
@@ -513,13 +493,13 @@ calcEulerPKPMRecovery(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(div_p_z, div_p_z_c + nuHyp*dxHyp*hyper_rhouz_c),
   printf(fh, "~%"),
 
-  bx_over_rho_e : doExpand1(bx_over_rho, bC),
-  by_over_rho_e : doExpand1(by_over_rho, bC),
-  bz_over_rho_e : doExpand1(bz_over_rho, bC),
+  rho_inv_e : doExpand1(rho_inv, bC),
+  T_perp_over_m_inv_e : doExpand1(T_perp_over_m_inv, bC),
+  pkpm_div_ppar_e : doExpand1(pkpm_div_ppar_c, bC),
   T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
   nu_e : doExpand1(nu, bC),
 
-  p_force_c : calcInnerProdList(varsC, 1, bC, bx_over_rho_e*div_p_x_comp_e + by_over_rho_e*div_p_y_comp_e + bz_over_rho_e*div_p_z_comp_e),
+  p_force_c : calcInnerProdList(varsC, 1, bC, rho_inv_e*pkpm_div_ppar_e - T_perp_over_m_e*div_b_e),
   writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
   printf(fh, "~%"),
 
