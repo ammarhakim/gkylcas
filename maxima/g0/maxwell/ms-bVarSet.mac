@@ -46,6 +46,18 @@ for bInd : 1 thru length(bName) do (
       fh : openw(fname),
       funcName : sconcat("em_copy_bvar_",  c, "x_", bName[bInd], "_p", polyOrder),
       copybbvar(fh, funcName, c, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/em_set_ExB_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("em_set_ExB_",  c, "x_", bName[bInd], "_p", polyOrder),
+      setExB(fh, funcName, c, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/em_copy_ExB_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("em_copy_ExB_",  c, "x_", bName[bInd], "_p", polyOrder),
+      copyExB(fh, funcName, c, bName[bInd], polyOrder),
       close(fh)
     )
   )
