@@ -29,7 +29,7 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   /* Variables. */
   surfVars : delete(vx,varsP),
 
-  printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nu, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:       Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:     Cell spacing. ~%", cdim+vdim),
