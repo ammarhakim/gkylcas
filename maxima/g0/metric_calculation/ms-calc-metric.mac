@@ -1,0 +1,34 @@
+/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+load("metric_calculation/calc-metric.mac")$
+load(stringproc)$
+
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 3$
+maxCdim_Ser : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["Ser","Tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+for bInd : 1 thru 1 do (
+  for cD : minCdim[bInd] thru maxCdim[bInd] do (
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+          disp(printf(false,sconcat("Creating gij_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+          fName : sconcat("~/max-out/gij_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
+          fh : openw(fName),
+          printf(fh, "#include \"gkyl_calc_metric_kernels.h\"~%~%"),
+          calcMetricCoeffs(fh, cD, bName[bInd], polyOrder),
+          close(fh)
+
+      )
+  )
+);
