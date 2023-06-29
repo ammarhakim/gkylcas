@@ -25,15 +25,25 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
-calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block([bP,numBasisP,cid,vid,wvl,wvr,dvl,dvr,cv,vv,surfVars,fL_e,fR_e,fhat,surfTerm,incr_r,clst,incr_s],
+calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block(
+  [varsC, bC, varsP, bP, basisP_p1, bP_p1, NP_p1, NC, NP, varsV, cid, vid, 
+   cv, vv, surfVars, bSurf, bSurf_p1, 
+   tvComp_e, gxx_e, gxy_e, gxz_e, gyy_e, gyz_e, gzz_e, 
+   vTemp_c, tvi, v_xlst, v_x_e, v_ylst, v_y_e, v_zlst, v_z_e, 
+   vx_c, vy_c, vz_c, alpha_geo_lst, alpha_geo_e, 
+   alphal_c, alphar_c, alphaNoZero, alphal_e, alphar_e, 
+   surf_cdim, surf_vdim, surfNodes, numNodes, alphaOrdL_n, alphaOrdR_n, 
+   fHatSurf_l_e, fHatSurf_r_e, Ghat_l_c, Ghat_r_c, Ghat_l_e, Ghat_r_e, 
+   incr_l, incr_r],
 
   kill(varsC, varsP, basisC, basisP),
 
   load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
 
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
-
-  numBasisP : length(bP),
+  varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
+  NC : length(bC),
+  NP : length(bP),
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
@@ -59,38 +69,95 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
     bSurf : basisFromVars(basisFun,surfVars,polyOrder)
   ),
 
+  /* alpha_geo is linear in velocity, so use only a p=1 basis in phase space for its variation 
+     Also make a pure p=1 surface basis to reduce register pressure */
+  basisP_p1 : load(sconcat("basis-precalc/basisSer", cdim, "x", vdim, "v")),
+  bP_p1 : basisP[1],
+  bSurf_p1 : basisFromVars(basisFun,surfVars,1),
+  NP_p1 : length(bP_p1),
+
   printf(fh, "~%"),
 
-  /* Create expansions of f_left, f_center, and f_right on volume basis. */
-  fl_e : doExpand1(fl, bP),
-  fc_e : doExpand1(fc, bP),
-  fr_e : doExpand1(fr, bP),
+  /* Compute the expansion of alpha_geo in phase space basis.
+     Note that this is written out elsewhere because it only needs to be computed
+     once, but we need the sparseness of the expansion in this updater to minimize
+     the number of operations, so we recompute things here in Maxima */
+  tvComp_e : doExpand1(tvComp, bC),
+  gxx_e : doExpand1(gxx, bC),
+  gxy_e : doExpand1(gxy, bC),
+  gxz_e : doExpand1(gxz, bC),
+  gyy_e : doExpand1(gyy, bC),
+  gyz_e : doExpand1(gyz, bC),
+  gzz_e : doExpand1(gzz, bC),
+
+  /* For multiple components, change indices. */
+  tvComp_e : psubst(makelist(tvComp[i]=tvComp[a0+i],i,0,NC-1),tvComp_e),
+
+  vTemp_c :  makelist(0, i, 1, vdim),          
+  /* Calculate v_i components: v_x = v_X*dX/dx + v_Y*dY/dx + v_Z*dZ/dx, ...  */
+   for dir1 : 1 thru vdim do (
+    vTemp_c[dir1] : 0,
+    for dir2 : 1 thru vdim do (
+      tvi : (dir1 - 1)*cdim + (dir2-1),
+      vTemp_c[dir1] : vTemp_c[dir1]
+             +calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[dir2]]/2*varsV[dir2] + w[vid[dir2]])*subst(a0=NC*(tvi),tvComp_e)))
+  ),
+
+  /* Expand in phase basis with reduced list based on sparseness. */
+  v_xlst : doMakeExprLst(vTemp_c[1], v_x),
+  v_x_e : doExpand(v_xlst, bP_p1),
+
+  v_ylst : doMakeExprLst(vTemp_c[2], v_y),
+  v_y_e : doExpand(v_ylst, bP_p1),
+
+  v_zlst : doMakeExprLst(vTemp_c[3], v_z),
+  v_z_e : doExpand(v_zlst, bP_p1),
+
+  /* Calculate v^i : v^x = gxx*v_x + gxy*v_y + gxz*v_z, ... */
+  vx_c : calcInnerProdList(varsP, 1, bP_p1, (gxx_e*v_x_e + gxy_e*v_y_e + gxz_e*v_z_e)),
+  vy_c : calcInnerProdList(varsP, 1, bP_p1, (gxy_e*v_x_e + gyy_e*v_y_e + gyz_e*v_z_e)),
+  vz_c : calcInnerProdList(varsP, 1, bP_p1, (gxz_e*v_x_e + gyz_e*v_y_e + gzz_e*v_z_e)),
+
+  /* Get alpha_geo expansion in reduced basis. */
+  if dir = 1 then (
+    alpha_geo_lst : doMakeExprLst(vx_c, ag0),
+    alpha_geo_e : doExpand(alpha_geo_lst, bP_p1)
+  )
+  else if dir = 2 then (
+    alpha_geo_lst : doMakeExprLst(vy_c, ag1),
+    alpha_geo_e : doExpand(alpha_geo_lst, bP_p1)
+  )
+  else (
+    alpha_geo_lst : doMakeExprLst(vz_c, ag2),
+    alpha_geo_e : doExpand(alpha_geo_lst, bP_p1)
+  ),
+
   printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),      
 
-  printf(fh, "  const double *ag~a = &alpha_geo[~a]; ~%", dir-1, numBasisP*(dir-1)),
+  /* alpha_geo is only p=1 because it only has linear variation in velocity space */
+  printf(fh, "  const double *ag~a = &alpha_geo[~a]; ~%", dir-1, NP_p1*(dir-1)),
   printf(fh, "~%"),
 
-  alpha_geo_e : doExpand1(alphaFld[dir], bP),
-  printf(fh, "  double alphal[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double alphar[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alphal[~a] = {0.0}; ~%", length(bSurf_p1)),
+  printf(fh, "  double alphar[~a] = {0.0}; ~%", length(bSurf_p1)),
   printf(fh, "~%"),
 
-  /* Project alpha onto surface basis, and print resulting coefficients. */
-  alphal_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, alpha_geo_e)),
-  alphar_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, alpha_geo_e)),
+  /* Project alpha onto p=1 surface basis, and print resulting coefficients. */
+  alphal_c : calcInnerProdList(surfVars, 1, bSurf_p1, subst(cv=-1, alpha_geo_e)),
+  alphar_c : calcInnerProdList(surfVars, 1, bSurf_p1, subst(cv=1, alpha_geo_e)),
   writeCExprs1(alphal, alphal_c),
   writeCExprs1(alphar, alphar_c),
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
   alphaNoZero : doMakeExprLst(alphal_c, alphal),
-  alphal_e     : doExpand(alphaNoZero, bSurf),
+  alphal_e     : doExpand(alphaNoZero, bSurf_p1),
   alphaNoZero : doMakeExprLst(alphar_c, alphar),
-  alphar_e     : doExpand(alphaNoZero, bSurf),
+  alphar_e     : doExpand(alphaNoZero, bSurf_p1),
 
   /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */

@@ -1,6 +1,6 @@
-/* Generate kernels that compute the moments of the distribution function. */
+/* Generate kernels that compute the moments of the distribution function for special relativistic Vlasov. */
 
-load("moments/vlasovSRMomentsFuncs-C")$
+load("sr_vlasov/vlasovSRMomentsFuncs-C")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -43,8 +43,8 @@ for bInd : 1 thru length(bName) do (
 
       /* Vlasov moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating Vlasov Moments ~ax~av", bName[bInd]),c,v)),
-        fname : sconcat("~/max-out/vlasov_sr_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,sconcat("Creating Vlasov SR Moments ~ax~av", bName[bInd]),c,v)),
+        fname : sconcat("~/max-out/mom_vlasov_sr_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_sr"),
         calcSRMoments(fh, funcName, c, v, bName[bInd], polyOrder),

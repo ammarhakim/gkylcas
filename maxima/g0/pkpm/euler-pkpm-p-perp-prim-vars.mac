@@ -25,7 +25,7 @@ calcEulerPKPMPrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, 
   double* u_i, double* p_ij, double* T_ij, 

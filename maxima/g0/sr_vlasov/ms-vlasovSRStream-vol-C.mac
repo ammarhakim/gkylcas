@@ -1,4 +1,9 @@
-/* Generate the header file for the Vlasov moment and integrated moment kernels. */
+load("sr_vlasov/vlasovSRStreamFuncs-vol-C")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   updates from the volume term due to the streaming
+   term p/gamma.grad(f) in (neutral) Vlasov
+   equations. */
 
 /* ...... USER INPUTS........ */
 
@@ -30,36 +35,24 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-printPrototype(deco, ci, vi, bStr, pi) := block([si],
-  /* Variations of the Lorentz boost factor. */
-  printf(fh, "~avoid sr_Gamma2_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma2); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid sr_Gamma_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid sr_Gamma_inv_~ax~av_~a_p~a(const double *V, double* GKYL_RESTRICT Gamma_inv); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%")  
-)$
 
-fh : openw("~/max-out/gkyl_sr_Gamma_kernels.h")$
-printf(fh, "#pragma once ~%")$
-printf(fh, "#include <math.h> ~%")$
-printf(fh, "#include <gkyl_util.h> ~%")$
-printf(fh, "EXTERN_C_BEG ~%")$
-printf(fh, "~%")$
-
-decorator : "GKYL_CU_DH "$
+/* Compute the volume contribution from ONLY the streaming term (for use in neutral particle simulations) */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : minVdim[bInd] thru maxVdim[bInd] do (
+    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        printPrototype(decorator, c, v, bName[bInd], polyOrder)
+        disp(printf(false,sconcat("Creating volume VlasovStream",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        fname : sconcat("~/max-out/vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd]),
+        calcVlasovSRStreamVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)
       )
-    )  
+    )
   )
 );
-printf(fh, "EXTERN_C_END ~%")$
-close(fh)$
-/* ............ Finished writing out the C header file ............ */

@@ -1,9 +1,8 @@
-load("vlasov/vlasovSRStreamFuncs-vol-C")$
+load("sr_vlasov/vlasovMaxwellSRFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   updates from the volume term due to the streaming
-   term p/gamma.grad(f) in (neutral) Vlasov
-   equations. */
+   updates from the volume term contributions in the
+   Vlasov-Maxwell kinetic equation. */
 
 /* ...... USER INPUTS........ */
 
@@ -35,8 +34,7 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-
-/* Compute the volume contribution from ONLY the streaming term (for use in neutral particle simulations) */
+/* Compute the volume contribution in BOTH configuration and velocity space (for use in full Vlasov-Maxwell) */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
@@ -46,11 +44,11 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume VlasovStream",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
-        fname : sconcat("~/max-out/vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,sconcat("Creating volume Vlasov",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        fname : sconcat("~/max-out/vlasov_sr_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd]),
-        calcVlasovSRStreamVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("vlasov_sr_vol_", c, "x", v, "v_", bName[bInd]),
+        calcVlasovMaxwellSRVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

@@ -21,7 +21,7 @@ let(dv2^3, dv2_cu)$
 let(dv3^3, dv3_cu)$
 
 volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
-
+volExprTot(totDim) := prod(dxv[i-1], i, 1, totDim)$
 pVsub : [x=vx,y=vy,z=vz]$
 
 vTrans  : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
@@ -235,11 +235,20 @@ calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   )
   elseif (vdim = 2) then (
     temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e),
-    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e)
+    /* (v . p)^2 = v_x^2 p_x^2 + v_y^2 p_y^2 + 2.0 v_x p_x v_y p_y */
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e 
+                                              + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e
+                                              + 2.0*vTrans[1]*GammaV2_e*Vx_e*vTrans[2]*Vy_e)
   )
   else (
     temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e + vTrans[3]*Vz_e),
-    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e + vTrans[3]*vTrans[3]*GammaV2_e*VzSq_e)
+    /* (v . p)^2 = v_x^2 p_x^2 + v_y^2 p_y^2 + v_z^2 p_z^2 + 2.0 v_x p_x v_y p_y + 2.0 v_x p_x v_z p_z + 2.0 v_y p_y v_z p_z */
+    temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*GammaV2_e*VxSq_e 
+                                              + vTrans[2]*vTrans[2]*GammaV2_e*VySq_e 
+                                              + vTrans[3]*vTrans[3]*GammaV2_e*VzSq_e
+                                              + 2.0*vTrans[1]*GammaV2_e*Vx_e*vTrans[2]*Vy_e
+                                              + 2.0*vTrans[1]*GammaV2_e*Vx_e*vTrans[3]*Vz_e
+                                              + 2.0*vTrans[2]*GammaV2_e*Vy_e*vTrans[3]*Vz_e)
   ),
   writeCExprs1(temp, temp_c),
   printf(fh, "~%"),
@@ -333,13 +342,68 @@ calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "} ~%")
 )$
 
+calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bV, NV, varsC, bC, varsP, bP, NP, NC, fl, GammaV_inv_e, M0, M1, Energy, clst, int],
+  /* Computes the integral of M0, M1i and M2 at the same time. */
+  kill(varsC, varsP, bC, bP),
+  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
+  /* Generate basis in velocity space only. */
+  if polyOrder = 1 then (
+    bV : subst(pVsub,basisC[2]),
+    NV : length(bV)
+  )
+  else (
+    bV : subst(pVsub,basisC[polyOrder]),
+    NV : length(bV)
+  ),
+  
+  kill(varsC, varsP, basisC, basisP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+    
+  printf(fh, "GKYL_CU_DH void ~a_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *GammaV_inv, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", i-1, NV*(i-1))
+  ),
+
+  printf(fh, " ~%"),
+
+  fl : doExpand1(f, bP),
+  GammaV_inv_e : doExpand1(GammaV_inv, bC),
+
+  M : [],
+
+  M0 : fullratsimp(innerProd(varsP, 1, GammaV_inv_e, fl)),
+  M  : endcons(M0,M),
+
+  for dir : 1 thru vdim do (
+    M1 : fullratsimp(innerProd(varsP, 1, GammaV_inv_e*doExpand1(p_over_gamma_fld[dir], bV), fl)),
+    M  : endcons(M1,M)
+  ),
+
+  Energy : fullratsimp(innerProd(varsP, 1, GammaV_inv_e*doExpand1(gamma, bV), fl)),
+  M  : endcons(Energy, M),
+
+  M : map(letsimp, M),
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+
+  printf(fh, "} ~%")
+)$
+
 calcSRMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_mom_vlasov_sr_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_exp_sq.h> ~%", basisFun, cdim, polyOrder),
   calcSRM0(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSRM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSRNi(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSREnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder),
-  calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+  calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$
