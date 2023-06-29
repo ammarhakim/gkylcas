@@ -21,7 +21,7 @@ calcEulerPKPMSource(fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // qmem:             q/m*EM fields.~%"),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, q_parallel], Moments computed from kinetic equation in pkpm model.~%"),

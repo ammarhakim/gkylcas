@@ -34,6 +34,8 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   ),
   printf(fh, "~%"),
   printf(fh, "~avoid em_bvar_~ax_~a_p~a(const double *em, double* bvar); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid em_set_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *em); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid em_copy_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, double* bvar); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_ExB_~ax_~a_p~a(const double *em, double* ExB); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_pkpm_kappa_inv_b_~ax_~a_p~a(const double *bvar, const double *ExB, double* kappa_inv_b); ~%", deco, ci, bStr, pi),  
   printf(fh, "~%")
@@ -44,6 +46,7 @@ fh : openw("~/max-out/gkyl_maxwell_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "typedef struct { double c, chi, gamma; } gkyl_maxwell_inp; ~%")$

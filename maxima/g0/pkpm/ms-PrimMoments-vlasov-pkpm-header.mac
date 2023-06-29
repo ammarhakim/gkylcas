@@ -1,7 +1,4 @@
-/* Generate kernels that compute the moments of the distribution function. */
-
-load("pkpm/moments-vlasovPKPMFuncs")$
-load(stringproc)$
+/* Generate the header file for the Vlasov moment and integrated moment kernels. */
 
 /* ...... USER INPUTS........ */
 
@@ -21,27 +18,39 @@ maxCdim_Tensor : 1$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","tensor"]$
+cvars : [x, y, z]$
+
+bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
+printPKPMPrototype(deco, ci, bStr, pi) := block([si],
+  printf(fh, "~avoid vlasov_pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
+  printf(fh, "~%")  
+)$
+
+fh : openw("~/max-out/gkyl_prim_lbo_vlasov_pkpm_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, " ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
     if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-
-    /* Vlasov moment calculators. */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating Vlasov PKPM Moments ~ax~av ", bName[bInd]),c,1)),
-      fname : sconcat("~/max-out/mom_vlasov_pkpm_", c, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("mom_vlasov_pkpm"),
-
-      calcPKPMMoments(fh, funcName, c, 1, bName[bInd], polyOrder),
-      close(fh)
+      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )
   )
 );
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
+/* ............ Finished writing out the C header file ............ */

@@ -12,7 +12,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$    /* BoundaryEval fails for polyOrder>2 for some reason. */
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 1$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -33,7 +33,7 @@ for bInd : 1 thru length(bName) do (
       disp(printf(false,sconcat("Creating VlasovPKPMSelfPrimMoments ~ax1v ", bName[bInd], " P~a"),c,polyOrder)),
       fname : sconcat("~/max-out/vlasov_pkpm_self_prim_moments_", c, "x1v_", bName[bInd],"_p",polyOrder, ".c"),
       fh : openw(fname),
-      printf(fh, "#include <gkyl_prim_lbo_vlasov_kernels.h> ~%"),
+      printf(fh, "#include <gkyl_prim_lbo_vlasov_pkpm_kernels.h> ~%"),
       printf(fh, " ~%"),
       funcName : sconcat("vlasov_pkpm_self_prim_moments_", c, "x1v_", bName[bInd],"_p",polyOrder),
       calcSelfPrimMoms(fh, funcName, c, 1, bName[bInd], polyOrder),
