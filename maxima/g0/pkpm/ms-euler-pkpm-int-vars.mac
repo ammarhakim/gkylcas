@@ -1,8 +1,8 @@
-load("pkpm/euler-pkpm-p-perp-prim-vars")$
+load("pkpm/euler-pkpm-int-vars")$
 load(stringproc)$
-/* This script calls the functions which calculates the primitive
-   variables in the parallel-kinetic-perpendicular-moment (pkpm) model.
-   These include u, the flow velocity, and P = (p_parallel - p_perp)bb + p_perp I */
+/* This script calls the functions which integrate the fluid variables for diagnostic purposed. 
+   Integrates rho, p_parallel, p_perp, rho ux^2, rho uy^2, rho uz^2, 
+   3/2 p = 1/2 p_parallel + p_perp, 1/2 rho u^2, and E = 3/2 p + 1/2 rho u^2 */
 
 /* ...... USER INPUTS........ */
 
@@ -35,11 +35,11 @@ for bInd : 1 thru length(bName) do (
     if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating euler pkpm primitive variables",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_prim_vars_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating euler pkpm integrated variables",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/euler_pkpm_int_vars_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_prim_vars_", d, "x_", bName[bInd]),
-      calcEulerPKPMPrimVars(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("euler_pkpm_int_vars_", d, "x_", bName[bInd]),
+      calcEulerPKPMIntVars(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

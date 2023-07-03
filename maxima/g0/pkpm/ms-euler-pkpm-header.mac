@@ -31,6 +31,8 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
 
   printf(fh, "~avoid euler_pkpm_prim_vars_~ax_~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, 
   double* u_i, double* p_ij, double* T_ij, double* rho_inv, double* T_perp_over_m, double* T_perp_over_m_inv); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid euler_pkpm_int_vars_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *statevec, 
+  const double* u_i, double* pkpm_int_vars); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid euler_pkpm_source_~ax_~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* out); ~%", deco, ci, bStr, pi),
   printf(fh, "~adouble euler_pkpm_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *u_i, const double *div_p, const double *statevec, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid pkpm_dist_mirror_force_~ax1v_~a_p~a(const double *w, const double *dxv, 
