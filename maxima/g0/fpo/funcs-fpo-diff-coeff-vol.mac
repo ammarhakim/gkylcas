@@ -1,0 +1,68 @@
+/* This script generates the kernels to calculate the diffusion tensor 
+   from an input potential.
+   D = Gamma * gradv gradv(g)
+
+   For now, only the diagonal components: Dxx, Dyy, Dzz
+*/
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("recovery")$
+
+calcFPODiffCoeff(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block(
+  [varsC, bC, varsP, bP, NC, pv, lst_G_l, lst_G_c, lst_G_r, G_rec, diff_coeff],
+
+  /* Clear variables for safety, then load basis */
+  kill(varsC, bC, varsP, bP),
+  [varsC, bC, varsP, bP] : loadPhaseBasis(basisFunc, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials */
+  NC : length(bP),
+
+  /* Variable to perform recovery in */
+  recovDir : dir + cdim,
+  pv : varsP[recovDir],
+  display(pv),
+
+  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *dxv, double gamma, const double *G_l, const double *G_c, const double *G_r, double *diff_coeff) { ~%", funcNm, pv, cdim, vdim, basisFunc, polyOrder),
+  printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
+  printf(fh, "  // G_l,c,r:   Input potential in left/center/right cells in recovery direction.~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1+cdim),
+  printf(fh, "  const double dv1_sq = dv1*dv1; ~%"),
+
+  /* 
+    Components go: xx, xy, xz, yy, yz, zz
+    Since only worrying about diagonal, do xx, yy, zz for now
+  */
+  printf(fh, "  double *diff_coeff_xx = &diff_coeff[~a]; ~%", 0*NC),
+  printf(fh, "  double *diff_coeff_yy = &diff_coeff[~a]; ~%", 1*NC),
+  printf(fh, "  double *diff_coeff_zz = &diff_coeff[~a]; ~%", 2*NC),
+
+  /* Expansions of G in left, center, and right cells */
+  lst_G_l : makelist(G_l[i], i, 0, NC-1),
+  lst_G_c : makelist(G_c[i], i, 0, NC-1),
+  lst_G_r : makelist(G_r[i], i, 0, NC-1),
+
+  /* 1-Cell recovery of G. Must be higher order so we can take the second derivative, so add C=1 continuity */
+  G_rec : calcRecov1CellGen(basisFunc, pv, varsP, polyOrder, 1, 
+    dg(lst_G_l), dg(lst_G_c), dg(lst_G_r)),
+
+  /* Take derivatives and project */
+  /* D_c : calcInnerProdList(varsP, 1, bP, diff(G_rec, pv, 2)), */
+  D_c : calcInnerProdList(varsP, 1, bP, diff(G_rec, pv, 2)),
+
+  if (dir = 1) then (
+    writeCExprs1(diff_coeff_xx, gamma*dv1_sq*D_c)
+  )
+  elseif (dir = 2) then (
+    writeCExprs1(diff_coeff_yy, gamma*dv1_sq*D_c)
+  )
+  elseif (dir = 3) then (
+    writeCExprs1(diff_coeff_zz, gamma*dv1_sq*D_c)
+  ),
+
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$

@@ -36,7 +36,7 @@ for bInd : 1 thru length(bName) do (
     for v : max(c, minVdim[bInd]) thru maxVdim[bInd] do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c = 3) then (maxPolyOrderB = 1), 
+      if (c = 3) then (maxPolyOrderB : 1), 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false, sconcat("Creating FPO recovery ", bName[bInd], " ~ax~avp~a"), c, v, polyOrder)),
         for dir : 1 thru v do ( 
