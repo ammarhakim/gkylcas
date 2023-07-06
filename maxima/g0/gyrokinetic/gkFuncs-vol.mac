@@ -116,7 +116,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
     alpha_c    : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)*rdDirVar2),
     alphaLabel : eval_string(sconcat(alpha, dirLabel)),
     writeCExprsNoExpand1(alphaLabel, gcfac(expand(facsum(subst(replaceList, alpha_c),append(rdx2vec,rdv2vec))))),
-    printf(fh, "~%")
+    printf(fh, "~%"),
     flush_output(fh),
     alphaNoZero_c : doMakeExprLst(alpha_c, alphaLabel),
     alpha_e       : doExpand(alphaNoZero_c, bP),

@@ -1,29 +1,44 @@
-/* Create header file for Helmholtz/Poisson solver. */
-polyOrderMax : 2$
+/* Create header file for perpendicular Helmholtz/Poisson solver. */
 load("bvp_utilities/bvp-util")$
 
-bName : ["ser"]$
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+
+cdim : 3$
+dimPerp : 2$
 
 /* Types of boundary conditions for which to generate kernels.
      =0 periodic
      =1 Dirichlet
      =2 Neumann
-     =3 Robin
      =9 non-periodic
    For periodic we'll assume ghost cells are filled accordingly
    and use an interior stencil. */
-bcTypesFEM : [0, 1, 2, 3]$
-bcStrsFEM  : ["periodic", "dirichlet", "neumann", "robin"]$
+bcTypesFEM : [0, 1, 2]$
+bcStrsFEM  : ["periodic", "dirichlet", "neumann"]$
 bcKeyFEM   : makelist([bcTypesFEM[i],bcStrsFEM[i]],i,1,length(bcTypesFEM))$
 
 bcTypesNP : [0, 9]$ 
 bcStrsNP  : ["periodic", "nonperiodic"]$
 bcKeyNP   : makelist([bcTypesNP[i],bcStrsNP[i]],i,1,length(bcTypesNP))$
 
-fh : openw("~/max-out/gkyl_fem_poisson_kernels.h")$
+fh : openw("~/max-out/gkyl_fem_poisson_perp_kernels.h")$
 printf(fh, "// Gkyl ------------------------------------------------------------------------~%")$
 printf(fh, "//~%")$
-printf(fh, "// Header file for FEM Helmholtz/Poisson solver.~%")$
+printf(fh, "// Header file for perpendicular FEM Helmholtz/Poisson solver.~%")$
 printf(fh, "//~%")$
 printf(fh, "//    _______     ___~%")$
 printf(fh, "// + 6 @ |||| # P ||| +~%")$
@@ -63,6 +78,11 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
    0 away from boundaries in that direction. */
   stencilLoc : getStencilCoords(dim),
 
+  /* Only need stencils that include all the nodes in the parallel direction.
+     This is effectively upper z-boundary stencils, so remove all stencil
+     locations not on the upper z-boundary. */
+  stencilLoc : sublist(stencilLoc, lambda([x], x[dim]=1)),
+
   numStencils : 1,
   if posDependent then ( numStencils : length(stencilLoc) ),
   for sI : 1 thru numStencils do (
@@ -74,7 +94,7 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
       bcTypes  : makelist(bcKey[i][1],i,1,length(bcKey)),
       bcCombos : [[0]],
       if (stencilLoc[sI][1] # 0) or (not posDependent) or (inloOnly) then ( bcCombos : makelist([bcTypes[i]],i,1,length(bcTypes)) ),
-      for d : 2 thru dim do (
+      for d : 2 thru dimPerp do (
         bcsInDir : [[0]],
         if (stencilLoc[sI][d] # 0) or (not posDependent) or (inloOnly) then ( bcsInDir : makelist([bcTypes[i]],i,1,length(bcTypes)) ),
         bcCombos : listify(cartesian_product(setify(bcCombos),setify(bcsInDir))),
@@ -88,7 +108,7 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
 
         /* String used in kernel name, identifying stencil location and BC. */
         stencilStr : "",
-        for d : 1 thru dim do (
+        for d : 1 thru dimPerp do (
           if posDependent then (
             stencilStr : sconcat(stencilStr,"_",assoc(stencilLoc[sI][d],[[-1,"lo"],[0,"in"],[1,"up"]]),
                          assoc(stencilLoc[sI][d],coordVarS)[d],"_",assoc(currBC[d],bcKey),string(varsC[d]))
@@ -105,32 +125,26 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
 
 for bInd : 1 thru length(bName) do (
 
-  for polyOrder : 1 thru polyOrderMax do (
-    for ci : 1 thru 3 do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
 
-      /* Compute the number of nodes in the whole domain. */
-      findCombos(fh, "long", "fem_poisson_num_nodes_global", "const int *numCells", bName[bInd], ci, polyOrder, bcKeyNP, false, true),
-      printf(fh, "~%"),
+    /* Compute the number of nodes in the whole domain. */
+    findCombos(fh, "long", "fem_poisson_perp_num_nodes_global", "const int *numCells", bName[bInd], cdim, polyOrder, bcKeyNP, false, true),
+    printf(fh, "~%"),
 
-      /* Create the local to global map for the nodes in a single cell. */
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], ci, polyOrder, bcKeyNP, true, true),
-      printf(fh, "~%"),
+    /* Create the local to global map for the nodes in a single cell. */
+    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], cdim, polyOrder, bcKeyNP, true, true),
+    printf(fh, "~%"),
 
-      /* LHS stencil kernels to populate the global matrix. */
-      findCombos(fh, "void", "fem_poisson_lhs_stencil_consteps", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      findCombos(fh, "void", "fem_poisson_lhs_stencil_vareps", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      printf(fh, "~%"),
+    /* LHS stencil kernels to populate the global matrix. */
+    findCombos(fh, "void", "fem_poisson_perp_lhs_stencil", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
+    printf(fh, "~%"),
 
-      /* RHS source stencil kernels to populate the right side vector. */
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_consteps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_vareps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      printf(fh, "~%"),
+    /* RHS source stencil kernels to populate the right side vector. */
+    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
+    printf(fh, "~%"),
 
-      /* Solution stencil kernels. */
-      printf(fh, "GKYL_CU_DH void fem_poisson_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, const long *globalIdxs, double *sol_modal_local);~%", ci, bName[bInd], polyOrder),
-      printf(fh, "~%")
-
-    ),
+    /* Solution stencil kernels. */
+    printf(fh, "GKYL_CU_DH void fem_poisson_perp_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long perpOff, const long *globalIdxs, double *sol_modal_local);~%", cdim, bName[bInd], polyOrder),
     printf(fh, "~%")
   )
 
