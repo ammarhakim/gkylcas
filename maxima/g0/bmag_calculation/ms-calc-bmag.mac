@@ -1,5 +1,5 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
-load("metric_calculation/calc-metric.mac")$
+/* Create kernels to get a continuous modal DG rep of Bmag */
+load("bmag_calculation/calc-bmag.mac")$
 load(stringproc)$
 
 
@@ -9,7 +9,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 2$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -22,11 +22,11 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          disp(printf(false,sconcat("Creating gij_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          fName : sconcat("~/max-out/gij_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
+          disp(printf(false,sconcat("Creating bmag_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+          fName : sconcat("~/max-out/bmag_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
           fh : openw(fName),
-          printf(fh, "#include \"gkyl_calc_metric_kernels.h\"~%~%"),
-          calcMetricCoeffs(fh, cD, bName[bInd], polyOrder),
+          printf(fh, "#include \"gkyl_calc_bmag_kernels.h\"~%~%"),
+          calcBmag(fh, cD, bName[bInd], polyOrder),
           close(fh)
 
       )

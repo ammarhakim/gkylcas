@@ -6,7 +6,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 2$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -17,7 +17,7 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 
-fName : "~/max-out/gkyl_calc_metric_kernels.h"$
+fName : "~/max-out/gkyl_calc_bmag_kernels.h"$
 fh : openw(fName)$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
@@ -27,8 +27,8 @@ printf(fh, "~%")$
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          disp(printf(false,sconcat("Creating header entry for gij_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          printf(fh, "GKYL_CU_DH void gij_~ax_~a_p~a( const double **xyz, double *gij); ~%", cD, bName[bInd], polyOrder)
+          disp(printf(false,sconcat("Creating header entry for bmag_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+          printf(fh, "GKYL_CU_DH void bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, double *bmagout, double scale_factorR, double scale_factorZ); ~%", cD, bName[bInd], polyOrder)
       )
   )
 );
