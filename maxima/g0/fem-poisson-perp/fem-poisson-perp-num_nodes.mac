@@ -11,18 +11,23 @@ fpprec : 24$
 
 generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := block(
   [dimPerp,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,d,i,bcI,currBC,stencilStr,polyOrder,
-   bN,numB,numNodes,storedNodes,numNodesOut,sI,numStoredNodes,numBoundCells],
+   numCellsProb,bN,numB,numNodes,storedNodes,numNodesOut,sI,numStoredNodes,numBoundCells],
 
   dimPerp : 2,
 
   kill(varsC, varsP, basisC, basisP),
 
-  load(sconcat("basis-precalc/basis", basisFun, dimPerp, "x")),
+  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
      0 away from boundaries in that direction. */
-  stencilLoc : getStencilCoords(dimPerp),
+  stencilLoc : getStencilCoords(dim),
+
+  /* Only need stencils that include all the nodes in the parallel direction.
+     This is effectively upper z-boundary stencils, so remove all stencil
+     locations not on the upper z-boundary. */
+  stencilLoc : sublist(stencilLoc, lambda([x], x[dim]=1)),
 
   /* Types of boundary conditions for which to generate kernels.
        =0 periodic
@@ -55,16 +60,20 @@ generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := bl
       printf(fh, "  // numCells: number of cells in each direction.~%"),
       printf(fh, "~%"),
 
-      bN   : getNodalBasis(basisFun, dimPerp, polyOrder),
+      /* Assume there's only one cell in parallel direction. */
+      numCellsProb : makelist(numCells[d-1],d,1,dim),
+      numCellsProb[dim] : 1,
+
+      bN   : getNodalBasis(basisFun, dim, polyOrder),
       numB : length(bN),
 
-      nodes    : args(getNodes(basisFun, dimPerp, polyOrder)),
+      nodes    : args(getNodes(basisFun, dim, polyOrder)),
       numNodes : length(nodes),
 
       storedNodes    : getStoredNodes(nodes,stencilLoc[1]),
       numStoredNodes : length(storedNodes),
 
-      numNodesOut : product(numCells[d-1]-1,d,1,dimPerp)*numStoredNodes, /* Interior nodes. */
+      numNodesOut : product(numCellsProb[d]-1,d,1,dimPerp)*numStoredNodes, /* Interior nodes. */
 
       for sI : 2 thru length(stencilLoc) do (
         /* This if-statement excludes lower boundary kernels (without an upper boundary). */
@@ -75,12 +84,12 @@ generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := bl
           ) ),
           numStoredNodes : length(storedNodes),
   
-          numBoundCells : makelist(numCells[d-1]-1,d,1,dimPerp),
-          for d : 1 thru dimPerp do ( if stencilLoc[sI][d]=1 then (
+          numBoundCells : makelist(numCellsProb[d]-1,d,1,dim),
+          for d : 1 thru dim do ( if stencilLoc[sI][d]=1 then (
             numBoundCells[d] : 1
           ) ),
 
-          numNodesOut : numNodesOut + product(numBoundCells[d],d,1,dimPerp)*numStoredNodes
+          numNodesOut : numNodesOut + product(numBoundCells[d],d,1,dim)*numStoredNodes
         )
       ),
 

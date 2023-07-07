@@ -16,7 +16,7 @@ load("fem-poisson-perp/fem-poisson-perp-sol_stencil")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
@@ -31,6 +31,7 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 cdim : 3$
 
 /**
+**/
 /* Kernels computing the number of nodes in the global problem. */
 disp(printf(false,"Creating fem_poisson_perp_num_nodes.c"))$
 for bInd : 1 thru length(bName) do (
@@ -66,7 +67,6 @@ for bInd : 1 thru length(bName) do (
   funcName : sconcat("fem_poisson_perp_lhs_stencil_", cdim, "x_", bName[bInd]),
   generate_fem_poisson_perp_lhs_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
 )$
-**/
 
 /* Solution nodal-to-modal kernels. */
 disp(printf(false,"Creating fem_poisson_perp_sol_stencil.c"))$
@@ -79,6 +79,8 @@ for bInd : 1 thru length(bName) do (
   generate_fem_poisson_perp_sol_stencil(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd]),
   close(fh)
 )$
+/**
+**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_perp_src_stencil.c"))$
@@ -88,5 +90,3 @@ for bInd : 1 thru length(bName) do (
   generate_fem_poisson_perp_src_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
 )$
 
-/**
-**/

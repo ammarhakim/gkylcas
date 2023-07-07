@@ -29,7 +29,7 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
 
   kill(varsC, varsP, basisC, basisP),
 
-  load(sconcat("basis-precalc/basis", basisFun, dimPerp, "x")),
+  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
@@ -37,7 +37,12 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
   /* List of stencil locations. Each entry is a dim-dimensional list
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
      0 away from boundaries in that direction. */
-  stencilLoc : getStencilCoords(dimPerp),
+  stencilLoc : getStencilCoords(dim),
+
+  /* Only need stencils that include all the nodes in the parallel direction.
+     This is effectively upper z-boundary stencils, so remove all stencil
+     locations not on the upper z-boundary. */
+  stencilLoc : sublist(stencilLoc, lambda([x], x[dim]=1)),
 
   /* Types of boundary conditions for which to generate kernels.
        =0 periodic
@@ -87,35 +92,26 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
 
       for polyOrder : pMin thru pMax do (
 
-        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, long parOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // epsilon: permittivity tensor.~%"),
         printf(fh, "  // rho: right side source.~%"),
         printf(fh, "  // bcVals: values to impose as BCs, i.e. bcVals[off+0]*phi+bcVals[off+1]*epsilon^{ij}*d(phi)/dx_j=bcVals[off+2].~%"),
-        printf(fh, "  // parOff: memory offset due to other perpendicular planes (par index * global number of nodes).~%"),
+        printf(fh, "  // perpOff: memory offset due to other perpendicular planes (perp index * global number of nodes).~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // bsrc: global right side source vector.~%"),
         printf(fh, "~%"),
 
-        bN   : getNodalBasis(basisFun, dimPerp, polyOrder),
+        bN   : getNodalBasis(basisFun, dim, polyOrder),
         numB : length(bN),
         vars : listofvars(bN),
 
-        /* Project onto the nodal basis in the parallel direction. */
-        basis : basisC[polyOrder],
-        parvar : vars[dim],
-        bNpar : subst(x=parvar,getNodalBasis(basisFun, 1, polyOrder)),
-        rho_e : doExpand1(rho, basis),
-        rho_par_c : calcInnerProdList([parvar],1,bNpar,rho_e),
-
-        nodes    : args(getNodes(basisFun, dimPerp, polyOrder)),
+        nodes    : args(getNodes(basisFun, dim, polyOrder)),
         numNodes : length(nodes),
 
-        massM   : calcMassUnweighted(dimPerp, basisFun, polyOrder),
-        mod2nod : calcModToNod(basisFun, dimPerp, polyOrder),
+        massM   : calcMassUnweighted(dim, basisFun, polyOrder),
+        mod2nod : calcModToNod(basisFun, dim, polyOrder),
 
         massMod2nod : massM . mod2nod,
-
-        for parI : 1 thru length(parStoredNodesBC) do (
 
         rho_c : makelist(rho[k-1],k,1,numB),
 
@@ -184,14 +180,14 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
           printf(fh, "  #ifdef __CUDA_ARCH__~%"),
           if insertVal[k] then (
             opStr : "atomicExch",
-            printf(fh, "  ~a((unsigned long long int*) &bsrc[parOff+globalIdxs[~a]],__double_as_longlong(~a));~%",opStr,k-1,expand(float(src_c[k])))
+            printf(fh, "  ~a((unsigned long long int*) &bsrc[perpOff+globalIdxs[~a]],__double_as_longlong(~a));~%",opStr,k-1,expand(float(src_c[k])))
           ) else (
             opStr : "atomicAdd",
-            printf(fh, "  ~a(&bsrc[parOff+globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
+            printf(fh, "  ~a(&bsrc[perpOff+globalIdxs[~a]],~a);~%",opStr,k-1,expand(float(src_c[k])))
           ),
           printf(fh, "  #else~%"),
           if insertVal[k] then (opStr : "=") else (opStr : "+="),
-          printf(fh, "  bsrc[parOff+globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
+          printf(fh, "  bsrc[perpOff+globalIdxs[~a]] ~a ~a;~%",k-1,opStr,expand(float(src_c[k]))),
           printf(fh, "  #endif~%")
         ),
         printf(fh, "~%"),

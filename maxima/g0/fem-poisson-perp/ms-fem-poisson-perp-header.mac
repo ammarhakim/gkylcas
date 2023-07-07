@@ -5,7 +5,7 @@ load("bvp_utilities/bvp-util")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
