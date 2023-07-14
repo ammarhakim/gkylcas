@@ -13,9 +13,6 @@ minCdim_Ser : 1$
 maxCdim_Ser : 3$
 minVdim_Ser : 1$
 maxVdim_Ser : 3$
-minGkVdim_Ser : 1$
-maxGkVdim_Ser : 2$
-
 
 /* ...... END OF USER INPUTS........ */
 
@@ -26,8 +23,7 @@ minCdim      : [minCdim_Ser]$
 maxCdim      : [maxCdim_Ser]$
 minVdim      : [minVdim_Ser]$
 maxVdim      : [maxVdim_Ser]$
-minGkVdim      : [minVdim_Ser]$
-maxGkVdim      : [maxVdim_Ser]$
+
 polyOrder : 1$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -37,6 +33,18 @@ for bInd : 1 thru length(bName) do (
       fh : openw(fname),
       funcName : sconcat("vlasov_prim_vars_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
       calcPrimVarsVlasov(fh, funcName, c, v, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/vlasov_prim_vars_u_i_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("vlasov_prim_vars_u_i_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsUVlasov(fh, funcName, c, v, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/vlasov_prim_vars_vtSq_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("vlasov_prim_vars_vtSq_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsVt2Vlasov(fh, funcName, c, v, bName[bInd], polyOrder),
       close(fh)
     ),
     if (c=1) then (
@@ -44,12 +52,36 @@ for bInd : 1 thru length(bName) do (
       fh : openw(fname),
       funcName : sconcat("gyrokinetic_prim_vars_", c, "x", 1,  "v_", bName[bInd], "_p", polyOrder),
       calcPrimVarsGK(fh, funcName, c, 1, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/gyrokinetic_prim_vars_upar_", c, "x", 1, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("gyrokinetic_prim_vars_upar_", c, "x", 1,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsUGK(fh, funcName, c, 1, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/gyrokinetic_prim_vars_vtSq_", c, "x", 1, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("gyrokinetic_prim_vars_vtSq_", c, "x", 1,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsVt2GK(fh, funcName, c, 1, bName[bInd], polyOrder),
       close(fh)
     ),
     fname : sconcat("~/max-out/gyrokinetic_prim_vars_", c, "x", 2, "v_", bName[bInd], "_p", polyOrder, ".c"),
     fh : openw(fname),
     funcName : sconcat("gyrokinetic_prim_vars_", c, "x", 2,  "v_", bName[bInd], "_p", polyOrder),
     calcPrimVarsGK(fh, funcName, c, 2, bName[bInd], polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/gyrokinetic_prim_vars_upar_", c, "x", 2, "v_", bName[bInd], "_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("gyrokinetic_prim_vars_upar_", c, "x", 2,  "v_", bName[bInd], "_p", polyOrder),
+    calcPrimVarsUGK(fh, funcName, c, 2, bName[bInd], polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/gyrokinetic_prim_vars_vtSq_", c, "x", 2, "v_", bName[bInd], "_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("gyrokinetic_prim_vars_vtSq_", c, "x", 2,  "v_", bName[bInd], "_p", polyOrder),
+    calcPrimVarsVt2GK(fh, funcName, c, 2, bName[bInd], polyOrder),
     close(fh)
   )
 );
