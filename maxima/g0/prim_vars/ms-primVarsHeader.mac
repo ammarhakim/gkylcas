@@ -37,6 +37,14 @@ printPrototypeVlasov(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~%")  
 )$
 
+printPrototypeTransform(deco, ci, vi, bStr, pi) := block([si],
+  /* Gk primitive vars calculated from vlasov objects. */
+  printf(fh, "~avoid transform_vlasov_gk_prim_vars_~ax~av_~a_p~a(const double *b_i, const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid transform_vlasov_gk_prim_vars_u_par_~ax~av_~a_p~a(const double *b_i, const double *moms, double* u_par); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid transform_vlasov_gk_prim_vars_u_par_i_~ax~av_~a_p~a(const double *b_i, const double *moms, double* u_par_i); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")  
+)$
+
 printPrototypeGK(deco, ci, vi, bStr, pi) := block([si],
   /* Primitive vars for vlasov objects. */
   printf(fh, "~avoid gyrokinetic_prim_vars_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
@@ -64,6 +72,20 @@ for bInd : 1 thru length(bName) do (
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototypeVlasov(decorator, c, v, bName[bInd], polyOrder)
+      )
+    )
+  )
+);
+printf(fh, "~%")$
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    for v : c thru maxVdim[bInd] do (
+      if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        printPrototypeTransform(decorator, c, v, bName[bInd], polyOrder)
       )
     )
   )

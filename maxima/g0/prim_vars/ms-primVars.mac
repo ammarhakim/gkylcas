@@ -45,6 +45,24 @@ for bInd : 1 thru length(bName) do (
       fh : openw(fname),
       funcName : sconcat("vlasov_prim_vars_vtSq_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
       calcPrimVarsVt2Vlasov(fh, funcName, c, v, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/transform_vlasov_gk_prim_vars_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),	
+      fh : openw(fname),
+      funcName : sconcat("transform_vlasov_gk_prim_vars_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsVlasovToGK(fh, funcName, c, v, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/transform_vlasov_gk_prim_vars_u_par_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),	
+      fh : openw(fname),
+      funcName : sconcat("transform_vlasov_gk_prim_vars_u_par_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsUparVlasovToGK(fh, funcName, c, v, bName[bInd], polyOrder),
+      close(fh),
+
+      fname : sconcat("~/max-out/transform_vlasov_gk_prim_vars_u_par_i_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),	
+      fh : openw(fname),
+      funcName : sconcat("transform_vlasov_gk_prim_vars_u_par_i_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+      calcPrimVarsUGkToVlasov(fh, funcName, c, v, bName[bInd], polyOrder),
       close(fh)
     ),
     if (c=1) then (
