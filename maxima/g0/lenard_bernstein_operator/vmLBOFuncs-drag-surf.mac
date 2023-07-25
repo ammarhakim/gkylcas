@@ -14,7 +14,7 @@ vvarsAll : [vx, vy, vz]$
 nuUSumx  : [sumNuUx, sumNuUy, sumNuUz]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,fl_e,fc_e,fr_e,
    bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,
    surf_cdim,surf_vdim,surfNodes,numNodes,alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,
@@ -33,7 +33,7 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   vv   : vvarsAll[dir],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -193,6 +193,11 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   flush_output(fh),
   
   writeCIncrExprs1(out, rdv2*drag_incr_r + rdv2*drag_incr_l), 
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 

@@ -475,64 +475,109 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
   return(incr_c)
 )$
 
-
-calcAndWrite_upwindIncr_wLFfluxes(fH,basisType,polyOrder,bP,surfDir,alphaSurf_e) := block(
-  [varsP,surfIntVars,bSurf,numSurf,fL_e,fR_e,fAvg_c,
-   fAvgNoZero_c,fAvg_e,fJump_c,fAvgAlpha_c,Ghat_c,Ghat_e],
-  /* Compute Lax-Friedrich fluxes using the max phase-speed given to the kernel. */
+calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr,
+                                               alphaSurf_e,alphaUpSurf_e,fLR,isStep2) := block(
+  [varsP,numP,surfVar,surfIntVars,pDim,vdim,cdim,surf_cvars,surf_vvars,surfNodes,
+   bSurf,basisStr,numNodes,fL_e,fR_e,alphaOrd_n,varLabel,rdDirVar2,pOrderCFL,i,
+   dirStr,fHatSurf_e,evPoint,Ghat_c,Ghat_e,GhatNoZero,incr_c],
 
   varsP       : listofvars(bP),
+  numP        : length(bP),
   surfVar     : varsP[surfDir],         /* Surface variable. */
   surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+  pDim        : length(varsP),
 
-  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),  /* Surface basis. */
-  numSurf : length(bSurf),
+  vdim : 0,
+  if isInList(vpar,varsP) then vdim : vdim+1,
+  if isInList(mu,varsP) then vdim : vdim+1,
+  cdim : pDim-vdim,
+
+  surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
+  surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
+
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
+    basisStr  : sconcat("gkhyb_", cdim, "x", vdim, "v", "_p", polyOrder)
+  ) else (
+    surfNodes : gaussOrd(polyOrder+1, pDim-1),
+    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder),
+    basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder)
+  ),
+  numNodes  : length(surfNodes),
 
   /* Expand distribution function. */
-  fL_e : doExpand1(fL,bP),  fR_e : doExpand1(fR,bP),
+  fL_e : doExpand1(fLR[1],bP),
+  fR_e : doExpand1(fLR[2],bP),
 
-  printf(fh, "  double amax = amax_in; ~%"),
+  /* Evaluate alpha at ordinates.
+     Note: alphaSurf_e is already a surface expansion. */
+  alphaOrd_n : gcfac(float(evAtNodes(alphaUpSurf_e,surfNodes,surfIntVars))),
+
+  varLabel  : makelist(string(varsP[d]),d,1,pDim),
+  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  /* Determine upwinding and cflFreq at each surface quadrature node. */
+  printf(fH, "  double fUpOrd~a[~a] = {0.};~%", sideStr, numNodes),
+  printf(fH, "  double alpha~a_n = 0.;~%", sideStr),
   printf(fH, "~%"),
-
-  printf(fh, "  double fAvg[~a]; ~%", numSurf),
-
-  /* Print C exprs for favg = fr(sv=-1) + fl(sv=1) projected onto surface basis. */
-  fAvg_c : gcfac(calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1, fR_e)+subst(surfVar=1, fL_e))),
-  writeCExprsNoExpand1(fAvg, fAvg_c),
-  fAvgNoZero_c : doMakeExprLst(fAvg_c, fAvg),
-  fAvg_e       : doExpand(fAvgNoZero_c, bSurf),
+  for i : 1 thru numNodes do (
+    printf(fH, "  alpha~a_n = ~a;~%", sideStr, float(expand(fullratsimp(alphaOrd_n[i])))),
+    printf(fH, "  if (alpha~a_n > 0.) {~%", sideStr),
+    printf(fh, "    fUpOrd~a[~a] = ~a_surfx~a_eval_quad_node_~a_r(~a); ~%", sideStr, i-1, basisStr, surfDir, i-1, fLR[1]),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpOrd~a[~a] = ~a_surfx~a_eval_quad_node_~a_l(~a); ~%", sideStr, i-1, basisStr, surfDir, i-1, fLR[2]),
+    printf(fh, "  } ~%"),
+    /* The extra factor of bP[1] below remains unexplained. NRM might've
+       stumbled up one it by trial and error. It may also have been meant
+       to average all the quad node values, but that meaning is only correct
+       for pure p=1. */
+    printf(fh, "  cflFreq += -~a*(alpha~a_n-fabs(alpha~a_n)); ~%",float(0.5*(bP[1]^2)*(2*pOrderCFL+1)*rdDirVar2), sideStr, sideStr)
+  ),
+  printf(fH, "~%"),
   flush_output(fH),
 
-  /* Project fjump = fr(sv=-1) - fl(sv=1) onto surface basis. Don't need
-     to print it out because it is just part of Ghat. */
-  fJump_c : gcfac(calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1, fR_e)-subst(surfVar=1, fL_e))),
-  printf(fH, "~%"),
-  flush_output(fH),
-
-  /* Evaluate surface projection of Ghat = (alpha*fAvg - amax*fJump)/2. */
-  printf(fh, "  double Ghat[~a]; ~%", numSurf),
-  fAvgAlpha_c : gcfac(calcInnerProdList(surfIntVars, fAvg_e, bSurf, alphaSurf_e)),
-  Ghat_c      : fullratsimp(fAvgAlpha_c/2 - (amax/2)*fJump_c),
-  writeCExprsNoExpand1(Ghat, Ghat_c),
-  printf(fH, "~%"),
-  flush_output(fH),
-  Ghat_e : doExpand1(Ghat, bSurf),
-
-  /* Evaluate contribution to right cell (surfVar=-1). */
-  incrR_c : gcfac(fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=-1, bP), Ghat_e))),
-  writeCExprsNoExpand1(incr, incrR_c),
+  /* Write coefficients of modal surface expansion fupwind. */
+  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+  printf(fH, "  double fUp~a[~a] = {0.};~%", sideStr, length(bSurf)),
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    dirStr : "x",
+    if surfDir = cdim+1 then (dirStr : "vpar") elseif surfDir = cdim+2 then (dirStr : "mu"),
+    printf(fh, "  ~a_~adir_upwind_quad_to_modal(fUpOrd~a, fUp~a); ~%", basisStr, dirStr, sideStr, sideStr)
+  ) else (
+    printf(fh, "  ~a_upwind_quad_to_modal(fUpOrd~a, fUp~a); ~%", basisStr, sideStr, sideStr)
+  ),
   printf(fh, "~%"),
   flush_output(fH),
+  fHatSurf_e : doExpand1(eval_string(sconcat("fUp",sideStr)), bSurf),
 
-  incrL_c : gcfac(fullratsimp(innerProd(surfIntVars, -1, subst(surfVar=1, bP), Ghat_e))),
+  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
 
-  return([incrL_c,incrR_c])
+  if (sideStr="L") then (evPoint : -1)
+  elseif (sideStr="R") then (evPoint : 1),
+
+  Ghat_c : calcInnerProdList(surfIntVars, alphaSurf_e, bSurf, fHatSurf_e),
+  Ghat_e : doExpand(Ghat_c, bSurf),
+  printf(fH, "  double Ghat~a[~a] = {0.}; ~%", sideStr, length(bSurf)),
+  writeCExprs1(eval_string(sconcat("Ghat",sideStr)), Ghat_c),
+  printf(fH, "~%"),
+  flush_output(fH),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero : doMakeExprLst(Ghat_c, eval_string(sconcat("Ghat",sideStr))),
+  Ghat_e     : doExpand(GhatNoZero, bSurf),
+
+  incr_c : fullratsimp(calcInnerProdList(surfIntVars, -evPoint, subst(surfVar=evPoint, bP), Ghat_e)),
+
+  return(incr_c)
 )$
 
 calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := block(
-  [i,varsP,numP,cdim,vdim,pDim,surfVar,surfIntVars,pOrderCFL,surf_cvars,surf_vvars,
-   surfNodes,numNodes,bSurf,numSurf,surfBasis,ignoreVars,alphaSurfL_c,alphaSurfL_e,
-   alphaSurfL_n,alphaSurfR_c,alphaSurfR_e,alphaSurfR_n],
+  [i,varsP,numP,cdim,vdim,pDim,surfVar,surfIntVars,pOrderCFL,surf_cvars,surf_vvars,surfNodes,
+   numNodes,alphaSurfL_c,alphaSurfL_e,alphaSurfL_n,alphaSurfR_c,alphaSurfR_e,alphaSurfR_n],
   /* Compute the CFL frequency from quadrature node contributions on the
      surfaces in the dir dimension, given a phase-space volume expansion
      of the speed (i.e. coming from doExpand(alpha,bP)). */
@@ -558,34 +603,15 @@ calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := 
   /* Evaluate cfl by evaluating at all surface quadrature points. */
   /* Get quadrature nodes on surface. */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
-    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
+    surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars)
   ) else (
-    surfNodes : gaussOrd(polyOrder+1, pDim-1),
-    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
+    surfNodes : gaussOrd(polyOrder+1, pDim-1)
   ),
   numNodes : length(surfNodes),
-  numSurf  : length(bSurf),
-
-  surfBasis  : copylist(bP),
-  ignoreVars : listify(setdifference(setify(varsP),setify(surfIntVars))),
-  for i : 1 thru numP do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bP[i]) then ( surfBasis[i] : 0 )
-  )),
 
   /* Coefficients of alpha written out to the file above are phase-space volume
      expansion coefficients. Need to evaluate at the surface and project onto
      surface basis, before (expanding and) evaluating at surface nodes. */
-  /*
-  alphaSurfL_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1,alpha_e)),
-  alphaSurfL_e : doExpand(alphaSurfL_c, bSurf),
-  */
-  /*
-  alphaSurfL_c : calcInnerProdList(surfIntVars,1,surfBasis,subst(surfVar=-1,alpha_e)),
-  alphaSurfL_e : doExpand(alphaSurfL_c,surfBasis),
-  alphaSurfL_n : gcfac(float(evAtNodes(alphaSurfL_e,surfNodes,surfIntVars))),
-  */
   /* The extra factor of bP[1] below remains unexplained. NRM might've
      stumbled up one it by trial and error. */
   alphaSurfL_n : gcfac(float(evAtNodes(subst(surfVar=-1,alpha_e)*bP[1],surfNodes,surfIntVars)*bP[1])),
@@ -595,11 +621,6 @@ calcAndWrite_quadCFLfreq_wPhaseAlpha(basisType,polyOrder,bP,surfDir,alpha_e) := 
     printf(fh, "  cflFreq += -~a*(alphaL-fabs(alphaL)); ~%",float(0.5*(2*pOrderCFL+1)))
   ),
 
-  /*
-  alphaSurfR_c : calcInnerProdList(surfIntVars,1,surfBasis,subst(surfVar=+1,alpha_e)),
-  alphaSurfR_e : doExpand(alphaSurfR_c,surfBasis),
-  alphaSurfR_n : gcfac(float(evAtNodes(alphaSurfR_e,surfNodes,surfIntVars))),
-  */
   alphaSurfR_n : gcfac(float(evAtNodes(subst(surfVar=+1,alpha_e)*bP[1],surfNodes,surfIntVars)*bP[1])),
   printf(fh, "  // Evaluate alpha at right surface quadrature points.~%"),
   for i : 1 thru numNodes do (

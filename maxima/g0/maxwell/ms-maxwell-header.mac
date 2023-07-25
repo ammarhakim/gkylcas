@@ -30,7 +30,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
   printf(fh, "~adouble maxwell_vol_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *q, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~avoid maxwell_surf~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
+    printf(fh, "~adouble maxwell_surf~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
   ),
   printf(fh, "~%"),
   printf(fh, "~avoid em_bvar_~ax_~a_p~a(const double *em, double* bvar); ~%", deco, ci, bStr, pi),

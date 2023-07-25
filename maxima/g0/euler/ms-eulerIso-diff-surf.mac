@@ -1,7 +1,5 @@
-load("maxwell/maxwellFuncs-surf-C")$
+load("euler/eulerIso-diff-surf")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-   updates for the surface terms from Maxwell's equations. */
 
 /* ...... USER INPUTS........ */
 
@@ -17,7 +15,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -27,25 +25,23 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
+dirs : [[x], [x,y], [x,y,z]]$
 
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating surface Maxwell",bName[bInd]," ~axp~a"),d,polyOrder)),
+      disp(printf(false,sconcat("Creating surface euler",bName[bInd]," ~axp~a"),d,polyOrder)),
       for dir : 1 thru d do ( 
-        if (dir = 1) then fname : sconcat("~/max-out/maxwell_surfx_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 2) then fname : sconcat("~/max-out/maxwell_surfy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        if (dir = 3) then fname : sconcat("~/max-out/maxwell_surfz_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/dg_euleriso_diffusion_surf", dirs[d][dir],"_",
+          d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        print("Generating:", fname),
         fh : openw(fname),
-        funcName : sconcat("maxwell_surf"),
-        printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
-        calcUpdateInDir(dir, fh, funcName, d, bName[bInd], polyOrder), 
+        genEulerIsoDiffSurfKernel(fh, d, bName[bInd], polyOrder, dir),
         close(fh)
       )
     )
   )
-);
+)$

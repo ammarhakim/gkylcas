@@ -44,7 +44,7 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   if polyOrder = 0 then bC : basisConstant,
   nbasis : length(bC),
   
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
 
   printf(fh, "  const double c = meq->c, chi = meq->chi, gamma = meq->gamma; ~%"),
   printf(fh, "  const double c2 = c*c; ~%"),
@@ -149,5 +149,9 @@ calcUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCIncrExprsCollect1lhsc(out[m], dx1*incr_sl + dx1*incr_sr),
     printf(fh, "~%")
   ),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 )$

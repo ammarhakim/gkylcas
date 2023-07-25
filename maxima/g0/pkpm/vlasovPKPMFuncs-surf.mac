@@ -46,7 +46,7 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   NC : length(bC),
   pDim : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
      const double *bvarl, const double *bvarc, const double *bvarr, 
      const double *u_il, const double *u_ic, const double *u_ir, 
      const double *T_ijl, const double *T_ijc, const double *T_ijr,
@@ -515,6 +515,9 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
       printf(fh, "~%")   
     )
   ),
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -542,7 +545,7 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NC : length(bC),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pkpm_accel_vars, 
+  printf(fh, "GKYL_CU_DH double ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pkpm_accel_vars, 
      const double *g_dist_sourcel, const double *g_dist_sourcec, const double *g_dist_sourcer, 
      const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:            Cell-center coordinates.~%"),
@@ -820,6 +823,9 @@ calcVlasovPKPMAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   writeCIncrExprsCollect1lhsc(out_F_0, dv1par*incr_F_0_l + dv1par*incr_F_0_r + dv1par*incr_F_0_div_b_l + dv1par*incr_F_0_div_b_r),  
   writeCIncrExprsCollect1lhsc(out_G_1, dv1par*incr_G_1_l + dv1par*incr_G_1_r + dv1par*incr_G_1_div_b_l + dv1par*incr_G_1_div_b_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

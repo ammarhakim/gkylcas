@@ -116,7 +116,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_gen_diffusion_surfyx_3x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* q[], double* GKYL_RESTRICT out) ~%"),
@@ -156,6 +156,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  out[~a] += Jxy*(~a);~%", i-1,
       float(expand(psubst(subLst, kernel[i]))))
     ),
+  printf(fh, "  return 0.;~%"),  /* Leave CFL frequency to vol kernel. */
   printf(fh, "}~%"),
   close(fh),
   kill(qRec6u, qRec6l, qRec1, surfu, surfl, vol, kernel),
@@ -174,7 +175,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_gen_diffusion_surfyy_3x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* q[], double* GKYL_RESTRICT out) ~%"),
@@ -196,6 +197,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  out[~a] += Jyy*(~a);~%", i-1,
       float(expand(psubst(subLst, kernel[i]))))
     ),
+  printf(fh, "  return 0.;~%"),  /* Leave CFL frequency to vol kernel. */
   printf(fh, "}~%"),
   close(fh),
   kill(qRec1, vol, kernel),
@@ -227,7 +229,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_gen_diffusion_surfyz_3x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* q[], double* GKYL_RESTRICT out) ~%"),
@@ -267,6 +269,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  out[~a] += Jyz*(~a);~%", i-1,
       float(expand(psubst(subLst, kernel[i]))))
     ),
+  printf(fh, "  return 0.;~%"),  /* Leave CFL frequency to vol kernel. */
   printf(fh, "}~%"),
   close(fh)
   ) $
