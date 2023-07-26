@@ -478,7 +478,7 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
 calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr,
                                                alphaSurf_e,alphaUpSurf_e,fLR,isStep2) := block(
   [varsP,numP,surfVar,surfIntVars,pDim,vdim,cdim,surf_cvars,surf_vvars,surfNodes,
-   bSurf,basisStr,numNodes,fL_e,fR_e,alphaOrd_n,varLabel,rdDirVar2,pOrderCFL,i,
+   bSurf,basisStr,numNodes,fL_e,fR_e,alphaOrd_n,i,
    dirStr,fHatSurf_e,evPoint,Ghat_c,Ghat_e,GhatNoZero,incr_c],
 
   varsP       : listofvars(bP),
@@ -514,13 +514,6 @@ calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir
      Note: alphaSurf_e is already a surface expansion. */
   alphaOrd_n : gcfac(float(evAtNodes(alphaUpSurf_e,surfNodes,surfIntVars))),
 
-  varLabel  : makelist(string(varsP[d]),d,1,pDim),
-  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
-  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
-     mean gkhybrid basis. */
-  pOrderCFL : polyOrder,
-  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
-
   /* Determine upwinding and cflFreq at each surface quadrature node. */
   printf(fH, "  double fUpOrd~a[~a] = {0.};~%", sideStr, numNodes),
   printf(fH, "  double alpha~a_n = 0.;~%", sideStr),
@@ -536,7 +529,7 @@ calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir
        stumbled up one it by trial and error. It may also have been meant
        to average all the quad node values, but that meaning is only correct
        for pure p=1. */
-    printf(fh, "  cflFreq += -~a*(alpha~a_n-fabs(alpha~a_n)); ~%",float(0.5*(bP[1]^2)*(2*pOrderCFL+1)*rdDirVar2), sideStr, sideStr)
+    printf(fh, "  cflFreq = fmax(cflFreq, fabs(alpha~a_n)); ~%", sideStr, sideStr)
   ),
   printf(fH, "~%"),
   flush_output(fH),

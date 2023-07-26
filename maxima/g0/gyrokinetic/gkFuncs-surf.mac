@@ -13,7 +13,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
    rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
-   incrL_c,incrR_c],
+   incrL_c,incrR_c,pOrderCFL,rdDirVar2],
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
@@ -108,7 +108,13 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   printf(fh, "~%"),
   flush_output(fh),
 
-  printf(fh, "  return cflFreq; ~%"),
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  return ~a*cflFreq; ~%",float((2*pOrderCFL+1)*rdDirVar2)),
   printf(fh, "~%"),
 
   printf(fh, "} ~%"),
@@ -121,7 +127,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
    rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
-   incrL_c,incrR_c],
+   incrL_c,incrR_c,pOrderCFL,rdDirVar2],
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
@@ -239,7 +245,13 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   flush_output(fh),
   printf(fh, "  } ~%~%"), /* Upper domain boundary. */
 
-  printf(fh, "  return cflFreq; ~%"),
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  return ~a*cflFreq; ~%",float((2*pOrderCFL+1)*rdDirVar2)),
   printf(fh, "~%"),
 
   printf(fh, "} ~%"),
