@@ -30,7 +30,7 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   surfVars : delete(vx,varsP),
 
   printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nu, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nu, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:       Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:     Cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nu:          Collisionality. ~%"),
@@ -135,7 +135,12 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
   writeCIncrExprs1(out_G_1, dv1par*incr_G_1),
   printf(fh, "~%"),
-  printf(fh, "  } ~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 

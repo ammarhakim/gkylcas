@@ -1,4 +1,4 @@
-load("lenard_bernstein_operator/vmLBOFuncs-drag-surf")$
+load("fpo/funcs-fpo-vlasov-drag-surf-1x3v")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -16,8 +16,8 @@ grid : "uni"$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
+minVdim_Ser : 3$    /* see begining of v loop below though. */
+maxCdim_Ser : 1$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -58,12 +58,12 @@ for bInd : 1 thru length(bName) do (
         for gridInd : 1 thru length(gridType) do (
           isNonuniform : gridType[gridInd],
           if isNonuniform then (gridStr : "nonuniform") else (gridStr : ""),
-          disp(printf(false,sconcat("Creating surface Vlasov LBO ~a",bName[bInd]," ~ax~avP~a"),gridStr,c,v,polyOrder)),
+          disp(printf(false,sconcat("Creating surface Vlasov FPO ~a",bName[bInd]," ~ax~avP~a"),gridStr,c,v,polyOrder)),
           for dir:1 thru v do (
-            fname : sconcat("~/max-out/lbo_vlasov_drag_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
+            fname : sconcat("~/max-out/fpo_vlasov_drag_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder , ".c"),
             fh : openw(fname),
-            funcName : sconcat("lbo_vlasov_drag_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
+            funcName : sconcat("fpo_vlasov_drag_surf", varsV[dir],"_", gridStr, c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
             calcDragUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, isNonuniform),

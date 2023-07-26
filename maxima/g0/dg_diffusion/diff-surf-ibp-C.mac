@@ -29,7 +29,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   fname : sconcat("~/max-out/dg_diffusion_surfx_", d, "x_", bName, "_p", polyOrder, ".c"),
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_diffusion_surfx_", d, "x_", bName, "_p", polyOrder, "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* D,~%"),
   printf(fh, "  const double* ql, const double* qc, const double* qr,~%"),

@@ -22,7 +22,7 @@ maxVdim_Ser : 3$
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 0$
@@ -39,8 +39,6 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 vvarsAll : [vx, vy, vz]$
-
-/* Is non-uniform booleans. */
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
