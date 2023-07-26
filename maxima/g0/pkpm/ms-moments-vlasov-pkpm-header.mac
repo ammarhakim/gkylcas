@@ -14,7 +14,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -41,12 +41,12 @@ printf(fh, "~%")$
 
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
-  for c : minCdim[bInd] thru maxCdim[bInd] do (
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
+      printPKPMPrototype(decorator, d, bName[bInd], polyOrder)
     )
   )
 );

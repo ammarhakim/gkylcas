@@ -15,7 +15,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -26,17 +26,17 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
-  for c : minCdim[bInd] thru maxCdim[bInd] do (
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
     maxPolyOrderB : maxPolyOrder[bInd],
     minPolyOrderB : minPolyOrder[bInd],
-    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_diff_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),c,polyOrder)),
-      funcName : sconcat("lbo_vlasov_pkpm_diff_boundary_surfvpar_", c, "x1v_", bName[bInd],"_p",polyOrder),
+      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_diff_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),d,polyOrder)),
+      funcName : sconcat("lbo_vlasov_pkpm_diff_boundary_surfvpar_", d, "x1v_", bName[bInd],"_p",polyOrder),
       fname : sconcat("~/max-out/",funcName, ".c"),
       fh : openw(fname),
-      calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcName, c, 1, bName[bInd], polyOrder),
+      calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcName, d, 1, bName[bInd], polyOrder),
       close(fh) 
     ) 
   )

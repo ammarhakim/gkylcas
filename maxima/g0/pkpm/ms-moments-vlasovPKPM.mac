@@ -17,7 +17,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -28,19 +28,19 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
-  for c : minCdim[bInd] thru maxCdim[bInd] do (
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     /* Vlasov moment calculators. */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating Vlasov PKPM Moments ~ax~av ", bName[bInd]),c,1)),
-      fname : sconcat("~/max-out/mom_vlasov_pkpm_", c, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating Vlasov PKPM Moments ~ax~av ", bName[bInd]),d,1)),
+      fname : sconcat("~/max-out/mom_vlasov_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
       funcName : sconcat("mom_vlasov_pkpm"),
 
-      calcPKPMMoments(fh, funcName, c, 1, bName[bInd], polyOrder),
+      calcPKPMMoments(fh, funcName, d, 1, bName[bInd], polyOrder),
       close(fh)
     )
   )

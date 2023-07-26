@@ -15,7 +15,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 2$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -29,29 +29,27 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
 
-  printf(fh, "~avoid euler_pkpm_prim_vars_~ax_~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, const double *statevec, 
-  double* u_i, double* p_ij, double* T_ij, double* rho_inv, double* T_perp_over_m, double* T_perp_over_m_inv); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid euler_pkpm_int_vars_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *statevec, 
-  const double* u_i, double* pkpm_int_vars); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid euler_pkpm_source_~ax_~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~adouble euler_pkpm_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *u_i, const double *div_p, const double *statevec, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid pkpm_dist_mirror_force_~ax1v_~a_p~a(const double *w, const double *dxv, 
-  const double* T_perp_over_m, const double* T_perp_over_m_inv, 
-  const double *nu_vthsq, const double* pkpm_accel_vars, 
-  const double* f, const double* F_k_p_1, 
-  double* g_dist_source, double* F_k_m_1); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid pkpm_vars_pressure_~ax_~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, double* GKYL_RESTRICT p_ij); ~%", deco, ci, bStr, pi),
+  printf(fh, "~aint pkpm_vars_set_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *vlasov_pkpm_moms, const double *euler_pkpm, const double *p_ij, const double *pkpm_div_ppar); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid pkpm_vars_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT prim); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid pkpm_vars_integrated_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *euler_pkpm, 
+  const double* prim, double* GKYL_RESTRICT pkpm_int_vars); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid pkpm_vars_io_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *euler_pkpm, 
+  const double* p_ij, const double* prim, const double* pkpm_accel, 
+  double* GKYL_RESTRICT fluid_io, double* GKYL_RESTRICT pkpm_vars_io); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid euler_pkpm_source_~ax_~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~adouble euler_pkpm_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *prim, const double *p_ij, const double *euler_pkpm, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~avoid euler_pkpm_recovery_~a_~ax_~a_p~a(const double *dxv, 
+    printf(fh, "~avoid pkpm_vars_accel_~a_~ax_~a_p~a(const double *dxv, 
       const double *bvarl, const double *bvarc, const double *bvarr, 
-      const double *u_il, const double *u_ic, const double *u_ir, 
-      const double *p_ijl, const double *p_ijc, const double *p_ijr, 
-      const double *pkpm_div_ppar, const double *rho_inv, const double *T_perp_over_m, const double *nu, 
-      double* div_p, double* pkpm_accel_vars); ~%", deco, cvars[si], ci, bStr, pi),  
+      const double *priml, const double *primc, const double *primr, 
+      const double *nu, double* GKYL_RESTRICT pkpm_accel_vars); ~%", deco, cvars[si], ci, bStr, pi),  
     printf(fh, "~avoid euler_pkpm_surf~a_~ax_~a_p~a(const double *w, const double *dxv, 
       const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr,
-      const double *u_il, const double *u_ic, const double *u_ir, 
-      const double *T_ijl, const double *T_ijc, const double *T_ijr, 
-      const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
+      const double *priml, const double *primc, const double *primr,
+      const double *p_ijl, const double *p_ijc, const double *p_ijr,
+      const double *euler_pkpml, const double *euler_pkpmc, const double *euler_pkpmr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
   ),
 
   printf(fh, "~%")
@@ -62,6 +60,7 @@ fh : openw("~/max-out/gkyl_euler_pkpm_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
@@ -71,7 +70,7 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )

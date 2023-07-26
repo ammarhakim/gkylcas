@@ -12,8 +12,8 @@ fpprec : 24$
 cvars : [x, y, z]$
 dx11 : [dx10, dx11, dx12]$
 
-statevec : [rhou0, rhou1, rhou2, p_perp]$
-lhs : [outrhou0, outrhou1, outrhou2, outp_perp]$
+euler_pkpm : [rhou0, rhou1, rhou2]$
+lhs : [outrhou0, outrhou1, outrhou2]$
 
 /* Helper functions for expanding in basis functions a quantity we know should be sparse  */
 /* For example, alpha, the phase space flow only depends on a few phase space coordinates */
@@ -49,15 +49,15 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   NC : length(bC),
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
   const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr,
-  const double *u_il, const double *u_ic, const double *u_ir,
-  const double *T_ijl, const double *T_ijc, const double *T_ijr,
-  const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:                       Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:                     Cell spacing.~%"),
+  const double *priml, const double *primc, const double *primr,
+  const double *p_ijl, const double *p_ijc, const double *p_ijr,
+  const double *euler_pkpml, const double *euler_pkpmc, const double *euler_pkpmr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "  // w[NDIM]:           Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:         Cell spacing.~%"),
   printf(fh, "  // vlasov_pkpm_momsl/vlasov_pkpm_momsc/vlasov_pkpm_momsr: Input pkpm moments in left/center/right cells.~%"),
-  printf(fh, "  // u_il/u_ic/u_ir:                Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
-  printf(fh, "  // T_ijl/T_ijc/T_ijr:             Input Temperature tensor/mass (for penalization) in left/center/right cells.~%"),
-  printf(fh, "  // statevecl/statevecc/statevecr: [rho ux, rho uy, rho uz], Fluid input state vector in left/center/right cells.~%"),
+  printf(fh, "  // priml/primc/primr: Input primitive variables [ux, uy, uz, 3*Txx/m, 3*Tyy/m, 3*Tzz/m, 1/rho div(p_par b), T_perp/m, m/T_perp] in left/center/right cells.~%"),
+  printf(fh, "  // p_ijl/p_ijc/p_ijr: Input pressure tensor in left/center/right cells.~%"),
+  printf(fh, "  // euler_pkpml/euler_pkpmc/euler_pkpmr: [rho ux, rho uy, rho uz], Fluid input state vector in left/center/right cells.~%"),
   printf(fh, "  // out: Incremented output.~%"),
   printf(fh, "~%"),
 
@@ -70,19 +70,19 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_l = &euler_pkpml[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_l = &euler_pkpml[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_l = &euler_pkpml[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_c = &euler_pkpmc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_c = &euler_pkpmc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_c = &euler_pkpmc[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_r = &euler_pkpmr[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_r = &euler_pkpmr[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_r = &euler_pkpmr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rho_l = &vlasov_pkpm_momsl[~a]; ~%", 0*NC),
@@ -90,24 +90,41 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rho_r = &vlasov_pkpm_momsr[~a]; ~%", 0*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0*NC),
-  printf(fh, "  const double *ux_c = &u_ic[~a]; ~%", 0*NC),
-  printf(fh, "  const double *ux_r = &u_ir[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_l = &priml[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_c = &primc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_r = &primr[~a]; ~%", 0*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *uy_l = &u_il[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uy_c = &u_ic[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uy_r = &u_ir[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_l = &priml[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_c = &primc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_r = &primr[~a]; ~%", 1*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *uz_l = &u_il[~a]; ~%", 2*NC),
-  printf(fh, "  const double *uz_c = &u_ic[~a]; ~%", 2*NC),
-  printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_l = &priml[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_c = &primc[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_r = &primr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", 0),
-  printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", 0),
-  printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", 0),
+  /* p_ij for div(p), onle need x . P_ij in 1D */
+  printf(fh, "  const double *Pxx_l = &p_ijl[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pxy_l = &p_ijl[~a]; ~%", 1*NC),
+  printf(fh, "  const double *Pxz_l = &p_ijl[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_c = &p_ijc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pxy_c = &p_ijc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *Pxz_c = &p_ijc[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx_r = &p_ijr[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pxy_r = &p_ijr[~a]; ~%", 1*NC),
+  printf(fh, "  const double *Pxz_r = &p_ijr[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  /* 3*Txx/m is 3rd component of prim */
+  printf(fh, "  const double *vth_sql = &priml[~a]; ~%", 3*NC),
+  printf(fh, "  const double *vth_sqc = &primc[~a]; ~%", 3*NC),
+  printf(fh, "  const double *vth_sqr = &primr[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   printf(fh, "  double *outrhou0 = &out[~a]; ~%", 0*NC),
@@ -126,6 +143,18 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouxr_e : doExpand1(rhoux_r, bC),
   rhouyr_e : doExpand1(rhouy_r, bC),
   rhouzr_e : doExpand1(rhouz_r, bC),
+
+  Pxxl_e : doExpand1(Pxx_l, bC),
+  Pxyl_e : doExpand1(Pxy_l, bC),
+  Pxzl_e : doExpand1(Pxz_l, bC),
+
+  Pxxc_e : doExpand1(Pxx_c, bC),
+  Pxyc_e : doExpand1(Pxy_c, bC),
+  Pxzc_e : doExpand1(Pxz_c, bC),
+
+  Pxxr_e : doExpand1(Pxx_r, bC),
+  Pxyr_e : doExpand1(Pxy_r, bC),
+  Pxzr_e : doExpand1(Pxz_r, bC),
 
   rhol_e : doExpand1(rho_l, bC), 
   rhoc_e : doExpand1(rho_c, bC), 
@@ -158,6 +187,22 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouxr_l : subst(cv=-1, rhouxr_e),
   rhouyr_l : subst(cv=-1, rhouyr_e),
   rhouzr_l : subst(cv=-1, rhouzr_e),
+
+  Pxxl_r : subst(cv=1, Pxxl_e),
+  Pxyl_r : subst(cv=1, Pxyl_e),
+  Pxzl_r : subst(cv=1, Pxzl_e),
+
+  Pxxc_l : subst(cv=-1, Pxxc_e),
+  Pxyc_l : subst(cv=-1, Pxyc_e),
+  Pxzc_l : subst(cv=-1, Pxzc_e),
+
+  Pxxc_r : subst(cv=1, Pxxc_e),
+  Pxyc_r : subst(cv=1, Pxyc_e),
+  Pxzc_r : subst(cv=1, Pxzc_e),
+
+  Pxxr_l : subst(cv=-1, Pxxr_e),
+  Pxyr_l : subst(cv=-1, Pxyr_e),
+  Pxzr_l : subst(cv=-1, Pxzr_e),
 
   /* evaluate u at surface interfaces to find max */
   printf(fh, "  double uxl_r = ~a_~ax_p~a_surfx1_eval_quad_node_0_r(ux_l); ~%", basisFun, cdim, polyOrder),
@@ -202,6 +247,15 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_uz_l : 0.5*(uzc_l + uzl_r),
   avg_uz_r : 0.5*(uzr_l + uzc_r),
 
+  avg_Pxx_l : 0.5*(Pxxc_l + Pxxl_r),
+  avg_Pxx_r : 0.5*(Pxxr_l + Pxxc_r),
+
+  avg_Pxy_l : 0.5*(Pxyc_l + Pxyl_r),
+  avg_Pxy_r : 0.5*(Pxyr_l + Pxyc_r),
+
+  avg_Pxz_l : 0.5*(Pxzc_l + Pxzl_r),
+  avg_Pxz_r : 0.5*(Pxzr_l + Pxzc_r),
+
   avg_rho_l : 0.5*(rhoc_l + rhol_r),
   avg_rho_r : 0.5*(rhor_l + rhoc_r),
 
@@ -217,17 +271,17 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   jump_rhouz_l : 0.5*(rhouzc_l - rhouzl_r),
   jump_rhouz_r : 0.5*(rhouzr_l - rhouzc_r),
 
-  Ghat_rhoux_l_exp : Ghat_rho_l_exp*avg_ux_l - max_speed_l*jump_rhoux_l,
-  Ghat_rhoux_r_exp : Ghat_rho_r_exp*avg_ux_r - max_speed_r*jump_rhoux_r,
+  Ghat_rhoux_l_exp : Ghat_rho_l_exp*avg_ux_l - max_speed_l*jump_rhoux_l + avg_Pxx_l,
+  Ghat_rhoux_r_exp : Ghat_rho_r_exp*avg_ux_r - max_speed_r*jump_rhoux_r + avg_Pxx_r,
 
   Ghat_rhoux_l_exp : map(letsimp, Ghat_rhoux_l_exp),
   Ghat_rhoux_r_exp : map(letsimp, Ghat_rhoux_r_exp),
 
-  Ghat_rhouy_l_exp : Ghat_rho_l_exp*avg_uy_l - max_speed_l*jump_rhouy_l,
-  Ghat_rhouy_r_exp : Ghat_rho_r_exp*avg_uy_r - max_speed_r*jump_rhouy_r,
+  Ghat_rhouy_l_exp : Ghat_rho_l_exp*avg_uy_l - max_speed_l*jump_rhouy_l + avg_Pxy_l,
+  Ghat_rhouy_r_exp : Ghat_rho_r_exp*avg_uy_r - max_speed_r*jump_rhouy_r + avg_Pxy_r,
 
-  Ghat_rhouz_l_exp : Ghat_rho_l_exp*avg_uz_l - max_speed_l*jump_rhouz_l,
-  Ghat_rhouz_r_exp : Ghat_rho_r_exp*avg_uz_r - max_speed_r*jump_rhouz_r,
+  Ghat_rhouz_l_exp : Ghat_rho_l_exp*avg_uz_l - max_speed_l*jump_rhouz_l + avg_Pxz_l,
+  Ghat_rhouz_r_exp : Ghat_rho_r_exp*avg_uz_r - max_speed_r*jump_rhouz_r + avg_Pxz_r,
 
   printf(fh, "  Ghat_rhoux_l = ~a; ~%", float(expand(Ghat_rhoux_l_exp))),
   printf(fh, "  Ghat_rhouy_l = ~a; ~%", float(expand(Ghat_rhouy_l_exp))),
@@ -289,14 +343,15 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv,
   const double *vlasov_pkpm_momsl, const double *vlasov_pkpm_momsc, const double *vlasov_pkpm_momsr,
-  const double *u_il, const double *u_ic, const double *u_ir,
-  const double *T_ijl, const double *T_ijc, const double *T_ijr,
-  const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:                       Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:                     Cell spacing.~%"),
-  printf(fh, "  // u_il/u_ic/u_ir:                Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
-  printf(fh, "  // T_ijl/T_ijc/T_ijr:             Input Temperature tensor/mass (for penalization) in left/center/right cells.~%"),
-  printf(fh, "  // statevecl/statevecc/statevecr: [rho ux, rho uy, rho uz, E_perp], Fluid input state vector in left/center/right cells.~%"),
+  const double *priml, const double *primc, const double *primr,
+  const double *p_ijl, const double *p_ijc, const double *p_ijr,
+  const double *euler_pkpml, const double *euler_pkpmc, const double *euler_pkpmr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "  // w[NDIM]:           Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:         Cell spacing.~%"),
+  printf(fh, "  // vlasov_pkpm_momsl/vlasov_pkpm_momsc/vlasov_pkpm_momsr: Input pkpm moments in left/center/right cells.~%"),
+  printf(fh, "  // priml/primc/primr: Input primitive variables in left/center/right cells.~%"),
+  printf(fh, "  // p_ijl/p_ijc/p_ijr: Input pressure tensor in left/center/right cells.~%"),
+  printf(fh, "  // euler_pkpml/euler_pkpmc/euler_pkpmr: [rho ux, rho uy, rho uz], Fluid input state vector in left/center/right cells.~%"),
   printf(fh, "  // out: Incremented output.~%"),
   printf(fh, "~%"),
 
@@ -316,19 +371,19 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_l = &statevecl[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_l = &statevecl[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_l = &statevecl[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_l = &euler_pkpml[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_l = &euler_pkpml[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_l = &euler_pkpml[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_c = &statevecc[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_c = &statevecc[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_c = &statevecc[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_c = &euler_pkpmc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_c = &euler_pkpmc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_c = &euler_pkpmc[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux_r = &statevecr[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy_r = &statevecr[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz_r = &statevecr[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux_r = &euler_pkpmr[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy_r = &euler_pkpmr[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz_r = &euler_pkpmr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *rho_l = &vlasov_pkpm_momsl[~a]; ~%", 0*NC),
@@ -336,42 +391,78 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rho_r = &vlasov_pkpm_momsr[~a]; ~%", 0*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *ux_l = &u_il[~a]; ~%", 0*NC),
-  printf(fh, "  const double *ux_c = &u_ic[~a]; ~%", 0*NC),
-  printf(fh, "  const double *ux_r = &u_ir[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_l = &priml[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_c = &primc[~a]; ~%", 0*NC),
+  printf(fh, "  const double *ux_r = &primr[~a]; ~%", 0*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *uy_l = &u_il[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uy_c = &u_ic[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uy_r = &u_ir[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_l = &priml[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_c = &primc[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uy_r = &primr[~a]; ~%", 1*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *uz_l = &u_il[~a]; ~%", 2*NC),
-  printf(fh, "  const double *uz_c = &u_ic[~a]; ~%", 2*NC),
-  printf(fh, "  const double *uz_r = &u_ir[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_l = &priml[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_c = &primc[~a]; ~%", 2*NC),
+  printf(fh, "  const double *uz_r = &primr[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   printf(fh, "  // Get another pointer for u in direction of update for ease of flux calculation. ~%"),
-  printf(fh, "  const double *u_l = &u_il[~a]; ~%", (dir-1)*NC),
-  printf(fh, "  const double *u_c = &u_ic[~a]; ~%", (dir-1)*NC),
-  printf(fh, "  const double *u_r = &u_ir[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *u_l = &priml[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *u_c = &primc[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *u_r = &primr[~a]; ~%", (dir-1)*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  // Get thermal velocity in direction of update for penalization vth^2 = 3.0*T_ii/m. ~%"),
+  printf(fh, "  // Get p_ij and thermal velocity in direction of update. ~%"),
   if (dir = 1) then (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", 0),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", 0),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", 0)
+    printf(fh, "  const double *Pxx_l = &p_ijl[~a]; ~%", 0*NC),
+    printf(fh, "  const double *Pxy_l = &p_ijl[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pxz_l = &p_ijl[~a]; ~%", 2*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxx_c = &p_ijc[~a]; ~%", 0*NC),
+    printf(fh, "  const double *Pxy_c = &p_ijc[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pxz_c = &p_ijc[~a]; ~%", 2*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxx_r = &p_ijr[~a]; ~%", 0*NC),
+    printf(fh, "  const double *Pxy_r = &p_ijr[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pxz_r = &p_ijr[~a]; ~%", 2*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *vth_sql = &priml[~a]; ~%", 3*NC),
+    printf(fh, "  const double *vth_sqc = &primc[~a]; ~%", 3*NC),
+    printf(fh, "  const double *vth_sqr = &primr[~a]; ~%", 3*NC)
   )
   else if (dir = 2) then (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", NC*3),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", NC*3),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", NC*3)
+    printf(fh, "  const double *Pxy_l = &p_ijl[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pyy_l = &p_ijl[~a]; ~%", 3*NC),
+    printf(fh, "  const double *Pyz_l = &p_ijl[~a]; ~%", 4*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxy_c = &p_ijc[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pyy_c = &p_ijc[~a]; ~%", 3*NC),
+    printf(fh, "  const double *Pyz_c = &p_ijc[~a]; ~%", 4*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxy_r = &p_ijr[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Pyy_r = &p_ijr[~a]; ~%", 3*NC),
+    printf(fh, "  const double *Pyz_r = &p_ijr[~a]; ~%", 4*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *vth_sql = &priml[~a]; ~%", 4*NC),
+    printf(fh, "  const double *vth_sqc = &primc[~a]; ~%", 4*NC),
+    printf(fh, "  const double *vth_sqr = &primr[~a]; ~%", 4*NC)
   )
   else (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", NC*5),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", NC*5),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", NC*5)
+    printf(fh, "  const double *Pxz_l = &p_ijl[~a]; ~%", 2*NC),
+    printf(fh, "  const double *Pyz_l = &p_ijl[~a]; ~%", 4*NC),
+    printf(fh, "  const double *Pzz_l = &p_ijl[~a]; ~%", 5*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxz_c = &p_ijc[~a]; ~%", 2*NC),
+    printf(fh, "  const double *Pyz_c = &p_ijc[~a]; ~%", 4*NC),
+    printf(fh, "  const double *Pzz_c = &p_ijc[~a]; ~%", 5*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *Pxz_r = &p_ijr[~a]; ~%", 2*NC),
+    printf(fh, "  const double *Pyz_r = &p_ijr[~a]; ~%", 4*NC),
+    printf(fh, "  const double *Pzz_r = &p_ijr[~a]; ~%", 5*NC),
+    printf(fh, "~%"),
+    printf(fh, "  const double *vth_sql = &priml[~a]; ~%", 5*NC),
+    printf(fh, "  const double *vth_sqc = &primc[~a]; ~%", 5*NC),
+    printf(fh, "  const double *vth_sqr = &primr[~a]; ~%", 5*NC)
   ),
   printf(fh, "~%"),
 
@@ -400,6 +491,15 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double avg_uz_l[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double avg_uz_r[~a] = {0.0}; ~%", NSurf),  
 
+  printf(fh, "  double avg_p_ij_x_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_p_ij_x_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double avg_p_ij_y_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_p_ij_y_r[~a] = {0.0}; ~%", NSurf),
+
+  printf(fh, "  double avg_p_ij_z_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double avg_p_ij_z_r[~a] = {0.0}; ~%", NSurf), 
+
   printf(fh, "  double jump_rhoux_l[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double jump_rhoux_r[~a] = {0.0}; ~%", NSurf),
 
@@ -415,6 +515,7 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double max_speed_modal_l[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double max_speed_modal_r[~a] = {0.0}; ~%", NSurf),
 
+  /* Compute the flux of mass at the interface using split-form averaging */
   rhol_e : doExpand1(rho_l, bC), 
   rhoc_e : doExpand1(rho_c, bC), 
   rhor_e : doExpand1(rho_r, bC), 
@@ -452,6 +553,7 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flux_rho_l_e : doExpand1(flux_rho_l, bSurf),
   flux_rho_r_e : doExpand1(flux_rho_r, bSurf),
 
+  /* Expand flow velocity and average the flow velocity at the interface */
   uxl_e : doExpand1(ux_l, bC),
   uyl_e : doExpand1(uy_l, bC),
   uzl_e : doExpand1(uz_l, bC),
@@ -522,6 +624,160 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_uz_l_e : doExpand1(avg_uz_l, bSurf),
   avg_uz_r_e : doExpand1(avg_uz_r, bSurf),
 
+  /* Expand pressure tensor (all components, will select particular components based on direction) */
+  Pxxl_e : doExpand1(Pxx_l, bC),
+  Pxyl_e : doExpand1(Pxy_l, bC),
+  Pxzl_e : doExpand1(Pxz_l, bC),
+  Pyyl_e : doExpand1(Pyy_l, bC),
+  Pyzl_e : doExpand1(Pyz_l, bC),
+  Pzzl_e : doExpand1(Pzz_l, bC),
+
+  Pxxc_e : doExpand1(Pxx_c, bC),
+  Pxyc_e : doExpand1(Pxy_c, bC),
+  Pxzc_e : doExpand1(Pxz_c, bC),
+  Pyyc_e : doExpand1(Pyy_c, bC),
+  Pyzc_e : doExpand1(Pyz_c, bC),
+  Pzzc_e : doExpand1(Pzz_c, bC),
+
+  Pxxr_e : doExpand1(Pxx_r, bC),
+  Pxyr_e : doExpand1(Pxy_r, bC),
+  Pxzr_e : doExpand1(Pxz_r, bC),
+  Pyyr_e : doExpand1(Pyy_r, bC),
+  Pyzr_e : doExpand1(Pyz_r, bC),
+  Pzzr_e : doExpand1(Pzz_r, bC),
+
+  Pxxl_r : subst(cv=1, Pxxl_e),
+  Pxyl_r : subst(cv=1, Pxyl_e),
+  Pxzl_r : subst(cv=1, Pxzl_e),
+  Pyyl_r : subst(cv=1, Pyyl_e),
+  Pyzl_r : subst(cv=1, Pyzl_e),
+  Pzzl_r : subst(cv=1, Pzzl_e),
+
+  Pxxc_l : subst(cv=-1, Pxxc_e),
+  Pxyc_l : subst(cv=-1, Pxyc_e),
+  Pxzc_l : subst(cv=-1, Pxzc_e),
+  Pyyc_l : subst(cv=-1, Pyyc_e),
+  Pyzc_l : subst(cv=-1, Pyzc_e),
+  Pzzc_l : subst(cv=-1, Pzzc_e),
+
+  Pxxc_r : subst(cv=1, Pxxc_e),
+  Pxyc_r : subst(cv=1, Pxyc_e),
+  Pxzc_r : subst(cv=1, Pxzc_e),
+  Pyyc_r : subst(cv=1, Pyyc_e),
+  Pyzc_r : subst(cv=1, Pyzc_e),
+  Pzzc_r : subst(cv=1, Pzzc_e),
+
+  Pxxr_l : subst(cv=-1, Pxxr_e),
+  Pxyr_l : subst(cv=-1, Pxyr_e),
+  Pxzr_l : subst(cv=-1, Pxzr_e),
+  Pyyr_l : subst(cv=-1, Pyyr_e),
+  Pyzr_l : subst(cv=-1, Pyzr_e),
+  Pzzr_l : subst(cv=-1, Pzzr_e),
+
+  avg_Pxx_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxxl_r + Pxxc_l)),
+  avg_Pxx_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxxc_r + Pxxr_l)),
+
+  avg_Pxy_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxyl_r + Pxyc_l)),
+  avg_Pxy_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxyc_r + Pxyr_l)),
+
+  avg_Pxz_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxzl_r + Pxzc_l)),
+  avg_Pxz_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pxzc_r + Pxzr_l)),  
+
+  avg_Pyy_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pyyl_r + Pyyc_l)),
+  avg_Pyy_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pyyc_r + Pyyr_l)),
+
+  avg_Pyz_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pyzl_r + Pyzc_l)),
+  avg_Pyz_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pyzc_r + Pyzr_l)),
+
+  avg_Pzz_l_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pzzl_r + Pzzc_l)),
+  avg_Pzz_r_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(Pzzc_r + Pzzr_l)), 
+
+  if (dir = 1) then (
+    writeCExprs1(avg_p_ij_x_l, avg_Pxx_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_x_r, avg_Pxx_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_l, avg_Pxy_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_r, avg_Pxy_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),    
+
+    writeCExprs1(avg_p_ij_z_l, avg_Pxz_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_z_r, avg_Pxz_r_c),
+    printf(fh, "~%"),
+    flush_output(fh)
+  )
+  else if (dir = 2) then (
+    writeCExprs1(avg_p_ij_x_l, avg_Pxy_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_x_r, avg_Pxy_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_l, avg_Pyy_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_r, avg_Pyy_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),    
+
+    writeCExprs1(avg_p_ij_z_l, avg_Pyz_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_z_r, avg_Pyz_r_c),
+    printf(fh, "~%"),
+    flush_output(fh)
+  )
+  else (
+    writeCExprs1(avg_p_ij_x_l, avg_Pxz_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_x_r, avg_Pxz_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_l, avg_Pyz_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_y_r, avg_Pyz_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),    
+
+    writeCExprs1(avg_p_ij_z_l, avg_Pzz_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    writeCExprs1(avg_p_ij_z_r, avg_Pzz_r_c),
+    printf(fh, "~%"),
+    flush_output(fh)
+  ),
+
+  avg_p_ij_x_l_e : doExpand1(avg_p_ij_x_l, bSurf),
+  avg_p_ij_x_r_e : doExpand1(avg_p_ij_x_r, bSurf),
+
+  avg_p_ij_y_l_e : doExpand1(avg_p_ij_y_l, bSurf),
+  avg_p_ij_y_r_e : doExpand1(avg_p_ij_y_r, bSurf),    
+
+  avg_p_ij_z_l_e : doExpand1(avg_p_ij_z_l, bSurf),
+  avg_p_ij_z_r_e : doExpand1(avg_p_ij_z_r, bSurf),
+
+  /* Expand the momentum to compute the surface expansion of the jumps */
   rhouxl_e : doExpand1(rhoux_l, bC),
   rhouyl_e : doExpand1(rhouy_l, bC),
   rhouzl_e : doExpand1(rhouz_l, bC),
@@ -636,14 +892,14 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   max_speed_modal_r_e : doExpand1(max_speed_modal_r,bSurf),
 
   /* Compute the increments on the left and right from Ghat expansions */
-  incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_ux_l_e - max_speed_modal_l_e*jump_rhoux_l_e),
-  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_ux_r_e - max_speed_modal_r_e*jump_rhoux_r_e),
+  incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_ux_l_e - max_speed_modal_l_e*jump_rhoux_l_e + avg_p_ij_x_l_e),
+  incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_ux_r_e - max_speed_modal_r_e*jump_rhoux_r_e + avg_p_ij_x_r_e),
 
-  incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uy_l_e - max_speed_modal_l_e*jump_rhouy_l_e),
-  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uy_r_e - max_speed_modal_r_e*jump_rhouy_r_e),
+  incr_rhouy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uy_l_e - max_speed_modal_l_e*jump_rhouy_l_e + avg_p_ij_y_l_e),
+  incr_rhouy_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uy_r_e - max_speed_modal_r_e*jump_rhouy_r_e + avg_p_ij_y_r_e),
 
-  incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uz_l_e - max_speed_modal_l_e*jump_rhouz_l_e),
-  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uz_r_e - max_speed_modal_r_e*jump_rhouz_r_e),
+  incr_rhouz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*avg_uz_l_e - max_speed_modal_l_e*jump_rhouz_l_e + avg_p_ij_z_l_e),
+  incr_rhouz_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), flux_rho_r_e*avg_uz_r_e - max_speed_modal_r_e*jump_rhouz_r_e + avg_p_ij_z_r_e),
 
   surfTerms : [incr_rhoux_l + incr_rhoux_r,incr_rhouy_l + incr_rhouy_r,incr_rhouz_l + incr_rhouz_r],
   for m : 1 thru 3 do (

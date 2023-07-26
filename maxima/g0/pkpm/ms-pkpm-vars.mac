@@ -1,0 +1,92 @@
+load("pkpm/pkpm-vars")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for calculating the primitive 
+   and acceleration variables required to update the PKPM system. Primitive variables include:
+   1. u_i (flow velocity) 
+   2. p_ij (pressure tensor), 
+   3. T_ij (3.0*Temperature tensor/mass) for penalization
+   4. T_perp_over_m (T_perp/m)
+   5. T_perp_over_m_inv (m/T_perp) 
+   Along with div(p_par b)/rho for use in the pressure force. 
+
+   *Note that the computation of p_ij is separate from the primitive variable solve, 
+   as p_ij can be computed with weak multiplications of the magnetic field unit tensor
+   and moments computed from the kinetic equation (p_par, p_perp).*
+
+   Acceleration variables are computed with either recovery (div(b)) or averaging (grad_i u_j) 
+   where averaging is chosen to ensure phase space incompressibility in the weak sense. 
+   Full acceleration variable list: 
+   1. div_b (divergence of magnetic field unit vector)
+   2. b_grad_u (bb : grad(u))
+   3. p_force (total pressure forces in kinetic equation 1/rho div(p_parallel b_hat) - T_perp/m*div(b)
+   4. p_perp_source (pressure source for higher Laguerre moments -> bb : grad(u) - div(u) - 2 nu)
+   5. p_perp_div_b (p_perp/rho*div(b) = T_perp/m*div(b)) */
+
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor product basis. */
+/* Note that Serendipity, p = 1, is equivalent to Tensor */
+/* Thus no need to calculate p = 1 Tensor basis */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+for bInd : 1 thru length(bName) do (
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      disp(printf(false,sconcat("Creating pkpm vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/pkpm_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("pkpm_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
+      calcPKPMPressure(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh),
+      
+      fname : sconcat("~/max-out/pkpm_vars_set_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("pkpm_vars_set_",  d, "x_", bName[bInd], "_p", polyOrder),
+      if (polyOrder = 1) then (
+        setPKPMPrimVars_p1(fh, funcName, d, bName[bInd], polyOrder)
+      )
+      else (
+        setPKPMPrimVars(fh, funcName, d, bName[bInd], polyOrder)
+      ),
+      close(fh),
+
+      fname : sconcat("~/max-out/pkpm_vars_copy_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("pkpm_vars_copy_",  d, "x_", bName[bInd], "_p", polyOrder),
+      copyPKPMPrimVars(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh),
+
+      for dir : 1 thru d do ( 
+        if (dir = 1) then fname : sconcat("~/max-out/pkpm_vars_accel_x_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/pkpm_vars_accel_y_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/pkpm_vars_accel_z_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("pkpm_vars_accel_"),
+        PKPMAccelVars(dir, fh, funcName, d, bName[bInd], polyOrder),
+        close(fh)
+      )
+    )
+  )
+);

@@ -48,14 +48,12 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
 
   printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
      const double *bvarl, const double *bvarc, const double *bvarr, 
-     const double *u_il, const double *u_ic, const double *u_ir, 
-     const double *T_ijl, const double *T_ijc, const double *T_ijr,
+     const double *pkpm_priml, const double *pkpm_primc, const double *pkpm_primr, 
      const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:                 Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:               Cell spacing.~%"),
   printf(fh, "  // bvarl/bvarc/bvarr:       Input magnetic field unit vector in left/center/right cells.~%"),
-  printf(fh, "  // u_il/u_ic/u_ir:          Input bulk velocity (ux,uy,uz) in left/center/right cells.~%"),
-  printf(fh, "  // T_ijl/T_ijc/T_ijr:       Input Temperature tensor/mass (for penalization) in left/center/right cells.~%"),
+  printf(fh, "  // pkpm_priml/pkpm_primc/pkpm_primr: Input primitive variables in left/center/right cells.~%"),
   printf(fh, "  // fl/fc/fr:                Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in left/center/right cells.~%"),
   printf(fh, "  // out:                     Incremented distribution function in center cell.~%"),
 
@@ -73,27 +71,27 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
 
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
-  printf(fh, "  const double *ul = &u_il[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *uc = &u_ic[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *ur = &u_ir[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *bl = &bvarl[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *bc = &bvarc[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *br = &bvarr[~a]; ~%", NC*(dir-1)),
+  printf(fh, "  const double *ul = &pkpm_priml[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *uc = &pkpm_primc[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *ur = &pkpm_primr[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *bl = &bvarl[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *bc = &bvarc[~a]; ~%", (dir-1)*NC),
+  printf(fh, "  const double *br = &bvarr[~a]; ~%", (dir-1)*NC),
   printf(fh, "  // Get thermal velocity in direction of update for penalization vth^2 = 3.0*T_ii/m. ~%"),
   if (dir = 1) then (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", 0),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", 0),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", 0)
+    printf(fh, "  const double *vth_sql = &pkpm_priml[~a]; ~%", 3*NC),
+    printf(fh, "  const double *vth_sqc = &pkpm_primc[~a]; ~%", 3*NC),
+    printf(fh, "  const double *vth_sqr = &pkpm_primr[~a]; ~%", 3*NC)
   )
   else if (dir = 2) then (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", NC*3),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", NC*3),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", NC*3)
+    printf(fh, "  const double *vth_sql = &pkpm_priml[~a]; ~%", 4*NC),
+    printf(fh, "  const double *vth_sqc = &pkpm_primc[~a]; ~%", 4*NC),
+    printf(fh, "  const double *vth_sqr = &pkpm_primr[~a]; ~%", 4*NC)
   )
   else (
-    printf(fh, "  const double *vth_sql = &T_ijl[~a]; ~%", NC*5),
-    printf(fh, "  const double *vth_sqc = &T_ijc[~a]; ~%", NC*5),
-    printf(fh, "  const double *vth_sqr = &T_ijr[~a]; ~%", NC*5)
+    printf(fh, "  const double *vth_sql = &pkpm_priml[~a]; ~%", 5*NC),
+    printf(fh, "  const double *vth_sqc = &pkpm_primc[~a]; ~%", 5*NC),
+    printf(fh, "  const double *vth_sqr = &pkpm_primr[~a]; ~%", 5*NC)
   ),
   printf(fh, "~%"),
 
@@ -332,16 +330,16 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     printf(fh, "  double G_1r_lx = 0.0; ~%"),
     printf(fh, "~%"),
 
-    printf(fh, "  double ul_r = ser_1x_p~a_surfx1_eval_quad_node_0_r(ul); ~%", polyOrder),
-    printf(fh, "  double uc_l = ser_1x_p~a_surfx1_eval_quad_node_0_l(uc); ~%", polyOrder),
-    printf(fh, "  double uc_r = ser_1x_p~a_surfx1_eval_quad_node_0_r(uc); ~%", polyOrder),
-    printf(fh, "  double ur_l = ser_1x_p~a_surfx1_eval_quad_node_0_l(ur); ~%", polyOrder),
+    printf(fh, "  double ul_r = ~a_1x_p~a_surfx1_eval_quad_node_0_r(ul); ~%", basisFun, polyOrder),
+    printf(fh, "  double uc_l = ~a_1x_p~a_surfx1_eval_quad_node_0_l(uc); ~%", basisFun, polyOrder),
+    printf(fh, "  double uc_r = ~a_1x_p~a_surfx1_eval_quad_node_0_r(uc); ~%", basisFun, polyOrder),
+    printf(fh, "  double ur_l = ~a_1x_p~a_surfx1_eval_quad_node_0_l(ur); ~%", basisFun, polyOrder),
     printf(fh, "~%"),
 
-    printf(fh, "  double vth_sql_r = ser_1x_p~a_surfx1_eval_quad_node_0_r(vth_sql); ~%", polyOrder),
-    printf(fh, "  double vth_sqc_l = ser_1x_p~a_surfx1_eval_quad_node_0_l(vth_sqc); ~%", polyOrder),
-    printf(fh, "  double vth_sqc_r = ser_1x_p~a_surfx1_eval_quad_node_0_r(vth_sqc); ~%", polyOrder),
-    printf(fh, "  double vth_sqr_l = ser_1x_p~a_surfx1_eval_quad_node_0_l(vth_sqr); ~%", polyOrder),
+    printf(fh, "  double vth_sql_r = ~a_1x_p~a_surfx1_eval_quad_node_0_r(vth_sql); ~%", basisFun, polyOrder),
+    printf(fh, "  double vth_sqc_l = ~a_1x_p~a_surfx1_eval_quad_node_0_l(vth_sqc); ~%", basisFun, polyOrder),
+    printf(fh, "  double vth_sqc_r = ~a_1x_p~a_surfx1_eval_quad_node_0_r(vth_sqc); ~%", basisFun, polyOrder),
+    printf(fh, "  double vth_sqr_l = ~a_1x_p~a_surfx1_eval_quad_node_0_l(vth_sqr); ~%", basisFun, polyOrder),
     printf(fh, "~%"),
 
     printf(fh, "  double avg_u_l = 0.5*(ul_r + uc_l); ~%"),

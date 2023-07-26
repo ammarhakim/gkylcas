@@ -1,8 +1,10 @@
-load("pkpm/euler-pkpm-p-perp-source")$
+load("pkpm/pkpm-io-vars")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-   source terms for the Euler equations in the 
-   parallel-kinetic-perpendicular-moment (pkpm) model. */
+/* This script calls the functions which construct the output fluid arrays for PKPM, including the conserved fluid variables: 
+   [rho, rho ux, rho uy, rho uz, Pxx + rho ux^2, Pxy + rho ux uy, Pxz + rho ux uz, Pyy + rho uy^2, Pyz + rho uy uz, Pzz + rho uz^2]  
+   and the output primitive and acceleration variables 
+   [ux, uy, uz, T_perp/m, m/T_perp, div(b), 1/rho div(p_par b), T_perp/m div(b), bb : grad(u),
+   vperp configuration space characteristics = bb : grad(u) - div(u) - 2 nu] */
 
 /* ...... USER INPUTS........ */
 
@@ -35,11 +37,11 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating euler pkpm source kernel ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_source_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating pkpm io variables",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/pkpm_vars_io_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_source_", d, "x_", bName[bInd]),
-      calcEulerPKPMSource(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("pkpm_vars_io_", d, "x_", bName[bInd]),
+      calcPKPMIoVars(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

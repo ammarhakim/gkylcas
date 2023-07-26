@@ -1,8 +1,7 @@
-load("pkpm/euler-pkpm-p-perp-source")$
+load("pkpm/pkpm-int-vars")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-   source terms for the Euler equations in the 
-   parallel-kinetic-perpendicular-moment (pkpm) model. */
+/* This script calls the functions which integrate the fluid variables for diagnostic purposed. 
+   Integrates rho, p_parallel, p_perp, rho ux^2, rho uy^2, rho uz^2,  */
 
 /* ...... USER INPUTS........ */
 
@@ -35,11 +34,11 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating euler pkpm source kernel ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_source_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating pkpm integrated variables",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/pkpm_vars_integrated_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_source_", d, "x_", bName[bInd]),
-      calcEulerPKPMSource(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("pkpm_vars_integrated_", d, "x_", bName[bInd]),
+      calcPKPMIntVars(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

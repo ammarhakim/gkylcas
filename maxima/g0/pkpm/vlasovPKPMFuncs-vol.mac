@@ -48,14 +48,14 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   cflPt : makelist(varsP[d]=0, d, 1, length(varsP)),
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, 
-  const double *bvar, const double *u_i, 
+  const double *bvar, const double *pkpm_prim, 
   const double *pkpm_accel_vars, const double *g_dist_source, 
   const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
   printf(fh, "  // bvar:            magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // u_i:             flow velocity"),
-  printf(fh, "  // pkpm_accel_vars: pkpm acceleration variables~%"),
+  printf(fh, "  // pkpm_prim:       Input primitive variables. ~%"),
+  printf(fh, "  // pkpm_accel_vars: Input pkpm acceleration variables. ~%"),
   printf(fh, "  // g_dist_source:   Input [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)),  ~%"), 
   printf(fh, "  //                  (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + nu vth^2 F_0 ].~%"), 
   printf(fh, "  //                  First output is mirror force source, second output is vperp characteristics source.~%"), 
@@ -74,26 +74,26 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
 
   /* access flow velocity and magnetic field unit vector data */
-  printf(fh, "  const double *ux = &u_i[~a]; ~%", 0),
-  printf(fh, "  const double *uy = &u_i[~a]; ~%", NC),
-  printf(fh, "  const double *uz = &u_i[~a]; ~%", NC*2),
+  printf(fh, "  const double *ux = &pkpm_prim[~a]; ~%", 0*NC),
+  printf(fh, "  const double *uy = &pkpm_prim[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uz = &pkpm_prim[~a]; ~%", 2*NC),
 
-  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
-  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
-  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0*NC),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", 1*NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   /* Access F_0 and T_perp/m G, first two Laguerre moments */
-  printf(fh, "  const double *F_0 = &f[~a]; ~%", 0),
-  printf(fh, "  const double *G_1 = &f[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0 = &f[~a]; ~%", 0*NP),
+  printf(fh, "  const double *G_1 = &f[~a]; ~%", 1*NP),  
 
   /* Access source distribution functions for mirror force
      F_0 source = T_perp/m G_1; 
      G_1 source = 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0)) (First NP components of g_dist_source) 
      G_1 vperp characteristics = (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + nu vth^2 F_0 (Second NP components of g_dist_source) */
-  printf(fh, "  const double *F_0_source = &f[~a]; ~%", NP),
-  printf(fh, "  const double *G_1_source = &g_dist_source[~a]; ~%", 0),  
-  printf(fh, "  const double *G_1_vperp = &g_dist_source[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0_source = &f[~a]; ~%", 1*NP),
+  printf(fh, "  const double *G_1_source = &g_dist_source[~a]; ~%", 0*NP),  
+  printf(fh, "  const double *G_1_vperp = &g_dist_source[~a]; ~%", 1*NP),  
 
   /* Access pkpm acceleration variables for forces and sources */
   printf(fh, "  const double *div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
@@ -103,8 +103,8 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
 
   /* Access the components of out for the first two Laguerre moments */
-  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
-  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),    
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0*NP),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", 1*NP),    
   printf(fh, "~%"),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
