@@ -46,7 +46,7 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double gas_gamma, const double *ul, const double *uc, const double *ur, const double *pl, const double *pc, const double *pr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double gas_gamma, const double *ul, const double *uc, const double *ur, const double *pl, const double *pc, const double *pr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // gas_gamma: Adiabatic index.~%"),
@@ -309,6 +309,9 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%")
   ),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -337,7 +340,7 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double gas_gamma, const double *ul, const double *uc, const double *ur, const double *pl, const double *pc, const double *pr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double gas_gamma, const double *ul, const double *uc, const double *ur, const double *pl, const double *pc, const double *pr, const double *statevecl, const double *statevecc, const double *statevecr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // gas_gamma: Adiabatic index.~%"),
@@ -739,6 +742,9 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCIncrExprs1(lhs[m], dx1*surf),
     printf(fh, "~%")
   ),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

@@ -38,7 +38,7 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   if (basisFun="Ser") then basisFun:"ser",
   if (basisFun="Tensor") then basisFun:"tensor",
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuUSum, const double *nuVtSqSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nuSum:         collisionalities added (self and cross species collisionalities). ~%"),
@@ -197,6 +197,10 @@ calcDragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifo
   flush_output(fh),
   
   writeCIncrExprs1(out, rdv2*drag_incr_r + rdv2*drag_incr_l), 
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
