@@ -9,15 +9,14 @@ load("nodal_operations/nodal_functions");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_parproj_sol_stencil(fh, funcNm, dim, basisFun, pMax) := block(
-  [bN,numB,vars,stencil,sol,sol_c,
-   polyOrder,k],
+generate_fem_parproj_sol_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
+  [polyOrder,bN,numB,vars,stencil,sol,sol_c,k],
 
   kill(varsC, varsP, basisC, basisP),
 
   load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
 
-  for polyOrder : 1 thru pMax do (
+  for polyOrder : pMin thru pMax do (
 
     printf(fh, "GKYL_CU_DH void ~a_p~a(const double *sol_nodal_global, long nodeOff, const long *globalIdxs, double *sol_modal_local) ~%{ ~%", funcNm, polyOrder),
     printf(fh, "  // sol_nodal_global: global nodal solution vector.~%"),
