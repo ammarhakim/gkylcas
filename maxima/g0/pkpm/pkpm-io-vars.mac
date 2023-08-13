@@ -52,9 +52,9 @@ calcPKPMIoVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *ux = &prim[~a]; ~%", 0*NC),
   printf(fh, "  const double *uy = &prim[~a]; ~%", 1*NC),
   printf(fh, "  const double *uz = &prim[~a]; ~%", 2*NC),
-  printf(fh, "  const double *pkpm_div_ppar = &prim[~a]; ~%", 6*NC),
-  printf(fh, "  const double *T_perp_over_m = &prim[~a]; ~%", 7*NC),
-  printf(fh, "  const double *T_perp_over_m_inv = &prim[~a]; ~%", 8*NC),
+  printf(fh, "  const double *pkpm_div_ppar = &prim[~a]; ~%", 3*NC),
+  printf(fh, "  const double *T_perp_over_m = &prim[~a]; ~%", 4*NC),
+  printf(fh, "  const double *T_perp_over_m_inv = &prim[~a]; ~%", 5*NC),
   printf(fh, "~%"),
 
   printf(fh, "  const double *div_b = &pkpm_accel[~a]; ~%", 0*NC),

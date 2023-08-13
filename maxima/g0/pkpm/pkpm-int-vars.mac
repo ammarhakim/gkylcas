@@ -24,7 +24,7 @@ calcPKPMIntVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   const double* prim, double* GKYL_RESTRICT int_pkpm_vars) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
   printf(fh, "  // euler_pkpm:       [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
-  printf(fh, "  // prim:             [ux, uy, uz, 3*Txx/m, 3*Tyy/m, 3*Tzz/m, 1/rho div(p_par b), T_perp/m, m/T_perp].~%"),
+  printf(fh, "  // prim:             [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp].~%"),
   printf(fh, "  // int_pkpm_vars:    Output integrated variables.~%"),
   printf(fh, "~%"),
 
@@ -56,25 +56,25 @@ calcPKPMIntVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   uz_e : doExpand1(uz, bC),
 
   int_rho_c : calcInnerProdList(varsC, 1, [1], rho_e), 
-  int_p_par_c : calcInnerProdList(varsC, 1, [1], p_par_e), 
-  int_p_perp_c : calcInnerProdList(varsC, 1, [1], p_perp_e), 
+  int_rhoux_c : calcInnerProdList(varsC, 1, [1], rhoux_e), 
+  int_rhouy_c : calcInnerProdList(varsC, 1, [1], rhouy_e), 
+  int_rhouz_c : calcInnerProdList(varsC, 1, [1], rhouz_e), 
   int_rhoux2_c : calcInnerProdList(varsC, 1, [1], rhoux_e*ux_e), 
   int_rhouy2_c : calcInnerProdList(varsC, 1, [1], rhouy_e*uy_e), 
   int_rhouz2_c : calcInnerProdList(varsC, 1, [1], rhouz_e*uz_e), 
+  int_p_par_c : calcInnerProdList(varsC, 1, [1], p_par_e), 
+  int_p_perp_c : calcInnerProdList(varsC, 1, [1], p_perp_e), 
 
-  printf(fh, "  double int_p_par = ~a; ~%", float(expand(int_p_par_c[1]))),
-  printf(fh, "  double int_p_perp = ~a; ~%", float(expand(int_p_perp_c[1]))),
-  printf(fh, "  double int_rhoux2 = ~a; ~%", float(expand(int_rhoux2_c[1]))),
-  printf(fh, "  double int_rhouy2 = ~a; ~%", float(expand(int_rhouy2_c[1]))),
-  printf(fh, "  double int_rhouz2 = ~a; ~%", float(expand(int_rhouz2_c[1]))),
-
-  printf(fh, "  // Order of integrated variables is (rho, p_parallel, p_perp, rho ux^2, rho uy^2, rho uz^2) ~%"),
+  printf(fh, "  // Order of integrated variables is (rho, rhoux, rhouy, rhouz, rho ux^2, rho uy^2, rho uz^2, p_parallel, p_perp) ~%"),
   printf(fh, "  int_pkpm_vars[0] += ~a; ~%", float(expand(int_rho_c[1]))),
-  printf(fh, "  int_pkpm_vars[1] += int_p_par; ~%"),
-  printf(fh, "  int_pkpm_vars[2] += int_p_perp; ~%"),
-  printf(fh, "  int_pkpm_vars[3] += int_rhoux2; ~%"),
-  printf(fh, "  int_pkpm_vars[4] += int_rhouy2; ~%"),
-  printf(fh, "  int_pkpm_vars[5] += int_rhouz2; ~%"),
+  printf(fh, "  int_pkpm_vars[1] += ~a; ~%", float(expand(int_rhoux_c[1]))),
+  printf(fh, "  int_pkpm_vars[2] += ~a; ~%", float(expand(int_rhouy_c[1]))),
+  printf(fh, "  int_pkpm_vars[3] += ~a; ~%", float(expand(int_rhouz_c[1]))),
+  printf(fh, "  int_pkpm_vars[4] += ~a; ~%", float(expand(int_rhoux2_c[1]))),
+  printf(fh, "  int_pkpm_vars[5] += ~a; ~%", float(expand(int_rhouy2_c[1]))),
+  printf(fh, "  int_pkpm_vars[6] += ~a; ~%", float(expand(int_rhouz2_c[1]))),
+  printf(fh, "  int_pkpm_vars[7] += ~a; ~%", float(expand(int_p_par_c[1]))),
+  printf(fh, "  int_pkpm_vars[8] += ~a; ~%", float(expand(int_p_perp_c[1]))),
 
   printf(fh, "} ~%")
 )$

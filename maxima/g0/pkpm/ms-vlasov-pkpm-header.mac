@@ -37,9 +37,10 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
   double* g_dist_source, double* F_k_m_1); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
     printf(fh, "~avoid vlasov_pkpm_surf~a_~ax1v_~a_p~a(const double *w, const double *dxv, 
-    const double *bvarl, const double *bvarc, const double *bvarr, 
-    const double *pkpm_priml, const double *pkpm_primc, const double *pkpm_primr, 
-    const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi),
+    const double *bvar_l, const double *bvar_c, const double *bvar_r, 
+    const double *pkpm_prim_surf_l, const double *pkpm_prim_surf_c, const double *pkpm_prim_surf_r, 
+    const double *fl, const double *fc, const double *fr, 
+    const double *pkpm_lax, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi),
     printf(fh, "~avoid pkpm_dist_div_ppar_~a_~ax1v_~a_p~a(const double *w, const double *dxv, 
        const double *bvarl, const double *bvarc, const double *bvarr, 
        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)

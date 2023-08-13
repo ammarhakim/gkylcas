@@ -10,7 +10,7 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -18,7 +18,7 @@ maxCdim_Ser : 1$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -47,18 +47,10 @@ for bInd : 1 thru length(bName) do (
         /* Hard-coding configuration space quad evaluations to Serendipity for now */
         if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
           printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", d, 1, dir),
-          printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", d, 1),
-          printf(fh, "#include <gkyl_basis_ser_~ax_p~a_surfx~a_eval_quad.h> ~%", d, polyOrder, dir),
-          if d > 1 then (
-            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d, polyOrder)
-          )
+          printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", d, 1)
         ) elseif polyOrder > 1 then (
           printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d+1, polyOrder, dir),
-          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d+1, polyOrder),
-          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], d, polyOrder, dir),
-          if d > 1 then (
-            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d, polyOrder)
-          )
+          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], d+1, polyOrder)
         ),
         calcVlasovPKPMStreamUpdateInDir(dir, fh, funcName, d, 1, bName[bInd], polyOrder), 
         close(fh)

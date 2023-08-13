@@ -288,8 +288,8 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   clst : [dvpar, wvpar],
 
   /* Access pkpm primitive variables T_perp/m and m/T_perp */  
-  printf(fh, "  const double *T_perp_over_m = &pkpm_prim[~a]; ~%", 7*NC),
-  printf(fh, "  const double *T_perp_over_m_inv = &pkpm_prim[~a]; ~%", 8*NC),
+  printf(fh, "  const double *T_perp_over_m = &pkpm_prim[~a]; ~%", 4*NC),
+  printf(fh, "  const double *T_perp_over_m_inv = &pkpm_prim[~a]; ~%", 5*NC),
   printf(fh, "~%"),
 
   /* Access pkpm acceleration variables for forces and sources 
