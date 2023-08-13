@@ -1,0 +1,154 @@
+/*  Generate kernels for: 
+    1. Vlasov prim_vars: udrift = M1/M0, vtSq = 1/vdim*(M2/M0 - udrift.udrift)
+    2. GK prim_vars: upar = M1/M0, vtSq = 1/vdim*(M2/M0 - upar^2), where vdim = 1 or 3. */
+
+load("modal-basis");
+load("out-scripts");
+load("nodal_operations/nodal_functions")$
+load(stringproc)$
+fpprec : 24$
+
+varsV : [x, y, z]$
+
+calcPrimVarsVlasov(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bC, NC, m0_e, m1x_e, m1y_e, m1z_e, m2_e, m0_inv_e, uxSq_e, uySq_e, uzSq_e,
+   ux_c, uy_c, uz_c, vtSq_c],
+   
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  NC  : length(bC),
+  print("vlasov ", cdim,"x", vdim, "v"),
+
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *moms, double* prim_vars) ~%{ ~%", funcNm),
+  printf(fh, "  // moms:   Input moments. ~%"),
+  printf(fh, "  // prim_vars: udrift = m1/m0 (first vdim components), vtSq = 1/vdim(m2/m0 - udrift.udrift) (last component). ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *m0 = &moms[~a]; ~%", 0),
+  for vi : 1 thru vdim do (
+    printf(fh, "  const double *m1~a = &moms[~a]; ~%", varsV[vi], NC*vi)
+    ),
+  printf(fh, "  const double *m2 = &moms[~a]; ~%", NC*(vdim+1)),
+  printf(fh, " ~%"),
+
+  for vi : 1 thru vdim do (
+    printf(fh, "  double *u~a = &prim_vars[~a]; ~%", varsV[vi], NC*(vi-1))
+    ),
+  printf(fh, "  double *vtSq = &prim_vars[~a]; ~%", NC*vdim),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double m0_inv[~a] = {0.0}; ~%~%", NC),
+
+  for vi : 1 thru vdim do (
+    printf(fh, "  double u~aSq[~a] = {0.0}; ~%", varsV[vi], NC)
+    ),	       
+
+  m0_e : doExpand1(m0, bC),
+  m0_inv_e : doExpand1(m0_inv, bC),
+  m1x_e : doExpand1(m1x, bC),
+  m1y_e : doExpand1(m1y, bC),
+  m1z_e : doExpand1(m1z, bC),
+  m2_e : doExpand1(m2, bC),
+  printf(fh, "~%"),
+
+  printf(fh, "  // Calculate expansions of prim_vars, which can be calculated free of aliasing errors. ~%"),
+  ux_c : calcInnerProdList(varsC, 1, bC, m1x_e*m0_inv_e),  
+  uy_c : calcInnerProdList(varsC, 1, bC, m1y_e*m0_inv_e),
+  uz_c : calcInnerProdList(varsC, 1, bC, m1z_e*m0_inv_e),
+
+  printf(fh, "  ~a_~ax_p~a_inv(m0, m0_inv); ~%", basisFun, cdim, polyOrder),
+  printf(fh, "~%"),
+
+  u : [ux, uy, uz],
+  u_c : [ux_c, uy_c, uz_c],
+  uSq : [uxSq, uySq, uzSq],
+  m1 : [m1x, m1y, m1z],
+  
+  /* Calculate udrift.udrift. */
+  for vi : 1 thru vdim do (
+    writeCExprs1(u[vi], u_c[vi]),
+    printf(fh, "  ~a_~ax_p~a_inv(~a, m0_inv, ~a); ~%", basisFun, cdim, polyOrder, m1[vi], u[vi]),
+    printf(fh, "  binop_mul_~ad_~a_p~a(~a, ~a, ~a); ~%", cdim, basisFun, polyOrder, u[vi], u[vi], uSq[vi]),
+    printf(fh, "~%")
+  ),
+
+  uxSq_e : doExpand1(uxSq, bC),
+  uySq_e : doExpand1(uySq, bC),
+  uzSq_e : doExpand1(uzSq, bC),
+
+  uSq_e : [uxSq_e, uySq_e, uzSq_e],
+
+  /* Calculate vtSq */
+  vtSq_c : calcInnerProdList(varsC, 1, bC, 1/vdim*(m2_e*m0_inv_e-sum(uSq_e[vi],vi,1,vdim))),
+  writeCExprs1(vtSq, vtSq_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+calcPrimVarsGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bC, NC, m0_e, m1_e, uparSq_e,
+   upar_c, vtSq_c],
+
+  kill(u, u_c, uSq, m1),
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  NC  : length(bC),
+  print("gk ", cdim,"x", vdim, "v"),
+
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *moms, double* prim_vars) ~%{ ~%", funcNm),
+  printf(fh, "  // moms:   Input moments. ~%"),
+  printf(fh, "  // prim_vars: upar = m1/m0 (first component), vtSq = 1/vdim(m2/m0 - upar^2) (last component). ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *m0 = &moms[~a]; ~%", 0),
+  printf(fh, "  const double *m1 = &moms[~a]; ~%", NC),
+  printf(fh, "  const double *m2 = &moms[~a]; ~%", NC*2),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double *upar = &prim_vars[~a]; ~%", 0),
+  printf(fh, "  double *vtSq = &prim_vars[~a]; ~%", NC),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double m0_inv[~a] = {0.0}; ~%~%", NC),
+  printf(fh, "  double uparSq[~a] = {0.0}; ~%", NC),	       
+
+  m0_e : doExpand1(m0, bC),
+  m0_inv_e : doExpand1(m0_inv, bC),
+  m1_e : doExpand1(m1, bC),
+  m2_e : doExpand1(m2, bC),
+  printf(fh, "~%"),
+  
+  printf(fh, "  // Calculate expansions of prim_vars, which can be calculated free of aliasing errors. ~%"),  
+  /* Calculate uparSq. */
+  printf(fh, "  binop_mul_~ad_~a_p~a(m1, m0_inv, upar); ~%", cdim, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(upar, upar, uparSq); ~%", cdim, basisFun, polyOrder),
+  printf(fh, "~%"),
+
+  uparSq_e : doExpand1(uparSq, bC),
+
+  if vdim > 1 then vdim : 3, 
+
+  /* Calculate vtSq */
+  vtSq_c : calcInnerProdList(varsC, 1, bC, 1/vdim*(m2_e*m0_inv_e - uparSq_e)),
+  writeCExprs1(vtSq, vtSq_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$

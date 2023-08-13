@@ -1,0 +1,41 @@
+kill(all)$
+load("dg_diffusion/diffFuncs-surf-C")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+dirs : [[x], [x,y], [x,y,z]]$
+
+for bInd : 1 thru length(bName) do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    for dim : minCdim[bInd] thru maxCdim[bInd] do (
+      for dir : 1 thru dim do (
+        fname : sconcat("~/max-out/dg_diffusion_surf", dirs[dim][dir],"_", dim, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        print("Generating:", fname),
+        genDGdiffKernelSurf(fh, dim, bName[bInd], polyOrder, dir),
+        close(fh)
+      )
+    )
+  )
+)$

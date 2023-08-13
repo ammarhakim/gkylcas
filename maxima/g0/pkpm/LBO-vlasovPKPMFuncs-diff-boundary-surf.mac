@@ -48,7 +48,7 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   /*............. RECOVERY DONE ..............................*/
 
   printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),        
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuVtSq, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuVtSq, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:         Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:       Cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nuVtSq[~a]:    Thermal speeds squared times collisionality. ~%", NC),
@@ -230,5 +230,10 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   edge_G_1_out : makelist(edge_G_1_incr[i-1],i,1,NP),
   writeCIncrExprs1(out_F_0, rdvSq4*(diff_F_0_out + edge_F_0_out) + vol_F_0_out),
   writeCIncrExprs1(out_G_1, rdvSq4*(diff_G_1_out + edge_G_1_out) + vol_G_1_out),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );

@@ -39,7 +39,7 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   NC : length(bC),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pkpm_accel_vars, 
+  printf(fh, "GKYL_CU_DH double ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pkpm_accel_vars, 
      const double *g_dist_sourceEdge, const double *g_dist_sourceSkin, 
      const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:                Cell-center coordinates.~%"),
@@ -328,5 +328,10 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
 
   printf(fh, "~%"),
   printf(fh, "  } ~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );

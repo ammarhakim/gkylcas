@@ -13,7 +13,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
    rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
-   incrL_c,incrR_c],
+   incrL_c,incrR_c,pOrderCFL,rdDirVar2],
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
@@ -25,7 +25,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   dirLabel : varLabel[surfDir],
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
@@ -94,11 +94,12 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   [alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e] : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
     m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",false),
 
-  /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
-  incrL_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
-                                                   alphaSurfL_e,alphaUpSurfL_e,[fl,fc],false),
-  incrR_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
-                                                   alphaSurfR_e,alphaUpSurfR_e,[fc,fr],false),
+  /* Upwinded fluxes and CFL frequency based on quadrature-node values of phase-velocity. */
+  printf(fh, "  double cflFreq = 0.0;~%"),
+  incrL_c : calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
+                                                           alphaSurfL_e,alphaUpSurfL_e,[fl,fc],false),
+  incrR_c : calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
+                                                           alphaSurfR_e,alphaUpSurfR_e,[fc,fr],false),
   flush_output(fh),
 
   /* Write the actual increments to the left and right cells, which are
@@ -106,6 +107,15 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   writeCIncrExprsNoExpand1(out, rdSurfVar2*(incrL_c+incrR_c)),
   printf(fh, "~%"),
   flush_output(fh),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  return ~a*cflFreq; ~%",float((2*pOrderCFL+1)*rdDirVar2)),
+  printf(fh, "~%"),
 
   printf(fh, "} ~%"),
   flush_output(fh)
@@ -117,7 +127,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
    rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,
    bmag_e,bmagInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,BstardBmag_e,
    alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e,alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e,
-   incrL_c,incrR_c],
+   incrL_c,incrR_c,pOrderCFL,rdDirVar2],
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
@@ -129,7 +139,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   dirLabel : varLabel[surfDir],
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double q_, const double m_, const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, const double *phi, const double *apar, const double *apardot, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
@@ -190,6 +200,8 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   BstardBmag_e : calcAndWrite_BstardBmag(fh,cdim,bP,bmagBasis,surfDir,m_,q_,
                                          wvpar,rdx2vec,rdv2vec,inFlds_e,""),
 
+  printf(fh, "  double cflFreq = 0.0;~%~%"),
+
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
 
@@ -200,9 +212,10 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   [alphaUpR_e,alphaSurfR_e,alphaUpSurfR_e] : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
     m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",false),
 
-  /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
-  incrR_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
-                                                   alphaSurfR_e,alphaUpSurfR_e,[fskin,fedge],false),
+  /* Upwinded fluxes and CFL frequency based on quadrature-node values of phase-velocity. */
+  incrR_c : calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"R",
+                                                           alphaSurfR_e,alphaUpSurfR_e,[fskin,fedge],false),
+
   flush_output(fh),
 
   /* Write the actual increments to the left and right cells, which are
@@ -220,9 +233,9 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   [alphaUpL_e,alphaSurfL_e,alphaUpSurfL_e] : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
     m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"L",false),
 
-  /* Upwinded fluxes based on quadrature-node values of phase-velocity. */
-  incrL_c : calcAndWrite_upwindIncr_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
-                                                   alphaSurfL_e,alphaUpSurfL_e,[fedge,fskin],false),
+  /* Upwinded fluxes and CFL frequency based on quadrature-node values of phase-velocity. */
+  incrL_c : calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fh,basisFun,polyOrder,bP,surfDir,"L",
+                                                           alphaSurfL_e,alphaUpSurfL_e,[fedge,fskin],false),
   flush_output(fh),
 
   /* Write the actual increments to the left and right cells, which are
@@ -231,6 +244,15 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "~%"),
   flush_output(fh),
   printf(fh, "  } ~%~%"), /* Upper domain boundary. */
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean gkhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  return ~a*cflFreq; ~%",float((2*pOrderCFL+1)*rdDirVar2)),
+  printf(fh, "~%"),
 
   printf(fh, "} ~%"),
   flush_output(fh)

@@ -50,7 +50,7 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *p_ijl, const double *p_ijc, const double *p_ijr,
   const double *vlasov_pkpm_surf_momsl, const double *vlasov_pkpm_surf_momsr, 
@@ -295,6 +295,9 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%")
   ),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -334,7 +337,7 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *p_ijl, const double *p_ijc, const double *p_ijr,
   const double *vlasov_pkpm_surf_momsl, const double *vlasov_pkpm_surf_momsr, 
@@ -803,6 +806,9 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCIncrExprs1(lhs[m], dx1*surf),
     printf(fh, "~%")
   ),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );
