@@ -71,7 +71,7 @@ calcDiffSurfUpdater(dir, fh, funcNm, cdim, basisFun, polyOrder, order, numComp) 
 
   q_rec : [q0_rec, q1_rec, q2_rec, q3_rec, q4_rec],
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double* w, const double* dx, double D, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double* w, const double* dx, double D, 
   const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing~%"),
@@ -103,5 +103,7 @@ calcDiffSurfUpdater(dir, fh, funcNm, cdim, basisFun, polyOrder, order, numComp) 
     ),
     printf(fh, "~%")
   ),
+  printf(fh, "  return 0.;~%"),
+  printf(fh, "~%"),
   printf(fh, "} ~%")
 );
