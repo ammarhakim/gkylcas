@@ -419,13 +419,13 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  ~a_~ax_p~a_inv(rho_xr, rho_inv_xr); ~%", basisFun, cdim-1, polyOrder),
 
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhoux_xl, ux_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhoux_xr, ux_xr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xr, rhoux_xr, ux_xr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhouy_xl, uy_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhouy_xr, uy_xr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xr, rhouy_xr, uy_xr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhouz_xl, uz_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, rhouz_xr, uz_xr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xr, rhouz_xr, uz_xr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, Pxx_xl, Txx_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xl, Pxx_xr, Txx_xr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_xr, Pxx_xr, Txx_xr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, " ~%"), 
 
   /* Temporary arrays for storing surface expansions of rhou, rho and P_ii at y surfaces */
@@ -458,13 +458,13 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  ~a_~ax_p~a_inv(rho_yr, rho_inv_yr); ~%", basisFun, cdim-1, polyOrder),
 
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhoux_yl, ux_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhoux_yr, ux_yr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yr, rhoux_yr, ux_yr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhouy_yl, uy_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhouy_yr, uy_yr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yr, rhouy_yr, uy_yr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhouz_yl, uz_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, rhouz_yr, uz_yr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yr, rhouz_yr, uz_yr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, Pyy_yl, Tyy_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yl, Pyy_yr, Tyy_yr); ~%", cdim-1, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_yr, Pyy_yr, Tyy_yr); ~%", cdim-1, basisFun, polyOrder),
   printf(fh, " ~%"), 
   if (cdim = 3) then (
     /* Temporary arrays for storing surface expansions of rhou, rho and P_ii at z surfaces */
@@ -497,13 +497,13 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  ~a_~ax_p~a_inv(rho_zr, rho_inv_zr); ~%", basisFun, cdim-1, polyOrder),
 
     printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhoux_zl, ux_zl); ~%", cdim-1, basisFun, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhoux_zr, ux_zr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zr, rhoux_zr, ux_zr); ~%", cdim-1, basisFun, polyOrder),
     printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhouy_zl, uy_zl); ~%", cdim-1, basisFun, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhouy_zr, uy_zr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zr, rhouy_zr, uy_zr); ~%", cdim-1, basisFun, polyOrder),
     printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhouz_zl, uz_zl); ~%", cdim-1, basisFun, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, rhouz_zr, uz_zr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zr, rhouz_zr, uz_zr); ~%", cdim-1, basisFun, polyOrder),
     printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, Pzz_zl, Tzz_zl); ~%", cdim-1, basisFun, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zl, Pzz_zr, Tzz_zr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(rho_inv_zr, Pzz_zr, Tzz_zr); ~%", cdim-1, basisFun, polyOrder),
     printf(fh, " ~%")
   ),
 
