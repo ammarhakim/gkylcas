@@ -31,7 +31,7 @@ calcBB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // em:  Input electromagnetic fields. ~%"),
   printf(fh, "  // out: Output B_i B_j tensor. ~%"),
   printf(fh, " ~%"),
@@ -350,7 +350,7 @@ copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_sqrt_with_sign.h> ~%", basisFun, cdim, polyOrder),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* bvar) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* GKYL_RESTRICT bvar) ~%{ ~%", funcNm),
   printf(fh, "  // count:          Integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // x:              Input solution vector. ~%"),
   printf(fh, "  // em:             Input electromagnetic fields. ~%"),
@@ -435,6 +435,179 @@ copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, " ~%")
 )$
 
+setbvar_surf(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, 
+   bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+   bx_xl_c, bx_xr_c, bxbx_xl_c, bxbx_xr_c, bxby_xl_c, bxby_xr_c, bxbz_xl_c, bxbz_xr_c, 
+   by_yl_c, by_yr_c, bxby_yl_c, bxby_yr_c, byby_yl_c, byby_yr_c, bybz_yl_c, bybz_yr_c, 
+   bz_zl_c, bz_zr_c, bxbz_zl_c, bxbz_zr_c, bybz_zl_c, bybz_zr_c, bzbz_zl_c, bzbz_zr_c],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars(basisFun,surfVarsx,polyOrder),
+  if (cdim > 1) then (
+    surfVarsy : delete(y,varsC),
+    bSurfy : basisFromVars(basisFun,surfVarsy,polyOrder)
+  ),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars(basisFun,surfVarsz,polyOrder)
+  ),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  if (cdim = 1) then (
+    NSurf : 1
+  )
+  else (
+    NSurf : length(bSurfx)
+  ),
+
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double* bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // bvar:      Input volume expansion of b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
+  printf(fh, "  // bvar_surf: Output surface expansion of magnetic field unit vector and tensor in each direction. ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
+  printf(fh, "  const double *bxby = &bvar[~a]; ~%", NC*4),
+  printf(fh, "  const double *bxbz = &bvar[~a]; ~%", NC*5),
+  printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
+  printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
+  printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
+  printf(fh, " ~%"),
+
+  /* Expand b and bb */
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
+  bxbx_e : doExpand1(bxbx, bC),
+  bxby_e : doExpand1(bxby, bC),
+  bxbz_e : doExpand1(bxbz, bC),
+  byby_e : doExpand1(byby, bC),
+  bybz_e : doExpand1(bybz, bC),
+  bzbz_e : doExpand1(bzbz, bC),
+
+  printf(fh, "  double *bx_xl = &bvar_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  double *bx_xr = &bvar_surf[~a]; ~%", 1*NSurf),
+  printf(fh, "  double *bxbx_xl = &bvar_surf[~a]; ~%", 2*NSurf),
+  printf(fh, "  double *bxbx_xr = &bvar_surf[~a]; ~%", 3*NSurf),
+  printf(fh, "  double *bxby_xl = &bvar_surf[~a]; ~%", 4*NSurf),
+  printf(fh, "  double *bxby_xr = &bvar_surf[~a]; ~%", 5*NSurf),
+  printf(fh, "  double *bxbz_xl = &bvar_surf[~a]; ~%", 6*NSurf),
+  printf(fh, "  double *bxbz_xr = &bvar_surf[~a]; ~%", 7*NSurf),
+  printf(fh, " ~%"), 
+  if (cdim = 1) then (
+    printf(fh, "  bx_xl[0] = ~a; ~%", float(expand(subst(x=-1, bx_e)))),
+    printf(fh, "  bx_xr[0] = ~a; ~%", float(expand(subst(x=1, bx_e)))),
+    printf(fh, "  bxbx_xl[0] = ~a; ~%", float(expand(subst(x=-1, bxbx_e)))),
+    printf(fh, "  bxbx_xr[0] = ~a; ~%", float(expand(subst(x=1, bxbx_e)))),
+    printf(fh, "  bxby_xl[0] = ~a; ~%", float(expand(subst(x=-1, bxby_e)))),
+    printf(fh, "  bxby_xr[0] = ~a; ~%", float(expand(subst(x=1, bxby_e)))),
+    printf(fh, "  bxbz_xl[0] = ~a; ~%", float(expand(subst(x=-1, bxbz_e)))),
+    printf(fh, "  bxbz_xr[0] = ~a; ~%", float(expand(subst(x=1, bxbz_e)))),
+    printf(fh, " ~%")
+  )
+  else (
+    bx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, bx_e)),
+    bxbx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, bxbx_e)),
+    bxby_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, bxby_e)),
+    bxbz_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, bxbz_e)),
+
+    writeCExprs1(bx_xl, bx_xl_c), 
+    writeCExprs1(bxbx_xl, bxbx_xl_c), 
+    writeCExprs1(bxby_xl, bxby_xl_c), 
+    writeCExprs1(bxbz_xl, bxbz_xl_c), 
+    printf(fh, " ~%"), 
+
+    bx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, bx_e)),
+    bxbx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, bxbx_e)),
+    bxby_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, bxby_e)),
+    bxbz_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, bxbz_e)),
+
+    writeCExprs1(bx_xr, bx_xr_c), 
+    writeCExprs1(bxbx_xr, bxbx_xr_c), 
+    writeCExprs1(bxby_xr, bxby_xr_c), 
+    writeCExprs1(bxbz_xr, bxbz_xr_c),  
+    printf(fh, " ~%")
+  ),
+  if (cdim > 1) then (
+    printf(fh, "  double *by_yl = &bvar_surf[~a]; ~%", 8*NSurf),
+    printf(fh, "  double *by_yr = &bvar_surf[~a]; ~%", 9*NSurf),
+    printf(fh, "  double *bxby_yl = &bvar_surf[~a]; ~%", 10*NSurf),
+    printf(fh, "  double *bxby_yr = &bvar_surf[~a]; ~%", 11*NSurf),
+    printf(fh, "  double *byby_yl = &bvar_surf[~a]; ~%", 12*NSurf),
+    printf(fh, "  double *byby_yr = &bvar_surf[~a]; ~%", 13*NSurf),
+    printf(fh, "  double *bybz_yl = &bvar_surf[~a]; ~%", 14*NSurf),
+    printf(fh, "  double *bybz_yr = &bvar_surf[~a]; ~%", 15*NSurf),
+    printf(fh, " ~%"), 
+
+    by_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, by_e)),
+    bxby_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, bxby_e)),
+    byby_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, byby_e)),
+    bybz_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, bybz_e)),
+
+    writeCExprs1(by_yl, by_yl_c), 
+    writeCExprs1(bxby_yl, bxby_yl_c), 
+    writeCExprs1(byby_yl, byby_yl_c), 
+    writeCExprs1(bybz_yl, bybz_yl_c), 
+    printf(fh, " ~%"), 
+
+    by_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, by_e)),
+    bxby_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, bxby_e)),
+    byby_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, byby_e)),
+    bybz_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, bybz_e)),
+
+    writeCExprs1(by_yr, by_yr_c), 
+    writeCExprs1(bxby_yr, bxby_yr_c), 
+    writeCExprs1(byby_yr, byby_yr_c), 
+    writeCExprs1(bybz_yr, bybz_yr_c),  
+    printf(fh, " ~%")
+  ),
+  if (cdim = 3) then (
+    printf(fh, "  double *bz_zl = &bvar_surf[~a]; ~%", 16*NSurf),
+    printf(fh, "  double *bz_zr = &bvar_surf[~a]; ~%", 17*NSurf),
+    printf(fh, "  double *bxbz_zl = &bvar_surf[~a]; ~%", 18*NSurf),
+    printf(fh, "  double *bxbz_zr = &bvar_surf[~a]; ~%", 19*NSurf),
+    printf(fh, "  double *bybz_zl = &bvar_surf[~a]; ~%", 20*NSurf),
+    printf(fh, "  double *bybz_zr = &bvar_surf[~a]; ~%", 21*NSurf),
+    printf(fh, "  double *bzbz_zl = &bvar_surf[~a]; ~%", 22*NSurf),
+    printf(fh, "  double *bzbz_zr = &bvar_surf[~a]; ~%", 23*NSurf),
+    printf(fh, " ~%"), 
+
+    bz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, bz_e)),
+    bxbz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, bxbz_e)),
+    bybz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, bybz_e)),
+    bzbz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, bzbz_e)),
+
+    writeCExprs1(bz_zl, bz_zl_c), 
+    writeCExprs1(bxbz_zl, bxbz_zl_c), 
+    writeCExprs1(bybz_zl, bybz_zl_c), 
+    writeCExprs1(bzbz_zl, bzbz_zl_c), 
+    printf(fh, " ~%"), 
+
+    bz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, bz_e)),
+    bxbz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, bxbz_e)),
+    bybz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, bybz_e)),
+    bzbz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, bzbz_e)),
+
+    writeCExprs1(bz_zr, bz_zr_c), 
+    writeCExprs1(bxbz_zr, bxbz_zr_c), 
+    writeCExprs1(bybz_zr, bybz_zr_c), 
+    writeCExprs1(bzbz_zr, bzbz_zr_c),  
+    printf(fh, " ~%")
+  ),  
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
 calcNumExB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   [varsC, bC, NC],
 
@@ -449,7 +622,7 @@ calcNumExB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *em, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // em:  Input electromagnetic fields. ~%"),
   printf(fh, "  // out: Output (E x B)_i (E x B velocity numerator) and B_i^2 (for denominator). ~%"),
   printf(fh, " ~%"),
@@ -750,7 +923,7 @@ copyExB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_mat.h> ~%"),
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* ExB) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* GKYL_RESTRICT ExB) ~%{ ~%", funcNm),
   printf(fh, "  // count:          Integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // x:              Input solution vector. ~%"),
   printf(fh, "  // em:             Input electromagnetic fields. ~%"),

@@ -39,16 +39,20 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   NC : length(bC),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pkpm_accel_vars, 
+  printf(fh, "GKYL_CU_DH double ~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+     const double *div_b, const double *pkpm_accel_vars, 
      const double *g_dist_sourceEdge, const double *g_dist_sourceSkin, 
      const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:                Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:              Cell spacing.~%"),
-  printf(fh, "  // pkpm_accel_vars:        pkpm acceleration variables~%"), 
-  printf(fh, "  // g_dist_sourceEdge/Skin: 2.0*T_perp/m*(2.0*T_perp/m*G_1 + T_perp/m*(F_2 - F_0)) in skin cell/last edge cell.~%"), 
-  printf(fh, "  // edge:                   Determines if the update is for the left edge (-1) or right edge (+1).~%"),
-  printf(fh, "  // fSkin/fEdge:            Input Distribution function [F_0, T_perp G_1 = T_perp (F_1 - F_0)] in skin cell/last edge cell ~%"),
-  printf(fh, "  // out:                    Incremented distribution function in center cell.~%"),
+  printf(fh, "  // w[NDIM]:                Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:              Cell spacing. ~%"),
+  printf(fh, "  // div_b:                  Input volume expansion of div(b). ~%"), 
+  printf(fh, "  // pkpm_accel_vars:        Input pkpm acceleration variables [T_perp/m*div(b), bb:grad(u), p_force, p_perp_source]. ~%"), 
+  printf(fh, "  // g_dist_sourceEdge/Skin: Input [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)), ~%"), 
+  printf(fh, "  //                         (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + 2 nu vth^2 F_0 ]. ~%"), 
+  printf(fh, "  //                         in skin cell/last edge cell. First input is mirror force source, second input is vperp characteristics source. ~%"), 
+  printf(fh, "  // edge:                   Determines if the update is for the left edge (-1) or right edge (+1). ~%"),
+  printf(fh, "  // fSkin/fEdge:            Input distribution functions [F_0, T_perp/m G_1 = T_perp/m (F_0 - F_1)] in skin cell/last edge cell. ~%"),
+  printf(fh, "  // out:                    Incremented output distribution functions in center cell. ~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -70,8 +74,7 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "  const double *F_0_sourceEdge = &fEdge[~a]; ~%", NP),
   printf(fh, "  const double *G_1_sourceEdge = &g_dist_sourceEdge[~a]; ~%", 0), 
 
-  /* Access pkpm acceleration variables for forces and sources */
-  printf(fh, "  const double *div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
+  /* Access pkpm acceleration variables for forces. */
   printf(fh, "  const double *bb_grad_u = &pkpm_accel_vars[~a]; ~%", 1*NC),
   printf(fh, "  const double *p_force = &pkpm_accel_vars[~a]; ~%", 2*NC),
   printf(fh, "~%"),

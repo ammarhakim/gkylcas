@@ -49,18 +49,20 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, 
   const double *bvar, const double *pkpm_prim, 
-  const double *pkpm_accel_vars, const double *g_dist_source, 
-  const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // w[NDIM]:         Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
-  printf(fh, "  // bvar:            magnetic field unit vector (nine components; first three components, b_i, other six components, b_i b_j.) ~%"),
-  printf(fh, "  // pkpm_prim:       Input primitive variables. ~%"),
-  printf(fh, "  // pkpm_accel_vars: Input pkpm acceleration variables. ~%"),
-  printf(fh, "  // g_dist_source:   Input [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)),  ~%"), 
-  printf(fh, "  //                  (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + nu vth^2 F_0 ].~%"), 
-  printf(fh, "  //                  First output is mirror force source, second output is vperp characteristics source.~%"), 
-  printf(fh, "  // f:               Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
-  printf(fh, "  // out:             Incremented output.~%"),
+  const double *div_b, const double *pkpm_accel_vars, 
+  const double *g_dist_source, const double *f, 
+  double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:         Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:       Cell spacing. ~%"),
+  printf(fh, "  // bvar:            Input magnetic field unit vector and tensor (nine components; first three components, b_i, other six components, b_i b_j). ~%"),
+  printf(fh, "  // pkpm_prim:       Input primitive variables [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp]. ~%"),
+  printf(fh, "  // div_b:           Input volume expansion of div(b). ~%"), 
+  printf(fh, "  // pkpm_accel_vars: Input pkpm acceleration variables [T_perp/m*div(b), bb:grad(u), p_force, p_perp_source]. ~%"), 
+  printf(fh, "  // g_dist_source:   Input [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)), ~%"), 
+  printf(fh, "  //                  (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + 2 nu vth^2 F_0 ]. ~%"), 
+  printf(fh, "  //                  First input is mirror force source, second input is vperp characteristics source. ~%"), 
+  printf(fh, "  // f:               Input distribution functions [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // out:             Incremented output distribution functions. ~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -95,11 +97,10 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *G_1_source = &g_dist_source[~a]; ~%", 0*NP),  
   printf(fh, "  const double *G_1_vperp = &g_dist_source[~a]; ~%", 1*NP),  
 
-  /* Access pkpm acceleration variables for forces and sources */
-  printf(fh, "  const double *div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
+  /* Access pkpm acceleration variables for forces. */
+  printf(fh, "  const double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 0*NC),
   printf(fh, "  const double *bb_grad_u = &pkpm_accel_vars[~a]; ~%", 1*NC),
   printf(fh, "  const double *p_force = &pkpm_accel_vars[~a]; ~%", 2*NC),
-  printf(fh, "  const double *p_perp_div_b = &pkpm_accel_vars[~a]; ~%", 4*NC),
   printf(fh, "~%"),
 
   /* Access the components of out for the first two Laguerre moments */
@@ -142,10 +143,10 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   bz_e : doExpand1(bz, bC),
   b_e : [bx_e, by_e, bz_e],
 
+  p_perp_div_b_e : doExpand1(p_perp_div_b, bC),
   p_force_e : doExpand1(p_force, bC),
   bb_grad_u_e : doExpand1(bb_grad_u, bC),
   div_b_e : doExpand1(div_b, bC),
-  p_perp_div_b_e : doExpand1(p_perp_div_b, bC),
 
   incr_cdim_F_0 : 0,
   incr_cdim_G_1 : 0,

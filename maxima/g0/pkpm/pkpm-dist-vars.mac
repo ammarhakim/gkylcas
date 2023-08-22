@@ -51,13 +51,16 @@ calcPKPMDivPParUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   pDim : length(varsP),
 
   printf(fh, "GKYL_CU_DH void ~a_~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-     const double *bvarl, const double *bvarc, const double *bvarr, 
-     const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT pkpm_div_ppar) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:           Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:         Cell spacing.~%"),
-  printf(fh, "  // bvarl/bvarc/bvarr: Input magnetic field unit vector in left/center/right cells.~%"),
-  printf(fh, "  // fl/fc/fr:          Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in left/center/right cells.~%"),
-  printf(fh, "  // pkpm_div_ppar:     Increment to volume expansion of div(p_par b).~%"),
+     const double *bvar_surf_l, const double *bvar_surf_c, const double *bvar_surf_r, 
+     const double *fl, const double *fc, const double *fr, 
+     const double *bvar_c, const double *pkpm_max_b, double* GKYL_RESTRICT pkpm_div_ppar) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  // w[NDIM]:         Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
+  printf(fh, "  // bvar_surf_l/c/r: Input surface magnetic field unit vector and tensor in left/center/right cells in each direction.~%"),
+  printf(fh, "  // fl/fc/fr:        Input distribution functions [F_0, T_perp/m G = T_perp/m (F_0 - F_1)] in left/center/right cells.~%"),
+  printf(fh, "  // bvar_c:          Input volume expansion of magnetic field unit vector and tensor in center cell.~%"),
+  printf(fh, "  // pkpm_max_b:      Input surface expansion of max |b| for Lax penalization of streaming: lambda_i = |b_i|.~%"),
+  printf(fh, "  // pkpm_div_ppar:   Increment to volume expansion of div(p_par b).~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -71,73 +74,11 @@ calcPKPMDivPParUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   surfVars : delete(cv,varsP),
   surfConfVars : delete(cv,varsC),
 
-  printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
-  printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
-  printf(fh, "  const double volFact = dxv[~a]/2.0; ~%", cdim),
-  printf(fh, "  const double *bl = &bvarl[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *bc = &bvarc[~a]; ~%", NC*(dir-1)),
-  printf(fh, "  const double *br = &bvarr[~a]; ~%", NC*(dir-1)),
-
-  /* Access F_0 and T_perp G, first two Laguerre moments */
-  printf(fh, "  const double *F_0l = &fl[~a]; ~%", 0), 
-  printf(fh, "  const double *F_0c = &fc[~a]; ~%", 0),
-  printf(fh, "  const double *F_0r = &fr[~a]; ~%", 0),
-
-  /* Expand bulk velocity, magnetic field unit vector, and distribution function 
-      in left, center, and right cells */
-  F_0l_e : doExpand1(F_0l,bP),
-  F_0c_e : doExpand1(F_0c,bP),
-  F_0r_e : doExpand1(F_0r,bP),
-
-  bl_e : doExpand1(bl,bC),
-  bc_e : doExpand1(bc,bC),
-  br_e : doExpand1(br,bC),
-
-  /* Coordinate transformation for velocity space */
-  vTrans : vx*dvpar/2+wvpar,
-
-  /* Compute phase space flux due to parallel streaming in left, center, and right cells.
-     The, write out phase space flux in left, center, and right cells
-     for use in recovery procedure */
-  printf(fh, "  double alpha_l[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double alpha_c[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double alpha_r[~a] = {0.0}; ~%", NP),
-
-  alpha_l_c : calcInnerProdList(varsP, 1, bP, vTrans*bl_e),
-  alpha_c_c : calcInnerProdList(varsP, 1, bP, vTrans*bc_e),
-  alpha_r_c : calcInnerProdList(varsP, 1, bP, vTrans*br_e),
-
-  writeCExprs1(alpha_l, alpha_l_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  writeCExprs1(alpha_c, alpha_c_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  writeCExprs1(alpha_r, alpha_r_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  alst_vol : doMakeExprLst(alpha_c_c, alpha_c),
-  alphaVol_e : doExpand(alst_vol, bP),
-
-  /* We use recovery to compute the interface phase space flux */
-  /* Create safety lists for recovery */
-  lst_alpha_l : doMakeExprLst(alpha_l_c, alpha_l), 
-  lst_alpha_c : doMakeExprLst(alpha_c_c, alpha_c), 
-  lst_alpha_r : doMakeExprLst(alpha_r_c, alpha_r),
-
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no cv dependence. */
   /* Also generate recovery, necessary basis strings, and surface nodes given by tensor product of Gauss-Legendre quadrature points */
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("hyb",surfVars,polyOrder),
     bSurfConf : basisFromVars(basisFun,surfConfVars,polyOrder),
-
-    alpha_rec_l : calcRecov2CellGen("hyb", cv, varsP, polyOrder,
-      dg(lst_alpha_l), dg(lst_alpha_c)),
-    alpha_rec_r : calcRecov2CellGen("hyb", cv, varsP, polyOrder,
-      dg(lst_alpha_c), dg(lst_alpha_r)),
 
     surf_cdim : cdim-1,  surf_vdim : 1,
     surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim),
@@ -148,99 +89,205 @@ calcPKPMDivPParUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
     bSurf : basisFromVars(basisFun,surfVars,polyOrder), 
     bSurfConf : basisFromVars(basisFun,surfConfVars,polyOrder),
 
-    alpha_rec_l : calcRecov2CellGen(basisFun, cv, varsP, polyOrder,
-      dg(lst_alpha_l), dg(lst_alpha_c)),
-    alpha_rec_r : calcRecov2CellGen(basisFun, cv, varsP, polyOrder,
-      dg(lst_alpha_c), dg(lst_alpha_r)), 
-
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
     surfConfNodes : gaussOrd(polyOrder+1, cdim-1),
 
     basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder)
   ),
-  NSurfConf : length(bSurfConf),
+  /* If cdim = 1, need to set the size of the surface basis because the surface basis is empty */
+  if (cdim = 1) then (
+    NSurfConf : 1,
+    numConfNodes : 1
+  )
+  else (
+    NSurfConf : length(bSurfConf), 
+    numConfNodes : length(surfConfNodes)
+  ),
   NSurf : length(bSurf),
   numNodes : length(surfNodes),
-  numConfNodes : length(surfConfNodes),
 
-  /* Project alpha evaluated at interior surface onto surf basis. */
-  alphaSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(cv=0, alpha_rec_l))),
-  alphaSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(cv=0, alpha_rec_r))),
-  alst_l        : doMakeExprLst(alphaSurf_l_c, alphaSurf_l),
-  alst_r        : doMakeExprLst(alphaSurf_r_c, alphaSurf_r),
-  alphaSurf_l_e : doExpand(alst_l, bSurf),
-  alphaSurf_r_e : doExpand(alst_r, bSurf),
-  printf(fh, "  double alphaSurf_l[~a] = {0.0}; ~%", NSurf),
-  writeCExprs1(alphaSurf_l, alphaSurf_l_c),
+  printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
+  printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
+  printf(fh, "  const double volFact = dxv[~a]/2.0; ~%", cdim),
+  /* Coordinate transformation for velocity space */
+  vTrans : vx*dvpar/2+wvpar,
+
+  /* Access F_0 first Laguerre moment */
+  printf(fh, "  const double *F_0l = &fl[~a]; ~%", 0), 
+  printf(fh, "  const double *F_0c = &fc[~a]; ~%", 0),
+  printf(fh, "  const double *F_0r = &fr[~a]; ~%", 0),
+
+  /* Expand bulk velocity, magnetic field unit vector, and distribution function 
+      in left, center, and right cells */
+  F_0l_e : doExpand1(F_0l,bP),
+  F_0c_e : doExpand1(F_0c,bP),
+  F_0r_e : doExpand1(F_0r,bP),
+
+  /* Project F_0 onto the surface basis on the left and right of the interfaces */
+  F_0_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0l_e)),
+  F_0_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0c_e)),
+  F_0_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0c_e)),
+  F_0_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0r_e)),
+
+  printf(fh, "  double F_0_lr[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double F_0_cl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double F_0_cr[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double F_0_rl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Ghat_F_0_vpar_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Ghat_F_0_vpar_r[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
-  printf(fh, "  double alphaSurf_r[~a] = {0.0}; ~%", NSurf),
-  writeCExprs1(alphaSurf_r, alphaSurf_r_c),
+
+  writeCExprs1(F_0_lr, F_0_lr_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+  F_0_lr_e : doExpand1(F_0_lr, bSurf), 
+
+  writeCExprs1(F_0_cl, F_0_cl_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+  F_0_cl_e : doExpand1(F_0_cl, bSurf), 
+
+  writeCExprs1(F_0_cr, F_0_cr_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+  F_0_cr_e : doExpand1(F_0_cr, bSurf), 
+
+  writeCExprs1(F_0_rl, F_0_rl_c), 
+  printf(fh, "~%"),
+  flush_output(fh),  
+  F_0_rl_e : doExpand1(F_0_rl, bSurf), 
+
+  /* need to compute update div(v_par b_hat F_0) so we can obtain vpar moment of update */
+  /* Surface magnetic field vector organized as:
+     [bx_xl, bx_xr, bxbx_xl, bxbx_xr, bxby_xl, bxby_xr, bxbz_xl, bxbz_xr,
+      by_yl, by_yr, bxby_yl, bxby_yr, byby_yl, byby_yr, bybz_yl, bybz_yr,
+      bz_zl, bz_zr, bxbz_zl, bxbz_zr, bybz_zl, bybz_zr, bzbz_zl, bzbz_zr] */
+  printf(fh, "  const double *b_surf_lr = &bvar_surf_l[~a]; ~%", (1 + (dir-1)*8)*NSurfConf),
+  printf(fh, "  const double *b_surf_cl = &bvar_surf_c[~a]; ~%", (0 + (dir-1)*8)*NSurfConf),
+  printf(fh, "  const double *b_surf_cr = &bvar_surf_c[~a]; ~%", (1 + (dir-1)*8)*NSurfConf),
+  printf(fh, "  const double *b_surf_rl = &bvar_surf_r[~a]; ~%", (0 + (dir-1)*8)*NSurfConf),
+  printf(fh, "~%"),
+  /* Surface b penalization organized as :
+     [|bx_xl|, |bx_xr|, 
+      |by_yl|, |by_yr|,
+      |bz_zl|, |bz_zr|] */
+  printf(fh, "  const double *pkpm_max_b_l = &pkpm_max_b[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *pkpm_max_b_r = &pkpm_max_b[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
   printf(fh, "~%"),
 
-  /* Evaluate alpha at ordinates.
-     Note: alphaSurf_e is already a surface expansion. 
-     In addition, it is continuous. */
-  alphaOrd_l_n : gcfac(float(evAtNodes(alphaSurf_l_e,surfNodes,surfVars))),
-  alphaOrd_r_n : gcfac(float(evAtNodes(alphaSurf_r_e,surfNodes,surfVars))),
+  /* Compute phase space flux due to parallel streaming in center cell for volume update. */
+  printf(fh, "  const double *b_c = &bvar_c[~a]; ~%", NC*(dir-1)),
+  b_c_e : doExpand1(b_c,bC),
 
-  printf(fh, "  double F_0_UpwindQuad_l[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double F_0_UpwindQuad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double F_0_Upwind_l[~a] = {0.0};~%", NSurf),
-  printf(fh, "  double F_0_Upwind_r[~a] = {0.0};~%", NSurf),
-  printf(fh, "  double Ghat_F_0_l[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Ghat_F_0_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double alpha_c[~a] = {0.0}; ~%", NP),
+  alpha_c_c : calcInnerProdList(varsP, 1, bP, vTrans*b_c_e),
+  writeCExprs1(alpha_c, alpha_c_c),
+  printf(fh, "~%"),
+  flush_output(fh),
 
-  /* Check sign of each quadrature point and choose appropriate distribution function at 
-     quadrature points. 
-     If alphaSurf_l > 0, need f_l (at +1), else f_c (at -1). 
-     If alphaSurf_r > 0, need f_c (at +1), else f_r (at -1). */
+  alst_vol : doMakeExprLst(alpha_c_c, alpha_c),
+  alphaVol_e : doExpand(alst_vol, bP),
 
-  for i : 1 thru length(alphaOrd_l_n) do (
-    printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-    printf(fh, "    F_0_UpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_r(F_0l); ~%", i-1, basisStr, dir, i-1),
-    printf(fh, "  } else { ~%"),
-    printf(fh, "    F_0_UpwindQuad_l[~a] = ~a_surfx~a_eval_quad_node_~a_l(F_0c); ~%", i-1, basisStr, dir, i-1),
-    printf(fh, "  } ~%"),
-    printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-    printf(fh, "    F_0_UpwindQuad_r[~a] = ~a_surfx~a_eval_quad_node_~a_r(F_0c); ~%", i-1, basisStr, dir, i-1),
-    printf(fh, "  } else { ~%"),
-    printf(fh, "    F_0_UpwindQuad_r[~a] = ~a_surfx~a_eval_quad_node_~a_l(F_0r); ~%", i-1, basisStr, dir, i-1),
+  if cdim = 1 then (
+    /* Fetch b_hat at surface interfaces */
+    printf(fh, "  double bl_r = b_surf_lr[0]; ~%"),
+    printf(fh, "  double bc_l = b_surf_cl[0]; ~%"),
+    printf(fh, "  double bc_r = b_surf_cr[0]; ~%"),
+    printf(fh, "  double br_l = b_surf_rl[0]; ~%"),
+    printf(fh, "  double avg_b_l = 0.5*(bl_r + bc_l); ~%"),
+    printf(fh, "  double avg_b_r = 0.5*(bc_r + br_l); ~%"),
+    printf(fh, "~%"),
+    printf(fh, "  double max_b_l = pkpm_max_b_l[0]; ~%"),
+    printf(fh, "  double max_b_r = pkpm_max_b_r[0]; ~%"),
+    printf(fh, "~%"),
+
+    /* Since vpar is continuous, can factor out of Lax flux so that
+       if vpar > 0 : vpar (avg_b*avg_F - max_b/2*(F_r - F_l))
+       else vpar < 0 : vpar (avg_b*avg_F + max_b/2*(F_r - F_l)) 
+       in the limit that b_l = b_r, this reduces to v_par b F_l if v_par > 0, v_par b F_r if v_par < 0 */
+
+    printf(fh, "  if (wvpar>0) { ~%~%"),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (LEFT BOUNDARY) */
+    Ghat_F_0_vpar_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_lr_e + F_0_cl_e)*avg_b_l - 0.5*vTrans*max_b_l*(F_0_cl_e - F_0_lr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_l, Ghat_F_0_vpar_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (RIGHT BOUNDARY) */
+    Ghat_F_0_vpar_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_cr_e + F_0_rl_e)*avg_b_r - 0.5*vTrans*max_b_r*(F_0_rl_e - F_0_cr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_r, Ghat_F_0_vpar_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    printf(fh, "  } else { ~%~%"),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (LEFT BOUNDARY) */
+    Ghat_F_0_vpar_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_lr_e + F_0_cl_e)*avg_b_l + 0.5*vTrans*max_b_l*(F_0_cl_e - F_0_lr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_l, Ghat_F_0_vpar_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (RIGHT BOUNDARY) */
+    Ghat_F_0_vpar_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_cr_e + F_0_rl_e)*avg_b_r + 0.5*vTrans*max_b_r*(F_0_rl_e - F_0_cr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_r, Ghat_F_0_vpar_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    printf(fh, "  } ~%")
+  )
+  else (
+    /* Expand surface basis quantities b_hat and max b penalization */
+    b_surf_lr_e : doExpand1(b_surf_lr, bSurfConf),
+    b_surf_cl_e : doExpand1(b_surf_cl, bSurfConf),
+    b_surf_cr_e : doExpand1(b_surf_cr, bSurfConf),
+    b_surf_rl_e : doExpand1(b_surf_rl, bSurfConf),
+
+    max_b_l_e : doExpand1(pkpm_max_b_l, bSurfConf),
+    max_b_r_e : doExpand1(pkpm_max_b_r, bSurfConf),
+
+    /* Since vpar is continuous, can factor out of Lax flux so that
+       if vpar > 0 : vpar (avg_b*avg_F - max_b/2*(F_r - F_l))
+       else vpar < 0 : vpar (avg_b*avg_F + max_b/2*(F_r - F_l)) 
+       in the limit that b_l = b_r, this reduces to v_par b F_l if v_par > 0, v_par b F_r if v_par < 0 */
+
+    printf(fh, "  if (wvpar>0) { ~%~%"),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) and div(vpar b_hat G_1) across surface boundary, (LEFT BOUNDARY) */
+    Ghat_F_0_vpar_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_lr_e + F_0_cl_e)*0.5*(b_surf_lr_e + b_surf_cl_e) - 0.5*vTrans*max_b_l_e*(F_0_cl_e - F_0_lr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_l, Ghat_F_0_vpar_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) and div(vpar b_hat G_1) across surface boundary, (RIGHT BOUNDARY) */
+    Ghat_F_0_vpar_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_cr_e + F_0_rl_e)*0.5*(b_surf_cr_e + b_surf_rl_e) - 0.5*vTrans*max_b_r_e*(F_0_rl_e - F_0_cr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_r, Ghat_F_0_vpar_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    printf(fh, "  } else { ~%~%"),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (LEFT BOUNDARY) */
+    Ghat_F_0_vpar_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_lr_e + F_0_cl_e)*0.5*(b_surf_lr_e + b_surf_cl_e) + 0.5*vTrans*max_b_l_e*(F_0_cl_e - F_0_lr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_l, Ghat_F_0_vpar_l_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Print C exprs for Ghat for div(vpar b_hat F_0) across surface boundary, (RIGHT BOUNDARY) */
+    Ghat_F_0_vpar_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*vTrans*(F_0_cr_e + F_0_rl_e)*0.5*(b_surf_cr_e + b_surf_rl_e) + 0.5*vTrans*max_b_r_e*(F_0_rl_e - F_0_cr_e))),
+    writeCExprsCollect1lhsc(Ghat_F_0_vpar_r, Ghat_F_0_vpar_r_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
     printf(fh, "  } ~%")
   ),
-  printf(fh, "~%"),
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
-    printf(fh, "  ~a_xdir_upwind_quad_to_modal(F_0_UpwindQuad_l, F_0_Upwind_l); ~%", basisStr),
-    printf(fh, "  ~a_xdir_upwind_quad_to_modal(F_0_UpwindQuad_r, F_0_Upwind_r); ~%", basisStr)
-  ) else (
-    printf(fh, "  ~a_upwind_quad_to_modal(F_0_UpwindQuad_l, F_0_Upwind_l); ~%", basisStr),
-    printf(fh, "  ~a_upwind_quad_to_modal(F_0_UpwindQuad_r, F_0_Upwind_r); ~%", basisStr)
-  ),
-  printf(fh, "~%"),
+  /* Expand G_hat for div(vpar b_hat F_0) in surface basis. */
+  Ghat_F_0_vpar_l_e : doExpand1(Ghat_F_0_vpar_l, bSurf),
+  Ghat_F_0_vpar_r_e : doExpand1(Ghat_F_0_vpar_r, bSurf),
 
-  /* Create expansions of F_0_hat, G_1_hat (upwinded first two Laguerre moments) on the left and right in the surface basis. */
-  F_0_HatSurf_l_e : doExpand1(F_0_Upwind_l, bSurf),
-  F_0_HatSurf_r_e : doExpand1(F_0_Upwind_r, bSurf),
-
-  /* Print C exprs for Ghat across surface boundary, (LEFT BOUNDARY) */
-  Ghat_F_0_l_c : fullratsimp(innerProd(surfVars, alphaSurf_l_e, bSurf, F_0_HatSurf_l_e)),
-  writeCExprs1(Ghat_F_0_l, Ghat_F_0_l_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
-  Ghat_F_0_r_c : fullratsimp(innerProd(surfVars, alphaSurf_r_e, bSurf, F_0_HatSurf_r_e)),
-  writeCExprs1(Ghat_F_0_r, Ghat_F_0_r_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  /* Expand G_hat in surface basis. */
-  Ghat_F_0_l_e     : doExpand1(Ghat_F_0_l, bSurf),
-  Ghat_F_0_r_e     : doExpand1(Ghat_F_0_r, bSurf),
-
-  /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
-  incr_F_0_l : calcInnerProdList(surfVars, -vTrans, subst(cv=-1.0, bC), Ghat_F_0_l_e),
-  incr_F_0_r : calcInnerProdList(surfVars, vTrans, subst(cv=1.0, bC), Ghat_F_0_r_e),
+  /* Compute surface and volume contributions for integral(vpar phi^- Ghat) and integral(vpar grad(phi) Ghat). */
+  incr_F_0_l : calcInnerProdList(surfVars, -vTrans, subst(cv=-1.0, bC), Ghat_F_0_vpar_l_e),
+  incr_F_0_r : calcInnerProdList(surfVars, vTrans, subst(cv=1.0, bC), Ghat_F_0_vpar_r_e),
   incr_F_0_vol : calcInnerProdList(varsP, vTrans, diff(bC,cv), alphaVol_e*F_0c_e),
   writeCIncrExprsCollect1lhsc(pkpm_div_ppar, volFact*dx1*(incr_F_0_l + incr_F_0_r - incr_F_0_vol)),  
   printf(fh, "~%"),
@@ -266,19 +313,22 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_vlasov_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *w, const double *dxv, 
-  const double* pkpm_prim, const double *nu_vthsq, const double* pkpm_accel,  
-  const double* f, const double* F_k_p_1, double* g_dist_source, double* F_k_m_1) ~%{ ~%", funcNm, polyOrder),
-  printf(fh, "  // w[NDIM]:       Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:     Cell spacing.~%"),
-  printf(fh, "  // pkpm_prim:     [ux, uy, uz, pxx, pxy, pxz, pyy, pyz, pzz, T_perp/m = p_perp/rho, m/T_perp = rho/p_perp].~%"),
-  printf(fh, "  // nu_vthsq:      Input nu*vth^2.~%"),
-  printf(fh, "  // pkpm_accel:    pkpm acceleration variables [div(b), bb:grad(u), p_force, p_perp_source, T_perp/m*div(b)].~%"), 
-  printf(fh, "  // f:             Input distribution function [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
-  printf(fh, "  // F_k_p_1:       Input k+1 distribution function. F_2 expansion is the first NP coefficients. ~%"),
-  printf(fh, "  // g_dist_source: Output [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)),  ~%"), 
-  printf(fh, "  //                (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + 2 nu vth^2 F_0 ].~%"), 
-  printf(fh, "  //                First output is mirror force source, second output is vperp characteristics source.~%"), 
-  printf(fh, "  // F_k_m_1:       Output k-1 distribution function. F_1 expansion is the first NP coefficients. ~%"),
+  const double *pkpm_prim, const double *nu_vthsq, 
+  const double *div_b, const double *pkpm_accel_vars, 
+  const double *f, const double *F_k_p_1, 
+  double* GKYL_RESTRICT g_dist_source, double* GKYL_RESTRICT F_k_m_1) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:         Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:       Cell spacing. ~%"),
+  printf(fh, "  // pkpm_prim:       Input primitive variables [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp]. ~%"),
+  printf(fh, "  // nu_vthsq:        Input nu*vth^2. ~%"),
+  printf(fh, "  // div_b:           Input volume expansion of div(b). ~%"), 
+  printf(fh, "  // pkpm_accel_vars: Input pkpm acceleration variables [T_perp/m*div(b), bb:grad(u), p_force, p_perp_source]. ~%"), 
+  printf(fh, "  // f:               Input distribution functions [F_0, T_perp/m G = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // F_k_p_1:         Input k+1 distribution function. F_2 expansion is the first NP coefficients. ~%"),
+  printf(fh, "  // g_dist_source:   Output [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)),  ~%"), 
+  printf(fh, "  //                  (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + 2 nu vth^2 F_0 ].~%"), 
+  printf(fh, "  //                  First output is mirror force source, second output is vperp characteristics source.~%"), 
+  printf(fh, "  // F_k_m_1:         Output k-1 distribution function. F_1 expansion is the first NP coefficients. ~%"),
   printf(fh, "~%"),
 
   /* grid spacing in v_parallel and v_parallel coordinate */
@@ -292,11 +342,10 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *T_perp_over_m_inv = &pkpm_prim[~a]; ~%", 5*NC),
   printf(fh, "~%"),
 
-  /* Access pkpm acceleration variables for forces and sources 
+  /* Access pkpm acceleration variables for forces and sources. 
      Need div(b) and p_perp_source = bb:grad(u) - div(u) - 2 nu 
      for vperp characteristics source */
-  printf(fh, "  const double *div_b = &pkpm_accel[~a]; ~%", 0*NC),
-  printf(fh, "  const double *p_perp_source = &pkpm_accel[~a]; ~%", 3*NC),
+  printf(fh, "  const double *p_perp_source = &pkpm_accel_vars[~a]; ~%", 3*NC),
   printf(fh, "~%"),
 
   div_b_e : doExpand1(div_b, bC),

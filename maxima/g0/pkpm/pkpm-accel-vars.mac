@@ -23,6 +23,51 @@ load("nodal_operations/nodal_functions")$
 fpprec : 24$
 cvars : [x, y, z]$
 
+PKPMPForce(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, 
+   T_perp_over_m_e, div_b_e, p_perp_div_b_c, 
+   pkpm_div_ppar_e, p_perp_div_b_e, p_force_c],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *prim_c, const double *div_b, 
+  double* GKYL_RESTRICT pkpm_accel) ~%{ ~%", funcNm),
+  printf(fh, "  // prim_c:     Input volume expansion of primitive variables [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp] in center cell. ~%"),
+  printf(fh, "  // div_b:      Input volume expansion of div(b) in center cell. ~%"),
+  printf(fh, "  // pkpm_accel: Output volume expansion of pkpm acceleration variables. ~%"),
+  printf(fh, "~%"),
+
+  /* For computing p_force = 1/rho div(p_par b) - T_perp/m*div(b) */
+  printf(fh, "  const double *pkpm_div_ppar = &prim_c[~a]; ~%", 3*NC),
+  printf(fh, "  const double *T_perp_over_m = &prim_c[~a]; ~%", 4*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *p_perp_div_b = &pkpm_accel[~a]; ~%", 0*NC),
+  printf(fh, "  double *p_force = &pkpm_accel[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  binop_mul_~ad_~a_p~a(T_perp_over_m, div_b, p_perp_div_b); ~%", cdim, basisFun, polyOrder),
+  printf(fh, "~%"),
+
+  pkpm_div_ppar_e : doExpand1(pkpm_div_ppar, bC),
+  p_perp_div_b_e : doExpand1(p_perp_div_b, bC),
+
+  /* 1/rho div(p_par b) already included in p_force from linear solve */
+  p_force_c : calcInnerProdList(varsC, 1, bC, pkpm_div_ppar_e-p_perp_div_b_e),
+  writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$
+
 PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [varsC, bC, NC, cv, surfVars, bSurf, NSurf, surfConfNodes, numConfNodes, 
    ux_surf_lr_e, ux_surf_cl_e, ux_surf_cr_e, ux_surf_rl_e, 
@@ -36,11 +81,8 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
    uxc_e, uyc_e, uzc_e, vol_ux_c, vol_uy_c, vol_uz_c, 
    bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e,  
    grad_u_x_e, grad_u_y_e, grad_u_z_e,
-   lst_b_l, lst_b_c, lst_b_r, b_rec, 
-   b_prime_c, div_b_e, div_b_c, 
-   bb_grad_u_e, bb_grad_u_c, 
-   pkpm_div_ppar_e, T_perp_over_m_e, nu_e, 
-   p_force_c, p_perp_source_c, p_perp_div_b_c],
+   bb_grad_u_comp_c, bb_grad_u_e, bb_grad_u_c, 
+   nu_e, p_perp_source_c],
 
   kill(varsC, bC),
 
@@ -69,33 +111,25 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", basisFun, cdim, polyOrder)
   ),
   printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *dxv, 
-  const double *bvar_l, const double *bvar_c, const double *bvar_r, 
   const double *prim_surf_l, const double *prim_surf_c, const double *prim_surf_r, 
-  const double *prim_c, const double *nu_c, 
+  const double *prim_c, const double *bvar_c, const double *nu_c, 
   double* GKYL_RESTRICT pkpm_lax, double* GKYL_RESTRICT pkpm_accel) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
-  printf(fh, "  // dxv[NDIM]:      Cell spacing.~%"),
-  printf(fh, "  // bvar_l/c/r:      Input magnetic field unit vector in left/center/right cells.~%"),
+  printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
   printf(fh, "  // prim_surf_l/c/r: Input surface primitive variables [u_i, 3*T_ii/m] in left/center/right cells in each direction.~%"),
-  printf(fh, "  // primc:          Input volume expansion of primitive variables [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp] in center cell.~%"),
-  printf(fh, "  // nuc:            Input volume expansion of collisionality in center cell.~%"),
-  printf(fh, "  // pkpm_lax:       Surface expansion of pkpm Lax penalization: lambda_i = |u_i| + sqrt(3.0*T_ii/m).~%"),
-  printf(fh, "  // pkpm_accel:     Volume expansion of pkpm acceleration variables.~%"),
+  printf(fh, "  // prim_c:          Input volume expansion of primitive variables [ux, uy, uz, 1/rho div(p_par b), T_perp/m, m/T_perp] in center cell.~%"),
+  printf(fh, "  // bvar_c:          Input volume expansion of magnetic field unit vector and tensor in center cell.~%"),
+  printf(fh, "  // nu_c:            Input volume expansion of collisionality in center cell.~%"),
+  printf(fh, "  // pkpm_lax:        Surface expansion of pkpm Lax penalization: lambda_i = |u_i| + sqrt(3.0*T_ii/m).~%"),
+  printf(fh, "  // pkpm_accel:      Volume expansion of pkpm acceleration variables.~%"),
   printf(fh, "~%"),
 
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
 
-  /* b_hat in direction dir for div(b) */
-  printf(fh, "  const double *b_l = &bvar_l[~a]; ~%", (dir-1)*NC),
-  printf(fh, "  const double *b_c = &bvar_c[~a]; ~%", (dir-1)*NC),
-  printf(fh, "  const double *b_r = &bvar_r[~a]; ~%", (dir-1)*NC),
-  printf(fh, "~%"),
-
-  /* prim and bb in center cell for bb : grad(u). */
+  /* prim, b, and bb in center cell for div(b) and bb : grad(u). */
   printf(fh, "  const double *ux_c = &prim_c[~a]; ~%", 0*NC),
   printf(fh, "  const double *uy_c = &prim_c[~a]; ~%", 1*NC),
   printf(fh, "  const double *uz_c = &prim_c[~a]; ~%", 2*NC),
   printf(fh, "~%"),
-
   printf(fh, "  const double *bxbx = &bvar_c[~a]; ~%", 3*NC),
   printf(fh, "  const double *bxby = &bvar_c[~a]; ~%", 4*NC),
   printf(fh, "  const double *bxbz = &bvar_c[~a]; ~%", 5*NC),
@@ -134,11 +168,6 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *Tii_surf_rl = &prim_surf_r[~a]; ~%", (6 + (dir-1)*8)*NSurf),
   printf(fh, "~%"),
 
-  /* For computing p_force = 1/rho div(p_par b) - T_perp/m*div(b) */
-  printf(fh, "  const double *pkpm_div_ppar = &prim_c[~a]; ~%", 3*NC),
-  printf(fh, "  const double *T_perp_over_m = &prim_c[~a]; ~%", 4*NC),
-  printf(fh, "~%"),
-
   /* Surface Lax penalization organized as (note T_ii = 3*P_ii/rho, includes necessary factors) : 
      [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
       |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
@@ -147,16 +176,13 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf),
   printf(fh, "~%"),
 
-  printf(fh, "  double *div_b = &pkpm_accel[~a]; ~%", 0*NC),
   printf(fh, "  double *bb_grad_u = &pkpm_accel[~a]; ~%", 1*NC),
-  printf(fh, "  double *p_force = &pkpm_accel[~a]; ~%", 2*NC),
   printf(fh, "  double *p_perp_source = &pkpm_accel[~a]; ~%", 3*NC),
-  printf(fh, "  double *p_perp_div_b = &pkpm_accel[~a]; ~%", 4*NC),
   printf(fh, "~%"),
 
   /* if cdim = 1, then the surface evaluations are just numbers, not expansions */
   if (cdim = 1) then (
-    /* Surface componet of gradient expansion */
+    /* Surface componet of gradient expansion of u */
     /* Negative sign on left surface for unit normal pointing into cell */
     surf_ux_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), 0.5*(ux_surf_cl[0] + ux_surf_lr[0])),
     surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(ux_surf_rl[0] + ux_surf_cr[0])),
@@ -190,7 +216,7 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     uz_surf_cr_e : doExpand1(uz_surf_cr, bSurf),
     uz_surf_rl_e : doExpand1(uz_surf_rl, bSurf),
 
-    /* Surface componet of gradient expansion */
+    /* Surface componet of gradient expansion of u */
     /* Negative sign on left surface for unit normal pointing into cell */
     surf_ux_l : calcInnerProdList(surfVars, -1, subst(cv=-1, bC), 0.5*(ux_surf_cl_e + ux_surf_lr_e)),
     surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(ux_surf_rl_e + ux_surf_cr_e)),
@@ -270,7 +296,7 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   ),
   printf(fh, "~%"),
 
-  /* Volume component of gradient expansion */
+  /* Volume component of gradient expansion of u */
   uxc_e : doExpand1(ux_c, bC),
   uyc_e : doExpand1(uy_c, bC),
   uzc_e : doExpand1(uz_c, bC),
@@ -306,28 +332,7 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   grad_u_y_e : doExpand1(grad_u_y, bC),
   grad_u_z_e : doExpand1(grad_u_z, bC),
 
-  printf(fh, "  double div_b_comp[~a] = {0.0}; ~%", NC),
   printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC),
-
-  /* We use recovery to compute div(b) */
-  lst_b_l : makelist(b_l[i], i, 0, NC-1),
-  lst_b_c : makelist(b_c[i], i, 0, NC-1),
-  lst_b_r : makelist(b_r[i], i, 0, NC-1),
-
-  b_rec : calcRecov1CellGen(basisFun, cv, varsC, polyOrder, 1, 
-    dg(lst_b_l), dg(lst_b_c), dg(lst_b_r)),
-
-  b_prime_c : calcInnerProdList(varsC, 1, bC, diff(b_rec, cv)),
-  /* Use collect write expression to factor the dx and reduce number of multiplications */
-  writeCExprsCollect1lhsc(div_b_comp, dx1*b_prime_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  div_b_e : doExpand1(div_b_comp, bC),
-  div_b_c : calcInnerProdList(varsC, 1, bC, div_b_e),
-  writeCIncrExprsCollect1lhsc(div_b, div_b_c),  
-  printf(fh, "~%"),
-
   if (dir = 1) then (  
     bb_grad_u_comp_c : calcInnerProdList(varsC, 1, bC, bxbx_e*grad_u_x_e + bxby_e*grad_u_y_e + bxbz_e*grad_u_z_e)
   )
@@ -345,15 +350,7 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(bb_grad_u, bb_grad_u_c),  
   printf(fh, "~%"),
 
-  pkpm_div_ppar_e : doExpand1(pkpm_div_ppar, bC),
-  T_perp_over_m_e : doExpand1(T_perp_over_m, bC),
   nu_e : doExpand1(nu_c, bC),
-
-  /* 1/rho div(p_par b) already included in p_force from linear solve */
-  p_force_c : calcInnerProdList(varsC, 1, bC, 1.0/cdim*pkpm_div_ppar_e-T_perp_over_m_e*div_b_e),
-  writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
-  printf(fh, "~%"),
-
   /* Configuration space components of vperp characteristics source: bb : grad(u) - div(u) - 2 nu */
   if (dir = 1) then (  
     p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_x_e - 2.0/cdim*nu_e)
@@ -365,10 +362,6 @@ PKPMAccelVars(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     p_perp_source_c : calcInnerProdList(varsC, 1, bC, bb_grad_u_e - grad_u_z_e - 2.0/cdim*nu_e)
   ),  
   writeCIncrExprsCollect1lhsc(p_perp_source, p_perp_source_c), 
-  printf(fh, "~%"),
-
-  p_perp_div_b_c : calcInnerProdList(varsC, 1, bC, T_perp_over_m_e*div_b_e),
-  writeCIncrExprsCollect1lhsc(p_perp_div_b, p_perp_div_b_c),  
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

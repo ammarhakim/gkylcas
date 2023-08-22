@@ -45,6 +45,12 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating pkpm accel vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/pkpm_vars_p_force_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("pkpm_vars_p_force_",  d, "x_", bName[bInd], "_p", polyOrder),
+      PKPMPForce(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh),
+
       for dir : 1 thru d do ( 
         if (dir = 1) then fname : sconcat("~/max-out/pkpm_vars_accel_x_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
         if (dir = 2) then fname : sconcat("~/max-out/pkpm_vars_accel_y_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),

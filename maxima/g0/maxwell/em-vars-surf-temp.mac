@@ -1,0 +1,208 @@
+/* This script generates the kernels for calculating the *surface* magnetic field 
+   unit vector and unit tensor required to update the PKPM system. Surface variables include:
+   1. bx, bxbx, bxby, bxbz at left and right x surfaces
+   2. by, bxby, byby, bybz at left and right y surfaces
+   3. bz, bxbz, bybz, bzbz at left and right z surfaces 
+
+   In 1D, these surface expansions can be generated with simple division. 
+   In 2D/3D, these surface expansions require weak division and with p=1, we can
+   still use the basis_inv method for increased computational efficiency. */
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+fpprec : 24$
+cvars : [x, y, z]$
+
+calcBB_surf_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  NC  : length(bC),
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(int* cell_avg_magB2, const double *em, double* out_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // cell_avg_magB2: Input flag for cell average if 1/|B|^2 only used cell averages. ~%"),
+  printf(fh, "  // em:             Input electromagnetic fields. ~%"),
+  printf(fh, "  // out_surf:       Output [BxBx_xl, BxBx_xr, BxBy_xl, BxBy_xr, BxBz_xl, BxBz_xr]. ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double *Bx_sq_xl = &out[~a]; ~%", 0),
+  printf(fh, "  double *Bx_sq_xr = &out[~a]; ~%", 1),
+  printf(fh, "  double *By_sq_xl = &out[~a]; ~%", 2),
+  printf(fh, "  double *By_sq_xr = &out[~a]; ~%", 3),
+  printf(fh, "  double *Bz_sq_xl = &out[~a]; ~%", 4),
+  printf(fh, "  double *Bz_sq_xr = &out[~a]; ~%", 5),
+
+  printf(fh, "  double *BxBy_xl = &out[~a]; ~%", 6),
+  printf(fh, "  double *BxBy_xr = &out[~a]; ~%", 7),
+  printf(fh, "  double *BxBz_xl = &out[~a]; ~%", 8),
+  printf(fh, "  double *BxBz_xr = &out[~a]; ~%", 9),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *B_x = &em[~a]; ~%", NC*3),
+  printf(fh, "  const double *B_y = &em[~a]; ~%", NC*4),
+  printf(fh, "  const double *B_z = &em[~a]; ~%", NC*5),
+  printf(fh, " ~%"),
+
+  B_x_e : doExpand1(B_x, bC),
+  B_y_e : doExpand1(B_y, bC),
+  B_z_e : doExpand1(B_z, bC),
+
+  B_x_l : subst(x=-1, B_x_e),
+  B_y_l : subst(x=-1, B_y_e),
+  B_z_l : subst(x=-1, B_z_e),
+
+  B_x_r : subst(x=1, B_x_e),
+  B_y_r : subst(x=1, B_y_e),
+  B_z_r : subst(x=1, B_z_e),
+
+  printf(fh, "  if (cell_avg_magB2[0]) { ~%"),
+
+  printf(fh, "  Bx_sq_xl[0] = B_x[0]*B_x[0]; ~%"),
+  printf(fh, "  Bx_sq_xr[0] = B_x[0]*B_x[0]; ~%"),
+  printf(fh, "  By_sq_xl[0] = B_y[0]*B_y[0]; ~%"),
+  printf(fh, "  By_sq_xr[0] = B_y[0]*B_y[0]; ~%"),
+  printf(fh, "  Bz_sq_xl[0] = B_z[0]*B_z[0]; ~%"),
+  printf(fh, "  Bz_sq_xr[0] = B_z[0]*B_z[0]; ~%"),
+
+  printf(fh, "  BxBy_xl[0] = B_x[0]*B_y[0]; ~%"),
+  printf(fh, "  BxBy_xr[0] = B_x[0]*B_y[0]; ~%"),
+  printf(fh, "  BxBz_xl[0] = B_x[0]*B_z[0]; ~%"),
+  printf(fh, "  BxBz_xr[0] = B_x[0]*B_z[0]; ~%"),
+
+  printf(fh, "  } else { ~%"),
+
+  printf(fh, "  double B_x_l = ~a; ~%", float(expand(B_x_l))),
+  printf(fh, "  double B_x_r = ~a; ~%", float(expand(B_x_r))),
+  printf(fh, "  double B_y_l = ~a; ~%", float(expand(B_y_l))),
+  printf(fh, "  double B_y_r = ~a; ~%", float(expand(B_y_r))),
+  printf(fh, "  double B_z_l = ~a; ~%", float(expand(B_z_l))),
+  printf(fh, "  double B_z_r = ~a; ~%", float(expand(B_z_r))),
+
+  printf(fh, "  Bx_sq_xl[0] = B_x_l*B_x_l; ~%"),
+  printf(fh, "  Bx_sq_xr[0] = B_x_r*B_x_r; ~%"),
+  printf(fh, "  By_sq_xl[0] = B_y_l*B_y_l; ~%"),
+  printf(fh, "  By_sq_xr[0] = B_y_r*B_y_r; ~%"),
+  printf(fh, "  Bz_sq_xl[0] = B_z_l*B_z_l; ~%"),
+  printf(fh, "  Bz_sq_xr[0] = B_z_r*B_z_r; ~%"),
+
+  printf(fh, "  BxBy_xl[0] = B_x_l*B_y_l; ~%"),
+  printf(fh, "  BxBy_xr[0] = B_x_r*B_y_r; ~%"),
+  printf(fh, "  BxBz_xl[0] = B_x_l*B_z_l; ~%"),
+  printf(fh, "  BxBz_xr[0] = B_x_r*B_z_r; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+calcBB_surf(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars(basisFun,surfVarsx,polyOrder),
+  surfVarsy : delete(y,varsC),
+  bSurfy : basisFromVars(basisFun,surfVarsy,polyOrder),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars(basisFun,surfVarsz,polyOrder)
+  ),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NSurf : length(bSurfx), 
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(int* cell_avg_magB2, const double *em, double* out_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // cell_avg_magB2: Input flag for cell average if 1/|B|^2 only used cell averages. ~%"),
+  printf(fh, "  // em:             Input electromagnetic fields. ~%"),
+  printf(fh, "  // out_surf:       Output [BxBx_xl, BxBx_xr, BxBy_xl, BxBy_xr, BxBz_xl, BxBz_xr]. ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double *Bx_sq_xl = &out[~a]; ~%", 0*NSurf),
+  printf(fh, "  double *Bx_sq_xr = &out[~a]; ~%", 1*NSurf),
+  printf(fh, "  double *By_sq_xl = &out[~a]; ~%", 2*NSurf),
+  printf(fh, "  double *By_sq_xr = &out[~a]; ~%", 3*NSurf),
+  printf(fh, "  double *Bz_sq_xl = &out[~a]; ~%", 4*NSurf),
+  printf(fh, "  double *Bz_sq_xr = &out[~a]; ~%", 5*NSurf),
+
+  printf(fh, "  double *BxBy_xl = &out[~a]; ~%", 6*NSurf),
+  printf(fh, "  double *BxBy_xr = &out[~a]; ~%", 7*NSurf),
+  printf(fh, "  double *BxBz_xl = &out[~a]; ~%", 8*NSurf),
+  printf(fh, "  double *BxBz_xr = &out[~a]; ~%", 9*NSurf),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *B_x = &em[~a]; ~%", NC*3),
+  printf(fh, "  const double *B_y = &em[~a]; ~%", NC*4),
+  printf(fh, "  const double *B_z = &em[~a]; ~%", NC*5),
+  printf(fh, " ~%"),
+
+  B_x_e : doExpand1(B_x, bC),
+  B_y_e : doExpand1(B_y, bC),
+  B_z_e : doExpand1(B_z, bC),
+
+  B_x_l : subst(x=-1, B_x_e),
+  B_y_l : subst(x=-1, B_y_e),
+  B_z_l : subst(x=-1, B_z_e),
+
+  B_x_r : subst(x=1, B_x_e),
+  B_y_r : subst(x=1, B_y_e),
+  B_z_r : subst(x=1, B_z_e),
+
+  printf(fh, "  if (cell_avg_magB2[0]) { ~%"),
+
+  printf(fh, "  Bx_sq_xl[0] = B_x[0]*B_x[0]; ~%"),
+  printf(fh, "  Bx_sq_xr[0] = B_x[0]*B_x[0]; ~%"),
+  printf(fh, "  By_sq_xl[0] = B_y[0]*B_y[0]; ~%"),
+  printf(fh, "  By_sq_xr[0] = B_y[0]*B_y[0]; ~%"),
+  printf(fh, "  Bz_sq_xl[0] = B_z[0]*B_z[0]; ~%"),
+  printf(fh, "  Bz_sq_xr[0] = B_z[0]*B_z[0]; ~%"),
+
+  printf(fh, "  BxBy_xl[0] = B_x[0]*B_y[0]; ~%"),
+  printf(fh, "  BxBy_xr[0] = B_x[0]*B_y[0]; ~%"),
+  printf(fh, "  BxBz_xl[0] = B_x[0]*B_z[0]; ~%"),
+  printf(fh, "  BxBz_xr[0] = B_x[0]*B_z[0]; ~%"),
+
+  printf(fh, "  } else { ~%"),
+
+  printf(fh, "  double B_x_l = ~a; ~%", float(expand(B_x_l))),
+  printf(fh, "  double B_x_r = ~a; ~%", float(expand(B_x_r))),
+  printf(fh, "  double B_y_l = ~a; ~%", float(expand(B_y_l))),
+  printf(fh, "  double B_y_r = ~a; ~%", float(expand(B_y_r))),
+  printf(fh, "  double B_z_l = ~a; ~%", float(expand(B_z_l))),
+  printf(fh, "  double B_z_r = ~a; ~%", float(expand(B_z_r))),
+
+  printf(fh, "  Bx_sq_xl[0] = B_x_l*B_x_l; ~%"),
+  printf(fh, "  Bx_sq_xr[0] = B_x_r*B_x_r; ~%"),
+  printf(fh, "  By_sq_xl[0] = B_y_l*B_y_l; ~%"),
+  printf(fh, "  By_sq_xr[0] = B_y_r*B_y_r; ~%"),
+  printf(fh, "  Bz_sq_xl[0] = B_z_l*B_z_l; ~%"),
+  printf(fh, "  Bz_sq_xr[0] = B_z_r*B_z_r; ~%"),
+
+  printf(fh, "  BxBy_xl[0] = B_x_l*B_y_l; ~%"),
+  printf(fh, "  BxBy_xr[0] = B_x_r*B_y_r; ~%"),
+  printf(fh, "  BxBz_xl[0] = B_x_l*B_z_l; ~%"),
+  printf(fh, "  BxBz_xr[0] = B_x_r*B_z_r; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
