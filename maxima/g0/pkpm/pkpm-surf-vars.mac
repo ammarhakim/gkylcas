@@ -553,7 +553,11 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
    rhouz_xl_c, rhouz_xr_c, rhouz_yl_c, rhouz_yr_c, rhouz_zl_c, rhouz_zr_c, 
    Pxxc_e, Pyyc_e, Pzzc_e, rhoc_e, 
    Pxx_xl_c, Pxx_xr_c, Pyy_yl_c, Pyy_yr_c, Pzz_zl_c, Pzz_zr_c, 
-   rho_xl_c, rho_xr_c, rho_yl_c, rho_yr_c, rho_zl_c, rho_zr_c],
+   rho_xl_c, rho_xr_c, rho_yl_c, rho_yr_c, rho_zl_c, rho_zr_c, 
+   rho_xl_e, rho_xr_e, rho_yl_e, rho_yr_e, rho_zl_e, rho_zr_e, 
+   uxe, uxn, eq_rho_xl, E_rho_xl, eq_rho_xr, E_rho_xr, 
+   uye, uyn, eq_rho_yl, E_rho_yl, eq_rho_yr, E_rho_yr, 
+   uze, uzn, eq_rho_zl, E_rho_zl, eq_rho_zr, E_rho_zr],
 
   kill(varsC, bC),
 
