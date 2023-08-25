@@ -49,9 +49,6 @@ for bInd : 1 thru length(bName) do (
       if (d = 1) then (
         calcBB_surf_1d(fh, funcName, d, bName[bInd], polyOrder)
       )
-      else if (d = 2) then (
-        calcBB_surf(fh, funcName, d, "ser", polyOrder)
-      )
       else (
         calcBB_surf(fh, funcName, d, bName[bInd], polyOrder)
       ),

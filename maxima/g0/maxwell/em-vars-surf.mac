@@ -219,21 +219,40 @@ calcBB_surf(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(B_z_xl, B_z_xl_c), 
   writeCExprs1(B_z_xr, B_z_xr_c), 
 
-  printf(fh, "  // Calculate B_i B_j on the left x interface. ~%"),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_x_xl, Bx_sq_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_xl, B_y_xl, By_sq_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_z_xl, B_z_xl, Bz_sq_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_y_xl, B_x_B_y_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_z_xl, B_x_B_z_xl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, " ~%"),  
+  if (cdim = 2) then (
+    printf(fh, "  // Calculate B_i B_j on the left x interface. ~%"),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xl, B_x_xl, Bx_sq_xl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_xl, B_y_xl, By_sq_xl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_z_xl, B_z_xl, Bz_sq_xl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xl, B_y_xl, B_x_B_y_xl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xl, B_z_xl, B_x_B_z_xl); ~%", cdim-1, polyOrder),
+    printf(fh, " ~%"),  
 
-  printf(fh, "  // Calculate B_i B_j on the right x interface. ~%"),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_x_xr, Bx_sq_xr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_xr, B_y_xr, By_sq_xr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_z_xr, B_z_xr, Bz_sq_xr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_y_xr, B_x_B_y_xr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_z_xr, B_x_B_z_xr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, " ~%"), 
+    printf(fh, "  // Calculate B_i B_j on the right x interface. ~%"),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xr, B_x_xr, Bx_sq_xr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_xr, B_y_xr, By_sq_xr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_z_xr, B_z_xr, Bz_sq_xr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xr, B_y_xr, B_x_B_y_xr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_xr, B_z_xr, B_x_B_z_xr); ~%", cdim-1, polyOrder),
+    printf(fh, " ~%")
+  )
+  else (
+    printf(fh, "  // Calculate B_i B_j on the left x interface. ~%"),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_x_xl, Bx_sq_xl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_xl, B_y_xl, By_sq_xl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_z_xl, B_z_xl, Bz_sq_xl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_y_xl, B_x_B_y_xl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xl, B_z_xl, B_x_B_z_xl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, " ~%"),  
+
+    printf(fh, "  // Calculate B_i B_j on the right x interface. ~%"),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_x_xr, Bx_sq_xr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_xr, B_y_xr, By_sq_xr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_z_xr, B_z_xr, Bz_sq_xr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_y_xr, B_x_B_y_xr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_xr, B_z_xr, B_x_B_z_xr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, " ~%")
+  ),
 
   /* Temporary arrays for storing surface expansions of B_i at y surfaces */
   printf(fh, "  double B_x_yl[~a] = {0.0}; ~%", NSurf),
@@ -251,21 +270,40 @@ calcBB_surf(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(B_z_yl, B_z_yl_c), 
   writeCExprs1(B_z_yr, B_z_yr_c), 
 
-  printf(fh, "  // Calculate B_i B_j on the left y interface. ~%"),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yl, B_x_yl, Bx_sq_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yl, B_y_yl, By_sq_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_z_yl, B_z_yl, Bz_sq_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yl, B_y_yl, B_x_B_y_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yl, B_z_yl, B_y_B_z_yl); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, " ~%"),  
+  if (cdim = 2) then (
+    printf(fh, "  // Calculate B_i B_j on the left y interface. ~%"),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_yl, B_x_yl, Bx_sq_yl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_yl, B_y_yl, By_sq_yl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_z_yl, B_z_yl, Bz_sq_yl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_yl, B_y_yl, B_x_B_y_yl); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_yl, B_z_yl, B_y_B_z_yl); ~%", cdim-1, polyOrder),
+    printf(fh, " ~%"),  
 
-  printf(fh, "  // Calculate B_i B_j on the right y interface. ~%"),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yr, B_x_yr, Bx_sq_yr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yr, B_y_yr, By_sq_yr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_z_yr, B_z_yr, Bz_sq_yr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yr, B_y_yr, B_x_B_y_yr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yr, B_z_yr, B_y_B_z_yr); ~%", cdim-1, basisFun, polyOrder),
-  printf(fh, " ~%"), 
+    printf(fh, "  // Calculate B_i B_j on the right y interface. ~%"),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_yr, B_x_yr, Bx_sq_yr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_yr, B_y_yr, By_sq_yr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_z_yr, B_z_yr, Bz_sq_yr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_x_yr, B_y_yr, B_x_B_y_yr); ~%", cdim-1, polyOrder),
+    printf(fh, "  binop_mul_~ad_ser_p~a(B_y_yr, B_z_yr, B_y_B_z_yr); ~%", cdim-1, polyOrder),
+    printf(fh, " ~%")
+  )
+  else (
+    printf(fh, "  // Calculate B_i B_j on the left y interface. ~%"),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yl, B_x_yl, Bx_sq_yl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yl, B_y_yl, By_sq_yl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_z_yl, B_z_yl, Bz_sq_yl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yl, B_y_yl, B_x_B_y_yl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yl, B_z_yl, B_y_B_z_yl); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, " ~%"),  
+
+    printf(fh, "  // Calculate B_i B_j on the right y interface. ~%"),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yr, B_x_yr, Bx_sq_yr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yr, B_y_yr, By_sq_yr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_z_yr, B_z_yr, Bz_sq_yr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_x_yr, B_y_yr, B_x_B_y_yr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(B_y_yr, B_z_yr, B_y_B_z_yr); ~%", cdim-1, basisFun, polyOrder),
+    printf(fh, " ~%")
+  ),
 
   if (cdim = 3) then (
     /* Temporary arrays for storing surface expansions of B_i at z surfaces */
