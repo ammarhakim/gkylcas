@@ -121,7 +121,7 @@ polyOrder:1;*/
 
   /*separate bi*/
   for i : 1 thru ndim do (
-      printf(fh, "double *b~a  = &bi[~a * ~a];~%", i, i, numCoeffs)
+      printf(fh, "double *b~a  = &bi[~a * ~a];~%", i, i-1, numCoeffs)
   ),
 
   /*allocate nodal bi, g_ij and g^ij*/
