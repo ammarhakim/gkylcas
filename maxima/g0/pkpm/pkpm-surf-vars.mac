@@ -35,13 +35,16 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
   const double *vlasov_pkpm_moms, const double *euler_pkpm, 
-  const double *p_ij, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
+  const double *p_ij_surf, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // A:                preallocated LHS matrix. ~%"),
   printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
-  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
-  printf(fh, "  // euler_pkpm:       [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
-  printf(fh, "  // p_ij:             p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  // vlasov_pkpm_moms: Input [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // euler_pkpm:       Input [rho ux, rho uy, rho uz], Fluid state vector.~%"),
+  printf(fh, "  // p_ij_surf:        Input surface expansion of p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  //                   [Pxx_xl, Pxx_xr, Pxy_xl, Pxy_xr, Pxz_xl, Pxz_xr, ~%"),
+  printf(fh, "  //                    Pxy_yl, Pxy_yr, Pyy_yl, Pyy_yr, Pyz_yl, Pyz_yr, ~%"),
+  printf(fh, "  //                    Pxz_zl, Pxz_zr, Pyz_zl, Pyz_zr, Pzz_zl, Pzz_zr] ~%"),
   printf(fh, "  // cell_avg_prim:    Boolean array to determine if we only use cell averages when computing surface expansions.~%"),
   printf(fh, "~%"),
 
@@ -76,7 +79,8 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
 
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pxx_xl = &p_ij_surf[~a]; ~%", 0),
+  printf(fh, "  const double *Pxx_xr = &p_ij_surf[~a]; ~%", 1),
 
   rhouxc_e : doExpand1(rhoux, bC),
   rhouyc_e : doExpand1(rhouy, bC),
@@ -90,11 +94,7 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouyc_r : subst(x=1, rhouyc_e),
   rhouzc_r : subst(x=1, rhouzc_e),
 
-  Pxxc_e : doExpand1(Pxx, bC),
   rhoc_e : doExpand1(rho, bC), 
-
-  Pxxc_l : subst(x=-1, Pxxc_e),
-  Pxxc_r : subst(x=1, Pxxc_e),
   rhoc_l : subst(x=-1, rhoc_e),
   rhoc_r : subst(x=1, rhoc_e),
 
@@ -116,8 +116,8 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  uy_r = rhouy[0]/rho[0]; ~%"),
   printf(fh, "  uz_l = rhouz[0]/rho[0]; ~%"),
   printf(fh, "  uz_r = rhouz[0]/rho[0]; ~%"),
-  printf(fh, "  Txx_l = 3.0*Pxx[0]/rho[0]; ~%"),
-  printf(fh, "  Txx_r = 3.0*Pxx[0]/rho[0]; ~%"),
+  printf(fh, "  Txx_l = Pxx_xl[0]/rho[0]; ~%"),
+  printf(fh, "  Txx_r = Pxx_xr[0]/rho[0]; ~%"),
 
   printf(fh, "  } else { ~%"),
 
@@ -129,8 +129,8 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rhouz_r = ~a; ~%", float(expand(rhouzc_r))),
   printf(fh, "  double rho_l = ~a; ~%", float(expand(rhoc_l))),
   printf(fh, "  double rho_r = ~a; ~%", float(expand(rhoc_r))),
-  printf(fh, "  double Pxx_l = ~a; ~%", float(expand(Pxxc_l))),
-  printf(fh, "  double Pxx_r = ~a; ~%", float(expand(Pxxc_r))),
+  printf(fh, "  double Pxx_l = Pxx_xl[0]; ~%"),
+  printf(fh, "  double Pxx_r = Pxx_xr[0]; ~%"),
 
   printf(fh, "  ux_l = rhoux_l/rho_l; ~%"),
   printf(fh, "  ux_r = rhoux_r/rho_r; ~%"),
@@ -138,8 +138,8 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  uy_r = rhouy_r/rho_r; ~%"),
   printf(fh, "  uz_l = rhouz_l/rho_l; ~%"),
   printf(fh, "  uz_r = rhouz_r/rho_r; ~%"),
-  printf(fh, "  Txx_l = 3.0*Pxx_l/rho_l; ~%"),
-  printf(fh, "  Txx_r = 3.0*Pxx_r/rho_r; ~%"),
+  printf(fh, "  Txx_l = Pxx_xl[0]/rho_l; ~%"),
+  printf(fh, "  Txx_r = Pxx_xr[0]/rho_r; ~%"),
    
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
@@ -150,8 +150,8 @@ setPKPMSurfacePrimVars_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh,"  gkyl_mat_set(&rhs_uy_r,0,0,uy_r); ~%"),
   printf(fh,"  gkyl_mat_set(&rhs_uz_l,0,0,uz_l); ~%"),
   printf(fh,"  gkyl_mat_set(&rhs_uz_r,0,0,uz_r); ~%"),
-  printf(fh,"  gkyl_mat_set(&rhs_Txx_l,0,0,Txx_l); ~%"),
-  printf(fh,"  gkyl_mat_set(&rhs_Txx_r,0,0,Txx_r); ~%"),
+  printf(fh,"  gkyl_mat_set(&rhs_Txx_l,0,0,3.0*Txx_l); ~%"),
+  printf(fh,"  gkyl_mat_set(&rhs_Txx_r,0,0,3.0*Txx_r); ~%"),
 
   printf(fh, "} ~%")
 )$
@@ -192,13 +192,16 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim-1, polyOrder),
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
   const double *vlasov_pkpm_moms, const double *euler_pkpm, 
-  const double *p_ij, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
+  const double *p_ij_surf, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // A:                preallocated LHS matrix. ~%"),
   printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
-  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
-  printf(fh, "  // euler_pkpm:       [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
-  printf(fh, "  // p_ij:             p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  // vlasov_pkpm_moms: Input [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // euler_pkpm:       Input [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
+  printf(fh, "  // p_ij_surf:        Input surface expansion of p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  //                   [Pxx_xl, Pxx_xr, Pxy_xl, Pxy_xr, Pxz_xl, Pxz_xr, ~%"),
+  printf(fh, "  //                    Pxy_yl, Pxy_yr, Pyy_yl, Pyy_yr, Pyz_yl, Pyz_yr, ~%"),
+  printf(fh, "  //                    Pxz_zl, Pxz_zr, Pyz_zl, Pyz_zr, Pzz_zl, Pzz_zr] ~%"),
   printf(fh, "  // cell_avg_prim:    Boolean array to determine if we only use cell averages when computing surface expansions.~%"),
   printf(fh, "~%"),
 
@@ -273,8 +276,10 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
 
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC),
-  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC),
+  printf(fh, "  const double *Pxx_xl = &p_ij_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  const double *Pxx_xr = &p_ij_surf[~a]; ~%", 1*NSurf),
+  printf(fh, "  const double *Pyy_yl = &p_ij_surf[~a]; ~%", 8*NSurf),
+  printf(fh, "  const double *Pyy_yr = &p_ij_surf[~a]; ~%", 9*NSurf),
 
   rhouxc_e : doExpand1(rhoux, bC),
   rhouyc_e : doExpand1(rhouy, bC),
@@ -296,23 +301,15 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhouyc_e)),
   rhouz_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhouzc_e)),
 
-  Pxxc_e : doExpand1(Pxx, bC),
-  Pyyc_e : doExpand1(Pyy, bC),
-  Pzzc_e : doExpand1(Pzz, bC),
   rhoc_e : doExpand1(rho, bC), 
-
-  Pxx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, Pxxc_e)),
-  Pxx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, Pxxc_e)),
   rho_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, rhoc_e)),
   rho_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, rhoc_e)),
-
-  Pyy_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, Pyyc_e)),
-  Pyy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, Pyyc_e)),
   rho_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, rhoc_e)),
   rho_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhoc_e)),
 
   if (cdim = 3) then (
-    printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC),
+    printf(fh, "  const double *Pzz_zl = &p_ij_surf[~a]; ~%", 16*NSurf),
+    printf(fh, "  const double *Pzz_zr = &p_ij_surf[~a]; ~%", 17*NSurf),
     rhoux_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouxc_e)),
     rhouy_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouyc_e)),
     rhouz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouzc_e)),
@@ -321,8 +318,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     rhouy_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhouyc_e)),
     rhouz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhouzc_e)), 
 
-    Pzz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, Pzzc_e)),
-    Pzz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, Pzzc_e)),
     rho_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhoc_e)),
     rho_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhoc_e))
   ),
@@ -365,8 +360,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  uy_xr[0] = rhouy[0]/rho[0]; ~%"),
   printf(fh, "  uz_xl[0] = rhouz[0]/rho[0]; ~%"),
   printf(fh, "  uz_xr[0] = rhouz[0]/rho[0]; ~%"),
-  printf(fh, "  Txx_xl[0] = 3.0*Pxx[0]/rho[0]; ~%"),
-  printf(fh, "  Txx_xr[0] = 3.0*Pxx[0]/rho[0]; ~%"),
+  printf(fh, "  Txx_xl[0] = Pxx_xl[0]/rho[0]; ~%"),
+  printf(fh, "  Txx_xr[0] = Pxx_xr[0]/rho[0]; ~%"),
 
   printf(fh, "  ux_yl[0] = rhoux[0]/rho[0]; ~%"),
   printf(fh, "  ux_yr[0] = rhoux[0]/rho[0]; ~%"),
@@ -374,8 +369,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  uy_yr[0] = rhouy[0]/rho[0]; ~%"),
   printf(fh, "  uz_yl[0] = rhouz[0]/rho[0]; ~%"),
   printf(fh, "  uz_yr[0] = rhouz[0]/rho[0]; ~%"),
-  printf(fh, "  Tyy_yl[0] = 3.0*Pyy[0]/rho[0]; ~%"),
-  printf(fh, "  Tyy_yr[0] = 3.0*Pyy[0]/rho[0]; ~%"),
+  printf(fh, "  Tyy_yl[0] = Pyy_yl[0]/rho[0]; ~%"),
+  printf(fh, "  Tyy_yr[0] = Pyy_yr[0]/rho[0]; ~%"),
 
   if (cdim = 3) then (
     printf(fh, "  ux_zl[0] = rhoux[0]/rho[0]; ~%"),
@@ -384,8 +379,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  uy_zr[0] = rhouy[0]/rho[0]; ~%"),
     printf(fh, "  uz_zl[0] = rhouz[0]/rho[0]; ~%"),
     printf(fh, "  uz_zr[0] = rhouz[0]/rho[0]; ~%"),
-    printf(fh, "  Tzz_zl[0] = 3.0*Pzz[0]/rho[0]; ~%"),
-    printf(fh, "  Tzz_zr[0] = 3.0*Pzz[0]/rho[0]; ~%")
+    printf(fh, "  Tzz_zl[0] = Pzz_zl[0]/rho[0]; ~%"),
+    printf(fh, "  Tzz_zr[0] = Pzz_zr[0]/rho[0]; ~%")
   ),
 
   printf(fh, "  } else { ~%"),
@@ -400,8 +395,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rho_xr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rho_inv_xl[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rho_inv_xr[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pxx_xl[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pxx_xr[~a] = {0.0}; ~%", NSurf),
   printf(fh, " ~%"),
 
   writeCExprs1(rhoux_xl, rhoux_xl_c), 
@@ -412,8 +405,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(rhouz_xr, rhouz_xr_c), 
   writeCExprs1(rho_xl, rho_xl_c), 
   writeCExprs1(rho_xr, rho_xr_c), 
-  writeCExprs1(Pxx_xl, 3.0*Pxx_xl_c), 
-  writeCExprs1(Pxx_xr, 3.0*Pxx_xr_c), 
 
   printf(fh, "  ~a_~ax_p~a_inv(rho_xl, rho_inv_xl); ~%", basisFun, cdim-1, polyOrder),
   printf(fh, "  ~a_~ax_p~a_inv(rho_xr, rho_inv_xr); ~%", basisFun, cdim-1, polyOrder),
@@ -439,8 +430,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rho_yr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rho_inv_yl[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rho_inv_yr[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pyy_yl[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pyy_yr[~a] = {0.0}; ~%", NSurf),
   printf(fh, " ~%"),
 
   writeCExprs1(rhoux_yl, rhoux_yl_c), 
@@ -451,8 +440,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(rhouz_yr, rhouz_yr_c), 
   writeCExprs1(rho_yl, rho_yl_c), 
   writeCExprs1(rho_yr, rho_yr_c), 
-  writeCExprs1(Pyy_yl, 3.0*Pyy_yl_c), 
-  writeCExprs1(Pyy_yr, 3.0*Pyy_yr_c), 
 
   printf(fh, "  ~a_~ax_p~a_inv(rho_yl, rho_inv_yl); ~%", basisFun, cdim-1, polyOrder),
   printf(fh, "  ~a_~ax_p~a_inv(rho_yr, rho_inv_yr); ~%", basisFun, cdim-1, polyOrder),
@@ -478,8 +465,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  double rho_zr[~a] = {0.0}; ~%", NSurf),
     printf(fh, "  double rho_inv_zl[~a] = {0.0}; ~%", NSurf),
     printf(fh, "  double rho_inv_zr[~a] = {0.0}; ~%", NSurf),
-    printf(fh, "  double Pzz_zl[~a] = {0.0}; ~%", NSurf),
-    printf(fh, "  double Pzz_zr[~a] = {0.0}; ~%", NSurf),
     printf(fh, " ~%"),
 
     writeCExprs1(rhoux_zl, rhoux_zl_c), 
@@ -490,8 +475,6 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCExprs1(rhouz_zr, rhouz_zr_c), 
     writeCExprs1(rho_zl, rho_zl_c), 
     writeCExprs1(rho_zr, rho_zr_c), 
-    writeCExprs1(Pzz_zl, 3.0*Pzz_zl_c), 
-    writeCExprs1(Pzz_zr, 3.0*Pzz_zr_c), 
 
     printf(fh, "  ~a_~ax_p~a_inv(rho_zl, rho_inv_zl); ~%", basisFun, cdim-1, polyOrder),
     printf(fh, "  ~a_~ax_p~a_inv(rho_zr, rho_inv_zr); ~%", basisFun, cdim-1, polyOrder),
@@ -517,8 +500,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_xr,~a,0,uy_xr[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xl,~a,0,uz_xl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xr,~a,0,uz_xr[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,Txx_xl[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,Txx_xr[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,3.0*Txx_xl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,3.0*Txx_xr[~a]); ~%", i-1, i-1),
     printf(fh, " ~%"), 
     printf(fh,"  gkyl_mat_set(&rhs_ux_yl,~a,0,ux_yl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_ux_yr,~a,0,ux_yr[~a]); ~%", i-1, i-1),
@@ -526,8 +509,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_yr,~a,0,uy_yr[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yl,~a,0,uz_yl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yr,~a,0,uz_yr[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,Tyy_yl[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,Tyy_yr[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,3.0*Tyy_yl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,3.0*Tyy_yr[~a]); ~%", i-1, i-1),
     printf(fh, " ~%"), 
     if (cdim = 3) then (
       printf(fh,"  gkyl_mat_set(&rhs_ux_zl,~a,0,ux_zl[~a]); ~%", i-1, i-1),
@@ -536,8 +519,8 @@ setPKPMSurfacePrimVars_p1(fh, funcNm, cdim, basisFun, polyOrder) := block(
       printf(fh,"  gkyl_mat_set(&rhs_uy_zr,~a,0,uy_zr[~a]); ~%", i-1, i-1),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zl,~a,0,uz_zl[~a]); ~%", i-1, i-1),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zr,~a,0,uz_zr[~a]); ~%", i-1, i-1),
-      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zl,~a,0,Tzz_zl[~a]); ~%", i-1, i-1),
-      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zr,~a,0,Tzz_zr[~a]); ~%", i-1, i-1),
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zl,~a,0,3.0*Tzz_zl[~a]); ~%", i-1, i-1),
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zr,~a,0,3.0*Tzz_zr[~a]); ~%", i-1, i-1),
       printf(fh, " ~%")
     )
   ),
@@ -581,13 +564,16 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
   const double *vlasov_pkpm_moms, const double *euler_pkpm, 
-  const double *p_ij, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
+  const double *p_ij_surf, const int *cell_avg_prim) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // A:                preallocated LHS matrix. ~%"),
   printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
   printf(fh, "  // euler_pkpm:       [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
-  printf(fh, "  // p_ij:             p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  // p_ij_surf:        Input surface expansion of p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "  //                   [Pxx_xl, Pxx_xr, Pxy_xl, Pxy_xr, Pxz_xl, Pxz_xr, ~%"),
+  printf(fh, "  //                    Pxy_yl, Pxy_yr, Pyy_yl, Pyy_yr, Pyz_yl, Pyz_yr, ~%"),
+  printf(fh, "  //                    Pxz_zl, Pxz_zr, Pyz_zl, Pyz_zr, Pzz_zl, Pzz_zr] ~%"),
   printf(fh, "  // cell_avg_prim:    Boolean array to determine if we only use cell averages when computing surface expansions.~%"),
   printf(fh, "~%"),
 
@@ -688,8 +674,10 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
 
-  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC),
-  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC),
+  printf(fh, "  const double *Pxx_xl = &p_ij_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  const double *Pxx_xr = &p_ij_surf[~a]; ~%", 1*NSurf),
+  printf(fh, "  const double *Pyy_yl = &p_ij_surf[~a]; ~%", 8*NSurf),
+  printf(fh, "  const double *Pyy_yr = &p_ij_surf[~a]; ~%", 9*NSurf),
 
   rhouxc_e : doExpand1(rhoux, bC),
   rhouyc_e : doExpand1(rhouy, bC),
@@ -711,23 +699,15 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhouyc_e)),
   rhouz_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhouzc_e)),
 
-  Pxxc_e : doExpand1(Pxx, bC),
-  Pyyc_e : doExpand1(Pyy, bC),
-  Pzzc_e : doExpand1(Pzz, bC),
   rhoc_e : doExpand1(rho, bC), 
-
-  Pxx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, Pxxc_e)),
-  Pxx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, Pxxc_e)),
   rho_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, rhoc_e)),
   rho_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, rhoc_e)),
-
-  Pyy_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, Pyyc_e)),
-  Pyy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, Pyyc_e)),
   rho_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, rhoc_e)),
   rho_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhoc_e)),
 
   if (cdim = 3) then (
-    printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC),
+    printf(fh, "  const double *Pzz_zl = &p_ij_surf[~a]; ~%", 16*NSurf),
+    printf(fh, "  const double *Pzz_zr = &p_ij_surf[~a]; ~%", 17*NSurf),
     rhoux_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouxc_e)),
     rhouy_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouyc_e)),
     rhouz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhouzc_e)),
@@ -736,8 +716,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     rhouy_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhouyc_e)),
     rhouz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhouzc_e)), 
 
-    Pzz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, Pzzc_e)),
-    Pzz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, Pzzc_e)),
     rho_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhoc_e)),
     rho_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhoc_e))
   ),
@@ -772,9 +750,12 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   expr_rhoux : float(expand(append([rhoux[0]],makelist(0.0,i,1,NSurf-1)))),
   expr_rhouy : float(expand(append([rhouy[0]],makelist(0.0,i,1,NSurf-1)))),
   expr_rhouz : float(expand(append([rhouz[0]],makelist(0.0,i,1,NSurf-1)))),
-  expr_Pxx : float(expand(append([3.0*Pxx[0]],makelist(0.0,i,1,NSurf-1)))),
-  expr_Pyy : float(expand(append([3.0*Pyy[0]],makelist(0.0,i,1,NSurf-1)))),
-  expr_Pzz : float(expand(append([3.0*Pzz[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pxx_xl : float(expand(append([3.0*Pxx_xl[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pxx_xr : float(expand(append([3.0*Pxx_xr[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pyy_yl : float(expand(append([3.0*Pyy_yl[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pyy_yr : float(expand(append([3.0*Pyy_yr[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pzz_zl : float(expand(append([3.0*Pzz_zl[0]],makelist(0.0,i,1,NSurf-1)))),
+  expr_Pzz_zr : float(expand(append([3.0*Pzz_zr[0]],makelist(0.0,i,1,NSurf-1)))),
 
   for i : 1 thru NSurf do (
     if (i = 1) then (
@@ -796,8 +777,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_xr,~a,0,~a); ~%", i-1, expr_rhouy[i]),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xl,~a,0,~a); ~%", i-1, expr_rhouz[i]),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xr,~a,0,~a); ~%", i-1, expr_rhouz[i]),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,~a); ~%", i-1, expr_Pxx[i]),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,~a); ~%", i-1, expr_Pxx[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,~a); ~%", i-1, expr_Pxx_xl[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,~a); ~%", i-1, expr_Pxx_xr[i]),
     printf(fh, " ~%"), 
     printf(fh,"  gkyl_mat_set(&rhs_ux_yl,~a,0,~a); ~%", i-1, expr_rhoux[i]),
     printf(fh,"  gkyl_mat_set(&rhs_ux_yr,~a,0,~a); ~%", i-1, expr_rhoux[i]),
@@ -805,8 +786,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_yr,~a,0,~a); ~%", i-1, expr_rhouy[i]),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yl,~a,0,~a); ~%", i-1, expr_rhouz[i]),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yr,~a,0,~a); ~%", i-1, expr_rhouz[i]),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,~a); ~%", i-1, expr_Pyy[i]),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,~a); ~%", i-1, expr_Pyy[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,~a); ~%", i-1, expr_Pyy_yl[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,~a); ~%", i-1, expr_Pyy_yr[i]),
     printf(fh, " ~%"), 
     if (cdim = 3) then (
       if (i = 1) then (
@@ -824,8 +805,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
       printf(fh,"  gkyl_mat_set(&rhs_uy_zr,~a,0,~a); ~%", i-1, expr_rhouy[i]),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zl,~a,0,~a); ~%", i-1, expr_rhouz[i]),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zr,~a,0,~a); ~%", i-1, expr_rhouz[i]),
-      printf(fh,"  gkyl_mat_set(&rhs_Txx_zl,~a,0,~a); ~%", i-1, expr_Pzz[i]),
-      printf(fh,"  gkyl_mat_set(&rhs_Txx_zr,~a,0,~a); ~%", i-1, expr_Pz[i]),
+      printf(fh,"  gkyl_mat_set(&rhs_Txx_zl,~a,0,~a); ~%", i-1, expr_Pzz_zl[i]),
+      printf(fh,"  gkyl_mat_set(&rhs_Txx_zr,~a,0,~a); ~%", i-1, expr_Pzz_zr[i]),
       printf(fh, " ~%")
     )
   ),
@@ -839,8 +820,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rhouy_xr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rhouz_xl[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rhouz_xr[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pxx_xl[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pxx_xr[~a] = {0.0}; ~%", NSurf),
   printf(fh, " ~%"),
 
   writeCExprs1(rhoux_xl, rhoux_xl_c), 
@@ -849,8 +828,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(rhouy_xr, rhouy_xr_c), 
   writeCExprs1(rhouz_xl, rhouz_xl_c), 
   writeCExprs1(rhouz_xr, rhouz_xr_c), 
-  writeCExprs1(Pxx_xl, 3.0*Pxx_xl_c), 
-  writeCExprs1(Pxx_xr, 3.0*Pxx_xr_c), 
 
   /* Temporary arrays for storing surface expansions of rhou, rho and P_ii at y surfaces */
   printf(fh, "  double rhoux_yl[~a] = {0.0}; ~%", NSurf),
@@ -859,8 +836,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double rhouy_yr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rhouz_yl[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double rhouz_yr[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pyy_yl[~a] = {0.0}; ~%", NSurf),
-  printf(fh, "  double Pyy_yr[~a] = {0.0}; ~%", NSurf),
   printf(fh, " ~%"),
 
   writeCExprs1(rhoux_yl, rhoux_yl_c), 
@@ -869,8 +844,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCExprs1(rhouy_yr, rhouy_yr_c), 
   writeCExprs1(rhouz_yl, rhouz_yl_c), 
   writeCExprs1(rhouz_yr, rhouz_yr_c), 
-  writeCExprs1(Pyy_yl, 3.0*Pyy_yl_c), 
-  writeCExprs1(Pyy_yr, 3.0*Pyy_yr_c), 
   printf(fh, " ~%"), 
   if (cdim = 3) then (
     /* Temporary arrays for storing surface expansions of rhou, rho and P_ii at z surfaces */
@@ -880,8 +853,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  double rhouy_zr[~a] = {0.0}; ~%", NSurf),
     printf(fh, "  double rhouz_zl[~a] = {0.0}; ~%", NSurf),
     printf(fh, "  double rhouz_zr[~a] = {0.0}; ~%", NSurf),
-    printf(fh, "  double Pzz_zl[~a] = {0.0}; ~%", NSurf),
-    printf(fh, "  double Pzz_zr[~a] = {0.0}; ~%", NSurf),
     printf(fh, " ~%"),
 
     writeCExprs1(rhoux_zl, rhoux_zl_c), 
@@ -890,8 +861,6 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCExprs1(rhouy_zr, rhouy_zr_c), 
     writeCExprs1(rhouz_zl, rhouz_zl_c), 
     writeCExprs1(rhouz_zr, rhouz_zr_c), 
-    writeCExprs1(Pzz_zl, 3.0*Pzz_zl_c), 
-    writeCExprs1(Pzz_zr, 3.0*Pzz_zr_c), 
     printf(fh, " ~%")
   ),
 
@@ -902,8 +871,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_xr,~a,0,rhouy_xr[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xl,~a,0,rhouz_xl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_xr,~a,0,rhouz_xr[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,Pxx_xl[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,Pxx_xr[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,3.0*Pxx_xl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,3.0*Pxx_xr[~a]); ~%", i-1, i-1),
     printf(fh, " ~%"), 
     printf(fh,"  gkyl_mat_set(&rhs_ux_yl,~a,0,rhoux_yl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_ux_yr,~a,0,rhoux_yr[~a]); ~%", i-1, i-1),
@@ -911,8 +880,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh,"  gkyl_mat_set(&rhs_uy_yr,~a,0,rhouy_yr[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yl,~a,0,rhouz_yl[~a]); ~%", i-1, i-1),
     printf(fh,"  gkyl_mat_set(&rhs_uz_yr,~a,0,rhouz_yr[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,Pyy_yl[~a]); ~%", i-1, i-1),
-    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,Pyy_yr[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,3.0*Pyy_yl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,3.0*Pyy_yr[~a]); ~%", i-1, i-1),
     printf(fh, " ~%"), 
     if (cdim = 3) then (
       printf(fh,"  gkyl_mat_set(&rhs_ux_zl,~a,0,rhoux_zl[~a]); ~%", i-1, i-1),
@@ -921,8 +890,8 @@ setPKPMSurfacePrimVars(fh, funcNm, cdim, basisFun, polyOrder) := block(
       printf(fh,"  gkyl_mat_set(&rhs_uy_zr,~a,0,rhouy_zr[~a]); ~%", i-1, i-1),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zl,~a,0,rhouz_zl[~a]); ~%", i-1, i-1),
       printf(fh,"  gkyl_mat_set(&rhs_uz_zr,~a,0,rhouz_zr[~a]); ~%", i-1, i-1),
-      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zl,~a,0,Pzz_zl[~a]); ~%", i-1, i-1),
-      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zr,~a,0,Pzz_zr[~a]); ~%", i-1, i-1),
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zl,~a,0,3.0*Pzz_zl[~a]); ~%", i-1, i-1),
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zr,~a,0,3.0*Pzz_zr[~a]); ~%", i-1, i-1),
       printf(fh, " ~%")
     )
   ),
