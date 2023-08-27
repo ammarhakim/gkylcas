@@ -1,8 +1,8 @@
-load("pkpm/euler-pkpm-p-perp-prim-vars")$
+load("pkpm/vlasov-pkpm-vol")$
 load(stringproc)$
-/* This script calls the functions which calculates the primitive
-   variables in the parallel-kinetic-perpendicular-moment (pkpm) model.
-   These include u, the flow velocity, and P = (p_parallel - p_perp)bb + p_perp I */
+/* This script calls the functions which calculate the
+   updates from the volume term contributions in the Vlasov 
+   kinetic equation for parallel-kinetic-perpendicular-moment (pkpm) model. */
 
 /* ...... USER INPUTS........ */
 
@@ -18,28 +18,29 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser", "tensor"]$
+bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
+/* Compute the volume contribution in BOTH real and velocity space (for use in full Vlasov-Maxwell) */
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+    
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating euler pkpm primitive variables",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_prim_vars_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating volume Vlasov PKPM",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/vlasov_pkpm_vol_",  d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("euler_pkpm_prim_vars_", d, "x_", bName[bInd]),
-      calcEulerPKPMPrimVars(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("vlasov_pkpm_vol_", d, "x1v_", bName[bInd]),
+      calcVlasovPKPMVolUpdater(fh, funcName, d, 1, bName[bInd], polyOrder),
       close(fh)
     )
   )

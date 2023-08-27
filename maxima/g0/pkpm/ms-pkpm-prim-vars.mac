@@ -1,16 +1,11 @@
-load("pkpm/pkpm-vars")$
+load("pkpm/pkpm-prim-vars")$
 load(stringproc)$
 /* This script calls the functions which generate the kernels for calculating the primitive 
-   variables required to update the PKPM system. Primitive variables include:
+   variables using weak division required to update the PKPM system. Primitive variables include:
    1. u_i (flow velocity) 
-   2. p_ij (pressure tensor), 
-   3. T_perp_over_m (T_perp/m)
-   4. T_perp_over_m_inv (m/T_perp) 
-   Along with div(p_par b)/rho for use in the pressure force. 
-
-   *Note that the computation of p_ij is separate from the primitive variable solve, 
-   as p_ij can be computed with weak multiplications of the magnetic field unit tensor
-   and moments computed from the kinetic equation (p_par, p_perp).* */
+   2. T_perp_over_m (T_perp/m)
+   3. T_perp_over_m_inv (m/T_perp) 
+   Along with div(p_par b)/rho for use in the pressure force. */
 
 
 /* ...... USER INPUTS........ */
@@ -44,13 +39,8 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating pkpm vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/pkpm_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("pkpm_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
-      calcPKPMPressure(fh, funcName, d, bName[bInd], polyOrder),
-      close(fh),
-      
+      disp(printf(false,sconcat("Creating pkpm prim vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+
       fname : sconcat("~/max-out/pkpm_vars_set_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
       funcName : sconcat("pkpm_vars_set_",  d, "x_", bName[bInd], "_p", polyOrder),

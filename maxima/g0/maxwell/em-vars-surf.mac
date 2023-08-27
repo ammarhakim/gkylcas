@@ -359,7 +359,7 @@ set_surf_bvar_1d(fh, funcNm, cdim, basisFun, polyOrder) := block(
   NC : length(bC),
 
   printf(fh, "#include <gkyl_mat.h> ~%"),
-  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *BB_surf, int* cell_avg_magB2_surf) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // count:   integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // A:       preallocated LHS matrix. ~%"),

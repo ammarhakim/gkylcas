@@ -1,7 +1,6 @@
 /* This script calls the functions which calculate the
    updates from the drag portion of the surface contributions. */
-
-load("pkpm/LBO-vlasovPKPMFuncs-drag-surf")$
+load("pkpm/lbo-pkpm-drag-surf")$
 
 /* ...... USER INPUTS........ */
 
