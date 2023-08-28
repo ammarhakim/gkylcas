@@ -91,8 +91,7 @@ polyOrder:1;*/
   ),
 
   /*Construct expression for cmag*/
-  /*using g11 instead of g33 here because of Ammar's coordinate arangment with theta first*/
-  cmag_ne : makelist((concat(J,"_n")[k-1]*concat(bmag,"_n")[k-1])/sqrt(concat(g,1,1,"_n")[k-1]),k,1,numEvNodes),
+  cmag_ne : makelist((concat(J,"_n")[k-1]*concat(bmag,"_n")[k-1])/sqrt(concat(g,3,3,"_n")[k-1]),k,1,numEvNodes),
 
 
 
