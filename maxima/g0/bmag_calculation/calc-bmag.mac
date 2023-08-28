@@ -27,6 +27,10 @@ calcBmag(fh, ndim, basisName, polyOrder) := block(
   
   psibyr2_zl : mkzlist(psibyr2,numCoeffs),
   psibyr2_e : doExpand(psibyr2_zl, basis),
+
+
+  bphi_zl : mkzlist(bphi,numCoeffs),
+  bphi_e : doExpand(bphi_zl, basis),
   
   
   dirNames : [charlist("LIR"), charlist("BIT")] ,
@@ -64,6 +68,7 @@ calcBmag(fh, ndim, basisName, polyOrder) := block(
   B_R : diff(psibyrp[2], zc[2]),
   B_Z1 : -diff(psibyrp[1], zc[1]),
   B_Z2 : -psibyr2_e,
+  B_PHI : bphi_e,
   
   disp("took derivatives"),
   
@@ -76,15 +81,15 @@ calcBmag(fh, ndim, basisName, polyOrder) := block(
   flt(expr) := float(expand(expr)),
   
   
-  printf(fh, "static inline double magnitude(double B_R, double B_Z) ~%"),
-  printf(fh, "{ double mag = 0;  mag = sqrt(B_R*B_R + B_Z*B_Z); return mag; } ~%~%", ndim),
+  printf(fh, "static inline double magnitude(double B_R, double B_Z, double B_PHI) ~%"),
+  printf(fh, "{ double mag = 0;  mag = sqrt(B_R*B_R + B_Z*B_Z + B_PHI*B_PHI); return mag; } ~%~%", ndim),
   /*printf(fh, "{ double mag = 0;  mag = B_Z; return mag; } ~%~%", ndim);*/
   
   
   
-  printf(fh, "GKYL_CU_DH void bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, double *bmagout, double scale_factorR, double scale_factorZ) ~%{ ~%", ndim, basisName, polyOrder),
+  printf(fh, "GKYL_CU_DH void bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, const double *bphi, double *bmagout, double scale_factorR, double scale_factorZ) ~%{ ~%", ndim, basisName, polyOrder),
   
-  printf(fh, "double B_R_n[~a], B_Z_n[~a], B_Z1_n[~a], B_Z2_n[~a]; ~%", numEvNodes, numEvNodes, numEvNodes, numEvNodes),
+  printf(fh, "double B_R_n[~a], B_Z_n[~a], B_Z1_n[~a], B_Z2_n[~a], B_PHI_n[~a]; ~%", numEvNodes, numEvNodes, numEvNodes, numEvNodes, numEvNodes),
   for i : 1 thru 2*ndim+1 do (
     printf(fh, "const double *psibyr~a = psibyr[~a];~%", newDirNames[i], i-1 )
   ),
@@ -97,7 +102,8 @@ calcBmag(fh, ndim, basisName, polyOrder) := block(
     printf(fh, "  B_Z1_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], B_Z1))),
     printf(fh, "  B_Z2_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], B_Z2))),
     printf(fh, "  B_Z_n[~a] = B_Z1_n[~a]*scale_factorR + B_Z2_n[~a]; ~%", n-1, n-1,n-1),
-    printf(fh, "  bmag_n[~a] = magnitude(B_R_n[~a], B_Z_n[~a]); ~%", n-1, n-1, n-1)
+    printf(fh, "  B_PHI_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], B_PHI))),
+    printf(fh, "  bmag_n[~a] = magnitude(B_R_n[~a], B_Z_n[~a], B_PHI_n[~a]); ~%", n-1, n-1, n-1, n-1)
   ),
   disp("caomputed br bz at nodes"),
   

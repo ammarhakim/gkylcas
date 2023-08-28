@@ -28,7 +28,7 @@ for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating header entry for bmag_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          printf(fh, "GKYL_CU_DH void bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, double *bmagout, double scale_factorR, double scale_factorZ); ~%", cD, bName[bInd], polyOrder)
+          printf(fh, "GKYL_CU_DH void bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, const double *bphi, double *bmagout, double scale_factorR, double scale_factorZ); ~%", cD, bName[bInd], polyOrder)
       )
   )
 );
