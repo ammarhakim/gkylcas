@@ -47,6 +47,15 @@ polyOrder:1;*/
   bmag_zl: mkzlist(bmag, numCoeffs),
   bmag_e: doExpand(bmag_zl, basis),
 
+  /* set up for the adjusting function as well*/
+  cmag_zl: mkzlist(cmag, numCoeffs),
+  cmag_e: doExpand(cmag_zl, basis),
+  J_zl: mkzlist(J, numCoeffs),
+  J_e: doExpand(J_zl, basis),
+  gzz_zl: mkzlist(gzz, numCoeffs),
+  gzz_e: doExpand(gzz_zl, basis),
+  /* Done with adjustment setup*/
+
 
 
   sublist : makelist(makelist(zc[m] = evNodes[k][m], m,1,ndim),k,1,numCoeffs),
@@ -247,5 +256,38 @@ polyOrder:1;*/
   writeCExprs1(concat(cmag),temp2),
 
   printf(fh, " ~%"),
+  printf(fh, "}~%"),
+
+
+  /* do the adjustment of bmag*/
+  printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(const double *cmag, const double *gzz, const double *J, double *bmag) ~%{ ~%", ndim, basisName, polyOrder),
+  /*allocate nodal quantities*/
+  printf(fh, "double cmag_n[~a]; ~%", numEvNodes),
+  printf(fh, "double gzz_n[~a]; ~%", numEvNodes),
+  printf(fh, "double J_n[~a]; ~%", numEvNodes),
+  printf(fh, "double bmag_n[~a]; ~%", numEvNodes),
+
+  /*Calculate inputs at nodes*/
+  printf(fh, "// Calculate inputs at nodes ~%"),
+  for n : 1 thru numEvNodes do (
+    printf(fh, " cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),
+    printf(fh, " gzz_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], gzz_e))),
+    printf(fh, " J_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], J_e)))
+  ),
+
+  /* Calculate the adjusted bmag*/
+  printf(fh, "// Adjust bmag at nodes ~%"),
+  for n : 1 thru numEvNodes do(
+    printf(fh, "bmag_n[~a] = cmag_n[~a] * sqrt(gzz_n[~a]) / J_n[~a]; ~%", n-1, n-1, n-1, n-1)
+  ),
+
+  printf(fh, "// Convert nodal to modal for bmag ~%"),
+  temp:calcModCoeff(mkzlist(bmag_n,numEvNodes)),
+  temp2 : makelist(temp[k][1],k,1,numEvNodes),
+  writeCExprs1(concat(bmag),temp2),
+
+  /*Close adjusting function*/
+  printf(fh, " ~%"),
   printf(fh, "}~%")
+
 )$
