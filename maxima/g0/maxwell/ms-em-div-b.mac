@@ -1,8 +1,9 @@
-load("pkpm/euler-pkpm-source")$
+load("maxwell/em-div-b")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-   source terms for the Euler equations in the 
-   parallel-kinetic-perpendicular-moment (pkpm) model. */
+/* This script calls the functions which generate the kernels for calculating div(b) and the max(|b_i|) penalization.
+
+   div(b) is computed with averaging to ensure phase space incompressibility in the weak sense. */
+
 
 /* ...... USER INPUTS........ */
 
@@ -35,12 +36,16 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating euler pkpm source kernel ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/euler_pkpm_source_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("euler_pkpm_source_", d, "x_", bName[bInd]),
-      calcEulerPKPMSource(fh, funcName, d, bName[bInd], polyOrder),
-      close(fh)
+      disp(printf(false,sconcat("Creating em vars div(b) funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      for dir : 1 thru d do ( 
+        if (dir = 1) then fname : sconcat("~/max-out/em_div_b_x_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 2) then fname : sconcat("~/max-out/em_div_b_y_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        if (dir = 3) then fname : sconcat("~/max-out/em_div_b_z_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("em_div_b_"),
+        calcdivb(dir, fh, funcName, d, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 );

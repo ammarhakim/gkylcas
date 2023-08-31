@@ -1,9 +1,11 @@
-load("basis-calc/basis-expSqrtSignFuncs")$
+load("pkpm/pkpm-pressure-vars")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-    DG expansion of sqrt(A) where A is a DG field
-    by projecting A onto quadrature points, taking the sqrt,
-    and then projecting back onto the modal basis. */
+/* This script calls the functions which generate the kernels for calculating the
+   pressure tensor p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij via weak multiplication.
+   Computes both the volume expansion and the necessary surface expansions of p_ij at
+   the corresponding surfaces 
+   (Pxx, Pxy, Pxz and x surfaces, Pxy, Pyy, Pyz at y surfaces, Pxz, Pyz, Pzz at z surfaces) */
+
 
 /* ...... USER INPUTS........ */
 
@@ -19,11 +21,11 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 2$
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["ser","tensor"]$
+bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
@@ -33,17 +35,14 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    /* Optional parameter to make the quadrature higher order
-       Actually seems to have *worse* properties than just polyOrder + 1 
-       quadrature points */
-    quadPolyOrder : 3, 
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      fname : sconcat("~/max-out/gkyl_basis_",  bName[bInd], "_", d, "x_p", polyOrder, "_sqrt_with_sign.h"),
+      disp(printf(false,sconcat("Creating pkpm vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/pkpm_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat(bName[bInd], "_", d, "x_p", polyOrder, "_sqrt_with_sign"),
-      calcDGExpSqrtSign(fh, funcName, d, bName[bInd], polyOrder, polyOrder),
+      funcName : sconcat("pkpm_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
+      calcPKPMPressure(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

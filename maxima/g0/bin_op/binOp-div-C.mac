@@ -73,9 +73,9 @@ calcBinOpConfDivide(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, " ~%"),
 
   /* function to evaluate f on nodes */
-  cornerNodes : getNodes(basisFun, wdim, 1),
+  cornerNodes : getNodes(basisFun, wdim, polyOrder),
 
-  /* List of A evaluated at the corners. */
+  /* List of A evaluated at the corners. For p>1 also includes interior points. */
   cornerAs : evAtNodes(doExpand1(g,bW), cornerNodes, varsW),
 
   /* List of A evaluated close to positivity control points. */
