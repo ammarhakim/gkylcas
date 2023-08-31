@@ -32,7 +32,7 @@ calcFPODiffCoeffSurf(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block
   /* Variable to perform recovery in */
   recovDir : dir + cdim,
   pv : varsP[recovDir],
-  display(pv),
+  disp(pv),
 
   /* Surface variables to integrate over */
   surfVars : delete(pv, varsP),
@@ -53,20 +53,15 @@ calcFPODiffCoeffSurf(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block
   printf(fh, "  const double dv1 = 2.0/dxv[~a]; ~%", dir-1+cdim),
   printf(fh, "  const double dv1_sq = dv1*dv1; ~%"),
 
-  printf(fh, "  const double *G_surf, *dGdv_surf, *d2Gdv2_surf; ~%"),
-  printf(fh, "  if (edge == -1) {~%"),
-  printf(fh, "    d2Gdv2_surf = &fpo_d2Gdv2_surf[~a]; ~%", NCsurf*(dir-1)),
-  printf(fh, "  } else { ~%"),
-  printf(fh, "    d2Gdv2_surf = &fpo_d2Gdv2_surf[~a]; ~%", NCsurf*(3+dir-1)),
-  printf(fh, "  }~%"),
+  printf(fh, "  const double *d2Gdv2_surf; ~%"),
+  printf(fh, "  d2Gdv2_surf = &fpo_d2Gdv2_surf[~a]; ~%", NCsurf*(dir-1)),
 
   /* 
     Components go: xx, xy, xz, yy, yz, zz
-    Since only worrying about diagonal, do xx, yy, zz for now
   */
   printf(fh, "  double *diff_coeff_xx = &diff_coeff[~a]; ~%", 0*NC),
-  printf(fh, "  double *diff_coeff_yy = &diff_coeff[~a]; ~%", 1*NC),
-  printf(fh, "  double *diff_coeff_zz = &diff_coeff[~a]; ~%", 2*NC),
+  printf(fh, "  double *diff_coeff_yy = &diff_coeff[~a]; ~%", 4*NC),
+  printf(fh, "  double *diff_coeff_zz = &diff_coeff[~a]; ~%", 8*NC),
 
   printf(fh, "  if (edge == 1) {~%"),
 

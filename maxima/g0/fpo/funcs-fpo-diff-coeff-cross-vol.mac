@@ -1,0 +1,196 @@
+/* This script generates the kernels to calculate the cross derivatives
+   diffusion tensor from an input potential.
+   D = Gamma * gradv gradv(g)
+
+   Dxy, Dxz, Dyz
+*/
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("recovery")$
+
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
+
+calcFPODiffCoeffCross(dir1, dir2, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block(
+  [varsC, bC, varsP, bP, NC, recovDir1, recovDir2, pv1, pv2,
+  GTL_lst, GTC_lst, GTR_lst, GCL_lst, GCC_lst, GCR_lst, GBL_lst, GBC_lst, GBR_lst,
+  Grecpv1, Grecpv2_upper, Grecpv2_lower, surft1, surft2, GCC_e, vol, kernel],
+
+  /* Clear variables for safety, then load basis */
+  kill(varsC, bC, varsP, bP),
+  [varsC, bC, varsP, bP] : loadPhaseBasis(basisFunc, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials */
+  NC : length(bP),
+
+  /* Variable to perform recovery in */
+  recovDir1 : dir1 + cdim,
+  recovDir2 : dir2 + cdim,
+  pv1 : varsP[recovDir1],
+  pv2 : varsP[recovDir2],
+  surfVarspv1 : delete(pv1, varsP),
+  surfVarspv2 : delete(pv2, varsP),
+  bSurfpv1 : basisFromVars(basisFunc, surfVarspv1, polyOrder),
+  bSurfpv2 : basisFromVars(basisFunc, surfVarspv2, polyOrder),
+
+  numSurf : length(bSurfpv1),
+
+  disp([pv1, pv2]),
+
+/* printf(fh, "GKYL_CU_DH void ~a~a~a_~ax~av_~a_p~a(const double *dxv, const double gamma, const double *GTL, const double *GTC, const double *GTR, const double *GCL, const double *GCC, const double *GCR, const double *GBL, const double *GBC, const double *GBR, double *diff_coeff) { ~%", funcNm, pv1, pv2, cdim, vdim, basisFunc, polyOrder), */
+ printf(fh, "GKYL_CU_DH void ~a~a~a_~ax~av_~a_p~a(const double *dxv, const double gamma, const double* stencil[9], double *diff_coeff) { ~%", funcNm, pv1, pv2, cdim, vdim, basisFunc, polyOrder),
+  printf(fh, "  // dxv[NDIM]: Cell spacing. ~%"),
+  printf(fh, "  // GTL,GTC,...: Input potential in plane of recovery vars. L(eft), C(enter), R(ight) in ~a direction. T(op), C(enter), B(ottom) in ~a direction. ~%", pv1, pv2),
+
+  printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", recovDir1-1, recovDir2-1),
+
+  if (dir2 > dir1) then (
+  printf(fh, "  const double* GBL = stencil[0]; ~%"),
+  printf(fh, "  const double* GCL = stencil[1]; ~%"),
+  printf(fh, "  const double* GTL = stencil[2]; ~%"),
+  printf(fh, "  const double* GBC = stencil[3]; ~%"),
+  printf(fh, "  const double* GCC = stencil[4]; ~%"),
+  printf(fh, "  const double* GTC = stencil[5]; ~%"),
+  printf(fh, "  const double* GBR = stencil[6]; ~%"),
+  printf(fh, "  const double* GCR = stencil[7]; ~%"),
+  printf(fh, "  const double* GTR = stencil[8]; ~%")
+  )
+  elseif (dir1 > dir2) then (
+  printf(fh, "  const double* GBL = stencil[0]; ~%"),
+  printf(fh, "  const double* GBC = stencil[1]; ~%"),
+  printf(fh, "  const double* GBR = stencil[2]; ~%"),
+  printf(fh, "  const double* GCL = stencil[3]; ~%"),
+  printf(fh, "  const double* GCC = stencil[4]; ~%"),
+  printf(fh, "  const double* GCR = stencil[5]; ~%"),
+  printf(fh, "  const double* GTL = stencil[6]; ~%"),
+  printf(fh, "  const double* GTC = stencil[7]; ~%"),
+  printf(fh, "  const double* GTR = stencil[8]; ~%")
+  ),
+  printf(fh, "  ~%"),
+  printf(fh, "  double surft1_upper[~a], surft1_lower[~a]; ~%", numSurf, numSurf),
+  printf(fh, "  double surft2_upper[~a], surft2_lower[~a]; ~%", numSurf, numSurf),
+  printf(fh, "  ~%"),
+
+  /* 
+    Components in row major order: xx, xy, xz, yx, yy, yz, zx, zy, zz
+  */
+  printf(fh, "  double *diff_coeff_xy = &diff_coeff[~a]; ~%", 1*NC),
+  printf(fh, "  double *diff_coeff_xz = &diff_coeff[~a]; ~%", 2*NC),
+  printf(fh, "  double *diff_coeff_yx = &diff_coeff[~a]; ~%", 3*NC),
+  printf(fh, "  double *diff_coeff_yz = &diff_coeff[~a]; ~%", 5*NC),
+  printf(fh, "  double *diff_coeff_zx = &diff_coeff[~a]; ~%", 6*NC),
+  printf(fh, "  double *diff_coeff_zy = &diff_coeff[~a]; ~%", 7*NC),
+  /*
+   
+    +-----+-----+-----+
+    | GTL | GTC | GTR |
+    +-----+-----+-----+
+    | GCL | GCC | GCR |
+    +-----+-----+-----+
+    | GBL | GBC | GBR |
+    +-----+-----+-----+
+    
+    ^
+    |
+    pv2 / pv1 -->
+  */
+  GTL_lst : makelist(GTL[i], i, 0, NC-1),
+  GTC_lst : makelist(GTC[i], i, 0, NC-1),
+  GTR_lst : makelist(GTR[i], i, 0, NC-1),
+  GCL_lst : makelist(GCL[i], i, 0, NC-1),
+  GCC_lst : makelist(GCC[i], i, 0, NC-1),
+  GCR_lst : makelist(GCR[i], i, 0, NC-1),
+  GBL_lst : makelist(GBL[i], i, 0, NC-1),
+  GBC_lst : makelist(GBC[i], i, 0, NC-1),
+  GBR_lst : makelist(GBR[i], i, 0, NC-1),
+
+  /* 6-cell recovery across +/-1 interfaces in pv2 */
+  Grecpv2_upper : calcRecovFaceGen(basisFunc, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
+     dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), dg(dg(GCR_lst), dg(GTR_lst))),
+  Grecpv2_lower : calcRecovFaceGen(basisFunc, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
+     dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), dg(dg(GBR_lst), dg(GCR_lst))),
+
+  /* Evaluate surface projection of dG/dpv1 at pv2 boundaries */
+  surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
+  surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)),
+
+  writeCExprs1(surft1_upper, surft1_upper_c),
+  writeCExprs1(surft1_lower, surft1_lower_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  surft1_upper_e : doExpand1(surft1_upper, bSurfpv2),
+  surft1_lower_e : doExpand1(surft1_lower, bSurfpv2),
+
+  surft1 : calcInnerProdList(surfVarspv2, 1, subst(pv2=1,bP), surft1_upper_e) +
+    calcInnerProdList(surfVarspv2, -1, subst(pv2=-1,bP), surft1_lower_e),
+
+  /* 1-cell recovery across +/-1 interfaces in pv1 */
+  Grecpv1_upper : calcRecov2CellGen(basisFunc, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+  Grecpv1_lower : calcRecov2CellGen(basisFunc, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+
+  surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
+  surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower)),
+
+  writeCExprs1(surft2_upper, surft2_upper_c),
+  writeCExprs1(surft2_lower, surft2_lower_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  surft2_upper_e : doExpand1(surft2_upper, bSurfpv1),
+  surft2_lower_e : doExpand1(surft2_lower, bSurfpv1),
+
+  surft2 : calcInnerProdList(surfVarspv1, 1, subst(pv1=1,diff(bP, pv2)), surft2_upper_e) +
+    calcInnerProdList(surfVarspv1, -1,  subst(pv1=-1,diff(bP, pv2)), surft2_lower_e),
+
+  GCC_e : doExpand1(GCC, bP),
+  vol : calcInnerProdList(varsP, 1, diff(diff(bP, pv1), pv2), GCC_e),
+
+  diff_coeff : surft1 - surft2 + vol,
+
+  
+/*
+  if (dir1=1 and dir2=2) then (
+    writeCExprs1(diff_coeff_xy, gamma*dv1_sq*diff_coeff)
+  )
+  elseif (dir1=1 and dir2=3) then (
+    writeCExprs1(diff_coeff_xz, gamma*dv1_sq*diff_coeff) 
+  )
+  elseif (dir1=2 and dir2=1) then (
+    writeCExprs1(diff_coeff_yx, gamma*dv1_sq*diff_coeff) 
+  )
+  elseif (dir1=2 and dir2=3) then (
+    writeCExprs1(diff_coeff_yz, gamma*dv1_sq*diff_coeff) 
+  )
+  elseif (dir1=3 and dir2=1) then (
+    writeCExprs1(diff_coeff_zx, gamma*dv1_sq*diff_coeff) 
+  )
+  elseif (dir1=3 and dir2=2) then (
+    writeCExprs1(diff_coeff_zy, gamma*dv1_sq*diff_coeff) 
+  ),
+*/
+
+  if (dir1=1 and dir2=2) then (
+    out : diff_coeff_xy 
+  )
+  elseif (dir1=1 and dir2=3) then (
+    out : diff_coeff_xz
+  )
+  elseif (dir1=2 and dir2=1) then (
+    out : diff_coeff_yx
+  )
+  elseif (dir1=2 and dir2=3) then (
+    out : diff_coeff_yz
+  )
+  elseif (dir1=3 and dir2=1) then (
+    out : diff_coeff_zx 
+  )
+  elseif (dir1=3 and dir2=2) then (
+    out : diff_coeff_zy
+  ),
+  writeCExprs1(out, gamma*dv1_sq*diff_coeff),
+
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
+

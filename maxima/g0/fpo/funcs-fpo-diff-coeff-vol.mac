@@ -37,8 +37,8 @@ calcFPODiffCoeff(dir, fh, funcNm, cdim, vdim, basisFunc, polyOrder) := block(
     Since only worrying about diagonal, do xx, yy, zz for now
   */
   printf(fh, "  double *diff_coeff_xx = &diff_coeff[~a]; ~%", 0*NC),
-  printf(fh, "  double *diff_coeff_yy = &diff_coeff[~a]; ~%", 1*NC),
-  printf(fh, "  double *diff_coeff_zz = &diff_coeff[~a]; ~%", 2*NC),
+  printf(fh, "  double *diff_coeff_yy = &diff_coeff[~a]; ~%", 4*NC),
+  printf(fh, "  double *diff_coeff_zz = &diff_coeff[~a]; ~%", 8*NC),
 
   /* Expansions of G in left, center, and right cells */
   lst_G_l : makelist(G_l[i], i, 0, NC-1),
