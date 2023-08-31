@@ -27,7 +27,7 @@ calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bC : basisC[polyOrder],
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // ul/uc/ur:  Advection velocity in left/center/right cells.~%"),
@@ -89,6 +89,9 @@ calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(out, dx1*incr_l + dx1*incr_r), 
   printf(fh, "~%"),
 
+  printf(fh, "  return 0.;~%"), /* Return CFL frequency in volume kernel.*/
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -102,7 +105,7 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bC : basisC[polyOrder],
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // ul/uc/ur:  Advection velocity in left/center/right cells.~%"),
@@ -213,6 +216,9 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bC), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bC), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dx1*incr_l + dx1*incr_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"), /* Return CFL frequency in volume kernel.*/
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

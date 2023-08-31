@@ -1,0 +1,147 @@
+/* This script generates the kernels for the boundary surface term
+   drag contribution from Lenard Bernstein operator. */
+
+load("modal-basis")$
+load("out-scripts");
+load("utilities")$
+load(stringproc)$
+
+fpprec : 24$
+
+varsCAll : [x, y, z]$
+vvarsAll : [vx, vy, vz]$
+nuUSumx  : [sumNuUx, sumNuUy, sumNuUz]$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,bSurf,alphaDr,alphaDrSurf_l_c,
+   alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,surf_cdim,surf_vdim,surfNodes,numNodes,
+   alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,numNodesConfig,numNodesVel,i,rcoFac,fHatSurf_e,Ghat_c,
+   glst1,Ghat_e,incr],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),  NC : length(bC),
+
+  pDim : cdim+vdim,
+  /* Variables. */
+  surfVars : delete(vx,varsP),
+
+  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nu, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]:       Cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:     Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nu:          Collisionality. ~%"),
+  printf(fh, "  // fSkin/fEdge: Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in skin cell/last edge cell ~%"),
+  printf(fh, "  // out:         Incremented distribution function in cell ~%"),
+
+  /* grid spacing in v_parallel and v_parallel coordinate */
+  printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
+  printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
+
+  /* Access F_0 and T_perp G, first two Laguerre moments */
+  printf(fh, "  const double *F_0Skin = &fSkin[~a]; ~%", 0),
+  printf(fh, "  const double *G_1Skin = &fSkin[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0Edge = &fEdge[~a]; ~%", 0),
+  printf(fh, "  const double *G_1Edge = &fEdge[~a]; ~%", NP), 
+
+  /* Access the components of out for the first two Laguerre moments */
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),  
+
+  nu_e : doExpand1(nu,bC),
+  printf(fh, "~%"),
+  /* Calculate the alpha-velocity due to drag. */
+  alphaDr : nu_e*((1.0/2.0)*dvpar*vx+wvpar),
+
+  /* Create expansions of f_left, f_center, and f_right on volume basis. */
+  F_0_Skin_e : doExpand1(F_0Skin, bP),
+  F_0_Edge_e : doExpand1(F_0Edge, bP),
+  G_1_Skin_e : doExpand1(G_1Skin, bP),
+  G_1_Edge_e : doExpand1(G_1Edge, bP),
+
+  /* Surface basis. Equivalent to basis of one lower
+     dimensionality without surface variable. */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Project alphaDrag evaluated at interior surface onto surf basis. */
+  alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=-1,alphaDr))),
+  alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=1,alphaDr))),
+  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf),
+  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf),
+  alphaDrSurf_l_e : doExpand(alst_l, bSurf),
+  alphaDrSurf_r_e : doExpand(alst_r, bSurf),
+
+  printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_F_0[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "~%"),
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
+  /* In addition we need the drag term evaluated at +1 (so alphaDr evaluated on the right) */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+  /* Write out drag term for far left edge boundary.
+     Need alpha evaluated at +1 for skin-edge interface.
+     NOTE: zero-flux boundary conditions means for far left boundary, no drag term on -1 surface */
+  writeCExprs1(alphaDrSurf, alphaDrSurf_r_c),
+  printf(fh, "~%"),
+
+  Ghat_F_0_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, F_0_Skin_e)),
+  Ghat_G_1_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vx=1, G_1_Skin_e)),
+  writeCExprs1(Ghat_F_0, Ghat_F_0_c),
+  writeCExprs1(Ghat_G_1, Ghat_G_1_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  Ghat_F_0_e       : doExpand1(Ghat_F_0, bSurf),
+  Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
+
+  /* Increments to the far left skin cell (some dimensional factors missing). */
+  incr_F_0 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_G_1_e),
+  
+  /* Write out contribution */
+  writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
+  writeCIncrExprs1(out_G_1, dv1par*incr_G_1),
+
+  /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
+  printf(fh, "~%  } else { ~%~%"),
+  /* Write out drag term for far right edge boundary.
+     Need alpha evaluated at -1 for skin-edge interface.
+     NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
+  writeCExprs1(alphaDrSurf, alphaDrSurf_l_c),
+  printf(fh, "~%"),
+
+  Ghat_F_0_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, F_0_Skin_e)),
+  Ghat_G_1_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vx=-1, G_1_Skin_e)),
+  writeCExprs1(Ghat_F_0, Ghat_F_0_c),
+  writeCExprs1(Ghat_G_1, Ghat_G_1_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  Ghat_F_0_e       : doExpand1(Ghat_F_0, bSurf),
+  Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
+
+  /* Increments to the far right skin cell (some dimensional factors missing). */
+  incr_F_0 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_G_1_e),
+  
+  /* Write out contribution */
+  writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
+  writeCIncrExprs1(out_G_1, dv1par*incr_G_1),
+  printf(fh, "~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+);
+
+

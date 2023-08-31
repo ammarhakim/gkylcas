@@ -55,7 +55,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_gen_diffusion_surfxx_2x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* q[], double* GKYL_RESTRICT out) ~%"),
@@ -78,6 +78,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  out[~a] += Jxx*(~a);~%", i-1,
       float(expand(psubst(subLst, kernel[i]))))
     ),
+  printf(fh, "  return 0.;~%"),  /* Leave CFL frequency to vol kernel. */
   printf(fh, "}~%"),
   close(fh),
   kill(qRec1x),
@@ -105,7 +106,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   
   fh : openw(fname),
   printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
-  printf(fh, "GKYL_CU_DH void~%"),
+  printf(fh, "GKYL_CU_DH double~%"),
   printf(fh, sconcat("dg_gen_diffusion_surfxy_2x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* q[], double* GKYL_RESTRICT out) ~%"),
@@ -133,6 +134,7 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
     printf(fh, "  out[~a] += Jxy*(~a);~%", i-1,
       float(expand(psubst(subLst, kernel[i]))))
     ),
+  printf(fh, "  return 0.;~%"),  /* Leave CFL frequency to vol kernel. */
   printf(fh, "}~%"),
   close(fh)
   ) $

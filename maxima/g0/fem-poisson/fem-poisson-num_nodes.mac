@@ -9,7 +9,8 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_poisson_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
-  [],
+  [stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,d,i,bcI,currBC,stencilStr,polyOrder,
+   bN,numB,numNodes,storedNodes,numNodesOut,sI,numStoredNodes,numBoundCells],
 
   kill(varsC, varsP, basisC, basisP),
 

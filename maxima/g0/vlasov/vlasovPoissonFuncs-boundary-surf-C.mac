@@ -37,7 +37,7 @@ calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       potential (scaled by appropriate factors).~%"),
@@ -221,6 +221,9 @@ calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
   printf(fh, "~%  } ~%"),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -235,7 +238,7 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       potential (scaled by appropriate factors).~%"),
@@ -423,6 +426,9 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
   incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
   printf(fh, "~%  } ~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

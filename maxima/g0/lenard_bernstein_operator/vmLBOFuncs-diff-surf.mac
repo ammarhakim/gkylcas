@@ -10,7 +10,7 @@ fpprec : 24$
 vvarsAll : [vx, vy, vz]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pDim,vid1,surfVar,bType,h_e,nuVtSqSum_e,f_xx_c,f_xx_e,incr_c],
 
   /* Load basis of dimensionality requested. */
@@ -32,7 +32,7 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
     dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
     
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -71,5 +71,10 @@ calcVmLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNon
   printf(fh, "~%"),
     
   writeCIncrExprs1(out, rdvSq4*makelistNoZeros1(incr_c, incr)),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );

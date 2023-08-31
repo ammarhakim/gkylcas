@@ -77,6 +77,13 @@ writeCExprs1(lhs, rhs) := block([expr],
   )
 )$
 
+writeCExprsWithZeros(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh, "  ~a = ~a; ~%", lhs[i], expr[i])
+  )
+)$
+
 writeCExprsWithZeros1(lhs, rhs) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (

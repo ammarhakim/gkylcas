@@ -1,5 +1,4 @@
-kill(all) $
-load("fpo/funcs-fpo-vlasov-drag-surf") $
+load("fpo/funcs-fpo-vlasov-drag-surf-1x3v")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
