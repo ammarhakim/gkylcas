@@ -335,48 +335,27 @@ setbvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
 )$
 
 copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [varsC, bC, NC, surfVarsx, bSurfx, surfVarsy, bSurfy, surfVarsz, bSurfz, NSurf, 
-   bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
-   nodes, bxbxQuad, bybyQuad, bzbzQuad, 
-   bx_xl_c, bx_xr_c, bxbx_xl_c, bxbx_xr_c, bxby_xl_c, bxby_xr_c, bxbz_xl_c, bxbz_xr_c, 
-   by_yl_c, by_yr_c, bxby_yl_c, bxby_yr_c, byby_yl_c, byby_yr_c, bybz_yl_c, bybz_yr_c, 
-   bz_zl_c, bz_zr_c, bxbz_zl_c, bxbz_zr_c, bybz_zl_c, bybz_zr_c, bzbz_zl_c, bzbz_zr_c],
+  [varsC, bC, NC, 
+   bxbx_e, byby_e, bzbz_e, 
+   nodes, bxbxQuad, bybyQuad, bzbzQuad],
 
   kill(varsC, basisC),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
-  surfVarsx : delete(x,varsC),
-  bSurfx : basisFromVars(basisFun,surfVarsx,polyOrder),
-  if (cdim > 1) then (
-    surfVarsy : delete(y,varsC),
-    bSurfy : basisFromVars(basisFun,surfVarsy,polyOrder)
-  ),
-  if (cdim = 3) then (
-    surfVarsz : delete(z,varsC),
-    bSurfz : basisFromVars(basisFun,surfVarsz,polyOrder)
-  ),
 
-  /* Number of basis monomials. */
-  NC : length(bC),
-  if (cdim = 1) then (
-    NSurf : 1
-  )
-  else (
-    NSurf : length(bSurfx)
-  ),
+  NC  : length(bC),
 
   printf(fh, "#include <gkyl_mat.h> ~%"),
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_~a_~ax_p~a_sqrt_with_sign.h> ~%", basisFun, cdim, polyOrder),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, 
-    double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* GKYL_RESTRICT bvar) ~%{ ~%", funcNm),
   printf(fh, "  // count:          Integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // x:              Input solution vector. ~%"),
   printf(fh, "  // em:             Input electromagnetic fields. ~%"),
   printf(fh, "  // cell_avg_magB2: Input flag for cell average if 1/|B|^2 only used cell averages. ~%"),
-  printf(fh, "  // bvar:           Output volume expansion of b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
+  printf(fh, "  // bvar:           Output b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
   printf(fh, " ~%"),
 
   printf(fh, "  struct gkyl_mat x_bxbx = gkyl_nmat_get(x, count); ~%"),
@@ -414,15 +393,8 @@ copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* To insure b . b = 1, we need to check if bxbx, byby, or bzbz < 0.0
      at the quadrature points we use to evaluate the sqrt. If any of these
      points are negative, we switch to just the cell average of b_i b_j */
-  /* Expand b and bb */
-  bx_e : doExpand1(bx, bC),
-  by_e : doExpand1(by, bC),
-  bz_e : doExpand1(bz, bC),
   bxbx_e : doExpand1(bxbx, bC),
-  bxby_e : doExpand1(bxby, bC),
-  bxbz_e : doExpand1(bxbz, bC),
   byby_e : doExpand1(byby, bC),
-  bybz_e : doExpand1(bybz, bC),
   bzbz_e : doExpand1(bzbz, bC),
 
   nodes : gaussOrd(polyOrder+1, cdim),
@@ -458,9 +430,71 @@ copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_x, bxbx, bx); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_y, byby, by); ~%", basisFun, cdim, polyOrder),
   printf(fh, "  ~a_~ax_p~a_sqrt_with_sign(B_z, bzbz, bz); ~%", basisFun, cdim, polyOrder),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+setbvar_surf(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, 
+   bx_e, by_e, bz_e, bxbx_e, bxby_e, bxbz_e, byby_e, bybz_e, bzbz_e, 
+   bx_xl_c, bx_xr_c, bxbx_xl_c, bxbx_xr_c, bxby_xl_c, bxby_xr_c, bxbz_xl_c, bxbz_xr_c, 
+   by_yl_c, by_yr_c, bxby_yl_c, bxby_yr_c, byby_yl_c, byby_yr_c, bybz_yl_c, bybz_yr_c, 
+   bz_zl_c, bz_zr_c, bxbz_zl_c, bxbz_zr_c, bybz_zl_c, bybz_zr_c, bzbz_zl_c, bzbz_zr_c],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars(basisFun,surfVarsx,polyOrder),
+  if (cdim > 1) then (
+    surfVarsy : delete(y,varsC),
+    bSurfy : basisFromVars(basisFun,surfVarsy,polyOrder)
+  ),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars(basisFun,surfVarsz,polyOrder)
+  ),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  if (cdim = 1) then (
+    NSurf : 1
+  )
+  else (
+    NSurf : length(bSurfx)
+  ),
+
+  printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double* bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // bvar:      Input volume expansion of b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
+  printf(fh, "  // bvar_surf: Output surface expansion of magnetic field unit vector and tensor in each direction. ~%"),
   printf(fh, " ~%"),
 
-  /* Now compute needed surface expansions */
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, "  const double *bxbx = &bvar[~a]; ~%", NC*3),
+  printf(fh, "  const double *bxby = &bvar[~a]; ~%", NC*4),
+  printf(fh, "  const double *bxbz = &bvar[~a]; ~%", NC*5),
+  printf(fh, "  const double *byby = &bvar[~a]; ~%", NC*6),
+  printf(fh, "  const double *bybz = &bvar[~a]; ~%", NC*7),
+  printf(fh, "  const double *bzbz = &bvar[~a]; ~%", NC*8),
+  printf(fh, " ~%"),
+
+  /* Expand b and bb */
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
+  bxbx_e : doExpand1(bxbx, bC),
+  bxby_e : doExpand1(bxby, bC),
+  bxbz_e : doExpand1(bxbz, bC),
+  byby_e : doExpand1(byby, bC),
+  bybz_e : doExpand1(bybz, bC),
+  bzbz_e : doExpand1(bzbz, bC),
+
   printf(fh, "  double *bx_xl = &bvar_surf[~a]; ~%", 0*NSurf),
   printf(fh, "  double *bx_xr = &bvar_surf[~a]; ~%", 1*NSurf),
   printf(fh, "  double *bxbx_xl = &bvar_surf[~a]; ~%", 2*NSurf),
@@ -570,7 +604,6 @@ copybvar(fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCExprs1(bzbz_zr, bzbz_zr_c),  
     printf(fh, " ~%")
   ),  
-
   printf(fh, "} ~%"),
   printf(fh, " ~%")
 )$
@@ -890,8 +923,7 @@ copyExB(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_mat.h> ~%"),
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, 
-  double* GKYL_RESTRICT ExB, double* GKYL_RESTRICT ExB_surf) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, double* GKYL_RESTRICT ExB) ~%{ ~%", funcNm),
   printf(fh, "  // count:          Integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // x:              Input solution vector. ~%"),
   printf(fh, "  // em:             Input electromagnetic fields. ~%"),
