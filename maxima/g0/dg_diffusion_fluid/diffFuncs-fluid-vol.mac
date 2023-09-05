@@ -68,7 +68,7 @@ genDGdiffFluidKernelVol(fh, funcNm, dim, basisType, polyOrder, diffOrder) := blo
 
     /* Print functions with volume contribution from each direction. */
     for dir : 1 thru dim do (
-      genDGdiffKernelVolInDir(fh, funcNm, dim, basisType, polyOrder, diffOrder, dir, cI),
+      genDGdiffFluidKernelVolInDir(fh, funcNm, dim, basisType, polyOrder, diffOrder, dir, cI),
       printf(fh, "~%")
     ),
     
