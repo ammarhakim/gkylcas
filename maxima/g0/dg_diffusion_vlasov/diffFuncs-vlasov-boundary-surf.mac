@@ -8,29 +8,20 @@ fpprec : 24$
    or d_xx( D d_xx(f)); different models appear in the literature. Since we don't
    a good physical justfication for either we just arbitrarily pick one. */
 
-genDGdiffKernelBoundarySurf(fh, funcNm, cdim, vdim, basisType, polyOrder, vspaceType, dir, diffOrder) := block(
+genDGdiffVlasovKernelBoundarySurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir, diffOrder) := block(
   [constCoeff,dim,bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,
    coeffType,coeff_e,coeff_c,vol_incr_c,fEdge_c,fSkin_c,fSkin_e,hOrder,bcRecCond,
    i,fRecr_e,edgeSurf_incr_c,fRecl_e,boundSurf_incr_c,vol_out,diff_out,edge_out],
 
-  printf(fh, "#include <gkyl_dg_diffusion_kernels.h>~%~%"),
+  printf(fh, "#include <gkyl_dg_diffusion_vlasov_kernels.h>~%~%"),
 
   for constCoeff in [true, false] do (
       
     dim : cdim+vdim,
 
     bType : basisType,
-    if vdim = 0 then (
-      [vars, basis] : loadBasis(basisType, cdim, polyOrder)
-    ) else (
-      if vspaceType = "vlasov" then (
-        [varsC, basisC, vars, basis] : loadPhaseBasis(basisType, cdim, vdim, polyOrder),
-        if polyOrder=1 then bType : "hyb"  /* Force p=1 to mean hybrid. */
-      ) else if vspaceType = "gyrokinetic" then (
-        [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
-        if polyOrder=1 then bType : "gkhyb"  /* Force p=1 to mean hybrid. */
-      )
-    ),
+    [varsC, basisC, vars, basis] : loadPhaseBasis(basisType, cdim, vdim, polyOrder),
+    if polyOrder=1 then bType : "hyb",  /* Force p=1 to mean hybrid. */
     numBasis : length(basis),
     surfVar  : vars[dir],
     surfIntVars : delete(surfVar,vars),

@@ -1,10 +1,10 @@
 kill(all)$
-load("dg_diffusion/diffFuncs-vol")$
+load("dg_diffusion_vlasov/diffFuncs-vlasov-vol")$
 
-/* Generate kernels for a diffusion volume term. It only computes the CFL frequency.
-   Supports diffusion types: D_i*d^n f/dx_i^n (summation implied) for n=2,4,6.
-   Note: volume kernels only compute the CFL frequency, so are independent of
-   basis type and equation system (e.g., Euler vs. PKPM) */
+/* Generate kernels for a vlasov diffusion volume term. It only computes the CFL frequency.
+   Supports diffusion types: d^(n/2)(D_i*d^(n/2)(f)/dx_i^(n/2))/dx_i^(n/2)
+   (summation implied) for n=2,4,6. Until we do diffusion in v-space, the volume
+   term remains independent of vdim. */
 
 /* ...... USER INPUTS........ */
 
@@ -36,25 +36,25 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_order2_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fname : sconcat("~/max-out/dg_diffusion_vlasov_order2_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("dg_diffusion_order2_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffKernelVol(fh, funcName, d, bName[bInd], polyOrder, 2),
+      funcName : sconcat("dg_diffusion_vlasov_order2_vol_", d, "x_", bName[bInd], "_p", polyOrder),
+      genDGdiffVlasovKernelVol(fh, funcName, d, bName[bInd], polyOrder, 2),
       close(fh),
 
       disp(printf(false,sconcat("Creating volume hyper 4th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_order4_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fname : sconcat("~/max-out/dg_diffusion_vlasov_order4_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("dg_diffusion_order4_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffKernelVol(fh, funcName, d, bName[bInd], polyOrder, 4),
+      funcName : sconcat("dg_diffusion_vlasov_order4_vol_", d, "x_", bName[bInd], "_p", polyOrder),
+      genDGdiffVlasovKernelVol(fh, funcName, d, bName[bInd], polyOrder, 4),
       close(fh),
 
       if polyOrder > 1 then (
         disp(printf(false,sconcat("Creating volume hyper 6th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-        fname : sconcat("~/max-out/dg_diffusion_order6_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/dg_diffusion_vlasov_order6_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("dg_diffusion_order6_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-        genDGdiffKernelVol(fh, funcName, d, bName[bInd], polyOrder, 6),
+        funcName : sconcat("dg_diffusion_vlasov_order6_vol_", d, "x_", bName[bInd], "_p", polyOrder),
+        genDGdiffVlasovKernelVol(fh, funcName, d, bName[bInd], polyOrder, 6),
         close(fh)
       )
     )

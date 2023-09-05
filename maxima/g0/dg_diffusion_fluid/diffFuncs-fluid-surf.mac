@@ -3,27 +3,15 @@ load("recovery")$
 load("out-scripts")$
 fpprec : 24$
 
-genDGdiffKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, vspaceType, dir, diffOrder) := block(
-  [constCoeff,dim,vars,basis,varsC,basisC,vSub,numBasis,ql_c,qc_c,qr_c,coeffType,coeff_e,coeff_c,qRec,kernel,i],
+genDGdiffFluidKernelSurf(fh, funcNm, dim, basisType, polyOrder, dir, diffOrder) := block(
+  [constCoeff,vars,basis,varsC,basisC,vSub,numBasis,ql_c,qc_c,qr_c,coeffType,coeff_e,coeff_c,qRec,kernel,i],
 
-  printf(fh, "#include <gkyl_dg_diffusion_kernels.h>~%~%"),
+  printf(fh, "#include <gkyl_dg_diffusion_fluid_kernels.h>~%~%"),
 
   for constCoeff in [true, false] do (
       
-    dim : cdim+vdim,
-  
     bType : basisType,
-    if vdim = 0 then (
-      [vars, basis] : loadBasis(basisType, cdim, polyOrder)
-    ) else (
-      if vspaceType = "vlasov" then (
-        [varsC, basisC, vars, basis] : loadPhaseBasis(basisType, cdim, vdim, polyOrder),
-        if polyOrder=1 then bType : "hyb"  /* Force p=1 to mean hybrid. */
-      ) else if vspaceType = "gyrokinetic" then (
-        [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
-        if polyOrder=1 then bType : "gkhyb"  /* Force p=1 to mean hybrid. */
-      )
-    ),
+    [vars, basis] : loadBasis(basisType, dim, polyOrder),
     numBasis : length(basis),
   
     ql_c : makelist(ql[i-1], i, 1, numBasis),
@@ -37,10 +25,8 @@ genDGdiffKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, vspaceType, di
       coeffType : "var",
       /* Here we assume diffusion coefficient only depends on position space,
          but it coule be easily changed to vary with velocity space too. */
-      if vdim=0 then basisC : basis,
-      numBasisC : length(basisC),
-      coeff_c : makelist(coeff[(dir-1)*numBasisC+i-1],i,1,numBasisC),
-      coeff_e : doExpand(coeff_c, basisC)
+      coeff_c : makelist(coeff[(dir-1)*numBasis+i-1],i,1,numBasis),
+      coeff_e : doExpand(coeff_c, basis)
     ),
   
     qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(ql_c), dg(qc_c), dg(qr_c)),

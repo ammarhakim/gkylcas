@@ -5,12 +5,11 @@ load("utilities")$
 load(stringproc)$
 fpprec : 24$
 
-/* Generate kernels for a diffusion volume term. It only computes the CFL frequency.
-   Supports diffusion types: D_i*d^n f/dx_i^n (summation implied) for n=2,4,6.
-   Note: volume kernels only compute the CFL frequency, so are independent of
-   basis type and equation system (e.g., Euler vs. PKPM) */
+/* Generate kernels for a fluid diffusion volume term. It only computes the CFL frequency.
+   Supports diffusion types: d^(n/2)(D_i(x)* d^(n/2)(f)/dx_i^n)dx_i^(n/2) (summation
+   implied) for n=2,4,6. */
 
-genDGdiffKernelVolInDir(fh, funcNm, dim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
+genDGdiffFluidKernelVolInDir(fh, funcNm, dim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
   [vars,basis,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
 
   [vars, basis] : loadBasis(basisType, dim, polyOrder),
@@ -48,10 +47,10 @@ getDirCombos(varsIn) := block([pss,ps,combos],
   return(combos)
 )$
 
-genDGdiffKernelVol(fh, funcNm, dim, basisType, polyOrder, diffOrder) := block(
+genDGdiffFluidKernelVol(fh, funcNm, dim, basisType, polyOrder, diffOrder) := block(
   [vars,basis,diffDirCombos,cI,dir,diffDirs,diffDirNum,diffDirInP,diffDirsStr,dI],
 
-  printf(fh, "#include <gkyl_dg_diffusion_kernels.h>~%"),
+  printf(fh, "#include <gkyl_dg_diffusion_fluid_kernels.h>~%"),
   printf(fh, "~%"),
 
   [vars, basis] : loadBasis(basisType, dim, polyOrder),
