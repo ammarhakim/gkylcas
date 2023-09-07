@@ -1,26 +1,14 @@
-kill(all) $
-load("recovery") $
-load ("modal-basis") $
+load("recovery")$
+load("modal-basis")$
 load(stringproc)$
+fpprec : 24$
 
-minPolyOrder : 1 $
-maxPolyOrder : 2 $
-
-dirs : [x,y,z] $
-bName : "ser" $
-
-for polyOrder : minPolyOrder thru maxPolyOrder do (
-  load(sconcat("basis-precalc/basisSer3x")),
-  ba : basisC[polyOrder],
+genDiffusionGenVol3x(fh,bName,dim,polyOrder) := block([vars,ba,numBasis],
+  [vars,ba] : loadBasis(bName,dim,polyOrder),
   numBasis : length(ba),
 
-  fname : sconcat("~/max-out/dg_gen_diffusion_vol_3x_", bName, "_p", polyOrder, ".c"),
-  print("Generating:", fname),
-  
-  fh : openw(fname),
-  printf(fh, "#include <gkyl_dg_gen_diffusion_kernels.h>~%~%"),
   printf(fh, "GKYL_CU_DH double~%"),
-  printf(fh, sconcat("dg_gen_diffusion_vol_3x_", bName, "_p", polyOrder,
+  printf(fh, sconcat("dg_diffusion_gen_vol_3x_", bName, "_p", polyOrder,
       "(const double* w, const double* dx,~%")),
   printf(fh, "  const double* Dij, const double* qIn, double* GKYL_RESTRICT out) ~%"),
   printf(fh, "{~%"),
@@ -44,6 +32,5 @@ for polyOrder : minPolyOrder thru maxPolyOrder do (
   printf(fh, "  const double* Dzz = &Dij[~a];~%~%", 5*numBasis),
   
   printf(fh, "  return Jxx*Dxx[0] + Jxy*Dxy[0] + Jxz*Dxz[0] + Jyy*Dyy[0] + Jyz*Dyz[0] + Jzz*Dzz[0];~%"),
-  printf(fh, "}~%"),
-  close(fh)
-  )$
+  printf(fh, "}~%")
+)$
