@@ -62,7 +62,7 @@ calcPKPMUpdateMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
 calcPKPMDiagMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,fl,vTrans,
-  rho,ppar,pperp,qpar,qperp,rparpar,rparperp,
+  rho,M1,ppar,pperp,qpar,qperp,rparpar,rparperp,
   PKPM_moments,clst],
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -87,6 +87,7 @@ calcPKPMDiagMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vTrans  : vx*dvpar/2+wvpar,
   
   rho : calcInnerProdList(varsP, 1, bC, F_0_e),
+  M1 : calcInnerProdList(varsP, vTrans, bC, F_0_e),
   ppar : calcInnerProdList(varsP, vTrans*vTrans, bC, F_0_e),
   pperp : calcInnerProdList(varsP, 1.0, bC, G_1_e),
   qpar : calcInnerProdList(varsP, vTrans*vTrans*vTrans, bC, F_0_e),
@@ -102,6 +103,7 @@ calcPKPMDiagMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   clst : [volFact, mass],
   PKPM_moments : [],
   PKPM_moments : append(PKPM_moments, volFact*mass*rho),
+  PKPM_moments : append(PKPM_moments, volFact*mass*M1),
   PKPM_moments : append(PKPM_moments, volFact*mass*ppar),
   PKPM_moments : append(PKPM_moments, volFact*mass*pperp),
   PKPM_moments : append(PKPM_moments, volFact*mass*qpar),
