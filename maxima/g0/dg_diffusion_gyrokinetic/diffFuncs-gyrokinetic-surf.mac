@@ -8,7 +8,11 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
 
   printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_kernels.h>~%~%"),
 
-  for constCoeff in [true, false] do (
+  diffCoeffType : [true, false],
+  /* Let's not generate inhomogeneous hyperdiff for now. */
+  if (diffOrder>2) then (diffCoeffType : [true]),
+
+  for constCoeff in diffCoeffType do (
       
     dim : cdim+vdim,
   

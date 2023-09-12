@@ -3,10 +3,9 @@ load("recovery")$
 load("out-scripts")$
 fpprec : 24$
 
-/* For higher order diffusion and spatially varying diffusion coefficient, it
-   is not clear where the coefficient should appear, e.g. d_xxx( D d_x(f) )
-   or d_xx( D d_xx(f)); different models appear in the literature. Since we don't
-   a good physical justfication for either we just arbitrarily pick one. */
+/* For hyperdiffusion and spatially varying diffusion coefficient, we put
+   the diffusion coefficient outside because it makes kernels smaller and
+   because there's no physical justification to put it inside (yet). */
 
 genDGdiffFluidKernelBoundarySurf(fh, funcNm, dim, basisType, polyOrder, dir, diffOrder) := block(
   [constCoeff,bType,vars,basis,varsC,vSub,numBasis,surfVar,surfIntVars,
@@ -15,7 +14,11 @@ genDGdiffFluidKernelBoundarySurf(fh, funcNm, dim, basisType, polyOrder, dir, dif
 
   printf(fh, "#include <gkyl_dg_diffusion_fluid_kernels.h>~%~%"),
 
-  for constCoeff in [true, false] do (
+  diffCoeffType : [true, false],
+  /* Let's not generate inhomogeneous hyperdiff for now. */
+  if (diffOrder>2) then (diffCoeffType : [true]),
+
+  for constCoeff in diffCoeffType do (
       
     bType : basisType,
     [vars, basis] : loadBasis(basisType, dim, polyOrder),
@@ -50,7 +53,11 @@ genDGdiffFluidKernelBoundarySurf(fh, funcNm, dim, basisType, polyOrder, dir, dif
     fSkin_e : doExpand(fSkin_c, basis),
 
     /* Volume increment (dimensional factor included later). */
-    vol_incr_c : ((-1)^(diffOrder/2+1))*calcInnerProdList(vars, 1, diff(coeff_e*diff(basis,surfVar,diffOrder/2),surfVar,diffOrder/2), fSkin_e),
+    if diffOrder = 2 then (
+      vol_incr_c : ((-1)^(diffOrder/2+1))*calcInnerProdList(vars, 1, diff(coeff_e*diff(basis,surfVar,diffOrder/2),surfVar,diffOrder/2), fSkin_e)
+    ) else (
+      vol_incr_c : ((-1)^(diffOrder/2+1))*coeff_e*calcInnerProdList(vars, 1, diff(basis,surfVar,diffOrder), fSkin_e)
+    ),
     printf(fh, "  double vol_incr[~a] = {0.0}; ~%", numBasis),
     writeCExprs1(vol_incr, vol_incr_c),
     printf(fh, "~%"),
@@ -69,21 +76,38 @@ genDGdiffFluidKernelBoundarySurf(fh, funcNm, dim, basisType, polyOrder, dir, dif
 
     /* Contribution from the skin-edge surface from integration by parts
        diffOrder times. Extra - sign in diffOrder=4 not included yet. */
-    edgeSurf_incr_c :
-       sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis,surfVar,i-1)),
-                              subst(surfVar=0,diff(coeff_e*diff(fRecr_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
-           +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
-                              subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
-           i,1,diffOrder/2),
-
     fRecl_e  : calcRecov2CellGen(bType, surfVar, vars, polyOrder, apply(bcs,args(bcRecCond)), dg(fSkin_c)),
 
-    boundSurf_incr_c :
-       sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis,surfVar,i-1)),
-                              subst(surfVar=0,diff(coeff_e*diff(fRecl_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
-           +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
-                              subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
-           i,1,diffOrder/2),
+    if diffOrder = 2 then (
+      edgeSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis,surfVar,i-1)),
+                                subst(surfVar=0,diff(coeff_e*diff(fRecr_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
+             +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2),
+
+      boundSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis,surfVar,i-1)),
+                                subst(surfVar=0,diff(coeff_e*diff(fRecl_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
+             +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2)
+    ) else (
+      /* Put the diffusion coefficient outside for hyperdiff. */
+      edgeSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder-i)))
+             +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(basis*coeff_e,surfVar,diffOrder/2+i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2),
+
+      boundSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder-i)))
+             +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(basis*coeff_e,surfVar,diffOrder/2+i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2)
+    ),
 
     writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
     printf(fh, "~%"),
@@ -97,21 +121,38 @@ genDGdiffFluidKernelBoundarySurf(fh, funcNm, dim, basisType, polyOrder, dir, dif
   
     /* Contribution from the skin-edge surface from integration by parts
        diffOrder times. Extra - sign in diffOrder=4 not included yet. */
-    edgeSurf_incr_c :
-       sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis,surfVar,i-1)),
-                              subst(surfVar=0,diff(coeff_e*diff(fRecl_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
-           +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
-                              subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
-           i,1,diffOrder/2),
-
     fRecr_e  : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fSkin_c), apply(bcs,args(bcRecCond))),
 
-    boundSurf_incr_c :
-       sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis,surfVar,i-1)),
-                              subst(surfVar=0,diff(coeff_e*diff(fRecr_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
-           +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
-                              subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
-           i,1,diffOrder/2),
+    if diffOrder = 2 then (
+      edgeSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis,surfVar,i-1)),
+                                subst(surfVar=0,diff(coeff_e*diff(fRecl_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
+             +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2),
+
+      boundSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis,surfVar,i-1)),
+                                subst(surfVar=0,diff(coeff_e*diff(fRecr_e,surfVar,diffOrder/2),surfVar,diffOrder/2-i)))
+             +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(diff(basis,surfVar,diffOrder/2)*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2)
+    ) else (
+      /* Put the diffusion coefficient outside for hyperdiff. */
+      edgeSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, -(-1)^(i-1), subst(surfVar=-1,diff(basis*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder-i)))
+             +calcInnerProdList(surfIntVars, -(-1)^(diffOrder/2+i-1), subst(surfVar=-1,diff(basis*coeff_e,surfVar,diffOrder/2+i-1)),
+                                subst(surfVar=0,diff(fRecl_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2),
+
+      boundSurf_incr_c :
+         sum( calcInnerProdList(surfIntVars, (-1)^(i-1), subst(surfVar=1,diff(basis*coeff_e,surfVar,i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder-i)))
+             +calcInnerProdList(surfIntVars, (-1)^(diffOrder/2+i-1), subst(surfVar=1,diff(basis*coeff_e,surfVar,diffOrder/2+i-1)),
+                                subst(surfVar=0,diff(fRecr_e,surfVar,diffOrder/2-i))),
+             i,1,diffOrder/2)
+    ),
   
     writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
     printf(fh, "~%"),
