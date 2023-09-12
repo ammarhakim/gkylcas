@@ -8,7 +8,11 @@ genDGdiffFluidKernelSurf(fh, funcNm, dim, basisType, polyOrder, dir, diffOrder) 
 
   printf(fh, "#include <gkyl_dg_diffusion_fluid_kernels.h>~%~%"),
 
-  for constCoeff in [true, false] do (
+  diffCoeffType : [true, false],
+  /* Let's not generate inhomogeneous hyperdiff for now. */
+  if (diffOrder>2) then (diffCoeffType : [true]),
+
+  for constCoeff in diffCoeffType do (
       
     bType : basisType,
     [vars, basis] : loadBasis(basisType, dim, polyOrder),
@@ -31,12 +35,16 @@ genDGdiffFluidKernelSurf(fh, funcNm, dim, basisType, polyOrder, dir, diffOrder) 
   
     qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(ql_c), dg(qc_c), dg(qr_c)),
   
-    /* For higher order diffusion and spatially varying diffusion coefficient, it
-       is not clear where the coefficient should appear, e.g. d_xxx( D d_x(f) )
-       or d_xx( D d_xx(f)); different models appear in the literature. Since we don't
-       a good physical justfication for either we just arbitrarily pick one. */
-    kernel : calcInnerProdList(vars, 1, basis,
-      ((-1)^(diffOrder/2+1))*diff(coeff_e*diff(qRec, vars[dir], diffOrder/2), vars[dir], diffOrder/2)),
+    /* For hyperdiffusion and spatially varying diffusion coefficient, we put
+       the diffusion coefficient outside because it makes kernels smaller and
+       because there's no physical justification to put it inside (yet). */
+    if diffOrder = 2 then (
+      kernel : calcInnerProdList(vars, 1, basis,
+        ((-1)^(diffOrder/2+1))*diff(coeff_e*diff(qRec, vars[dir], diffOrder/2), vars[dir], diffOrder/2))
+    ) else (
+      kernel : calcInnerProdList(vars, 1, basis,
+        ((-1)^(diffOrder/2+1))*coeff_e*diff(qRec, vars[dir], diffOrder))
+    ),
     
     printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
     printf(fh, "{~%"),
