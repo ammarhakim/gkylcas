@@ -69,17 +69,17 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, edges, skindirs) := block(
          /* Want to pass val as edge value in recovery dir at node. This is tempval*/
          if edges[j]="up" then(
            /* Set value*/
-           /*tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=1, N=0, val=tempval]))*/
+           tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=1, N=0, val=tempval]))
            /* Set Derivative instead*/
-           tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=0, N=1, val=tempval]))
+           /*tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=0, N=1, val=tempval]))*/
          ),
          if edges[j]="lo" then(
-           /*tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=1, N=0, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
-           tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=0, N=1, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+           tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=1, N=0, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+           /*tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=0, N=1, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
          )
       )
       else(
