@@ -14,7 +14,7 @@ maxVdim_Ser : 3$
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 0$
@@ -44,8 +44,8 @@ printPrototypeDrag(deco, ci, vi, bStr, pi) := block([si],
 
   printf(fh, "~adouble lbo_vlasov_drag_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru vi do (
-    printf(fh, "~avoid lbo_vlasov_drag_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~avoid lbo_vlasov_drag_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble lbo_vlasov_drag_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble lbo_vlasov_drag_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   printf(fh, "~%")
 )$
@@ -54,24 +54,9 @@ printPrototypeDiff(deco, ci, vi, bStr, pi) := block([si],
 
   printf(fh, "~adouble lbo_vlasov_diff_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru vi do (
-    printf(fh, "~avoid lbo_vlasov_diff_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~avoid lbo_vlasov_diff_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble lbo_vlasov_diff_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble lbo_vlasov_diff_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
-  printf(fh, "~%")
-)$
-
-printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-
-  printf(fh, "~adouble lbo_vlasov_pkpm_drag_vol_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nu, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid lbo_vlasov_pkpm_drag_boundary_surfvpar_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nu, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid lbo_vlasov_pkpm_drag_surfvpar_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nu, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-
-  printf(fh, "~%"),
-
-  printf(fh, "~adouble lbo_vlasov_pkpm_diff_vol_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nuVtSq, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid lbo_vlasov_pkpm_diff_boundary_surfvpar_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nuVtSq, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid lbo_vlasov_pkpm_diff_surfvpar_~ax1v_~a_p~a(const double *w, const double *dxv, const double *nuVtSq, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-
   printf(fh, "~%")
 )$
 
@@ -98,9 +83,6 @@ for bInd : 1 thru length(bName) do (
         printPrototypeDrag(decorator, c, v, bName[bInd], polyOrder),
         printPrototypeDiff(decorator, c, v, bName[bInd], polyOrder)
       )
-    ),
-    for polyOrder : minPolyOrderB thru 3 do (
-      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
     )
   )
 );

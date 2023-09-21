@@ -11,10 +11,10 @@ cDims : [1,3]$
 vDims : [[1,2],[2]]$
 
 /* Serendipity basis. */
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 
 /* Tensor order basis. */
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
 
 bName        : ["Ser", "Tensor"]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$

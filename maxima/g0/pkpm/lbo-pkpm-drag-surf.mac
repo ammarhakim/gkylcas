@@ -1,0 +1,159 @@
+/* This script generates the kernels for the surface term
+   drag contribution from Lenard Bernstein operator when 
+   coupled to the Vlasov parallel-kinetic-perpendicular-moment (pkpm) model. */
+
+load("modal-basis")$
+load("out-scripts");
+load("utilities")$
+load(stringproc)$
+fpprec : 24$
+
+varsCAll : [x, y, z]$
+vvarsAll : [vx, vy, vz]$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+calcVlasovPKPMLBODragSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,fl_e,fc_e,fr_e,
+   bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,
+   surf_cdim,surf_vdim,surfNodes,numNodes,alphaOrd_l_n,alphaOrd_r_n,surfNodesConfig,
+   numNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,
+   Ghat_r_c,glst1_l,Ghat_l_e,glst1_r,Ghat_r_e,drag_incr_r,drag_incr_l],
+  
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NP : length(bP),  NC : length(bC),
+
+  pDim : cdim+vdim,
+  /* Variables. */
+  surfVars : delete(vx,varsP),
+
+  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nu, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]:    cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:  cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nu:       collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // fl/fc/fr: Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in left/center/right cells ~%"),
+  printf(fh, "  // out:      incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
+  /* grid spacing in v_parallel and v_parallel coordinate */
+  printf(fh, "  const double dv1par = 2.0/dxv[~a]; ~%", cdim),
+  printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
+
+  /* Access F_0 and T_perp G, first two Laguerre moments */
+  printf(fh, "  const double *F_0l = &fl[~a]; ~%", 0),
+  printf(fh, "  const double *G_1l = &fl[~a]; ~%", NP),  
+  printf(fh, "  const double *F_0c = &fc[~a]; ~%", 0),
+  printf(fh, "  const double *G_1c = &fc[~a]; ~%", NP), 
+  printf(fh, "  const double *F_0r = &fr[~a]; ~%", 0),
+  printf(fh, "  const double *G_1r = &fr[~a]; ~%", NP), 
+
+  /* Access the components of out for the first two Laguerre moments */
+  printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
+  printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),  
+
+  nu_e : doExpand1(nu,bC),
+  printf(fh, "~%"),
+  /* Calculate the alpha-velocity due to drag. */
+  alphaDr : nu_e*((1.0/2.0)*dvpar*vx+wvpar),
+    
+  /* Create expansions of F_0 and G_1 in left/center/right cells on volume basis. */
+  F_0_l_e : doExpand1(F_0l, bP),
+  F_0_c_e : doExpand1(F_0c, bP),
+  F_0_r_e : doExpand1(F_0r, bP),
+
+  G_1_l_e : doExpand1(G_1l, bP),
+  G_1_c_e : doExpand1(G_1c, bP),
+  G_1_r_e : doExpand1(G_1r, bP),
+
+  /* Surface basis. Equivalent to basis of one lower
+     dimensionality without surface variable. */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Project alphaDrag evaluated at interior surface onto surf basis. */
+  alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=-1,alphaDr))),
+  alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=1,alphaDr))),
+  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf_l),
+  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf_r),
+  alphaDrSurf_l_e : doExpand(alst_l, bSurf),
+  alphaDrSurf_r_e : doExpand(alst_r, bSurf),
+  printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", length(bSurf)),
+  writeCExprs1(alphaDrSurf_l, alphaDrSurf_l_c),
+  printf(fh, "~%"),
+  printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", length(bSurf)),
+  writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
+  printf(fh, "~%"),
+
+  printf(fh, "  double Ghat_F_0_r[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_F_0_l[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1_r[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_G_1_l[~a]; ~%", length(bSurf)),
+
+  printf(fh, "  if (~a>0) { ~%~%",wvpar),
+
+  /* Because v > 0, need left edge value */
+  /* Evaluate surface projection of Ghat_r = nu*v f_r (v evaluated at +1). */
+  Ghat_F_0_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=-1, F_0_r_e)),
+  Ghat_G_1_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=-1, G_1_r_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_r, radcan(Ghat_F_0_r_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_r, radcan(Ghat_G_1_r_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Evaluate surface projection of Ghat_l = nu*v f_c (v evaluated at -1). */
+  Ghat_F_0_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=-1, F_0_c_e)),
+  Ghat_G_1_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=-1, G_1_c_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_l, radcan(Ghat_F_0_l_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_l, radcan(Ghat_G_1_l_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } else { ~%~%"),
+  
+  /* Because v < 0, need right edge value */
+  /* Evaluate surface projection of Ghat_r = v f_r. */
+  Ghat_F_0_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=1, F_0_c_e)),
+  Ghat_G_1_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vx=1, G_1_c_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_r, radcan(Ghat_F_0_r_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_r, radcan(Ghat_G_1_r_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Evaluate surface projection of Ghat_l = v f_c. */
+  Ghat_F_0_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=1, F_0_l_e)),
+  Ghat_G_1_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vx=1, G_1_l_e)),
+  writeCExprsCollect1lhsc(Ghat_F_0_l, radcan(Ghat_F_0_l_c)),
+  writeCExprsCollect1lhsc(Ghat_G_1_l, radcan(Ghat_G_1_l_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } ~%"),
+
+  /* Expand G_hat in surface basis. */
+  Ghat_F_0_l_e       : doExpand1(Ghat_F_0_l, bSurf),
+  Ghat_G_1_l_e       : doExpand1(Ghat_G_1_l, bSurf),
+  Ghat_F_0_r_e       : doExpand1(Ghat_F_0_r, bSurf),
+  Ghat_G_1_r_e       : doExpand1(Ghat_G_1_r, bSurf),
+
+  /* Compute surface contribution integral(phi^- Ghat). */
+  incr_F_0_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_F_0_l_e),
+  incr_F_0_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_F_0_r_e),
+  incr_G_1_l : calcInnerProdList(surfVars, -1, subst(vx=-1.0, bP), Ghat_G_1_l_e),
+  incr_G_1_r : calcInnerProdList(surfVars, 1, subst(vx=1.0, bP), Ghat_G_1_r_e),
+
+  writeCIncrExprsCollect1lhsc(out_F_0, dv1par*incr_F_0_l + dv1par*incr_F_0_r),  
+  writeCIncrExprsCollect1lhsc(out_G_1, dv1par*incr_G_1_l + dv1par*incr_G_1_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency from volume kernel. */
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+);
+

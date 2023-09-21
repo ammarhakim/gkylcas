@@ -1,4 +1,4 @@
-load("pkpm/euler-pkpm-p-perp-source")$
+load("pkpm/euler-pkpm-source")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    source terms for the Euler equations in the 
@@ -17,8 +17,8 @@ maxCdim_Ser : 3$
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -32,7 +32,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating euler pkpm source kernel ",bName[bInd]," ~axp~a"),d,polyOrder)),

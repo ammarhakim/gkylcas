@@ -11,7 +11,7 @@ fpprec : 24$
 varsVAll : [vpar, mu]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,
    fl_e,fc_e,fr_e,surf_cvars,surf_vvars,bSurf,surfNodes,numNodes,alphaDrSurf_l_c,
    alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,alphaOrd_l_n,
@@ -27,7 +27,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   vv       : varsVAll[1],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
   printf(fh, "  // m_:        species mass.~%"),
@@ -189,10 +189,15 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonunifor
   flush_output(fh),
   
   writeCIncrExprs1(out, rdv2*drag_incr_r + rdv2*drag_incr_l), 
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
-calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block( 
+calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block( 
   [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,alphaDr,
    fl_e,fc_e,fr_e,bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
    alphaDrSurf_l_e,alphaDrSurf_r_e,Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,
@@ -207,7 +212,7 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform)
   vv       : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
   printf(fh, "  // m_: species mass.~%"),
@@ -293,5 +298,10 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform)
   incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, 1, subst(vv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, rdv2*incr_l + rdv2*incr_r),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );

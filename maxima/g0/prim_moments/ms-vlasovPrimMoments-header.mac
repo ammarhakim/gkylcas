@@ -17,8 +17,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 3$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -33,11 +33,7 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   /* Primitive moments for collision terms. */
   printf(fh, "~avoid vlasov_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi)
-)$
-
-printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid vlasov_pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 
@@ -48,9 +44,6 @@ printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, " ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
-printf(fh, " ~%")$
-printf(fh, "GKYL_CU_DH void prim_lbo_copy_sol(const struct gkyl_mat *rhs, const int nc, const int udim,~%  double* GKYL_RESTRICT out); ~%")$
-printf(fh, " ~%")$
 printf(fh, "~%")$
 
 decorator : "GKYL_CU_DH "$
@@ -65,10 +58,7 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
-    ),
-    for polyOrder : minPolyOrderB thru 2 do (
-      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
-    )    
+    )  
   )
 );
 printf(fh, "EXTERN_C_END ~%")$
