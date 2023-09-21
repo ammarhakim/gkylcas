@@ -4,8 +4,12 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 load("out-scripts")$
 
+load("bvp_utilities/bvp-util");
+load("fem/fem-util");
+
+
 /* Edges and dirs indicate which skin cells we are in*/
-calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, edges, skindirs) := block(
+calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
   /* Get nodes and nodal basis */
   evNodes : getNodes(basisName, ndim, polyOrder),
   numCoeffs : length(evNodes),
@@ -45,10 +49,6 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, edges, skindirs) := block(
     xyzList[i] : concat("xyz",newDirNames[i])
   ),
 
-
-
-
-
   kill(varsC, varsP, basisC, basisP),
   load(sconcat("basis-precalc/basis", basisName, ndim, "x")),
   [vars,basis] : [varsC, basisC[polyOrder]],
@@ -63,29 +63,26 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, edges, skindirs) := block(
       /*disp(zc[j]),*/
       /*disp(doExpand(x_zl[i,j,2], basis)),*/
       /*disp(tempval),*/
-      
-      if member(j, skindirs) then(
          /* Use a one sided stencil in this direction*/
          /* Want to pass val as edge value in recovery dir at node. This is tempval*/
-         if edges[j]="up" then(
+         if stencilLoc[j]=1 then(
            /* Set value*/
-           tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=1, N=0, val=tempval]))
+           /*tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=1, N=0, val=tempval]))*/
            /* Set Derivative instead*/
-           /*tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=0, N=1, val=tempval]))*/
+           tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=0, N=1, val=tempval]))
          ),
-         if edges[j]="lo" then(
-           tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=1, N=0, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
-           /*tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=0, N=1, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
+         if stencilLoc[j]=-1 then(
+           /*tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=1, N=0, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
+           tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=0, N=1, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+         ),
+         if stencilLoc[j]=0 then(
+           /*Regular 2 sided stencil*/
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
          )
-      )
-      else(
-        /*Regular 2 sided stencil*/
-        xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
-      )
 
     )
   ),
@@ -107,12 +104,13 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, edges, skindirs) := block(
 
 
   sig_modifier : sconcat("_"),
+  sloc_namelist : ["lo", "in", "up"],
   for i : 1 thru ndim do(
-     if member(i, skindirs) then(
-       sig_modifier : sconcat(sig_modifier, edges[i], i, "_")
-     )
+     sig_modifier : sconcat(sig_modifier, sloc_namelist[stencilLoc[i]+2], zc[i], "_")
   ),
 
+  printf(fh, "static inline double calc_metric(double dxdz[~a][~a], int i, int j) ~%", ndim, ndim),
+  printf(fh, "{ double sum = 0;   for (int k=0; k<~a; ++k) sum += dxdz[k][i-1]*dxdz[k][j-1]; return sum; } ~%~%", ndim),
 
   printf(fh, "GKYL_CU_DH void gij~a~ax_~a_p~a( const double **xyz, double *gij) ~%{ ~%", sig_modifier, ndim, basisName, polyOrder),
 

@@ -1,7 +1,9 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
 load("metric_calculation/calc-metric.mac")$
 load("metric_calculation/calc-metric-skin.mac")$
 load(stringproc)$
+
+load("bvp_utilities/bvp-util");
+load("fem/fem-util");
 
 
 /* ...... USER INPUTS........ */
@@ -20,41 +22,19 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-skinDirs : [[1], [2], [3], [1,2], [1,3], [2,3], [1,2,3]]$
-EdgeList : ["lo", "up"]$
 
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
+      stencilLoc : getStencilCoords(cD),
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating gij_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
           fName : sconcat("~/max-out/gij_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
           fh : openw(fName),
           printf(fh, "#include \"gkyl_calc_metric_kernels.h\"~%~%"),
-          calcMetricCoeffs(fh, cD, bName[bInd], polyOrder),
+          for sI : 1 thru length(stencilLoc) do(
+            calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, stencilLoc[sI])
+          ),
 
-          /*Begin new skin loop*/
-          for sNum : 1 thru length(skinDirs) do(
-            sDirList : skinDirs[sNum],
-            edges : ["None", "None", "None"],
-            sDirNum : length(sDirList),
-            for edgeNum1 : 1 thru 2 do(
-              edges[sDirList[1]] : EdgeList[edgeNum1],
-              if sDirNum=1 then calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, edges, sDirList),
-              if sDirNum>1 then(
-                for edgeNum2 : 1 thru 2 do(
-                  edges[sDirList[2]] : EdgeList[edgeNum2],
-                  if sDirNum=2 then calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, edges, sDirList),
-                  if sDirNum >2 then(
-                    for edgeNum3 : 1 thru 2 do(
-                      edges[sDirList[3]] : EdgeList[edgeNum3],
-                      if sDirNum=3 then calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, edges, sDirList)
-                    )
-                  )
-                )
-              )
-            )
-         ),
-         /*End new skin loop*/
          close(fh)
     )
   )
