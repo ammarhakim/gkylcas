@@ -31,6 +31,8 @@ for bInd : 1 thru 1 do (
           fName : sconcat("~/max-out/gij_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
           fh : openw(fName),
           printf(fh, "#include \"gkyl_calc_metric_kernels.h\"~%~%"),
+          printf(fh, "static inline double calc_metric(double dxdz[~a][~a], int i, int j) ~%", cD, cD),
+          printf(fh, "{ double sum = 0;   for (int k=0; k<~a; ++k) sum += dxdz[k][i-1]*dxdz[k][j-1]; return sum; } ~%~%", cD),
           for sI : 1 thru length(stencilLoc) do(
             calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, stencilLoc[sI])
           ),

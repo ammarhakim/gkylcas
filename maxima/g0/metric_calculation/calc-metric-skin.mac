@@ -68,16 +68,22 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
          if stencilLoc[j]=1 then(
            /* Set value*/
            /*tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=1, N=0, val=tempval]))*/
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc(D=1,N=0, val=tempval))*/
            /* Set Derivative instead*/
            tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc([D=0, N=1, val=tempval]))
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc(D=0, N=1, val=tempval))
+
+           /*try 2 cell*/
+           /*xp[i,j] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]))*/
          ),
          if stencilLoc[j]=-1 then(
            /*tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=1, N=0, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc(D=1,N=0,val=tempval), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
            tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
-           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc([D=0, N=1, val=tempval]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc(D=0, N=1, val=tempval), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+
+           /*try 2 cell*/
+           /*xp[i,j] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
          ),
          if stencilLoc[j]=0 then(
            /*Regular 2 sided stencil*/
@@ -109,8 +115,6 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
      sig_modifier : sconcat(sig_modifier, sloc_namelist[stencilLoc[i]+2], zc[i], "_")
   ),
 
-  printf(fh, "static inline double calc_metric(double dxdz[~a][~a], int i, int j) ~%", ndim, ndim),
-  printf(fh, "{ double sum = 0;   for (int k=0; k<~a; ++k) sum += dxdz[k][i-1]*dxdz[k][j-1]; return sum; } ~%~%", ndim),
 
   printf(fh, "GKYL_CU_DH void gij~a~ax_~a_p~a( const double **xyz, double *gij) ~%{ ~%", sig_modifier, ndim, basisName, polyOrder),
 
