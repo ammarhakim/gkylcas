@@ -75,7 +75,7 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
 
            /*try 2 cell*/
            xp[i,j,1] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,1]), dg(x_zl[i,j,2])),
-           xp[i,j,2] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]))
+           xp[i,j,2] : xp[i,j,1]
          ),
          if stencilLoc[j]=-1 then(
            /*tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
@@ -85,14 +85,15 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
 
            /*try 2 cell*/
            xp[i,j,1] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,2]), dg(x_zl[i,j,3])),
-           xp[i,j,2] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+           xp[i,j,2] : xp[i,j,1]
          ),
          if stencilLoc[j]=0 then(
            /*Regular 2 sided stencil*/
-           /*xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
+           xp[i,j, 1] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), dg(x_zl[i,j,3])),
+           xp[i,j, 2] : xp[i,j,1]
            /*try 2 cell*/
-           xp[i,j,1] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,1]), dg(x_zl[i,j,2])),
-           xp[i,j,2] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
+           /*xp[i,j,1] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,1]), dg(x_zl[i,j,2])),
+           xp[i,j,2] : calcRecov2CellGen(basisName, zc[j], zc, polyOrder, dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
 
          )
 
@@ -158,11 +159,41 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
         /*disp(rhs(sublist[n][1]))*/
         /* [i, j ] indicates phys, comp coord*/
         /* based on node of comp coord  */
-        if rhs(sublist[n][j])=-1 then (
-          printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,1])))
+        if stencilLoc[j]=0 then(
+          if rhs(sublist[n][j])=-1 then (
+            sublist[n][j]: lhs(sublist[n][j]) = -1,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,1]))),
+            sublist[n][j]: lhs(sublist[n][j]) = -1
+          ),
+          if rhs(sublist[n][j])=1 then (
+            sublist[n][j] : lhs(sublist[n][j]) = 1,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,2]))),
+            sublist[n][j] : lhs(sublist[n][j]) = 1
+          )
         ),
-        if rhs(sublist[n][j])=1 then (
-          printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,2])))
+        if stencilLoc[j]=-1 then(
+          if rhs(sublist[n][j])=-1 then (
+            sublist[n][j]: lhs(sublist[n][j]) = -2,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,1]))),
+            sublist[n][j]: lhs(sublist[n][j]) = -1
+          ),
+          if rhs(sublist[n][j])=1 then (
+            sublist[n][j] : lhs(sublist[n][j]) = 0,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,2]))),
+            sublist[n][j] : lhs(sublist[n][j]) = 1
+          )
+        ),
+        if stencilLoc[j]=1 then(
+          if rhs(sublist[n][j])=-1 then (
+            sublist[n][j]: lhs(sublist[n][j]) = 0,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,1]))),
+            sublist[n][j]: lhs(sublist[n][j]) = -1
+          ),
+          if rhs(sublist[n][j])=1 then (
+            sublist[n][j] : lhs(sublist[n][j]) = 2,
+            printf(fh, "  dxdz[~a][~a] = ~a; ~%", i-1, j-1, flt(subst(sublist[n], dxdz[i,j,2]))),
+            sublist[n][j] : lhs(sublist[n][j]) = 1
+          )
         )
       )
     ),

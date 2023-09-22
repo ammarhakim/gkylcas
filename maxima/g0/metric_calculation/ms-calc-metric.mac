@@ -1,5 +1,5 @@
-load("metric_calculation/calc-metric.mac")$
-load("metric_calculation/calc-metric-skin.mac")$
+/*load("metric_calculation/calc-metric.mac")$*/
+load("metric_calculation/2cell-calc-metric-skin.mac")$
 load(stringproc)$
 
 load("bvp_utilities/bvp-util");
