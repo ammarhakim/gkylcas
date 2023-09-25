@@ -47,12 +47,21 @@ for bInd : 1 thru length(bName) do (
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume VlasovPoisson ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
+
         fname : sconcat("~/max-out/vlasov_poisson_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
         printf(fh, "~%"),
         funcName : sconcat("vlasov_poisson_vol_", c, "x", v, "v_", bName[bInd]),
         calcVlasovPoissonVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh),
+
+        fname : sconcat("~/max-out/vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+        printf(fh, "~%"),
+        funcName : sconcat("vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd]),
+        calcVlasovPoissonExtEmVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )
