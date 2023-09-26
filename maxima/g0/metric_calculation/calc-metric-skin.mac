@@ -70,7 +70,12 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
            /*tempval : subst(zc[j]=1, doExpand(x_zl[i,j,2], basis)),
            xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc(D=1,N=0, val=tempval))*/
            /* Set Derivative instead*/
-           tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           /*tempval : subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc(D=0, N=1, val=tempval))*/
+
+           /* Set Derivative From ghost instead*/
+           tempval : (subst(zc[j]=-1, diff(doExpand(x_zl[i,j,3], basis), zc[j])) + subst(zc[j]=1, diff(doExpand(x_zl[i,j,2], basis), zc[j])))/2,
+
            xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, dg(x_zl[i,j,1]), dg(x_zl[i,j,2]), bc(D=0, N=1, val=tempval))
 
            /*try 2 cell*/
@@ -79,7 +84,12 @@ calcMetricCoeffsSkin(fh, ndim,basisName, polyOrder, stencilLoc) := block(
          if stencilLoc[j]=-1 then(
            /*tempval : subst(zc[j]=-1, doExpand(x_zl[i,j,2], basis)),
            xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc(D=1,N=0,val=tempval), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
-           tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           /* Set Derivative instead*/
+           /*tempval : subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])),
+           xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc(D=0, N=1, val=tempval), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))*/
+
+           /* Set Derivative From ghost instead as sanity check*/
+           tempval : (subst(zc[j]=1, diff(doExpand(x_zl[i,j,1], basis), zc[j])) + subst(zc[j]=-1, diff(doExpand(x_zl[i,j,2], basis), zc[j])))/2,
            xp[i,j] : calcRecov1CellGen(basisName, zc[j], zc, polyOrder, 1, bc(D=0, N=1, val=tempval), dg(x_zl[i,j,2]), dg(x_zl[i,j,3]))
 
            /*try 2 cell*/

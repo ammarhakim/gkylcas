@@ -1,5 +1,7 @@
 /*load("metric_calculation/calc-metric.mac")$*/
-load("metric_calculation/2cell-calc-metric-skin.mac")$
+/*load("metric_calculation/calc-metric-skin.mac")$*/
+/*load("metric_calculation/2cell-calc-metric-skin.mac")$*/
+load("metric_calculation/calc-metric-skin-bcs.mac")$
 load(stringproc)$
 
 load("bvp_utilities/bvp-util");
@@ -25,7 +27,6 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
-      stencilLoc : getStencilCoords(cD),
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating gij_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
           fName : sconcat("~/max-out/gij_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
@@ -33,11 +34,8 @@ for bInd : 1 thru 1 do (
           printf(fh, "#include \"gkyl_calc_metric_kernels.h\"~%~%"),
           printf(fh, "static inline double calc_metric(double dxdz[~a][~a], int i, int j) ~%", cD, cD),
           printf(fh, "{ double sum = 0;   for (int k=0; k<~a; ++k) sum += dxdz[k][i-1]*dxdz[k][j-1]; return sum; } ~%~%", cD),
-          for sI : 1 thru length(stencilLoc) do(
-            calcMetricCoeffsSkin(fh, cD, bName[bInd], polyOrder, stencilLoc[sI])
-          ),
-
-         close(fh)
+          calcMetricCoeffs(fh, cD, bName[bInd], polyOrder),
+          close(fh)
     )
   )
 );
