@@ -29,7 +29,7 @@ for bInd : 1 thru 1 do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating header entry for derived_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
           printf(fh, "GKYL_CU_DH void derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *bmaginv, double *bmaginvsq, double *gxxJ, double *gxyJ, double *gyyJ); ~%", cD, bName[bInd], polyOrder),
-          printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(const double *cmag, double *gzz, const double *J, const double *bmag, double *gij); ~%", cD, bName[bInd], polyOrder)
+          printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(double cmag, double *gzz, const double *J, const double *bmag, double *gij); ~%", cD, bName[bInd], polyOrder)
       )
   )
 );
