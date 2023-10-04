@@ -87,7 +87,7 @@ polyOrder:1;*/
     ),
     /*New part where we do gzz adjustment*/
     /*disp(determinant(gmat)),*/
-    tempz : solve(determinant(gmat)*Bsq_n[n-1]/g33_n[n-1] = Csq_n, g33_n[n-1]),
+    tempz : solve(determinant(gmat)*Bsq_n[n-1]/g33_n[n-1] = Csq_n[n-1], g33_n[n-1]),
     gzz_adjust_ni[n] : rhs(tempz[1])
   ),
   Jsq_ne : makelist(Jsq_ni[i], i, 1, numEvNodes),
@@ -347,7 +347,7 @@ polyOrder:1;*/
 
 
   /* do the adjustment of gzz*/
-  printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(double cmag, double *gzz, const double *J, const double *bmag, double* gij) ~%{ ~%", ndim, basisName, polyOrder),
+  printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(const double *cmag, double *gzz, const double *J, const double *bmag, double* gij) ~%{ ~%", ndim, basisName, polyOrder),
 
 
   /*separate gFld*/
@@ -385,7 +385,7 @@ polyOrder:1;*/
   ),
 
   /*allocate nodal quantities*/
-  /*printf(fh, "double cmag_n[~a]; ~%", numEvNodes),*/
+  printf(fh, "double cmag_n[~a]; ~%", numEvNodes),
   printf(fh, "double gzz_n[~a]; ~%", numEvNodes),
   printf(fh, "double J_n[~a]; ~%", numEvNodes),
   printf(fh, "double bmag_n[~a]; ~%", numEvNodes),
@@ -393,7 +393,7 @@ polyOrder:1;*/
   /*Calculate inputs at nodes*/
   printf(fh, "// Calculate inputs at nodes ~%"),
   for n : 1 thru numEvNodes do (
-    /*printf(fh, " cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),*/
+    printf(fh, " cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),
     /*printf(fh, " gzz_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], gzz_e))),*/
     printf(fh, " bmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], bmag_e))),
     printf(fh, " J_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], J_e)))
@@ -413,12 +413,11 @@ polyOrder:1;*/
 
   /*Get the temp vars bmag_sq and cmag_sq*/
   printf(fh, "double Bsq_n[~a]; ~%", numEvNodes),
-  /*printf(fh, "double Csq_n[~a]; ~%", numEvNodes),*/
+  printf(fh, "double Csq_n[~a]; ~%", numEvNodes),
   printf(fh, "for(int i = 0; i <~a; i++){ ~%", numEvNodes),
   printf(fh, "Bsq_n[~a] = bmag_n[~a]*bmag_n[~a]; ~%",i,i,i  ),
-  /*printf(fh, "Csq_n[~a] = cmag_n[~a]*cmag_n[~a]; ~%",i,i,i ),*/
-  printf(fh, "} ~%"),
-  printf(fh, "double Csq_n = cmag*cmag; ~%"),
+  printf(fh, "Csq_n[~a] = cmag_n[~a]*cmag_n[~a]; ~%",i,i,i ),
+  printf(fh, "} ~%", numEvNodes),
 
 
   printf(fh, "// Calculate gzz at nodes ~%"),
