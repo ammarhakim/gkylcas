@@ -1,0 +1,68 @@
+load("modal-basis")$
+load("recovery")$
+load("nodal_operations/nodal_functions")$
+load(stringproc)$
+load("out-scripts")$
+
+/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other geometric quantities
+J = det(g_ij))
+b_i = g_iz/sqrt(g_zz)
+*/
+
+deflateGeo(fh, ndim, basisName, polyOrder) := block(
+  /* Get nodes and nodal basis */
+/*fh:openw("~/max-out/derived_geo_Ser_3x_p1.c");
+ndim:3;
+basisName:"Ser";
+polyOrder:1;*/
+
+  evNodes : getNodes(basisName, 3, polyOrder),
+  numCoeffs : length(evNodes),
+
+  evNodes_deflated : getNodes(basisName, ndim, polyOrder),
+  numCoeffs_deflated : length(evNodes_deflated),
+
+
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisName, ndim, "x")),
+  [vars_deflated,basis_deflated] : [varsC, basisC[polyOrder]],
+
+  kill(varsC, varsP, basisC, basisP),
+  load(sconcat("basis-precalc/basis", basisName, 3, "x")),
+  [vars,basis] : [varsC, basisC[polyOrder]],
+
+
+
+  mkzlist(S,N) := makelist(S[i],i,0,N-1),
+
+  fld_zl : mkzlist(fld, numCoeffs),
+  fld_e : doExpand(fld_zl, basis),
+
+  /*fld_deflated_zl : mkzlist(fld_deflated, numCoeffs_deflated),
+  fld_deflated_e : doExpand(fld_deflated_zl, basis_deflated),*/
+
+
+  dim_diff : 3 - ndim,
+  zc : [z,y,x],
+  /*zc : makelist(zc_all[k],k,1,ndim),*/
+
+
+  sublist : makelist(zc[k] = 0,k,1,dim_diff),
+
+
+  trimfloat(flt) := if abs(flt) < 1e-15 then 0 else flt ,
+  flt(expr) := float(expand(expr)),
+
+  fld_deflated_e : subst(sublist, fld_e),
+  fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
+
+  printf(fh, "GKYL_CU_DH void deflate_geo_~ax_~a_p~a(const double *fld, double *fld_deflated) ~%{ ~%", ndim, basisName, polyOrder),
+  writeCExprs1(fld_deflated, fld_deflated_c),
+
+  printf(fh, " ~%"),
+  printf(fh, "}~%")
+
+
+
+
+)$
