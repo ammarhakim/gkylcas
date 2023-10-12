@@ -356,7 +356,7 @@ polyOrder:1;*/
   counter : 0,
   for i : 1 thru ndim do (
     for j : i  thru ndim do (
-      printf(fh, "const double *g~a~a  = &gij[~a * ~a];~%", i,j, counter, numCoeffs),
+      printf(fh, "  const double *g~a~a  = &gij[~a * ~a];~%", i,j, counter, numCoeffs),
       counter : counter + 1
     )
   ),
@@ -364,55 +364,55 @@ polyOrder:1;*/
   /*allocate nodal g_ij*/
   for i : 1 thru ndim do (
     for j : i  thru ndim do (
-      printf(fh, "double g~a~a_n[~a]; ~%", i, j, numEvNodes)
+      printf(fh, "  double g~a~a_n[~a]; ~%", i, j, numEvNodes)
     )
   ),
   /* Now make off diagnoal metric coeffs point to their counterpart*/
   for i : 1 thru ndim do (
     for j : 1  thru i do (
       if not(i=j) then(
-        printf(fh, "double *g~a~a_n = g~a~a_n; ~%", i, j, j, i)
+        printf(fh, "  double *g~a~a_n = g~a~a_n; ~%", i, j, j, i)
       )
     )
   ),
 
   /*Calculate g at nodes*/
-  printf(fh, "// Calculate g_ij at nodes ~%"),
+  printf(fh, "  // Calculate g_ij at nodes ~%"),
   for i : 1 thru ndim do (
     for j : i  thru ndim do (
       for n : 1 thru numEvNodes do (
-        printf(fh, " g~a~a_n[~a] = ~a; ~%", i,j,n-1, flt(subst(sublist[n], gij_e[i,j])))
+        printf(fh, "  g~a~a_n[~a] = ~a; ~%", i,j,n-1, flt(subst(sublist[n], gij_e[i,j])))
       )
     )
   ),
 
   /*allocate nodal quantities*/
-  printf(fh, "double cmag_n[~a]; ~%", numEvNodes),
-  printf(fh, "double cmag_ref_n[~a]; ~%", numEvNodes),
-  printf(fh, "double gzz_n[~a]; ~%", numEvNodes),
-  printf(fh, "double J_n[~a]; ~%", numEvNodes),
-  printf(fh, "double bmag_n[~a]; ~%", numEvNodes),
+  printf(fh, "  double cmag_n[~a]; ~%", numEvNodes),
+  printf(fh, "  double cmag_ref_n[~a]; ~%", numEvNodes),
+  printf(fh, "  double gzz_n[~a]; ~%", numEvNodes),
+  printf(fh, "  double J_n[~a]; ~%", numEvNodes),
+  printf(fh, "  double bmag_n[~a]; ~%", numEvNodes),
 
   /*Calculate inputs at nodes*/
-  printf(fh, "// Calculate inputs at nodes ~%"),
+  printf(fh, "  // Calculate inputs at nodes ~%"),
   for n : 1 thru numEvNodes do (
-    printf(fh, " cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),
-    printf(fh, " cmag_ref_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_ref_e))),
+    printf(fh, "  cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),
+    printf(fh, "  cmag_ref_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_ref_e))),
     /*printf(fh, " gzz_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], gzz_e))),*/
-    printf(fh, " bmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], bmag_e))),
-    printf(fh, " J_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], J_e)))
+    printf(fh, "  bmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], bmag_e))),
+    printf(fh, "  J_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], J_e)))
   ),
 
   /*Check if adjustment is needed*/
-  printf(fh, "bool continuation = false; ~%"),
-  printf(fh, "for(int i = 0; i <~a; i++){ ~%", numEvNodes),
-  printf(fh, "  if(abs(cmag_n[i] -cmag_ref_n[i])>1e-12){  ~%"),
-  printf(fh, "    continuation = true; ~%"),
+  printf(fh, "  bool adjustment = false; ~%"),
+  printf(fh, "  for (int i = 0; i <~a; i++){ ~%", numEvNodes),
+  printf(fh, "    if (fabs(cmag_n[i] -cmag_ref_n[i])>1e-12){  ~%"),
+  printf(fh, "      adjustment = true; ~%"),
+  printf(fh, "    } ~%"),
   printf(fh, "  } ~%"),
-  printf(fh, "} ~%"),
-  printf(fh, "if(continuation ==false) {  ~%"),
-  printf(fh, "return; ~%"),
-  printf(fh, "} ~%"),
+  printf(fh, "  if  (adjustment ==false) {  ~%"),
+  printf(fh, "    return; ~%"),
+  printf(fh, "  } ~%"),
 
   /* Calculate the adjusted bmag*/
   /*printf(fh, "// Adjust bmag at nodes ~%"),
