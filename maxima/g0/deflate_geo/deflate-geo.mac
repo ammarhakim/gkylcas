@@ -1,6 +1,4 @@
 load("modal-basis")$
-load("recovery")$
-load("nodal_operations/nodal_functions")$
 load(stringproc)$
 load("out-scripts")$
 
@@ -9,58 +7,64 @@ J = det(g_ij))
 b_i = g_iz/sqrt(g_zz)
 */
 
-deflateGeo(fh, ndim, basisName, polyOrder) := block(
-  /* Get nodes and nodal basis */
-/*fh:openw("~/max-out/derived_geo_Ser_3x_p1.c");
-ndim:3;
-basisName:"Ser";
-polyOrder:1;*/
+deflateGeo(fh, basisName, polyOrder) := block(
+/* powerset maxima function will give me combos*/
 
-  evNodes : getNodes(basisName, 3, polyOrder),
-  numCoeffs : length(evNodes),
-
-  evNodes_deflated : getNodes(basisName, ndim, polyOrder),
-  numCoeffs_deflated : length(evNodes_deflated),
-
-
+  disp("basisName", basisName),
+  /* get the full 3d basis*/
   kill(varsC, varsP, basisC, basisP),
-  load(sconcat("basis-precalc/basis", basisName, ndim, "x")),
-  [vars_deflated,basis_deflated] : [varsC, basisC[polyOrder]],
+  [vars,basis] : loadBasis(basisName, 3, polyOrder),
+  numCoeffs : length(basis),
 
-  kill(varsC, varsP, basisC, basisP),
-  load(sconcat("basis-precalc/basis", basisName, 3, "x")),
-  [vars,basis] : [varsC, basisC[polyOrder]],
+  /* We can never rmove z*/
+  varsNoZ : delete(z,vars),
+  /*kill(varsC, varsP, basisC, basisP),*/
+  /*[varsNoZ,basisNoz] : loadBasis(basisName, ndim, polyOrder),*/
+  removeVarsList : delete([],full_listify(powerset(setify(varsNoZ)))),
+
+  disp("list of remove vars", removeVarsList),
+
+  for i : 1 thru length(removeVarsList) do(
+    removeVars : removeVarsList[i],
+    /*[vars_deflated,basis_deflated] : loadBasis(basisName, ndim, polyOrder),*/
+    vars_deflated : vars,
+    removeStr : "rem",
+    for j : 1 thru length(removeVars) do( 
+      vars_deflated : delete(removeVars[j], vars_deflated),
+      removeStr : sconcat(removeStr,removeVars[j])
+    ),
+    ndim : length(vars_deflated),
+    disp("vars_deflated: ", vars_deflated),
+    disp("removeVars: ", removeVars),
+    disp("Vars", vars),
+    kill(varsC, varsP, basisC, basisP),
+    basis_deflated : basisFromVars(basisName, vars_deflated, polyOrder) ,
+    numCoeffs_deflated : length(basis_deflated),
+
+    /* Use loadBasis functions instead of loading this old way*/
+    /* Can load basis using specific variables x and z for example*/
 
 
 
-  mkzlist(S,N) := makelist(S[i],i,0,N-1),
+    mkzlist(S,N) := makelist(S[i],i,0,N-1),
 
-  fld_zl : mkzlist(fld, numCoeffs),
-  fld_e : doExpand(fld_zl, basis),
+    fld_zl : mkzlist(fld, numCoeffs),
+    fld_e : doExpand(fld_zl, basis),
 
-  /*fld_deflated_zl : mkzlist(fld_deflated, numCoeffs_deflated),
-  fld_deflated_e : doExpand(fld_deflated_zl, basis_deflated),*/
+    sublist : makelist(removeVars[k] = 0,k,1,length(removeVars)),
+    disp("sublist", sublist),
 
-
-  dim_diff : 3 - ndim,
-  zc : [z,y,x],
-  /*zc : makelist(zc_all[k],k,1,ndim),*/
+    fld_deflated_e : subst(sublist, fld_e),
+    fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
 
 
-  sublist : makelist(zc[k] = 0,k,1,dim_diff),
+    printf(fh, "GKYL_CU_DH void deflate_geo_~ax_~a_p~a_~a(const double *fld, double *fld_deflated) ~%{ ~%", ndim, basisName, polyOrder, removeStr),
 
+    writeCExprs1(fld_deflated, fld_deflated_c),
 
-  trimfloat(flt) := if abs(flt) < 1e-15 then 0 else flt ,
-  flt(expr) := float(expand(expr)),
-
-  fld_deflated_e : subst(sublist, fld_e),
-  fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
-
-  printf(fh, "GKYL_CU_DH void deflate_geo_~ax_~a_p~a(const double *fld, double *fld_deflated) ~%{ ~%", ndim, basisName, polyOrder),
-  writeCExprs1(fld_deflated, fld_deflated_c),
-
-  printf(fh, " ~%"),
-  printf(fh, "}~%")
+    printf(fh, " ~%"),
+    printf(fh, "}~%")
+  )
 
 
 

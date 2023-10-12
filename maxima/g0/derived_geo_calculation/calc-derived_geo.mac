@@ -50,6 +50,8 @@ polyOrder:1;*/
   /* set up for the adjusting function as well*/
   cmag_zl: mkzlist(cmag, numCoeffs),
   cmag_e: doExpand(cmag_zl, basis),
+  cmag_ref_zl: mkzlist(cmag_ref, numCoeffs),
+  cmag_ref_e: doExpand(cmag_ref_zl, basis),
   J_zl: mkzlist(J, numCoeffs),
   J_e: doExpand(J_zl, basis),
   gzz_zl: mkzlist(gzz, numCoeffs),
@@ -347,7 +349,7 @@ polyOrder:1;*/
 
 
   /* do the adjustment of gzz*/
-  printf(fh, "GKYL_CU_DH void adjust_bmag_~ax_~a_p~a(const double *cmag, double *gzz, const double *J, const double *bmag, double* gij) ~%{ ~%", ndim, basisName, polyOrder),
+  printf(fh, "GKYL_CU_DH void adjust_gzz_~ax_~a_p~a(const double *cmag, const double *cmag_ref, double *gzz, const double *J, const double *bmag, double* gij) ~%{ ~%", ndim, basisName, polyOrder),
 
 
   /*separate gFld*/
@@ -386,6 +388,7 @@ polyOrder:1;*/
 
   /*allocate nodal quantities*/
   printf(fh, "double cmag_n[~a]; ~%", numEvNodes),
+  printf(fh, "double cmag_ref_n[~a]; ~%", numEvNodes),
   printf(fh, "double gzz_n[~a]; ~%", numEvNodes),
   printf(fh, "double J_n[~a]; ~%", numEvNodes),
   printf(fh, "double bmag_n[~a]; ~%", numEvNodes),
@@ -394,10 +397,22 @@ polyOrder:1;*/
   printf(fh, "// Calculate inputs at nodes ~%"),
   for n : 1 thru numEvNodes do (
     printf(fh, " cmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_e))),
+    printf(fh, " cmag_ref_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], cmag_ref_e))),
     /*printf(fh, " gzz_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], gzz_e))),*/
     printf(fh, " bmag_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], bmag_e))),
     printf(fh, " J_n[~a] = ~a; ~%", n-1, flt(subst(sublist[n], J_e)))
   ),
+
+  /*Check if adjustment is needed*/
+  printf(fh, "bool continuation = false; ~%"),
+  printf(fh, "for(int i = 0; i <~a; i++){ ~%", numEvNodes),
+  printf(fh, "  if(abs(cmag_n[i] -cmag_ref_n[i])>1e-12){  ~%"),
+  printf(fh, "    continuation = true; ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, "} ~%"),
+  printf(fh, "if(continuation ==false) {  ~%"),
+  printf(fh, "return; ~%"),
+  printf(fh, "} ~%"),
 
   /* Calculate the adjusted bmag*/
   /*printf(fh, "// Adjust bmag at nodes ~%"),
