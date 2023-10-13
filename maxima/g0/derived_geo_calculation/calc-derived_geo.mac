@@ -406,7 +406,7 @@ polyOrder:1;*/
   /*Check if adjustment is needed*/
   printf(fh, "  bool adjustment = false; ~%"),
   printf(fh, "  for (int i = 0; i <~a; i++){ ~%", numEvNodes),
-  printf(fh, "    if (fabs(cmag_n[i] -cmag_ref_n[i])>1e-12){  ~%"),
+  printf(fh, "    if (fabs(cmag_n[i] - cmag_ref_n[i])>1e-5){  ~%"),
   printf(fh, "      adjustment = true; ~%"),
   printf(fh, "    } ~%"),
   printf(fh, "  } ~%"),
@@ -431,7 +431,7 @@ polyOrder:1;*/
   printf(fh, "double Csq_n[~a]; ~%", numEvNodes),
   printf(fh, "for(int i = 0; i <~a; i++){ ~%", numEvNodes),
   printf(fh, "Bsq_n[~a] = bmag_n[~a]*bmag_n[~a]; ~%",i,i,i  ),
-  printf(fh, "Csq_n[~a] = cmag_n[~a]*cmag_n[~a]; ~%",i,i,i ),
+  printf(fh, "Csq_n[~a] = cmag_ref_n[~a]*cmag_ref_n[~a]; ~%",i,i,i ),
   printf(fh, "} ~%", numEvNodes),
 
 
