@@ -36,9 +36,9 @@ for bInd : 1 thru length(bName) do (
     /* Vlasov moment calculators. */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating Vlasov PKPM Moments ~ax~av ", bName[bInd]),d,1)),
-      fname : sconcat("~/max-out/mom_vlasov_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
+      fname : sconcat("~/max-out/mom_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("mom_vlasov_pkpm"),
+      funcName : sconcat("mom_pkpm"),
 
       calcPKPMMoments(fh, funcName, d, 1, bName[bInd], polyOrder),
       close(fh)

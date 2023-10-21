@@ -47,7 +47,7 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   hsol_G_1_r : cons(subst(vx=0,h_G_1_r_e),makelist(subst(vx=0,diff(h_G_1_r_e,vx,ord)/(ord!)),ord,1,hOrder)),
   /*............. RECOVERY DONE ..............................*/
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),        
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),        
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
   printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),

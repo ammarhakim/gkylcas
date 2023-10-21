@@ -29,7 +29,7 @@ calcVlasovPKPMLBODiffSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   h_G_1_e : calcRecov1CellGen(bType, vx, varsP, polyOrder, 1, dg(makelist(G_1l[i-1],i,1,NP)), dg(makelist(G_1c[i-1],i,1,NP)), dg(makelist(G_1r[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),    
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),    
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
   printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),

@@ -28,7 +28,7 @@ calcVlasovPKPMLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
   printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),

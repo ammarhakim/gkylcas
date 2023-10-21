@@ -31,11 +31,11 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating lbo_vlasov_pkpm_drag_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),d,polyOrder)),
-      funcName : sconcat("lbo_vlasov_pkpm_drag_boundary_surfvpar_", d, "x1v_", bName[bInd],"_p",polyOrder),
+      disp(printf(false,sconcat("Creating lbo_pkpm_drag_boundary_surfvpar_~ax1v_",bName[bInd]," _p~a"),d,polyOrder)),
+      funcName : sconcat("lbo_pkpm_drag_boundary_surfvpar_", d, "x1v_", bName[bInd],"_p",polyOrder),
       fname : sconcat("~/max-out/",funcName, ".c"),
       fh : openw(fname),
-      printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h>  ~%"),
+      printf(fh, "#include <gkyl_lbo_pkpm_kernels.h>  ~%"),
       if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
         printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", d, 1, d+1),
         printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", d, 1)
