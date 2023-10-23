@@ -165,19 +165,13 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
-    /* evaluate alpha_cdim at cflPt to approximate
-    ** max(abs(alpha_cdim))/(dx_i/(2p+1)) */
-    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(cdir-1),alpha_cdim_NoZero_e))))),
-    printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*polyOrder+1), amid),
-    printf(fh, "~%"),
-
     /* Volume increment from configuration space. */
     incr_cdim_F_0 : incr_cdim_F_0+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*F_0_e)),
     incr_cdim_G_1 : incr_cdim_G_1+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*G_1_e))
   ),
 
-  /* alpha_vdim = ( 1/rho div(p_parallel b_hat) - T_perp/m*div(b)) - v_parallel bb : grad(u)] 
-     alpha_vdim consolidated as alpha_vdim = p_force - v_parallel bb_grad_u (pressure forces and bb_grad_u pre-computed) */
+  /* alpha_v = [1/rho (div(p_par b) - p_perp div(b)) - v_par bb : grad(u)]
+     alpha_v consolidated as alpha_vdim = p_force - v_par bb_grad_u (pressure forces and bb_grad_u pre-computed) */
   alpha_vdim_c : calcInnerProdList(varsP, 1, bP, p_force_e - vTrans*bb_grad_u_e),
 
   clst : [dv1par, dvpar, wvpar],
@@ -188,11 +182,6 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   alpha_vdim_NoZero : doMakeExprLst(alpha_vdim_c, alpha_vdim),
   alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
-  /* evaluate alpha_vdim at cflPt to approximate
-  ** max(abs(alpha_vdim))/(dx_i/(2p+1)). The flux for G_1 is more restrictive so use alpha_vdim_G_1 to estimate time step */
-  amid_vdim : gcfac(float(expand(subst(cflPt,0.5*alpha_vdim_NoZero_e)))),
-  printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid_vdim),
-  printf(fh, "~%"),
   /* Volume increment from configuration space. */
   incr_vdim_F_0 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*F_0_e),
   incr_vdim_G_1 : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_vdim_NoZero_e*G_1_e),
@@ -218,7 +207,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incr_G_1_div_b : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+1]), alpha_div_b_NoZero_e*G_1_source_e),
 
   /* evaluate additional force p_perp_div_b = (p_perp/rho*div(b)) at cflPt for further 
-     time step restriction */
+     time step restriction. Note: other time-step restrictions computed in surface kernels */
   amid_div_b : gcfac(float(expand(subst(cflPt,0.5*p_perp_div_b_e)))),
   printf(fh, "  cflFreq_mid += ~a*fabs(~a)*dv1par; ~%", float(2*pOrderV+1), amid_div_b),
   printf(fh, "~%"),
