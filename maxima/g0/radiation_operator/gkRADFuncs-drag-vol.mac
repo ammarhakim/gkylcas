@@ -1,0 +1,109 @@
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+fpprec : 24$
+
+/*This script generates the kernels for the drag volume
+	   kernel of the radiation operator for the
+	   gyrokinetic equation.*/
+varsVAll : [vpar, mu]$
+vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+/*Helper functions for expanding (in basis functions) a quantity that should be sparse. */
+doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+
+calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,zr,vidx1,dir,f_e,nuSum_e,nuUSum_e,
+   incrDrag,cflFreq_mid,alphaDrag_e,expr,i,alphaDrag_NoZero,alphaDrag_NoZero_e],
+
+  printf(fh, "#include <gkyl_rad_gyrokinetic_kernels.h> ~%"),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderVpar : polyOrder,
+  if polyOrder=1 then ( pOrderVpar : 2 ),
+
+  /* Specify a point to evaluate alpha at for use in computing CFL */
+  /* Here we choose to evaluate things in the middle of the cell, where
+     coordinates = 0. */
+  zr : makelist(varsP[d]=0, d, 1, length(varsP)),
+
+  vidx1 : vIndex1(cdim,vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *vnu, const double *vsqnu, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nI: atomic density ~%"),
+  printf(fh, "  // vnu: 2/pi*v*nu(v) dg field representation (v'(v||,mu) in notes) ~%"),
+  printf(fh, "  // vsqnu: sqrt(mu*me/2B)*v^2*nu(v) dg field representation (v''(v||,mu) in notes) ~%"),
+  printf(fh, "  // f: input distribution function.~%"),
+  printf(fh, "  // out: incremented output ~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  double rdv2[~a]; ~%", vdim),
+  for dir : 1 thru vdim do (
+    printf(fh, "  rdv2[~a] = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
+  ),
+  printf(fh, "~%"),
+
+  /* Expand distribution function f in phase basis.            */
+  f_e : doExpand1(f, bP),
+  /*Expand nu'(v) and nu''(v) in phase basis.*/
+  vnu_e : doExpand1(vnu, bP),
+  vsqnu_e : doExpand1(vsqnu, bP),
+  /* Expand nI in configuration basis.*/
+  nI_e : doExpand1(nI, bC),
+
+  incrDrag : 0,
+  muDrag : 0,
+  cflFreq_mid : makelist(0, i, 1, vdim),
+  
+  vpar_integrand : 2/%pi*nI_e*vnu_e*f_e,
+ /* vpar_mult_nI : 2/%pi*nI_e*vnu_e,*/
+  vpar_string : split(string(expand(vpar_integrand)),"+"),
+  /*vDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),vpar_integrand)),*/
+  for i : 1 thru length(vpar_string) do (
+    /*incrDrag : incrDrag+calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),eval_string(vpar_string[i]))*/
+    incrDrag : calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),eval_string(vpar_string[i])),
+    writeCExprsCollect1c(radcan(incrDrag))
+  ),
+
+  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*nI_e*vnu_e)))),
+
+  if vdim = 2 then (
+    mu_integrand : nI_e*vsqnu_e*f_e,
+    mu_string : split(string(expand(mu_integrand)),"+"),
+    /* Volume increment from configuration space. */
+    /*muDrag : subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), mu_integrand*f_e))*/
+    printf(fh, "  // Calculate contribution from mu ~%"),
+    for i : 1 thru length(mu_string) do (
+/*      muDrag : muDrag+calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),subst(mu_c,mu_temp,eval_string(mu_string[i]))),*/
+      muDrag : calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),subst(mu_c,mu_temp,eval_string(mu_string[i]))),
+      writeCExprsCollect1c(radcan(muDrag))
+    )
+    /*incrDrag : incrDrag+subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), mu_integrand)),*/
+  ),
+
+  /* Write out first attempts to simplify the radicals with radcan, e.g.
+     force sqrt(3)*sqrt(5) = sqrt(15). */
+  /*vDrag_sim : radcan(incrDrag),
+ 
+  writeCExprsCollect1c(vDrag_sim),*/
+  if vdim = 1 then (
+      printf(fh, "~%"), 
+      printf(fh, "  return fabs(~a); ~%", cflFreq_mid[1])
+  ) else if vdim = 2 then (
+      /*muDrag_sim : radcan(muDrag),*/
+      cflFreq_mid[2] : gcfac(float(expand(subst(zr,(2*polyOrder+1)*0.5*nI_e*vsqnu_e)))),
+      /*writeCExprsCollect1c(muDrag_sim),*/
+      printf(fh, "~%"),
+      printf(fh, "  return fabs(~a)+fabs(~a); ~%", cflFreq_mid[1], cflFreq_mid[2])
+  ),
+  
+
+  printf(fh, "~%"),
+  printf(fh, "} ~%")
+);

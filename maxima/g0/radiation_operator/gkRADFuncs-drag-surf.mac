@@ -1,0 +1,146 @@
+load("modal-basis")$
+load("out-scripts");
+load("nodal_operations/nodal_functions")$
+load("utilities")$
+load(stringproc)$
+fpprec : 24$
+
+/* This script generates the kernels for the surface term
+   drag contribution from Lenard Bernstein operator. */
+
+varsVAll : [vpar, mu]$
+vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,
+   fl_e,fc_e,fr_e,surf_cvars,surf_vvars,bSurf,surfNodes,numNodes,alphaDrSurf_l_c,
+   alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,alphaOrd_l_n,
+   alphaOrd_r_n,surfNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,
+   fHatSurf_r_e,Ghat_l_c,Ghat_r_c,glst1_l,glst1_r,Ghat_l_e,Ghat_r_e,drag_incr_l,drag_incr_r],
+  
+  disp("in vpar func"),
+/* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
+
+  pDim     : cdim+vdim,
+  vid1     : vidx1(cdim,vdim),
+  vv       : varsVAll[1],
+  surfVars : delete(vv,varsP),
+
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *vnu, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nI:        ion density. ~%"),
+  printf(fh, "  // vnu:       2/pi*v*nu(v) field dg representation (v'(v||,mu) in notes~%", (1+1)*NC),
+  printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
+  printf(fh, "  // out:       incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+  
+  /* Expand the ion density in configuration basis. */
+  nI_e : doExpand1(nI, bC),
+  /* Expand v*nu(v) in volume basis*/
+  vnu_e : doExpand1(vnu, bP),
+  /* Create expansions of f_left, f_center, and f_right in volume basis. */
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+  
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf     : basisFromVars("gkhyb",surfVars,polyOrder)
+  ) else (
+    bSurf     : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Calculate integrand in volume basis */
+  vpar_integrand_l : -nI_e*vnu_e*fl_e, /* Don't think I need, since vnu*nI>=0*/
+  vpar_integrand_c : nI_e*vnu_e*fc_e,
+  vpar_integrand_r : nI_e*vnu_e*fr_e,
+  
+  /* Project vpar_integrand onto surf basis*/
+  vpar_integrand_c_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,vpar_integrand_c))),
+  vpar_integrand_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,vpar_integrand_r))),
+
+  /* Drag on left side of interface */
+  vDrag_l : 0,
+  vDrag_l : vDrag_l + calcInnerProdList(surfVars, -1, subst(vv=-1, bP), vpar_integrand_c_c),
+  /* Drag on right side of interface */
+  vDrag_r : 0,
+  vDrag_r : vDrag_r + calcInnerProdList(surfVars, 1, subst(vv=1, bP), vpar_integrand_r_c),
+  
+  writeCExprsCollect1c(radcan(vDrag_r-vDrag_l)),
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+  
+  printf(fh, "} ~%")
+  );
+
+calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block( 
+  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,alphaDr,
+   fl_e,fc_e,fr_e,bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
+   alphaDrSurf_l_e,alphaDrSurf_r_e,Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,
+   Ghat_l_e,Ghat_r_e,incr_l,incr_r],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
+
+  pDim     : cdim+vdim,
+  vid1     : vidx1(cdim,vdim),
+  vv       : varsVAll[2],
+  surfVars : delete(vv,varsP),
+
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *vsqnu, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[~a]:    cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "  // dxv[~a]:  cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // nI:       ion density ~%"),
+  printf(fh, "  // vsqnu:    sqrt(mu*me/2B)*v^2*nu(v) field dg represenation (v''(v||,mu) in notes~%", (vdim+1)*NC),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[2]),
+  printf(fh, "~%"),
+
+
+  /* Expand the ion density in configuration basis. */
+  nI_e : doExpand1(nI, bC),
+  /* Expand v*nu(v) in volume basis*/
+  vsqnu_e : doExpand1(vsqnu, bP),
+  /* Create expansions of f_left, f_center, and f_right in volume basis. */
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+  
+  
+  /* Surface basis (equivalent to basis of one lower
+     dimensionality without surface variable) */
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf     : basisFromVars("gkhyb",surfVars,polyOrder)
+  ) else (
+    bSurf     : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Calculate integrand in volume basis*/
+  mu_integrand_l : nI_e*vsqnu_e*f_le, /* Don't think I need, since vnu*nI>=0*/
+  mu_integrand_c : nI_e*vsqnu_e*f_ce,
+  mu_integrand_r : nI_e*vsqnu_e*f_re,
+  
+  /* Project mu_integrand onto surface basis*/
+  mu_integrand_c_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1, mu_integrand_c))),
+  mu_integrand_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1, mu_integrand_r))),
+
+  /* Drag on left side of interface */
+  muDrag_l : 0,
+  muDrag_l : muDrag_l + calcInnerProdList(surfVars, -1, subst(vv=-1, bP), mu_integrand_c_c),
+  /* Drag on right side of interface */
+  muDrag_r : 0,
+  muDrag_r : muDrag_r + calcInnerProdList(surfVars, 1, subst(vv=1, bP), mu_integrand_r_c),
+  
+  writeCExprsCollect1c(radcan(muDrag_r-muDrag_l)),
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+  
+  printf(fh, "} ~%")
+);
+

@@ -1,128 +1,119 @@
 ;;; -*- Mode: LISP; package:maxima; syntax:common-lisp; -*- 
 (in-package :maxima)
-(DSKSETQ |$varsC| '((MLIST SIMP) $X)) 
-(ADD2LNC '|$varsC| $VALUES) 
-(DSKSETQ |$varsP| '((MLIST SIMP) $X $VX $VY)) 
-(ADD2LNC '|$varsP| $VALUES) 
-(DSKSETQ |$basisC|
-         '((MLIST SIMP
-            (23.
-             #A((94.) BASE-CHAR
-                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeHybBasisToFile| 16.))
-           ((MLIST SIMP
-             (32.
-              #A((70.) BASE-CHAR
-                 . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/modal-basis.mac")
-              SRC |$gsOrthoNorm| 30.))
-            ((MEXPT SIMP) 2. ((RAT SIMP) -1. 2.))
-            ((MTIMES SIMP) ((MEXPT SIMP) 2. ((RAT SIMP) -1. 2.))
-             ((MEXPT SIMP) 3. ((RAT SIMP) 1. 2.)) $X)))) 
-(ADD2LNC '|$basisC| $VALUES) 
-(DSKSETQ |$basisP|
-         '((MLIST SIMP
-            (29.
-             #A((94.) BASE-CHAR
-                . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-             SRC |$writeHybBasisToFile| 16.))
-           ((MLIST SIMP
-             (32.
-              #A((70.) BASE-CHAR
-                 . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/modal-basis.mac")
-              SRC |$gsOrthoNorm| 30.))
-            ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.))
-            ((MTIMES SIMP) ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.))
-             ((MEXPT SIMP) 3. ((RAT SIMP) 1. 2.)) $X)
-            ((MTIMES SIMP) ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.))
-             ((MEXPT SIMP) 3. ((RAT SIMP) 1. 2.)) $VX)
-            ((MTIMES SIMP) ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.))
-             ((MEXPT SIMP) 3. ((RAT SIMP) 1. 2.)) $VY)
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.)) $VX $X)
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.)) $VY $X)
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.)) $VX $VY)
-            ((MTIMES SIMP) ((MEXPT SIMP) 2. ((RAT SIMP) -3. 2.))
-             ((MEXPT SIMP) 3. ((RAT SIMP) 3. 2.)) $VX $VY $X)
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
-              ((MEXPT SIMP
-                (27.
-                 #A((94.) BASE-CHAR
-                    . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeHybBasisToFile| 16.))
-               $VX 2.)))
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
-              ((MTIMES SIMP)
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VX 2.)
-               $X)))
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY)
-              ((MTIMES SIMP)
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VX 2.)
-               $VY)))
-            ((MTIMES SIMP) 9. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VY $X)
-              ((MTIMES SIMP)
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VX 2.)
-               $VY $X)))
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((RAT SIMP) -1. 3.)
-              ((MEXPT SIMP
-                (27.
-                 #A((94.) BASE-CHAR
-                    . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                 SRC |$writeHybBasisToFile| 16.))
-               $VY 2.)))
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $X)
-              ((MTIMES SIMP)
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VY 2.)
-               $X)))
-            ((MTIMES SIMP) 3. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 15. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX)
-              ((MTIMES SIMP) $VX
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VY 2.))))
-            ((MTIMES SIMP) 9. ((MEXPT SIMP) 2. ((RAT SIMP) -5. 2.))
-             ((MEXPT SIMP) 5. ((RAT SIMP) 1. 2.))
-             ((MPLUS SIMP) ((MTIMES SIMP) ((RAT SIMP) -1. 3.) $VX $X)
-              ((MTIMES SIMP) $VX
-               ((MEXPT SIMP
-                 (27.
-                  #A((94.) BASE-CHAR
-                     . "/Users/manaure/Documents/gkeyll/code/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac")
-                  SRC |$writeHybBasisToFile| 16.))
-                $VY 2.)
-               $X)))))) 
-(ADD2LNC '|$basisP| $VALUES) 
+(|MAXIMA|::|DSKSETQ| |MAXIMA|::|$varsC| '((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|) |MAXIMA|::|$X|)) 
+(|MAXIMA|::|ADD2LNC| '|MAXIMA|::|$varsC| |MAXIMA|::|$VALUES|) 
+(|MAXIMA|::|DSKSETQ| |MAXIMA|::|$varsP|
+ '((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|) |MAXIMA|::|$X| |MAXIMA|::|$VX| |MAXIMA|::|$VY|)) 
+(|MAXIMA|::|ADD2LNC| '|MAXIMA|::|$varsP| |MAXIMA|::|$VALUES|) 
+(|MAXIMA|::|DSKSETQ| |MAXIMA|::|$basisC|
+ '((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|
+    (23. "/work/03485/jonroelt/maxima/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac"
+     |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+   ((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|
+     (33. "/work/03485/jonroelt/maxima/gkylcas/maxima/g0/modal-basis.mac" |MAXIMA|::|SRC|
+      |MAXIMA|::|$gsOrthoNorm| 31.))
+    ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 2.))
+    ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 3. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     |MAXIMA|::|$X|)))) 
+(|MAXIMA|::|ADD2LNC| '|MAXIMA|::|$basisC| |MAXIMA|::|$VALUES|) 
+(|MAXIMA|::|DSKSETQ| |MAXIMA|::|$basisP|
+ '((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|
+    (29. #1="/work/03485/jonroelt/maxima/gkylcas/maxima/g0/basis-precalc/basis-pre-calc-hybrid.mac"
+     |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+   ((|MAXIMA|::|MLIST| |MAXIMA|::|SIMP|
+     (33. "/work/03485/jonroelt/maxima/gkylcas/maxima/g0/modal-basis.mac" |MAXIMA|::|SRC|
+      |MAXIMA|::|$gsOrthoNorm| 31.))
+    ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+    (#2=(|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 3. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     |MAXIMA|::|$X|)
+    (#2# ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 3. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     |MAXIMA|::|$VX|)
+    (#2# ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 3. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     |MAXIMA|::|$VY|)
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     |MAXIMA|::|$VX| |MAXIMA|::|$X|)
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     |MAXIMA|::|$VY| |MAXIMA|::|$X|)
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     |MAXIMA|::|$VX| |MAXIMA|::|$VY|)
+    (#2# ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -3. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 3. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 3. 2.))
+     |MAXIMA|::|$VX| |MAXIMA|::|$VY| |MAXIMA|::|$X|)
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 5. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+      ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+        (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+       |MAXIMA|::|$VX| 2.)))
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 15. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$X|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VX| 2.)
+       |MAXIMA|::|$X|)))
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 15. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$VY|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VX| 2.)
+       |MAXIMA|::|$VY|)))
+    (#2# 9. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 5. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$VY| |MAXIMA|::|$X|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VX| 2.)
+       |MAXIMA|::|$VY| |MAXIMA|::|$X|)))
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 5. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+      ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+        (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+       |MAXIMA|::|$VY| 2.)))
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 15. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$X|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|)
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VY| 2.)
+       |MAXIMA|::|$X|)))
+    (#2# 3. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 15. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$VX|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) |MAXIMA|::|$VX|
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VY| 2.))))
+    (#2# 9. ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 2. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -5. 2.))
+     ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|) 5. ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) 1. 2.))
+     ((|MAXIMA|::|MPLUS| |MAXIMA|::|SIMP|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) ((|MAXIMA|::|RAT| |MAXIMA|::|SIMP|) -1. 3.)
+       |MAXIMA|::|$VX| |MAXIMA|::|$X|)
+      ((|MAXIMA|::|MTIMES| |MAXIMA|::|SIMP|) |MAXIMA|::|$VX|
+       ((|MAXIMA|::|MEXPT| |MAXIMA|::|SIMP|
+         (27. #1# |MAXIMA|::|SRC| |MAXIMA|::|$writeHybBasisToFile| 16.))
+        |MAXIMA|::|$VY| 2.)
+       |MAXIMA|::|$X|)))))) 
+(|MAXIMA|::|ADD2LNC| '|MAXIMA|::|$basisP| |MAXIMA|::|$VALUES|) 

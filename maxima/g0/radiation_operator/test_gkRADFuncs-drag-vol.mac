@@ -1,0 +1,92 @@
+load("modal-basis")$
+
+load("out-scripts");
+
+load(stringproc)$
+fpprec : 24$
+
+varsVAll : [vpar, mu]$
+vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+
+
+fh : openw("test.c");
+funcNm : "funcName";
+cdim : 3;
+vdim : 2;
+basisFun : "ser";
+polyOrder : 1;
+
+printf(fh, "#include <gkyl_rad_gyrokinetic_kernels.h> ~%");
+
+  /* Load basis of dimensionality requested. */
+[varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder);
+NC : length(bC);
+NP : length(bP);
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderVpar : polyOrder;
+  if polyOrder=1 then ( pOrderVpar : 2 );
+
+  /* Specify a point to evaluate alpha at for use in computing CFL */
+  /* Here we choose to evaluate things in the middle of the cell, where
+     coordinates = 0. */
+  zr : makelist(varsP[d]=0, d, 1, length(varsP));
+
+  vidx1 : vIndex1(cdim,vdim);
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *bmag_inv, const double *nI, const double *vnu, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm);
+  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim);
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim);
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%");
+  printf(fh, "  // ion density ~%");
+  printf(fh, "  // v*nu(v) field dg representation. ~%");
+  printf(fh, "  // f: input distribution function.~%");
+  printf(fh, "  // out: incremented output ~%");
+  printf(fh, "~%");
+
+  printf(fh, "  double rdv2[~a]; ~%", vdim);
+  for dir : 1 thru vdim do (
+    printf(fh, "  rdv2[~a] = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
+  );
+  printf(fh, "~%");
+
+  /* Expand distribution function f in phase basis.            */
+  f_e : doExpand1(f, bP);
+  disp("Expanded f");
+  /* Expand v*nu(v) in phase basis. */
+  vnu_e : doExpand1(vnu, bP);
+  disp("Expanded nu");
+  /* Expand nI in configuration basis */
+  nI_e : doExpand1(nI, bC);
+  disp("Expanded nI");
+  incrDrag : 0;
+    
+  vpar_integrand : 2/%pi*nI_e*vnu_e*f_e;
+  disp("Calculated integrand");
+  /* Volume increment from configuration space (This takes a while, since there are so many integrals). */
+  /*incrDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),vpar_integrand));*/
+  disp("skip increDrag");
+  /* mu contribution. */
+  if vdim = 2 then (
+    disp("calc mu cont"),
+    mu_c : w[vidx1[2]]+0.5*dxv[vidx1[2]]*varsVAll[2],
+    mu_integrand : (mu_c*GKYL_ELECTRON_MASS*bmag_inv/2)^(1/2)*nI_e*vnu_e*f_e,
+    disp("mu integrand calculated"),
+    /* Volume increment from configuration space. */
+    incrDrag : incrDrag+subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), mu_integrand))
+  );
+disp("increDrag calculated");
+  /* Write out first attempts to simplify the radicals with radcan, e.g.
+     force sqrt(3)*sqrt(5) = sqrt(15). */
+  /* Outscripts loads scifac and uses the aggressive factorization routine "gcfac". */
+  writeCExprsCollect1c(radcan(incrDrag));
+ /* printf(fh, "~%");
+  if vdim = 1 then (
+    printf(fh, "  return fabs(~a); ~%", cflFreq_mid[1])
+  ) elseif vdim = 2 then (
+    printf(fh, "  return fabs(~a)+fabs(~a); ~%", cflFreq_mid[1], cflFreq_mid[2])
+  ),*/
+  printf(fh, "~%");
+  printf(fh, "} ~%")
+
