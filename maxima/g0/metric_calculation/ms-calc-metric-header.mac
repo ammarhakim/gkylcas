@@ -5,7 +5,7 @@ load("fem/fem-util");
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 3$
 maxCdim_Ser : 3$
 
@@ -31,6 +31,8 @@ sloc_namelist : ["lo", "in", "up"],
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
       stencilLocs : getStencilCoords(cD),
+      load(sconcat("basis-precalc/basis", bName[bInd], cD, "x")),
+      coordVarS : getCoordVarS(varsC),
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating header entry for gij_",bName[bInd]," ~axp~a"),cD,polyOrder)),
           for sI : 1 thru length(stencilLocs) do(

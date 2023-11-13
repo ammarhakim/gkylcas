@@ -12,7 +12,7 @@ load("fem/fem-util");
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 3$
 maxCdim_Ser : 3$
 
