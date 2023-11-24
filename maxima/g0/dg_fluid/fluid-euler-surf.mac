@@ -33,7 +33,6 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   rhouxc_r,rhouyc_r,rhouzc_r,rhoc_r,energyc_r,
   rhouxr_l,rhouyr_l,rhouzr_l,rhor_l,energyr_l,
   avg_rho_l, avg_rho_r, avg_ux_l, avg_ux_r, avg_uy_l, avg_uy_r, avg_uz_l, avg_uz_r, avg_p_l, avg_p_r, avg_energy_l, avg_energy_r,
-  jump_rho_l, jump_rho_r, jump_rhoux_l, jump_rhoux_r, jump_rhouy_l, jump_rhouy_r, jump_rhouz_l, jump_rhouz_r, jump_energy_l, jump_energy_r, 
   Ghat_rho_l_exp, Ghat_rho_r_exp, Ghat_rhoux_l_exp, Ghat_rhoux_r_exp, Ghat_rhouy_l_exp, Ghat_rhouy_r_exp, Ghat_rhouz_l_exp, Ghat_rhouz_r_exp, Ghat_energy_l_exp, Ghat_energy_r_exp,
   incr_rho_l, incr_rho_r, incr_rhoux_l, incr_rhoux_r, incr_rhouy_l, incr_rhouy_r, incr_rhouz_l, incr_rhouz_r, incr_energy_l, incr_energy_r],
 
@@ -45,6 +44,7 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
   printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const struct gkyl_wv_eqn *wv_eqn, 
+    const struct gkyl_wave_cell_geom *geom_l, const struct gkyl_wave_cell_geom *geom_r, 
     const double *u_surf_l, const double *u_surf_c, const double *u_surf_r,
     const double *p_surf_l, const double *p_surf_c, const double *p_surf_r,
     const double *fluid_l, const double *fluid_c, const double *fluid_r, 
@@ -52,6 +52,8 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  // w[NDIM]:      Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:    Cell spacing.~%"),
   printf(fh, "  // wv_eqn:       Wave equation for computing fluctuations at the interface for upwinding.~%"),
+  printf(fh, "  // geom_l:       Geometry for the left surface update.~%"),
+  printf(fh, "  // geom_r:       Geometry for the right surface update.~%"),
   printf(fh, "  // u_surf_l/c/r: Input surface expansion of flow velocity in left/center/right cells in each direction.~%"),
   printf(fh, "  // p_surf_l/c/r: Input surface expansion of pressure in left/center/right cells in each direction.~%"),
   printf(fh, "  //               [p_xl, p_xr, p_yl, p_yr, p_zl, p_zr] ~%"),
@@ -230,21 +232,6 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   avg_rho_l : 0.5*(rhoc_l + rhol_r),
   avg_rho_r : 0.5*(rhor_l + rhoc_r),
 
-  jump_rho_l : (rhoc_l - rhol_r),
-  jump_rho_r : (rhor_l - rhoc_r),
-
-  jump_rhoux_l : (rhouxc_l - rhouxl_r),
-  jump_rhoux_r : (rhouxr_l - rhouxc_r),
-
-  jump_rhouy_l : (rhouyc_l - rhouyl_r),
-  jump_rhouy_r : (rhouyr_l - rhouyc_r),
-
-  jump_rhouz_l : (rhouzc_l - rhouzl_r),
-  jump_rhouz_r : (rhouzr_l - rhouzc_r),
-
-  jump_energy_l : (energyc_l - energyl_r),
-  jump_energy_r : (energyr_l - energyc_r),
-
   /* State vector at interface */
   printf(fh, "  double q_lr[5] = {0.0}; ~%"),
   printf(fh, "  double q_cl[5] = {0.0}; ~%"),
@@ -276,41 +263,77 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  q_rl[4] = ~a; ~%", float(expand(energyr_l))),
   printf(fh, "~%"),
 
+  /* Rotate to local coordinates at left and right interface */
+  printf(fh, "  double q_lr_local[5] = {0.0}; ~%"),
+  printf(fh, "  double q_cl_local[5] = {0.0}; ~%"),
+  printf(fh, "  double q_cr_local[5] = {0.0}; ~%"),
+  printf(fh, "  double q_rl_local[5] = {0.0}; ~%"),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_lr, q_lr_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_cl, q_cl_local); ~%", dir-1, dir-1, dir-1),
+
+  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_cr, q_cr_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_rl, q_rl_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "~%"),
+
   /* Compute jumps for calculating fluctuations */
   printf(fh, "  double delta_l[5] = {0.0}; ~%"),
   printf(fh, "  double delta_r[5] = {0.0}; ~%"),
 
-  printf(fh, "  delta_l[0] = ~a; ~%", float(expand(jump_rho_l))),
-  printf(fh, "  delta_l[1] = ~a; ~%", float(expand(jump_rhoux_l))),
-  printf(fh, "  delta_l[2] = ~a; ~%", float(expand(jump_rhouy_l))),
-  printf(fh, "  delta_l[3] = ~a; ~%", float(expand(jump_rhouz_l))),
-  printf(fh, "  delta_l[4] = ~a; ~%", float(expand(jump_energy_l))),
+  printf(fh, "  delta_l[0] = q_cl_local[0] - q_lr_local[0]; ~%"),
+  printf(fh, "  delta_l[1] = q_cl_local[1] - q_lr_local[1]; ~%"),
+  printf(fh, "  delta_l[2] = q_cl_local[2] - q_lr_local[2]; ~%"),
+  printf(fh, "  delta_l[3] = q_cl_local[3] - q_lr_local[3]; ~%"),
+  printf(fh, "  delta_l[4] = q_cl_local[4] - q_lr_local[4]; ~%"),
 
-  printf(fh, "  delta_r[0] = ~a; ~%", float(expand(jump_rho_r))),
-  printf(fh, "  delta_r[1] = ~a; ~%", float(expand(jump_rhoux_r))),
-  printf(fh, "  delta_r[2] = ~a; ~%", float(expand(jump_rhouy_r))),
-  printf(fh, "  delta_r[3] = ~a; ~%", float(expand(jump_rhouz_r))), 
-  printf(fh, "  delta_r[4] = ~a; ~%", float(expand(jump_energy_r))),
+  printf(fh, "  delta_r[0] = q_rl_local[0] - q_cr_local[0]; ~%"),
+  printf(fh, "  delta_r[1] = q_rl_local[1] - q_cr_local[1]; ~%"),
+  printf(fh, "  delta_r[2] = q_rl_local[2] - q_cr_local[2]; ~%"),
+  printf(fh, "  delta_r[3] = q_rl_local[3] - q_cr_local[3]; ~%"),
+  printf(fh, "  delta_r[4] = q_rl_local[4] - q_cr_local[4]; ~%"),
   printf(fh, "~%"),
 
-  /* Compute waves at interface */
+  /* Compute local waves and speeds at interface */
   printf(fh, "  double waves_l[15] = {0.0}; ~%"),
   printf(fh, "  double waves_r[15] = {0.0}; ~%"),  
   printf(fh, "  double speeds_l[3] = {0.0}; ~%"),
   printf(fh, "  double speeds_r[3] = {0.0}; ~%"),  
 
-  printf(fh, "  double my_max_speed_l = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_l, q_lr, q_cl, waves_l, speeds_l); ~%"),
-  printf(fh, "  double my_max_speed_r = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_r, q_cr, q_rl, waves_r, speeds_r); ~%"),    
+  printf(fh, "  double my_max_speed_l = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_l, q_lr_local, q_cl_local, waves_l, speeds_l); ~%"),
+  printf(fh, "  double my_max_speed_r = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_r, q_cr_local, q_rl_local, waves_r, speeds_r); ~%"), 
   printf(fh, "~%"),
 
-  /* Compute fluctuations at interface */
+  /* rescale speeds */
+  printf(fh, "  double lenr_l = geom_l->lenr[~a]; ~%", dir-1),
+  printf(fh, "  speeds_l[0] *= lenr_l; ~%"),
+  printf(fh, "  speeds_l[1] *= lenr_l; ~%"),
+  printf(fh, "  speeds_l[2] *= lenr_l; ~%"),
+
+  printf(fh, "  double lenr_r = geom_r->lenr[~a]; ~%", dir-1),
+  printf(fh, "  speeds_r[0] *= lenr_r; ~%"),
+  printf(fh, "  speeds_r[1] *= lenr_r; ~%"),
+  printf(fh, "  speeds_r[2] *= lenr_r; ~%"),
+  printf(fh, "~%"),
+
+  /* Compute local fluctuations at interface */
+  printf(fh, "  double amdq_l_local[5] = {0.0}; ~%"),
+  printf(fh, "  double apdq_l_local[5] = {0.0}; ~%"),
+  printf(fh, "  double amdq_r_local[5] = {0.0}; ~%"),
+  printf(fh, "  double apdq_r_local[5] = {0.0}; ~%"),
+
+  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_lr_local, q_cl_local, waves_l, speeds_l, amdq_l_local, apdq_l_local); ~%"),
+  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_cr_local, q_rl_local, waves_r, speeds_r, amdq_r_local, apdq_r_local); ~%"),  
+  printf(fh, "~%"),
+
+  /* Rotate local fluctuations at interface back to compute final update */
   printf(fh, "  double amdq_l[5] = {0.0}; ~%"),
   printf(fh, "  double apdq_l[5] = {0.0}; ~%"),
   printf(fh, "  double amdq_r[5] = {0.0}; ~%"),
   printf(fh, "  double apdq_r[5] = {0.0}; ~%"),
 
-  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_lr, q_cl, waves_l, speeds_l, amdq_l, apdq_l); ~%"),
-  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_cr, q_rl, waves_r, speeds_r, amdq_r, apdq_r); ~%"),  
+  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], amdq_l_local, amdq_l); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], apdq_l_local, apdq_l); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], amdq_r_local, amdq_r); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], apdq_r_local, apdq_r); ~%", dir-1, dir-1, dir-1),
   printf(fh, "~%"),
 
   Ghat_rho_l_exp : avg_rho_l*avg_ux_l - 0.5*(apdq_l[0] - amdq_l[0]),
