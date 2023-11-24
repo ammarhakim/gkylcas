@@ -33,7 +33,8 @@ printPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid fluid_vars_u_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT u, double* GKYL_RESTRICT u_surf); ~%", deco, ci, bStr, pi),
   printf(fh, "~adouble euler_vol_~ax_~a_p~a(const double *w, const double *dxv, double gas_gamma, const double *u, const double *p, const double *fluid, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~adouble euler_surf~a_~ax_~a_p~a(const double *w, const double *dxv, double gas_gamma, 
+    printf(fh, "~avoid fluid_vars_limiter~a_~ax_~a_p~a(const struct gkyl_wv_eqn *wv_eqn, double *fluid_l, double *fluid_c, double *fluid_r); ~%", deco, cvars[si], ci, bStr, pi),
+    printf(fh, "~adouble euler_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const struct gkyl_wv_eqn *wv_eqn, 
     const double *u_surf_l, const double *u_surf_c, const double *u_surf_r, 
     const double *p_surf_l, const double *p_surf_c, const double *p_surf_r, 
     const double *fluid_l, const double *fluid_c, const double *fluid_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
@@ -47,6 +48,7 @@ fh : openw("~/max-out/gkyl_euler_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_wv_eqn.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
