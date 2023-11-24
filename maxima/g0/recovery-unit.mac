@@ -5,7 +5,7 @@ should be tested every time a change is made */
 To create the current results:
   maxima -r 'load("recovery-unit");testRecov("create");quit();'
 and to test:
-  maxima -r 'load("recovery-unit");testRecov("check");quit();'
+  maxima -r 'load("recovery-unit");testRecov("check");values;quit();'
 */
 
 load("recovery") $
