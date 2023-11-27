@@ -35,10 +35,10 @@ for bInd : 1 thru length(bName) do (
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (  
       /* Create a separate file w/ boundary corrections. */
       disp(printf(false,sconcat("Creating Vlasov PKPM LBO boundary corrections ~ax~av ", bName[bInd], " p~a"),d,1,polyOrder)),
-      fname : sconcat("~/max-out/mom_bcorr_lbo_vlasov_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
+      fname : sconcat("~/max-out/mom_bcorr_lbo_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      printf(fh, "#include <gkyl_mom_bcorr_lbo_vlasov_pkpm_kernels.h> ~%"),
-      funcName : sconcat("mom_bcorr_lbo_vlasov_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder),
+      printf(fh, "#include <gkyl_mom_bcorr_lbo_pkpm_kernels.h> ~%"),
+      funcName : sconcat("mom_bcorr_lbo_pkpm_", d, "x1v_", bName[bInd], "_p", polyOrder),
       calcBoundaryIntegral(fh, funcName, d, 1, bName[bInd], polyOrder),
       close(fh)
     )

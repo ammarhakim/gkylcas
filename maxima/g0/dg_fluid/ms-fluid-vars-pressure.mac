@@ -1,4 +1,12 @@
-/* Generate the header file for the Vlasov moment and integrated moment kernels. */
+load("dg_fluid/fluid-vars-pressure")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for calculating the
+   pressure via weak multiplication. Pressure different for each equation system: 
+   Isothermal Euler -> p = vth*rho 
+   Euler -> p = (gas_gamma - 1)*(E - 1/2 rho u^2)
+   Computes both the volume expansion and the necessary surface expansions of p at
+   the corresponding surfaces */
+
 
 /* ...... USER INPUTS........ */
 
@@ -13,12 +21,10 @@ maxCdim_Ser : 3$
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
+minCdim_Tensor : 2$
 maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
-
-cvars : [x, y, z]$
 
 bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
@@ -26,31 +32,19 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
-  printf(fh, "~%")  
-)$
-
-fh : openw("~/max-out/gkyl_prim_lbo_pkpm_kernels.h")$
-printf(fh, "#pragma once ~%")$
-printf(fh, "#include <math.h> ~%")$
-printf(fh, "#include <gkyl_mat.h> ~%")$
-printf(fh, "#include <gkyl_util.h> ~%")$
-printf(fh, " ~%")$
-printf(fh, "EXTERN_C_BEG ~%")$
-printf(fh, "~%")$
-
-decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printPKPMPrototype(decorator, d, bName[bInd], polyOrder)
+      disp(printf(false,sconcat("Creating fluid vars pressure funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/fluid_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("fluid_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
+      calcFluidPressure(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh)
     )
   )
 );
-printf(fh, "EXTERN_C_END ~%")$
-close(fh)$
-/* ............ Finished writing out the C header file ............ */

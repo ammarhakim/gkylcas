@@ -28,14 +28,14 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([],
 
-  printf(fh, "~avoid mom_bcorr_lbo_vlasov_pkpm_~ax1v_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double mass, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid mom_bcorr_lbo_pkpm_~ax1v_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double mass, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   
   printf(fh, "~%")
 )$
 
 /* ............ Write out the C header file ............ */
 
-fh : openw("~/max-out/gkyl_mom_bcorr_lbo_vlasov_pkpm_kernels.h")$
+fh : openw("~/max-out/gkyl_mom_bcorr_lbo_pkpm_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "#include <gkyl_eqn_type.h>~%")$

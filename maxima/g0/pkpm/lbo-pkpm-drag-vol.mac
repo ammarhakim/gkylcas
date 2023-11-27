@@ -6,12 +6,12 @@ load("out-scripts");
 load(stringproc)$
 fpprec : 24$
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
-vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-varsCAll : [x, y, z]$
-vvarsAll : [vx, vy, vz]$
-
-doMakeExprLstOff(vals, S, off) := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+/* Helper functions for expanding in basis functions a quantity we know should be sparse 
+   For example, alpha, the phase space flow only depends on a few phase space coordinates */
+/* List output is a vector with some offset off */
+doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
+/* List output is a scalar */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,zr,cid,vid1,dir,f_e,nu_e,
@@ -34,16 +34,15 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, cdim+1),
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nu, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:   Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nu:      collisionality. ~%"),
-  printf(fh, "  // f:       Input distribution function.~%"),
-  printf(fh, "  // out:     Incremented output ~%"),
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),
+  printf(fh, "  // nuSum:         Collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: Sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%"),
+  printf(fh, "  // f:             Input distribution functions [F_0, T_perp/m G_1 = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // out:           Incremented output distribution functions. ~%"),
 
-  cid  : cidx(cdim),
-  vid1 : vidx1(cdim,vdim),
   /* grid spacing in v_parallel and v_parallel coordinate */
   printf(fh, "  const double rdvpar = 2.0/dxv[~a]; ~%", cdim),
   printf(fh, "  const double dvpar = dxv[~a], wvpar = w[~a]; ~%", cdim, cdim),
@@ -55,37 +54,39 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   /* Access the components of out for the first two Laguerre moments */
   printf(fh, "  double *out_F_0 = &out[~a]; ~%", 0),
   printf(fh, "  double *out_G_1 = &out[~a]; ~%", NP),   
+  printf(fh, "~%"),
 
   /* Expand distribution functions F_0 and T_perp G in phase basis. */
   F_0_e : doExpand1(F_0, bP),
   G_1_e : doExpand1(G_1, bP),
 
-  /* Expand collisionality in configuration basis. */
-  nu_e     : doExpand1(nu, bC),
-
-  /* alphaDrag = nu*v. */
-  printf(fh, "  double alphaDrag[~a]; ~%", NP),
-  incrDrag : 0,
-
-  /* alphaDrag = rdvpar*< psi, -(nu*v) >. */
-  alphaDrag_e : calcInnerProdList(varsP, 1, bP, -nu_e*(wvpar+0.5*dvpar*vx)),
-  expr : gcfac(float(expand(radcan(rdvpar*alphaDrag_e)))),
-  /* Write out the component of alphaDrag's phase space expansion. */
-  printf(fh, "  // Expand rdvpar*(nu*vx) in phase basis.~%"),
-  for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alphaDrag[i-1], expr[i])
-  ),
+  /* Create expansion of drag term, which includes a correction to M1 to avoid spurious flow generation */
+  nuSum_e : doExpand1(nuSum,bC),
+  /* Expand the mean flow speed in the configuration basis. */
+  nuUSum_e : doExpand1(sumNuUPar,bC),
+  /* Create pointer to M1_correction to upar. */
+  printf(fh, "  const double *sumNuUPar = &nuPrimMomsSum[~a]; ~%", 0),
   printf(fh, "~%"),
-  /* Zero out components of alpha which are empty. */
-  alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
+  /* Calculate the alpha-velocity due to drag. */
+  alphaDr : nuSum_e*((1.0/2.0)*dvpar*vx+wvpar)-nuUSum_e,
+
+  /* alphaDrag = rdvpar*< psi, -(nu*(v - M1_corr)) >. */
+  printf(fh, "  double alphaDrag[~a]; ~%", NP),
+  alphaDrag_c : calcInnerProdList(varsP, 1, bP, -alphaDr),
+  writeCExprsCollect1lhsc(alphaDrag, rdvpar*alphaDrag_c),
+  printf(fh, "~%"),
+
+  /* Zero out components of drag which are empty. */
+  alphaDrag_NoZero : doMakeExprLst(alphaDrag_c, alphaDrag),
   alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
+
   /* Evaluate alpha_vdim at zr to approximate
   max(abs(alpha_vdim))/(dv_i/(2p+1)). */
-  cflFreq_mid : gcfac(float(expand(subst(zr,(2*pOrderV+1)*0.5*subst(a0=0,alphaDrag_NoZero_e))))),
+  cflFreq_mid : gcfac(float(expand(subst(zr,(2*pOrderV+1)*0.5*alphaDrag_NoZero_e)))),
 
   /* Volume increment from configuration space. */
-  incrDrag_F_0 : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,vx), alphaDrag_NoZero_e*F_0_e)),
-  incrDrag_G_1 : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,vx), alphaDrag_NoZero_e*G_1_e)),
+  incrDrag_F_0 : calcInnerProdList(varsP, 1, diff(bP,vx), alphaDrag_NoZero_e*F_0_e),
+  incrDrag_G_1 : calcInnerProdList(varsP, 1, diff(bP,vx), alphaDrag_NoZero_e*G_1_e),
 
   writeCIncrExprs1(out_F_0, incrDrag_F_0),
   writeCIncrExprs1(out_G_1, incrDrag_G_1),
