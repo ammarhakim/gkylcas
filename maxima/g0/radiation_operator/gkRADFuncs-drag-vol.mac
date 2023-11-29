@@ -61,44 +61,40 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   muDrag : 0,
   cflFreq_mid : makelist(0, i, 1, vdim),
   
-  vpar_integrand : 2/%pi*nI_e*vnu_e*f_e,
- /* vpar_mult_nI : 2/%pi*nI_e*vnu_e,*/
-  vpar_string : split(string(expand(vpar_integrand)),"+"),
-  /*vDrag : incrDrag+subst(a0=0,calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),vpar_integrand)),*/
-  for i : 1 thru length(vpar_string) do (
-    /*incrDrag : incrDrag+calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),eval_string(vpar_string[i]))*/
-    incrDrag : calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),eval_string(vpar_string[i])),
-    writeCExprsCollect1c(radcan(incrDrag))
-  ),
+  alphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vnu_e),
+  alst        : doMakeExprLst(alphaDrag_c, alphaDrag),
+  alphaDrag_e : doExpand(alst, bP),
+  
+  printf(fh, "  double alphaDrag[~a] = {0,0}; ~%", length(bP)),
+  writeCExprs1(alphaDrag, alphaDrag_c),
+  printf(fh, "~%"),
 
-  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*nI_e*vnu_e)))),
+  incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),alphaDrag_e*f_e),
 
+  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*alphaDrag_e)))),
+
+  /* mu contribution */
   if vdim = 2 then (
-    mu_integrand : nI_e*vsqnu_e*f_e,
-    mu_string : split(string(expand(mu_integrand)),"+"),
-    /* Volume increment from configuration space. */
-    /*muDrag : subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), mu_integrand*f_e))*/
-    printf(fh, "  // Calculate contribution from mu ~%"),
-    for i : 1 thru length(mu_string) do (
-/*      muDrag : muDrag+calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),subst(mu_c,mu_temp,eval_string(mu_string[i]))),*/
-      muDrag : calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),subst(mu_c,mu_temp,eval_string(mu_string[i]))),
-      writeCExprsCollect1c(radcan(muDrag))
-    )
-    /*incrDrag : incrDrag+subst(a0=NP,calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]), mu_integrand)),*/
+    alphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vsqnu_e),
+    alst        : doMakeExprLst(alphaDrag_c, alphaDrag),
+    alphaDrag_e : doExpand(alst, bP),
+    
+    writeCIncrExprs1(alphaDrag, alphaDrag_c),
+    printf(fh, "~%"),
+    
+    incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),alphaDrag_e*f_e)
   ),
 
   /* Write out first attempts to simplify the radicals with radcan, e.g.
      force sqrt(3)*sqrt(5) = sqrt(15). */
-  /*vDrag_sim : radcan(incrDrag),
+  vDrag_sim : radcan(incrDrag),
  
-  writeCExprsCollect1c(vDrag_sim),*/
+  writeCExprsCollect1c(vDrag_sim),
   if vdim = 1 then (
       printf(fh, "~%"), 
       printf(fh, "  return fabs(~a); ~%", cflFreq_mid[1])
   ) else if vdim = 2 then (
-      /*muDrag_sim : radcan(muDrag),*/
       cflFreq_mid[2] : gcfac(float(expand(subst(zr,(2*polyOrder+1)*0.5*nI_e*vsqnu_e)))),
-      /*writeCExprsCollect1c(muDrag_sim),*/
       printf(fh, "~%"),
       printf(fh, "  return fabs(~a)+fabs(~a); ~%", cflFreq_mid[1], cflFreq_mid[2])
   ),
