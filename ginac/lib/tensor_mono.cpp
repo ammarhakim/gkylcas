@@ -12,6 +12,20 @@ tensor_2x_p2(const std::vector<GiNaC::symbol>& vars)
 }
 
 GiNaC::lst
+tensor_2x_p3(const std::vector<GiNaC::symbol>& vars)
+{
+  GiNaC::symbol x = vars[0], y = vars[1];
+
+  auto x2 = x*x;
+  auto y2 = y*y;
+  auto x3 = x*x*x;
+  auto y3 = y*y*y;
+  
+  GiNaC::lst l { 1,x,y,x*y,x2,y2,x2*y,x*y2,x3,y3,x2*y2,x3*y,x*y3,x3*y2,x2*y3,x3*y3 };
+  return l;
+}
+
+GiNaC::lst
 tensor_3x_p2(const std::vector<GiNaC::symbol>& vars)
 {
   GiNaC::symbol x = vars[0], y = vars[1], z = vars[2];
