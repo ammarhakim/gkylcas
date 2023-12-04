@@ -35,3 +35,12 @@ for i : 1 thru 4 do (
   printf(fh, "coeff[~a] = ~a; ~%", i-1, float(expand(pDg[i])))
 )$
 close(fh)$
+
+/* Pass a quadratic through 3 points */
+xn : [0, dx, 2*dx]$
+ft : fq[0] + fq[1]*x + fq[2]*x^2$
+eqnList : makelist( subst(x=xn[i],ft)=val[i], i, 1, 3)$
+fquad : subst(linsolve(eqnList,[fq[0],fq[1],fq[2]]), ft)$
+gradL : fullratsimp( subst(x=xn[1],diff(fquad,x)) )$
+gradC : fullratsimp( subst(x=xn[2],diff(fquad,x)) )$
+gradR : fullratsimp( subst(x=xn[3],diff(fquad,x)) )$
