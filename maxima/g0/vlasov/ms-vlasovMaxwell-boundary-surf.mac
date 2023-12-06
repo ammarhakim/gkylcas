@@ -1,4 +1,4 @@
-load("vlasov/vlasovMaxwellFuncs-boundary-surf-C")$
+load("vlasov/vlasovMaxwellFuncs-boundary-surf")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term for the E + v x B term
