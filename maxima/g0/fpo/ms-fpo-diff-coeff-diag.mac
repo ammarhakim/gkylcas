@@ -1,17 +1,18 @@
-/*
-  Generate kernels for the cross terms of the
+/* 
+  Generate kernels for the diagonal terms of the
   diffusion tensor for the Rosenbluth/Fokker-Planck Operator
-  Dij = d^2 G / dv_i dv_j where i != j
+  D_ii = d^2 G / dv_i^2 
 */
 
 load(stringproc);
-load("fpo/funcs-fpo-diff-coeff-cross_stencil");
+load("fpo/funcs-fpo-diff-coeff-diag_stencil");
+
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
 maxCdim_Ser : 1$
@@ -38,27 +39,19 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 dirs : [vx, vy, vz]$
-dirCombos : listify(cartesian_product(setify(dirs), setify(dirs)))$
-disp(bName);
-disp(maxCdim);
-disp(dirCombos);
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-      for vidx : 1 thru length(dirCombos) do (
-        dir1 : dirCombos[vidx][1],
-        dir2 : dirCombos[vidx][2],
-
-        if dir1 # dir2 then (
-          for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          /* Stencil kernels */
-          fname : sconcat("~/max-out/fpo_diff_coeff_cross_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir1,dir2),
-          funcNm : sconcat("fpo_diff_coeff_cross_", c,"x3v_", dir1, dir2, "_", bName[bInd]),
-          /* Generate cross term stencil kernels */
-          generate_fpo_diff_coeff_cross_stencil(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])              
-          )
-        )
+    for vidx : 1 thru length(dirs) do (
+      dir : dirs[vidx],
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+        fname : sconcat("~/max-out/diag/fpo_diff_coeff_diag_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
+        funcNm : sconcat("fpo_diff_coeff_diag_",c,"x3v_",dir, "_", bName[bInd]),
+        /* Generate diagonal term stencil kernels */
+        generate_fpo_diff_coeff_diag_stencil(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )
+  )
 )$
+
 
