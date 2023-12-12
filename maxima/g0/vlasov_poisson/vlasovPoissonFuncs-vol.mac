@@ -10,9 +10,6 @@ load("out-scripts")$
 load(stringproc)$
 fpprec : 24$
 
-varsV    : [vx, vy, vz]$
-cvars    : [X, Y, Z]$
-vvars    : [VX, VY, VZ]$
 varsCall : [x, y, z]$
 
 dvdx : [dv0dx0, dv1dx1, dv2dx2]$
@@ -22,21 +19,69 @@ dv11 : [dv10, dv11, dv12]$
 
 Afld : [A0, A1, A2]$
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 /* Helper functions for expanding in basis functions a quantity we know should be sparse  */
 /* For example, alpha, the phase space flow only depends on a few phase space coordinates */
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
 
+calcVlasovPoissonStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,varsV,cid1,vid1,wDdx,dvDdx,dir,f_e,volTerm,clst,strOut,d],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord:    Discrete (DG) velocity coordinate.~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  cid1 : makelist(i,i,0,cdim-1),
+  vid1 : makelist(i,i,cdim,cdim+vdim-1),
+
+  wDdx  : makelist(eval_string(sconcat("w",vid1[i],"Ddx",cid1[i])),i,1,cdim),
+  dvDdx : makelist(eval_string(sconcat("dv",vid1[i],"Ddx",cid1[i])),i,1,cdim),
+
+  /* Cell center and cell length divided by velocity cell length. */
+  for dir : 1 thru cdim do (
+    printf(fh, "  double w~aDdx~a  = w[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir]),
+    printf(fh, "  double dv~aDdx~a = dxv[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir])
+  ),
+
+  /* Expand distribution function in phase basis. */
+  f_e : doExpand1(f, bP),
+
+  /* Inner product of grad(psi) . v f, where psi is a basis function. */
+  volTerm : 0,
+  for dir : 1 thru cdim do (
+    volTerm : volTerm
+             +calcInnerProdList(varsP, 2*wDdx[dir]+dvDdx[dir]*varsV[dir], diff(bP,varsP[dir]), f_e)
+  ),
+  printf(fh, "~%"),
+
+  clst : append(wDdx,dvDdx),
+  writeCIncrExprsCollect1(out,volTerm,clst),
+  printf(fh, "~%"),
+
+  strOut : sconcat("fabs(w",vid1[1],"Ddx",0,")+0.5*dv",vid1[1],"Ddx",0),
+  for d : 2 thru cdim do (
+    strOut : sconcat(strOut,"+fabs(w",vid1[d],"Ddx",d-1,")+0.5*dv",vid1[d],"Ddx",d-1)
+  ),
+  printf(fh, "  return ~a*(~a);~%",float(2*polyOrder+1),strOut),
+  printf(fh, "} ~%")
+)$
+
 calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,varsC,varsP,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,
+  [bP,bC,varsC,varsP,varsV,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,
    cdir,vdir,alpha_cdim_c,alpha_vdim_c,i,expr,alpha_cdim_NoZero,
    alpha_cdim_NoZero_e,incr_cdim,incr_vdim,acc_e,vTransSubs,alpha_vdim_NoZero,
    alpha_vdim_NoZero_e],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
      mean hybrid basis. */
@@ -49,15 +94,16 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* Point at which to evaluate alpha for use in computing CFL. */
   cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord     Discrete (DG) velocity coordinate.~%"),
   printf(fh, "  // field:     potential (scaled by appropriate factors).~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
 
   /* common expressions in streaming (v dot grad(f)) term and grad(phi) */
   for dir : 1 thru cdim do (
@@ -156,13 +202,14 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
 )$
 
 calcVlasovPoissonExtEmVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bP,bC,varsC,varsP,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,Ax_e,Ay_e,Az_e,
+  [bP,bC,varsC,varsP,varsV,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,Ax_e,Ay_e,Az_e,
    Bx_e,By_e,Bz_e,cdir,vdir,alpha_cdim_c,alpha_vdim_c,i,expr,alpha_cdim_NoZero,
    alpha_cdim_NoZero_e,incr_cdim,incr_vdim,acc_e,vTransSubs,alpha_vdim_NoZero,
    alpha_vdim_NoZero_e],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
      mean hybrid basis. */
@@ -175,15 +222,16 @@ calcVlasovPoissonExtEmVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   /* Point at which to evaluate alpha for use in computing CFL. */
   cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord     Discrete (DG) velocity coordinate.~%"),
   printf(fh, "  // field:     potentials, including external (scaled by appropriate factors).~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
 
   /* common expressions in streaming (v dot grad(f)) term and grad(phi) */
   for dir : 1 thru cdim do (

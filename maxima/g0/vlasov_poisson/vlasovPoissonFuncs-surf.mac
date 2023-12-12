@@ -12,7 +12,6 @@ load("scifac")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-vvars : [vx, vy, vz]$
 varsCall : [x, y, z]$
 
 dvdx : [dv0dx0, dv1dx1, dv2dx2]$
@@ -22,34 +21,152 @@ dv11 : [dv10, dv11, dv12]$
 
 Afld : [A0, A1, A2]$
 
-cidx(cdim)      := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 /* Helper functions for expanding in basis functions a quantity we know should be sparse  */
 /* For example, alpha, the phase space flow only depends on a few phase space coordinates */
 doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
+calcVlasovPoissonStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,varsV,numBasisP,cid,vid,cv,vv,surfVars,bSurf,fl_e,fc_e,fr_e,Ghat_r_c,
+   GhatNoZero_r,Ghat_r_e,Ghat_l_c,GhatNoZero_l,Ghat_l_e,incr_r,incr_l],
+
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
+
+  numBasisP : length(bP),
+
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsC[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord:    Discrete (DG) velocity coordinate.~%"),
+  printf(fh, "  // alpha_geo: Fields used only for general geometry.~%"),
+  printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells.~%"),
+  printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
+
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+
+  /* cv = variable in direction of surface update. */
+  cv : varsP[dir],
+  vv : varsV[dir],
+
+  /* Surface variables to integrate over. */
+  surfVars : delete(cv,varsP),
+
+  /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
+  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("hyb",surfVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder)
+  ),
+
+  /* Create expansions of f_left, f_center, and f_right on volume basis. */
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+
+  printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),
+  printf(fh, "  double Ghat_r[~a]; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_l[~a]; ~%", length(bSurf)),
+  
+  printf(fh, "  if (~a>0) { ~%~%",wv),
+
+  /* Because v > 0, need left edge value */
+  /* Evaluate surface projection of Ghat_r = v f_c. */
+  Ghat_r_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=1, fc_e)),
+  writeCExprsCollect1lhsc(Ghat_r, radcan(Ghat_r_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
+
+  /* Evaluate surface projection of Ghat_l = v f_l. */
+  Ghat_l_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=1, fl_e)),
+  writeCExprsCollect1lhsc(Ghat_l, radcan(Ghat_l_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
+
+  printf(fh, "  } else { ~%~%"),
+  
+  /* Because v < 0, need right edge value */
+  /* Evaluate surface projection of Ghat_r = v f_r. */
+  Ghat_r_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=-1, fr_e)),
+
+  /* Clever factorization is possible for polyOrder = 1, but for higher
+     polynomial orders, factorization is *too* clever and can lead to 
+     deeply nested parentheses, not ideal for compiler optimizations */
+  if (polyOrder = 1) then (
+    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
+  ) else (
+    writeCExprs1(Ghat_r, Ghat_r_c)
+  ),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
+
+  /* Evaluate surface projection of Ghat_l = v f_c. */
+  Ghat_l_c : calcInnerProdList(surfVars, wv+(dv/2)*vv, bSurf, subst(cv=-1, fc_e)),
+
+  /* Clever factorization is possible for polyOrder = 1, but for higher
+     polynomial orders, factorization is *too* clever and can lead to 
+     deeply nested parentheses, not ideal for compiler optimizations */
+  if (polyOrder = 1) then (
+    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
+  ) else (
+    writeCExprs1(Ghat_l, Ghat_l_c)
+  ),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
+  
+  printf(fh, "  } ~%"),
+  /* Compute surface contribution integral(phi^- Ghat) on the right. */
+  incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr_l + dx11[dir]*incr_r),    
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+);
+
 calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,numC,numP,pDim,cid,vid,d,vv,surfVars,bSurf,phi_e,acc_e,alphaV_c,
+  [varsC,bC,varsP,bP,varsV,numC,numP,pDim,cid,vid,d,vv,surfVars,bSurf,phi_e,acc_e,alphaV_c,
    alphaNoZero,alpha_e,surfNodes,alphaOrd_n,surfNodesConfig,numNodesConfig,numNodes,
    numNodesVel,i,j,fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,GhatNoZero_l,Ghat_l_e,Ghat_r_c,
    GhatNoZero_r,Ghat_r_e,incr_l,incr_r],
 
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   numC  : length(bC),
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord:    Discrete (DG) velocity coordinate.~%"),
   printf(fh, "  // field:     potential (scaled by appropriate factors).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
 
   printf(fh, "  const double dv1~a = 2/dxv[~a]; ~%", dir-1, vid[dir]),
   for d : 1 thru vdim do (
@@ -63,7 +180,7 @@ calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   ),
 
   /* vv = variable in direction of surface update. */
-  vv : vvars[dir],
+  vv : varsV[dir],
 
   /* Surface variables to integrate over. */
   surfVars : delete(vv,varsP),
@@ -204,26 +321,28 @@ calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
 );
 
 calcVlasovPoissonExtEmUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,numC,numP,pDim,cid,vid,d,vv,surfVars,bSurf,phi_e,Ax_e,Ay_e,Az_e,
+  [varsC,bC,varsP,bP,varsV,numC,numP,pDim,cid,vid,d,vv,surfVars,bSurf,phi_e,Ax_e,Ay_e,Az_e,
    Bx_e,By_e,Bz_e,vTransSubs,acc_e,alphaV_c,alphaNoZero,alpha_e,fl_e,fc_e,fr_e,surfNodes,
    numNodes,alphaOrd_n,i,fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,GhatNoZero_l,Ghat_l_e,
    Ghat_r_c,GhatNoZero_r,Ghat_r_e,incr_l,incr_r],
 
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   numC  : length(bC),
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord:    Discrete (DG) velocity coordinate.~%"),
   printf(fh, "  // field:     potentials, including external (scaled by appropriate factors).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%"),
 
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
 
   printf(fh, "  const double dv1~a = 2/dxv[~a]; ~%", dir-1, vid[dir]),
   for d : 1 thru vdim do (
@@ -246,7 +365,7 @@ calcVlasovPoissonExtEmUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
 
   /* vv = variable in direction of surface update. */
-  vv : vvars[dir],
+  vv : varsV[dir],
 
   /* Surface variables to integrate over. */
   surfVars : delete(vv,varsP),

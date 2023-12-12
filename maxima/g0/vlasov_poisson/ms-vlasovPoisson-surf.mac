@@ -1,13 +1,13 @@
-load("vlasov/vlasovPoissonFuncs-boundary-surf")$
+load("vlasov_poisson/vlasovPoissonFuncs-surf")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the velocity surface term contributions in the
-   Vlasov-Poisson kinetic equation at the edge of velocity space
-   for zero-flux boundary conditions. 
+   Vlasov-Poisson kinetic equation. 
    Supports just plain Vlasov-Poisson (only phi) and 
    Vlasov-Poisson with external fields (phi and A). */
 
 /* ...... USER INPUTS........ */
+
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
@@ -36,7 +36,6 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-
 /* Compute the surface contribution in velocity space from the acceleration term */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -47,16 +46,27 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating surface VlasovPoisson ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
+        disp(printf(false,sconcat("Creating surface vlasov_poisson ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
+        for dir : 1 thru c do (
+          if (dir = 1) then fname : sconcat("~/max-out/vlasov_poisson_surfx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 2) then fname : sconcat("~/max-out/vlasov_poisson_surfy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 3) then fname : sconcat("~/max-out/vlasov_poisson_surfz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_poisson_surf"),
+          printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
+          calcVlasovPoissonStreamUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
+          close(fh)
+        ),
+
         /* Note, for Vlasov-Poisson where no external field, then we must have the corresponding configuration dimension
             since the force = grad(phi). I.e., in 1x2v, there is no vy update because there is no grad_y(phi) */
         for dir : 1 thru c do ( 
-          if (dir = 1) then fname : sconcat("~/max-out/vlasov_poisson_boundary_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 2) then fname : sconcat("~/max-out/vlasov_poisson_boundary_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 3) then fname : sconcat("~/max-out/vlasov_poisson_boundary_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 1) then fname : sconcat("~/max-out/vlasov_poisson_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 2) then fname : sconcat("~/max-out/vlasov_poisson_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 3) then fname : sconcat("~/max-out/vlasov_poisson_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("vlasov_poisson_boundary_surf"),
-          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          funcName : sconcat("vlasov_poisson_surf"),
+          printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
           if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
@@ -65,16 +75,16 @@ for bInd : 1 thru length(bName) do (
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder)
           ),
           /* Kernels without an external magnetic field. */
-          calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          calcVlasovPoissonUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)
         ),
         for dir : 1 thru v do ( 
-          if (dir = 1) then fname : sconcat("~/max-out/vlasov_poisson_extem_boundary_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 2) then fname : sconcat("~/max-out/vlasov_poisson_extem_boundary_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 3) then fname : sconcat("~/max-out/vlasov_poisson_extem_boundary_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 1) then fname : sconcat("~/max-out/vlasov_poisson_extem_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 2) then fname : sconcat("~/max-out/vlasov_poisson_extem_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          if (dir = 3) then fname : sconcat("~/max-out/vlasov_poisson_extem_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("vlasov_poisson_extem_boundary_surf"),
-          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          funcName : sconcat("vlasov_poisson_extem_surf"),
+          printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
           if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
@@ -82,8 +92,8 @@ for bInd : 1 thru length(bName) do (
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder)
           ),
-          /* Kernels without an external magnetic field. */
-          calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          /* Kernels with an external magnetic field. */
+          calcVlasovPoissonExtEmUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)
         )
       )
