@@ -11,7 +11,7 @@ load("fpo/funcs-fpo-diff-coeff-cross_stencil");
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
 maxCdim_Ser : 1$

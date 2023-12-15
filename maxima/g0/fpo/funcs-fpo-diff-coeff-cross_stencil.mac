@@ -61,11 +61,12 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
     printf(fh, " ~%"),
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, double gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
     printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
     printf(fh, "  // gamma: Scalar factor gamma. ~%"),
     printf(fh, "  // fpo_g_stencil[9]: 9 cell stencil of Rosenbluth potential G. ~%"),
     printf(fh, "  // fpo_g_surf_stencil[9]: 9 cell stencil of surface projection of G. ~%"),
+    printf(fhn "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
     printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
     printf(fh, "~%"),
 
@@ -97,11 +98,20 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
 
     GCC_e : doExpand1(GCC, bP),
 
-    /* Surface expansions of G */
+    /* 
+      Surface expansions of G
+      NAME_var means it is a surface expansion at a $var boundary
+      e.g. g_surf_CC_pv1 is at a pv1 boundary
+    */
     g_surf_CC_pv1_lst : makelist(g_surf_CC_pv1[i], i, 0, numSurf-1),
     g_surf_CC_pv2_lst : makelist(g_surf_CC_pv2[i], i, 0, numSurf-1),
     g_surf_CL_pv2_lst : makelist(g_surf_CL_pv2[i], i, 0, numSurf-1),
     g_surf_CR_pv2_lst : makelist(g_surf_CR_pv2[i], i, 0, numSurf-1),
+
+    dgdpv1_surf_CC_pv2_lst : makelist(dgdpv1_surf_CC_pv2[i], i, 0, numSurf-1)/dv1_pv1,
+    dgdpv2_surf_CC_pv1_lst : makelist(dgdpv2_surf_CC_pv1[i], i, 0, numSurf-1)/dv1_pv2,
+
+    dgdpv1_surf_CC_pv1_e : doExpand1(dgdpv1_surf_CC_pv1, bSurfpv1)/dv1_pv1,
 
     g_surf_CC_pv1_e : doExpand1(g_surf_CC_pv1, bSurfpv1),
     g_surf_CC_pv2_e : doExpand1(g_surf_CC_pv2, bSurfpv2),
@@ -112,16 +122,12 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     surft1_pv2_lower_e : doExpand1(surft1_lower, bSurfpv2),
 
     surft2_pv1_upper_e : doExpand1(surft2_upper, bSurfpv1),
-    surft2_pv1_lower_e : doExpand1(surft2_lower,bSurfpv1),
-    surft2_pv2_upper_e : doExpand1(surft2_upper,bSurfpv2),
-    surft2_pv2_lower_e : doExpand1(surft2_lower,bSurfpv2),
+    surft2_pv1_lower_e : doExpand1(surft2_lower, bSurfpv1),
+    surft2_pv2_upper_e : doExpand1(surft2_upper, bSurfpv2),
+    surft2_pv2_lower_e : doExpand1(surft2_lower, bSurfpv2),
 
-    surft1_upper_c : makelist(up[i], i, 0, numSurf-1),
-    surft1_lower_c : makelist(lo[i], i, 0, numSurf-1),
-    surft2_upper_c : makelist(up[i], i, 0, numSurf-1),
-    surft2_lower_c : makelist(lo[i], i, 0, numSurf-1),
-
-    stencilCells : [],
+    stencilCells1 : [],
+    stencilCells2 : [],
 
     if (stencilLoc[sI]= [0, 0]) then (
 
@@ -155,7 +161,6 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
       surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
       surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower))
     )
-
     elseif (stencilLoc[sI] = [-1, 0]) then (    
       /*
         Left
@@ -167,29 +172,23 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
         | +++ | GBC | GBR |
         +-----+-----+-----+
       */
+
       stencilCells1 : [BC, CC, TC, BR, CR, TR],
       stencilCells2 : [BC, BR, CC, CR, TC, TR],
 
-      Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-        bc(D=1,N=0,val=subst(pv2=1, g_surf_CC_pv1_e)),
-        dg(dg(GCC_lst), dg(GTC_lst)), dg(dg(GCR_lst), dg(GTR_lst))),
+      Grecpv1_upper : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 1,
+        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)), dg(dg(GTC_lst), dg(GTR_lst))),
 
-      Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-        bc(D=1,N=0,val=subst(pv2=-1, g_surf_CC_pv1_e)),
-        dg(dg(GBC_lst), dg(GCC_lst)), dg(dg(GBR_lst), dg(GCR_lst))),
- 
-      /* Evaluate surface projection of dG/dpv1 at pv2 boundaries */
-      surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
-      surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)),
+      surft1_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, diff(Grecpv1_upper, pv2)),
+      surft1_lower_c : dgdpv2_surf_CC_pv1_lst,
 
-      /* 1-cell recovery across +/-1 interfaces in pv1 */
-      Grecpv1_upper : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
-      Grecpv1_lower : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        bcs([der=0,val=g_surf_CC_pv1_e]), dg(GCC_lst)),
+      Grecpv2_upper : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, 
+        dg(GCC_lst), dg(GTC_lst)),
+      Grecpv2_lower : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder,
+        dg(GBC_lst), dg(GCC_lst)),
 
-      surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
-      surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower))
+      surft2_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, subst(pv2=0, Grecpv2_upper)),
+      surft2_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, subst(pv2=0, Grecpv2_lower))
     )
     elseif (stencilLoc[sI] = [1, 0]) then (    
       /* 
@@ -202,28 +201,23 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
         | GBL | GBC | +++ |
         +-----+-----+-----+
       */
+
       stencilCells1 : [BL, CL, TL, BC, CC, TC],
       stencilCells2 : [BL, BC, CL, CC, TL, TC],
 
-      Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)),
-        bc(D=1,N=0,val=subst(pv2=1, g_surf_CC_pv1_e))),
-      Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)),
-        bc(D=1,N=0,val=subst(pv2=-1, g_surf_CC_pv1_e))),
- 
-      /* Evaluate surface projection of dG/dpv1 at pv2 boundaries */
-      surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
-      surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)),
+      Grecpv1_lower : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 1,
+        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)), dg(dg(GTL_lst), dg(GTC_lst))),
 
-      /* 1-cell recovery across +/-1 interfaces in pv1 */
-      Grecpv1_upper : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        dg(GCC_lst), bcs([der=0,val=g_surf_CC_pv1_e])),
-      Grecpv1_lower : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
+      surft1_upper_c : dgdpv2_surf_CC_pv1_lst,
+      surft1_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, diff(Grecpv1_lower, pv2)),
 
-      surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
-      surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower))
+      Grecpv2_upper : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, 
+        dg(GCC_lst), dg(GTC_lst)),
+      Grecpv2_lower : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder,
+        dg(GBC_lst), dg(GCC_lst)),
+
+      surft2_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, subst(pv2=0, Grecpv2_upper)),
+      surft2_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, subst(pv2=0, Grecpv2_lower))
     )
     elseif (stencilLoc[sI] = [0, 1]) then (
       /* 
@@ -241,15 +235,16 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
       stencilCells1 : [BL, CL, BC, CC, BR, CR],
       stencilCells2 : [BL, BC, BR, CL, CC, CR],
 
-      Grecpv2_upper : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-        dg(g_surf_CL_pv2_lst), dg(g_surf_CC_pv2_lst), 
-        dg(g_surf_CR_pv2_lst)),
+      /* 
+        Upper surface term is simply the (nodal C0 continuous) surface expansion of dG/dv
+        in the pv1 direction 
+      */
       Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
         dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
         dg(dg(GBR_lst), dg(GCR_lst))),
 
       /* Evaluate surface projection of dG/dpv1 at pv2 boundaries */
-      surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
+      surft1_upper_c : dgdpv1_surf_CC_pv2_lst,
       surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)),
 
       /* 1-cell recovery across +/-1 interfaces in pv1 */
@@ -278,13 +273,9 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
       /* 6-cell recovery across +/-1 interfaces in pv2 */
       Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
         dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), dg(dg(GCR_lst), dg(GTR_lst))),
-      Grecpv2_lower : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-        dg(g_surf_CL_pv2_lst), dg(g_surf_CC_pv2_lst), 
-        dg(g_surf_CR_pv2_lst)),
 
-      /* Evaluate surface projection of dG/dpv1 at pv2 boundaries */
       surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
-      surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)),
+      surft1_lower_c : dgdpv1_surf_CC_pv2_lst,
 
       /* 1-cell recovery across +/-1 interfaces in pv1 */
       Grecpv1_upper : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
@@ -312,19 +303,15 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
         stencilCells2 : [CC, CR, TC, TR],
 
         /*
-        Surft1 upper: same as left edge
-        Surft1 lower: 1-cell recovery at boundary of pv2 surface expansion? 
+          Surft1 upper: same as left edge
+          Surft1 lower: analytic projection of dG/dpv1
         */
         Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-          bc(D=1, N=0, val=subst(pv2=1, g_surf_CC_pv1_e)), dg(dg(GCC_lst), dg(GTC_lst)),
-          dg(dg(GCR_lst), dg(GTR_lst))),
-
-       Grecpv2_lower : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-          bcs([der=0, val=subst(pv1=-1, g_surf_CC_pv2_e)]), dg(g_surf_CC_pv2_lst), 
-          dg(g_surf_CR_pv2_lst)),
+          bc(D=0,N=1,val=subst(pv2=1, dgdpv1_surf_CC_pv1_e)),
+          dg(dg(GCC_lst), dg(GTC_lst)), dg(dg(GCR_lst), dg(GTR_lst))),
 
         surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
-        surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)) 
+        surft1_lower_c : dgdpv1_surf_CC_pv2_lst
       )
       elseif (stencilLoc[sI][2] = 1) then (
         /*
@@ -341,30 +328,23 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
         stencilCells2 : [BC, BR, CC, CR],
 
         /*
-        Surft1 upper: 1-cell recovery at boundary of pv2 surface expansion
-        Surft1 lower: same as left edge 
+          Surft1 upper: analytic projection of dG/dpv1
+          Surft1 lower: same as left edge 
         */
+        Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 2,
+          bc(D=0,N=1,val=subst(pv2=-1, dgdpv1_surf_CC_pv1_e)),
+          dg(dg(GBC_lst), dg(GCC_lst)), dg(dg(GBR_lst), dg(GCR_lst))),
 
-        Grecpv2_upper : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-          bcs([der=0, val=subst(pv1=-1, g_surf_CC_pv2_e)]), dg(g_surf_CC_pv2_lst), 
-          dg(g_surf_CR_pv2_lst)),
-
-        Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-          bc(D=1, N=0, val=subst(pv2=-1, g_surf_CC_pv1_e)), dg(dg(GBC_lst), dg(GCC_lst)),
-          dg(dg(GBR_lst), dg(GCR_lst))),
-
-        surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
+        surft1_upper_c : dgdpv1_surf_CC_pv2_lst,
         surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1))
         ),
 
       /* surft2 is identical to left edge case and the same for both corners */
       /* 1-cell recovery across +/-1 interfaces in pv1 */
       Grecpv1_upper : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
-      Grecpv1_lower : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        bcs([der=0,val=g_surf_CC_pv1_e]), dg(GCC_lst)),
 
       surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
-      surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower))
+      surft2_lower_c : g_surf_CC_pv1_lst 
     )
     elseif (stencilLoc[sI][1] = 1 and stencilLoc[sI][2] # 0) then (
       /* Top/Bottom Right Corner */ 
@@ -384,19 +364,16 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
 
         /*
           Surft1 upper: same as right edge
-          Surft1 lower: 1-cell recovery at boundary of pv2 surface expansion
+          Surft1 lower: analytic projection of dG/dpv1
         */
 
         /* 6-cell recovery across +/-1 interfaces in pv2 */
-        Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-          dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
-          bc(D=1, N=0, val=subst(pv2=1, g_surf_CC_pv1_e))),
+      Grecpv2_upper : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)),
+        bc(D=0,N=1,val=subst(pv2=1, dgdpv1_surf_CC_pv1_e))),
 
-       Grecpv2_lower : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-          dg(g_surf_CL_pv2_lst), dg(g_surf_CC_pv2_lst), 
-          bcs([der=0, val=subst(pv1=1, g_surf_CC_pv2_e)])),
         surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)),
-        surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1)) 
+        surft1_lower_c : dgdpv1_surf_CC_pv2_lst 
       )
       elseif (stencilLoc[sI][2] = 1) then (
         /*
@@ -413,40 +390,49 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
         stencilCells2 : [BL, BC, CL, CC],
 
         /*
-        Surft1 upper: 1-cell recovery at boundary of pv2 surface expansion
-        Surft1 lower: same as right edge 
+          Surft1 upper: analytic projection of dG/dpv1
+          Surft1 lower: same as right edge 
         */
-        Grecpv2_upper : calcRecov1CellGen(basisFun, pv1, surfVarspv2, polyOrder, 1, 
-          dg(g_surf_CL_pv2_lst), dg(g_surf_CC_pv2_lst), 
-          bcs([der=0, val=subst(pv1=1, g_surf_CC_pv2_e)])),
         Grecpv2_lower : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 1,
-          dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
-          bc(D=1, N=0, val=subst(pv2=-1, g_surf_CC_pv1_e))), 
-
-        surft1_upper_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_upper, pv1)), 
+          dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)),
+          bc(D=0,N=1,val=subst(pv2=-1, dgdpv1_surf_CC_pv1_e))),
+     
+        surft1_upper_c : dgdpv1_surf_CC_pv2_lst, 
         surft1_lower_c : calcInnerProdList(surfVarspv2, 1, bSurfpv2, diff(Grecpv2_lower, pv1))
       ),
 
       /* surft2 is identical to right edge case and the same for both corners */
       /* 1-cell recovery across +/-1 interfaces in pv1 */
-      Grecpv1_upper : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, 
-        dg(GCC_lst), bcs([der=0,val=g_surf_CC_pv1_e])),
       Grecpv1_lower : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
 
-      surft2_upper_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_upper)),
+      surft2_upper_c : g_surf_CC_pv1_lst, 
       surft2_lower_c : calcInnerProdList(surfVarspv1, 1, bSurfpv1, subst(pv1=0, Grecpv1_lower))
     ), 
+    if (stencilLoc[sI][1] # 0 and stencilLoc[sI][2] = 0) then (
+      /* i.e. left or right edge */
+      surft1_upper_e : surft1_pv1_upper_e,
+      surft1_lower_e : surft1_pv1_lower_e,
+      surft1_pv : pv1,
+      surft1_surfVars : surfVarspv1,
+  
+      surft2_upper_e : surft2_pv2_upper_e,
+      surft2_lower_e : surft2_pv2_lower_e,
+      surft2_pv : pv2,
+      surft2_surfVars : surfVarspv2
+    )
+    else (
+      surft1_upper_e : surft1_pv2_upper_e,
+      surft1_lower_e : surft1_pv2_lower_e,
+      surft1_pv : pv2,
+      surft1_surfVars : surfVarspv2,
+  
+      surft2_upper_e : surft2_pv1_upper_e,
+      surft2_lower_e : surft2_pv1_lower_e,
+      surft2_pv : pv1,
+      surft2_surfVars : surfVarspv1
+    ),
 
-    surft1_upper_e : surft1_pv2_upper_e,
-    surft1_lower_e : surft1_pv2_lower_e,
-    surft1_pv : pv2,
-    surft1_surfVars : surfVarspv2,
-
-    surft2_upper_e : surft2_pv1_upper_e,
-    surft2_lower_e : surft2_pv1_lower_e,
-    surft2_pv : pv1,
-    surft2_surfVars : surfVarspv1,
-
+    /* Choose stencil indexing order based on directions */
     if (pvdir1 < pvdir2) then (
       stencilCells : stencilCells1
     )
@@ -454,25 +440,36 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
       stencilCells : stencilCells2
     ),
 
+    /* Index into G stencil */
     surf_idx : [],
     for i : 1 thru length(stencilCells) do (
-      printf(fh, "  const double *G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
+      printf(fh, "  const double* G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
       if (stencilCells[i] = CL or stencilCells[i] = CC or stencilCells[i] = CR) then (
         surf_idx : append(surf_idx, [i])
       )
     ),
     printf(fh, "~%"),
 
+    /* Fetch correct cells for surface expansion from stencil */
     for i : 1 thru length(surf_idx) do (
-      printf(fh, "  const double* g_surf_~a = fpo_g_surf_stencil[~a]; ~%", stencilCells[surf_idx[i]], surf_idx[i]-1)
+      printf(fh, "  const double* g_surf_~a = fpo_g_surf_stencil[~a]; ~%",
+        stencilCells[surf_idx[i]], surf_idx[i]-1),
+      printf(fh, "  const double* g_surf_~a_pv2 = &g_surf_~a[~a]; ~%", 
+        stencilCells[surf_idx[i]], stencilCells[surf_idx[i]], (pvdir2-cdim-1)*numSurf)
     ),
+    printf(fh, "  ~%"),
 
-    for i : 1 thru length(surf_idx) do (
-       printf(fh, "  const double* g_surf_~a_pv2 = &g_surf_~a[~a]; ~%", 
-         stencilCells[surf_idx[i]], stencilCells[surf_idx[i]], (pvdir2-cdim-1)*numSurf)
-    ),
     /* Index into surface expansion to get pv1/pv2 boundaries */
     printf(fh, "  const double* g_surf_CC_pv1 = &g_surf_CC[~a]; ~%", (pvdir1-cdim-1)*numSurf),
+    dgdpv1_idx : 3*(pvdir2-cdim-1) + (pvdir1-cdim-1),
+    printf(fh, "  const double* dgdpv1_surf_CC_pv2 = &fpo_dgdv_surf[~a]; ~%",
+      (dgdpv1_idx)*numSurf),
+
+    dgdpv2_idx : 3*(pvdir1-cdim-1) + (pvdir2-cdim-1),
+    printf(fh, "  const double* dgdpv2_surf_CC_pv1 = &fpo_dgdv_surf[~a]; ~%",
+      (dgdpv2_idx)*numSurf),
+    printf(fh, "  const double* dgdpv1_surf_CC_pv1 = &fpo_dgdv_surf[~a]; ~%", 
+      (4*(pvdir1-cdim-1))*numSurf),
 
     printf(fh, "  ~%"),
     printf(fh, "  double surft1_upper[~a], surft1_lower[~a]; ~%", numSurf, numSurf),
@@ -509,12 +506,11 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "~%"),
     flush_output(fh),
 
-    writeCExprs1(out, diff_coeff_out*dv1_sq),
+    writeCExprs1(out, gamma*diff_coeff_out*dv1_sq),
     printf(fh, "} ~%"),
     printf(fh, "~%"),
     flush_output(fh),
 
     kill(Grecpv1_upper, Grecpv1_lower, Grecpv2_upper, Grecpv2_lower, surft1_upper_c, surft1_lower_c, surft2_upper_c, surft2_lower_c)
     )
- /* ) */
 )$

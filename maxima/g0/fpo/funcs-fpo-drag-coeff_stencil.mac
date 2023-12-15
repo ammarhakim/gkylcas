@@ -1,0 +1,134 @@
+/*
+  Generate kernels for the drag coefficient
+  for the Rosenbluth/Fokker-Planck Operator
+  a_i = d H / dv_i 
+
+  Using a 3-cell domain stencil:
+  Left edge
+  Domain volume
+  Right edge
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("recovery");
+load("bvp_utilities/bvp-util");
+
+generate_fpo_drag_coeff_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
+  [],
+  /* FPO is only defined in 3V */
+  vdim : 3,
+
+  /* Diagonal term stencils are always 1D */
+  dim : 1,
+
+  dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
+
+  kill(varsC, basisC, varsP, basisP),
+
+  /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
+  coordVarS : getCoordVarS([pv]),
+
+  /* List of stencil locations. Each entry is a dim-dimensional list
+  with -1 meaning it is at a lower boundary, 1 upper boundary, or
+  0 away from boundaries in that direction. */
+  stencilLoc : getStencilCoords(dim),
+
+  for sI : 1 thru length(stencilLoc) do (
+    stencilStr : sconcat("_", assoc(stencilLoc[sI][1], 
+      [[-1, "lo"], [0, "in"], [1, "up"]]), string(pv)),
+
+    pvdir : assoc(pv, dirNums),
+
+    fnameStencil : sconcat(fname, "_stencil", stencilStr, ".c"),
+    disp(printf(false,"Creating ~a", fnameStencil)),
+    fh : openw(fnameStencil),
+    printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
+
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_h_stencil[3], const double* fpo_dhdv_surf, double *drag_coeff) {~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
+    printf(fh, "  // gamma: Scalar factor gamma. ~%"),
+    printf(fh, "  // fpo_h_stencil[3]: 3 cell stencil of Rosenbluth potential H. ~%"),
+    printf(fh, "  // fpo_dhdv_surf: Surface projection of dH/dv in center cell. ~%"),
+    printf(fh, "  // drag_coeff: Output array for drag coefficient. ~%"),
+    printf(fh, "~%"),
+
+    printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
+    printf(fh, "~%"),
+
+    [varsC, bC, varsP, bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+    surfVars : delete(pv, varsP),
+    bSurf : basisFromVars(basisFun, surfVars, polyOrder),
+
+    NC : length(bP),
+    numSurf : length(bSurf),
+    H_L_lst : makelist(H_L[i], i, 0, NC-1),
+    H_C_lst : makelist(H_C[i], i, 0, NC-1),
+    H_R_lst : makelist(H_R[i], i, 0, NC-1),
+
+    H_C_e : doExpand1(H_C, bP),
+
+    /* Surface projection of G */
+    dHdv_surf_C_e : doExpand1(dHdv_surf_C, bSurf)/dv1,
+
+    if stencilLoc[sI] = [0] then (
+      /*
+        +-----+-----+-----+
+        | H_L | H_C | H_R |
+        +-----+-----+-----+
+      */
+      stencilCells : [L, C, R],
+
+      H_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1, 
+        dg(H_L_lst), dg(H_C_lst), dg(H_R_lst))
+    )
+    elseif stencilLoc[sI] = [-1] then (
+      /*
+        +-----+-----+-----+
+        | +++ | H_C | H_R |
+        +-----+-----+-----+
+      */
+      stencilCells : [C, R],
+
+      H_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
+        bcs([der=1, val=dHdv_surf_C_e]), dg(H_C_lst), dg(H_R_lst)),
+    )
+    elseif stencilLoc[sI] = [1] then (
+      /*
+        +-----+-----+-----+
+        | H_L | H_C | +++ |
+        +-----+-----+-----+
+      */
+      stencilCells : [L, C],
+
+      H_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
+        dg(H_L_lst), dg(H_C_lst), bcs([der=1, val=dHdv_surf_C_e]))
+    ),
+
+    for i : 1 thru length(stencilCells) do (
+      printf(fh, "  const double* H_~a = fpo_h_stencil[~a]; ~%", stencilCells[i], i-1)
+    ),
+    printf(fh, "  ~%"),
+    printf(fh, "  const double *fpo_dHdv_surf_C_vx = &fpo_dhdv_surf[~a]; ~%", 0*numSurf),
+    printf(fh, "  const double *fpo_dHdv_surf_C_vy = &fpo_dhdv_surf[~a]; ~%", 1*numSurf),
+    printf(fh, "  const double *fpo_dHdv_surf_C_vz = &fpo_dhdv_surf[~a]; ~%", 2*numSurf),
+    printf(fh, "  ~%"),
+    printf(fh, "  const double* dHdv_surf_C = fpo_dHdv_surf_C_~a; ~%", pv),
+
+    printf(fh, "  ~%"),
+    printf(fh, "  double *drag_coeff_vx = &drag_coeff[~a]; ~%", 0*NC),
+    printf(fh, "  double *drag_coeff_vy = &drag_coeff[~a]; ~%", 1*NC),
+    printf(fh, "  double *drag_coeff_vz = &drag_coeff[~a]; ~%", 2*NC),
+    printf(fh, "  ~%"),
+    printf(fh, "  double *out = drag_coeff_~a; ~%", pv),
+    printf(fh, "  ~%"),
+
+    drag_coeff_out : calcInnerProdList(varsP, 1, bP, diff(H_rec, pv)),
+
+    writeCExprs1(out, 2.0*gamma*drag_coeff_out*dv1),
+    printf(fh, "} ~%"),
+    printf(fh, "~%"),
+    flush_output(fh)
+  )
+)$

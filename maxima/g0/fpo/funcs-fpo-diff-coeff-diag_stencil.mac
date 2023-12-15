@@ -4,9 +4,9 @@
   D_ii = d^2 G / dv_i^2 
 
   Using a 3-cell domain stencil:
-  Bottom edge
+  Left edge
   Domain volume
-  Top edge
+  Right edge
 */
 
 load("modal-basis");
@@ -45,11 +45,11 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     fh : openw(fnameStencil),
     printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_g_stencil[3], const double* fpo_g_surf, double *diff_coeff) {~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_g_stencil[3], const double* fpo_d2gdv2_surf, double *diff_coeff) {~%", funcNm, polyOrder, stencilStr),
     printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
     printf(fh, "  // gamma: Scalar factor gamma. ~%"),
     printf(fh, "  // fpo_g_stencil[3]: 3 cell stencil of Rosenbluth potential G. ~%"),
-    printf(fh, "  // fpo_g_surf: Surface projection of G in center cell. ~%"),
+    printf(fh, "  // fpo_d2gdv2_surf: Surface projection of d2G/dv2 in center cell. ~%"),
     printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
     printf(fh, "~%"),
 
@@ -70,12 +70,7 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     G_C_e : doExpand1(G_C, bP),
 
     /* Surface projection of G */
-    G_surf_C_e : doExpand1(G_surf_C, bSurf),
-
-    surft1_L_e : doExpand1(surft1_L, bSurf),
-    surft1_R_e : doExpand1(surft1_R, bSurf),
-    surft2_L_e : doExpand1(surft2_L, bSurf),
-    surft2_R_e : doExpand1(surft2_R, bSurf),
+    d2G_surf_C_e : doExpand1(d2G_surf_C, bSurf)/dv1_sq,
 
     if stencilLoc[sI] = [0] then (
       /*
@@ -84,12 +79,9 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
         +-----+-----+-----+
       */
       stencilCells : [L, C, R],
-/*
-      G_C_e : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1, 
-        dg(G_L_lst), dg(G_C_lst), dg(G_R_lst)),
-*/
-      G_rec_L : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(G_L_lst), dg(G_C_lst)),
-      G_rec_R : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(G_C_lst), dg(G_R_lst))
+
+      G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1, 
+        dg(G_L_lst), dg(G_C_lst), dg(G_R_lst))
     )
     elseif stencilLoc[sI] = [-1] then (
       /*
@@ -98,9 +90,9 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
         +-----+-----+-----+
       */
       stencilCells : [C, R],
-      G_rec_L : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, 
-        bcs([der=0, val=G_surf_C_e]), dg(G_C_lst)),
-      G_rec_R : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(G_C_lst), dg(G_R_lst))
+
+      G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
+        bcs([der=2, val=d2G_surf_C_e]), dg(G_C_lst), dg(G_R_lst))
     )
     elseif stencilLoc[sI] = [1] then (
       /*
@@ -109,19 +101,21 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
         +-----+-----+-----+
       */
       stencilCells : [L, C],
-      G_rec_L : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(G_L_lst), dg(G_C_lst)),
-      G_rec_R : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, 
-        dg(G_C_lst), bcs([der=0, val=G_surf_C_e]))
+
+      G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
+        dg(G_L_lst), dg(G_C_lst), bcs([der=2, val=d2G_surf_C_e]))
     ),
 
     for i : 1 thru length(stencilCells) do (
       printf(fh, "  const double* G_~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1)
     ),
-    printf(fh, "  const double* G_surf_C = &fpo_g_surf[~a]; ~%", (pvdir-cdim-1)*numSurf),
-
     printf(fh, "  ~%"),
-    printf(fh, "  double surft1_R[~a], surft1_L[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double surft2_R[~a], surft2_L[~a]; ~%", numSurf, numSurf),
+    printf(fh, "  const double *fpo_d2g_surf_C_vxvx = &fpo_d2gdv2_surf[~a]; ~%", 0*numSurf),
+    printf(fh, "  const double *fpo_d2g_surf_C_vyvy = &fpo_d2gdv2_surf[~a]; ~%", 4*numSurf),
+    printf(fh, "  const double *fpo_d2g_surf_C_vzvz = &fpo_d2gdv2_surf[~a]; ~%", 8*numSurf),
+    printf(fh, "  ~%"),
+    printf(fh, "  const double* d2G_surf_C = fpo_d2g_surf_C_~a~a; ~%", pv,pv),
+
     printf(fh, "  ~%"),
     printf(fh, "  double *diff_coeff_vxvx = &diff_coeff[~a]; ~%", 0*NC),
     printf(fh, "  double *diff_coeff_vyvy = &diff_coeff[~a]; ~%", 4*NC),
@@ -130,34 +124,9 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     printf(fh, "  double *out = diff_coeff_~a~a; ~%", pv, pv),
     printf(fh, "  ~%"),
 
-    surft1_L_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(G_rec_L, pv))),
-    surft1_R_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(G_rec_R, pv))),
+    diff_coeff_out : calcInnerProdList(varsP, 1, bP, diff(G_rec, pv, 2)),
 
-    surft2_L_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, G_rec_L)),
-    surft2_R_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, G_rec_R)),
-  
-    surft1 : calcInnerProdList(surfVars, 1, subst(pv=1, bP), surft1_R_e) + 
-      calcInnerProdList(surfVars, -1, subst(pv=-1, bP), surft1_L_e),
-    surft2 : calcInnerProdList(surfVars, -1, subst(pv=1, diff(bP, pv)), surft2_R_e) +
-      calcInnerProdList(surfVars, 1, subst(pv=-1, diff(bP, pv)), surft2_L_e),
-
-    vol : calcInnerProdList(varsP, 1, diff(bP, pv, 2), G_C_e),  
-
-    diff_coeff_out : surft1 + surft2 + vol,
-
-    writeCExprs1(surft1_R, surft1_R_c),
-    printf(fh, "~%"),
-    writeCExprs1(surft1_L, surft1_L_c),
-    printf(fh, "~%"),
-    flush_output(fh),
-
-    writeCExprs1(surft2_R, surft2_R_c),
-    printf(fh, "~%"),
-    writeCExprs1(surft2_L, surft2_L_c),
-    printf(fh, "~%"),
-    flush_output(fh),
-
-    writeCExprs1(out, diff_coeff_out*dv1_sq),
+    writeCExprs1(out, gamma*diff_coeff_out*dv1_sq),
     printf(fh, "} ~%"),
     printf(fh, "~%"),
     flush_output(fh)
