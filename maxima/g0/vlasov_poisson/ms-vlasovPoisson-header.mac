@@ -32,21 +32,23 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-printPrototype(deco, ci, vi, bStr, pi) := block([si],
+vspaceTypeLabels : ["", "nonuniformv_"]$
 
-  printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~adouble vlasov_poisson_extem_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+printPrototype(deco, vspaceType, ci, vi, bStr, pi) := block([si],
+
+  printf(fh, "~adouble vlasov_poisson_~avol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, vspaceType, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_poisson_extem_~avol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, vspaceType, ci, vi, bStr, pi),
 
   for si : 1 thru ci do (
-    printf(fh, "~adouble vlasov_poisson_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_~asurf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_~asurfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi),
 
-    printf(fh, "~adouble vlasov_poisson_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_poisson_~aboundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_~aboundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi)
   ),
   for si : 1 thru vi do (
-    printf(fh, "~adouble vlasov_poisson_extem_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_extem_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_poisson_extem_~asurfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_extem_~aboundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, vspaceType, cvars[si], ci, vi, bStr, pi)
   ),
 
   printf(fh, "~%")
@@ -62,16 +64,18 @@ printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 
 decorator : "GKYL_CU_DH "$
-for bInd : 1 thru length(bName) do (
-  for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
-
-      minPolyOrderB : minPolyOrder[bInd],
-      maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-
-      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        printPrototype(decorator, c, v, bName[bInd], polyOrder)
+for vsI : 1 thru length(vspaceTypeLabels) do (
+  for bInd : 1 thru length(bName) do (
+    for c : minCdim[bInd] thru maxCdim[bInd] do (
+      for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+  
+        minPolyOrderB : minPolyOrder[bInd],
+        maxPolyOrderB : maxPolyOrder[bInd],
+        if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+  
+        for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+          printPrototype(decorator, vspaceTypeLabels[vsI], c, v, bName[bInd], polyOrder)
+        )
       )
     )
   )

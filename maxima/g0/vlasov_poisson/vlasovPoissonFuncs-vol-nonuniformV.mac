@@ -1,0 +1,433 @@
+/* Functions called to generate the kernels for the volume terms due
+   to the streaming (v.grad(f)) and -grad(phi) . del_v(f) terms
+   in the Vlasov-Poisson equation, with the option to add a contribution
+   due to external fields via curl(A) where A is the vector potential.
+   NOTE: kernels expect phi and A to be scaled by appropriate factors
+   i.e., q/m for plasmas, and G*m for self-gravitation systems.
+   */
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+fpprec : 24$
+
+/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
+/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
+
+calcVlasovPoissonStreamVolUpdaterNonuniformV(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,varsV,dir,f_e,volTerm,clst,strOut,d],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+  varsV  : makelist(varsP[cdim+i],i,1,vdim),
+  if polyOrder=1 then ( 
+    bV : basisFromVars("hyb", varsV, polyOrder)
+  ) else (
+    bV : basisFromVars(basisFun, varsV, polyOrder)
+  ),
+  numV : length(bV),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord:    Discrete (DG) velocity coordinate.~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  /* Expand the velocity in each direction using a basis that only depends on
+     the variable in that direction. */
+  vcoord_c : makelist([],d,1,vdim),
+  vcoord_e : makelist([],d,1,vdim),
+  for d : 1 thru vdim do (
+    velBasis   : copylist(bV),
+    ignoreVars : listify(setdifference(setify(varsV),setify([varsV[d]]))),
+    for i : 1 thru numV do (
+      for v : 1 thru length(ignoreVars) do (
+        if not freeof(ignoreVars[v],bV[i]) then (
+          velBasis[i] : 0
+    ))),
+
+    vcoord_c[d] : subst(a0=numV*(d-1), makelist(vcoord[a0+i-1],i,1,numV) ),
+    vcoord_e[d] : doExpand(vcoord_c[d],velBasis)
+  ),
+
+  rdxVec : [],
+  for d : 1 thru cdim do (
+    varNm : sconcat("rd",string(varsC[d])),
+    printf(fh, "  double ~a = 1.0/dxv[~a];~%", varNm, d-1),
+    rdxVec : endcons(eval_string(varNm),rdxVec)
+  ),
+  printf(fh, "~%"),
+
+  /* Expand distribution function in phase basis. */
+  f_e : doExpand1(f, bP),
+
+  /* Inner product of grad(psi) . v f, where psi is a basis function. */
+  volTerm : 0,
+  for dir : 1 thru cdim do (
+    volTerm : volTerm
+             +calcInnerProdList(varsP, 2*rdxVec[dir]*vcoord_e[dir], diff(bP,varsP[dir]), f_e)
+  ),
+  printf(fh, "~%"),
+
+  writeCIncrExprs1(out,volTerm),
+  printf(fh, "~%"),
+
+  /* Write out the CFL frequency. */
+  strOut : "",
+  pFac : 2*polyOrder+1,
+  for d : 1 thru cdim do (
+    /* Pick the max velocity between the lower and upper boundaries. */
+    vLo : subst(varsV[d]=-1, vcoord_e[d]),
+    vUp : subst(varsV[d]=+1, vcoord_e[d]),
+    strOut : sconcat(strOut, "rd",string(varsC[d]),"*fmax(fabs(",string(float(pFac*vLo)),"),fabs(",string(float(pFac*vUp)),"))"), 
+    if (d < cdim) then ( strOut : sconcat(strOut, "+") )
+  ),
+  printf(fh, "  return ~a;~%",strOut),
+
+  printf(fh, "} ~%")
+)$
+
+calcVlasovPoissonVolUpdaterNonuniformV(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bP,bC,varsC,varsP,varsV,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,
+   cdir,vdir,alpha_cdim_c,alpha_vdim_c,i,expr,alpha_cdim_NoZero,
+   alpha_cdim_NoZero_e,incr_cdim,incr_vdim,acc_e,vTransSubs,alpha_vdim_NoZero,
+   alpha_vdim_NoZero_e],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
+  if polyOrder=1 then ( 
+    bV : basisFromVars("hyb", varsV, polyOrder)
+  ) else (
+    bV : basisFromVars(basisFun, varsV, polyOrder)
+  ),
+  numV : length(bV),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
+  numC : length(bC),
+  numP : length(bP),
+
+  /* Point at which to evaluate alpha for use in computing CFL. */
+  cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord     Discrete (DG) velocity coordinate.~%"),
+  printf(fh, "  // field:     potential (scaled by appropriate factors).~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  /* Expand the velocity in each direction using a basis that only depends on
+     the variable in that direction. */
+  vcoord_c : makelist([],d,1,vdim),
+  vcoord_e : makelist([],d,1,vdim),
+  for d : 1 thru vdim do (
+    velBasis   : copylist(bV),
+    ignoreVars : listify(setdifference(setify(varsV),setify([varsV[d]]))),
+    for i : 1 thru numV do (
+      for v : 1 thru length(ignoreVars) do (
+        if not freeof(ignoreVars[v],bV[i]) then (
+          velBasis[i] : 0
+    ))),
+
+    vcoord_c[d] : subst(a0=numV*(d-1), makelist(vcoord[a0+i-1],i,1,numV) ),
+    vcoord_e[d] : doExpand(vcoord_c[d],velBasis)
+  ),
+
+  rdxVec : [],
+  for d : 1 thru cdim do (
+    varNm : sconcat("rd",string(varsC[d])),
+    printf(fh, "  double ~a = 1./dxv[~a];~%", varNm, d-1),
+    rdxVec : endcons(eval_string(varNm),rdxVec)
+  ),
+  printf(fh, "~%"),
+
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
+
+  /* common expressions in streaming (v dot grad(f)) term and grad(phi) */
+  for dir : 1 thru cdim do (
+    printf(fh, "  const double rd~a2 = 2.*rd~a; ~%", varsC[dir], varsC[dir])
+  ),
+  rdx2Vec : [rdx2,rdy2,rdz2],
+
+  varsCall : [x, y, z],
+
+  /* access potential data */
+  printf(fh, "  const double *phi = &field[~a]; ~%", 0),
+  /* set cell-spacing */
+  for dir : 1 thru vdim do (
+    printf(fh, "  const double rdv~a2 = 2./dxv[~a]; ~%", varsCall[dir], vid[dir])
+  ),
+  printf(fh, "~%"),
+  rdv2Vec : [rdvx2,rdvy2,rdvz2],
+
+  /* cflFreq is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq = 0.0; ~%"),
+
+  /* alpha_cdim = v, alpha_vdim = -fac*grad(phi) */
+  /* fac = q/m for plasma, fac = G*m for self gravitating systems */
+  /* In case of external fields, also add q/m*curl(A) */
+  printf(fh, "  double alpha_cdim[~a]; ~%", cdim*numP),
+  printf(fh, "  double alpha_vdim[~a]; ~%~%", vdim*numP),
+
+  /* Expand distribution function f in phase basis, and potential in conf basis. */
+  f_e   : doExpand1(f, bP),
+  phi_e : doExpand1(phi, bC),
+
+  incr_cdim : 0,
+  /* alpha_cdim = v dot grad(f) */
+  for cdir : 1 thru cdim do (
+    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, 2*rdxVec[cdir]*vcoord_e[cdir]),
+    expr : gcfac(float(expand(radcan(alpha_cdim_c)))),
+
+    /* Write out the components of alpha_cdim's phase space expansion. */
+    for i : 1 thru numP do (
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[numP*(cdir-1)+i-1], expr[i])
+    ),
+
+    /* Zero out components of alpha which are empty. */
+    alpha_cdim_NoZero   : doMakeExprLst(alpha_cdim_c, alpha_cdim),
+    alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
+
+    /* Volume increment from configuration space. */
+    incr_cdim : incr_cdim+subst(a0=numP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e)),
+
+    vLo : subst(varsV[cdir]=-1, vcoord_e[cdir]),
+    vUp : subst(varsV[cdir]=+1, vcoord_e[cdir]),
+    printf(fh, "  cflFreq += ~a*fmax(fabs(~a),fabs(~a)); ~%", float(2*polyOrder+1)*rdxVec[cdir], float(vLo), float(vUp)),
+    printf(fh, "~%")
+  ),
+
+  incr_vdim : 0,
+  for vdir : 1 thru vdim do (
+
+    /* Calculate the acceleration. */
+    if (vdir = 1) then (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[1])
+    ) elseif (vdir = 2) then (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[2])
+    ) else (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[3])
+    ),
+
+    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, rdv2Vec[vdir]*acc_e),
+    expr         : gcfac(float(expand(radcan(alpha_vdim_c)))),
+
+    /* Write out the components of alpha_vdim's phase space expansion. */
+    for i : 1 thru numP do (
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_vdim[numP*(vdir-1)+i-1], expr[i])
+    ),
+
+    /* Zero out components of alpha which are empty. */
+    alpha_vdim_NoZero   : doMakeExprLst(alpha_vdim_c, alpha_vdim),
+    alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
+
+    /* Evaluate alpha_vdim at cflPt to approximate
+       max(abs(alpha_vdim))/(dv_i/(2p+1)). */
+    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=numP*(vdir-1),alpha_vdim_NoZero_e))))),
+    printf(fh, "  cflFreq += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
+    printf(fh, "~%"),
+
+    /* Volume increment from configuration space. */
+    incr_vdim : incr_vdim+subst(a0=numP*(vdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+vdir]), alpha_vdim_NoZero_e*f_e))
+  ),
+  
+  /* Write out first attempts to simplify the radicals with radcan,
+     e.g. force sqrt(3)*sqrt(5) = sqrt(15). */
+  /* outscripts loads scifac and uses the aggressive factorization routine "gcfac". */
+  writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
+
+  printf(fh, "~%"),
+  printf(fh, "  return cflFreq; ~%"),
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
+
+calcVlasovPoissonExtEmVolUpdaterNonuniformV(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [bP,bC,varsC,varsP,varsV,numC,numP,cflPt,cid,vid,dir,d,f_e,phi_e,Ax_e,Ay_e,Az_e,
+   Bx_e,By_e,Bz_e,cdir,vdir,alpha_cdim_c,alpha_vdim_c,i,expr,alpha_cdim_NoZero,
+   alpha_cdim_NoZero_e,incr_cdim,incr_vdim,acc_e,vTransSubs,alpha_vdim_NoZero,
+   alpha_vdim_NoZero_e],
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
+  if polyOrder=1 then ( 
+    bV : basisFromVars("hyb", varsV, polyOrder)
+  ) else (
+    bV : basisFromVars(basisFun, varsV, polyOrder)
+  ),
+  numV : length(bV),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderV : polyOrder,
+  if polyOrder=1 then ( pOrderV : 2 ),
+
+  numC : length(bC),
+  numP : length(bP),
+
+  /* Point at which to evaluate alpha for use in computing CFL. */
+  cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
+
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *vcoord, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
+  printf(fh, "  // vcoord     Discrete (DG) velocity coordinate.~%"),
+  printf(fh, "  // field:     potentials, including external (scaled by appropriate factors).~%"),
+  printf(fh, "  // f:         Input distribution function.~%"),
+  printf(fh, "  // out:       Incremented output.~%"),
+
+  /* Expand the velocity in each direction using a basis that only depends on
+     the variable in that direction. */
+  vcoord_c : makelist([],d,1,vdim),
+  vcoord_e : makelist(0,d,1,3),
+  for d : 1 thru vdim do (
+    velBasis   : copylist(bV),
+    ignoreVars : listify(setdifference(setify(varsV),setify([varsV[d]]))),
+    for i : 1 thru numV do (
+      for v : 1 thru length(ignoreVars) do (
+        if not freeof(ignoreVars[v],bV[i]) then (
+          velBasis[i] : 0
+    ))),
+
+    vcoord_c[d] : subst(a0=numV*(d-1), makelist(vcoord[a0+i-1],i,1,numV) ),
+    vcoord_e[d] : doExpand(vcoord_c[d],velBasis)
+  ),
+
+  rdxVec : [],
+  for d : 1 thru cdim do (
+    varNm : sconcat("rd",string(varsC[d])),
+    printf(fh, "  double ~a = 1.0/dxv[~a];~%", varNm, d-1),
+    rdxVec : endcons(eval_string(varNm),rdxVec)
+  ),
+  printf(fh, "~%"),
+
+  cid : makelist(i,i,0,cdim-1),
+  vid : makelist(i,i,cdim,cdim+vdim-1),
+
+  /* common expressions in streaming (v dot grad(f)) term and grad(phi) */
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dv~adx~a = dxv[~a]/dxv[~a]; ~%", dir-1, dir-1, vid[dir], cid[dir]),
+    printf(fh, "  double w~adx~a = w[~a]/dxv[~a]; ~%", dir-1, dir-1, vid[dir], cid[dir]),
+    printf(fh, "  const double rd~a2 = 2.*rd~a; ~%", varsC[dir], varsC[dir])
+  ),
+
+  varsCall : [x, y, z],
+
+  /* access potential data */
+  printf(fh, "  const double *phi = &field[~a]; ~%", 0),
+  /* set cell-spacing */
+  for dir : 1 thru vdim do (
+    printf(fh, "  const double rdv~a2 = 2./dxv[~a]; ~%", varsCall[dir], vid[dir])
+  ),
+  printf(fh, "~%"),
+  rdv2Vec : [rdvx2,rdvy2,rdvz2],
+
+  if vdim > 1 then (
+    /* If vdim = 1, then no magnetic field. */
+    for d : 1 thru vdim do (
+      printf(fh, "  const double *A~a = &field[~a]; ~%", d-1, numC*d)
+    )
+  ),
+
+  /* cflFreq is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq = 0.0; ~%"),
+
+  /* alpha_cdim = v, alpha_vdim = -fac*grad(phi) */
+  /* fac = q/m for plasma, fac = G*m for self gravitating systems */
+  /* In case of external fields, also add q/m*curl(A) */
+  printf(fh, "  double alpha_cdim[~a]; ~%", cdim*numP),
+  printf(fh, "  double alpha_vdim[~a]; ~%~%", vdim*numP),
+
+  /* Expand distribution function f in phase basis, and potential in conf basis. */
+  f_e   : doExpand1(f, bP),
+  phi_e : doExpand1(phi, bC),
+
+  Afld : [A0, A1, A2],
+  Ax_e : doExpand1(Afld[1], bC),
+  Ay_e : doExpand1(Afld[2], bC),
+  Az_e : doExpand1(Afld[3], bC),
+
+  /* B = curl(A); NOTE: already contains q/m factor */
+  Bx_e : rdx2Vec[2]*diff(Az_e, varsCall[2]) - rdx2Vec[3]*diff(Ay_e, varsCall[3]),
+  By_e : rdx2Vec[3]*diff(Ax_e, varsCall[3]) - rdx2Vec[1]*diff(Az_e, varsCall[1]),
+  Bz_e : rdx2Vec[1]*diff(Ay_e, varsCall[1]) - rdx2Vec[2]*diff(Ax_e, varsCall[2]),
+
+  incr_cdim : 0,
+  /* alpha_cdim = v dot grad(f) */
+  for cdir : 1 thru cdim do (
+    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, 2*rdxVec[cdir]*vcoord_e[cdir]),
+    expr : gcfac(float(expand(radcan(alpha_cdim_c)))),
+
+    /* Write out the components of alpha_cdim's phase space expansion. */
+    for i : 1 thru numP do (
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[numP*(cdir-1)+i-1], expr[i])
+    ),
+
+    /* Zero out components of alpha which are empty. */
+    alpha_cdim_NoZero   : doMakeExprLst(alpha_cdim_c, alpha_cdim),
+    alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
+
+    /* Volume increment from configuration space. */
+    incr_cdim : incr_cdim+subst(a0=numP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e)),
+
+    vLo : subst(varsV[cdir]=-1, vcoord_e[cdir]),
+    vUp : subst(varsV[cdir]=+1, vcoord_e[cdir]),
+    printf(fh, "  cflFreq += ~a*fmax(fabs(~a),fabs(~a)); ~%", float(2*polyOrder+1)*rdxVec[cdir], float(vLo), float(vUp)),
+    printf(fh, "~%")
+  ),
+
+  incr_vdim : 0,
+  for vdir : 1 thru vdim do (
+
+    /* Calculate the acceleration. */
+    if (vdir = 1) then (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[vdir]) + vcoord_e[2]*Bz_e - vcoord_e[3]*By_e
+    ) elseif (vdir = 2) then (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[vdir]) + vcoord_e[3]*Bx_e - vcoord_e[1]*Bz_e
+    ) else (
+      acc_e : -rdx2Vec[vdir]*diff(phi_e,varsCall[vdir]) + vcoord_e[1]*By_e - vcoord_e[2]*Bx_e
+    ),
+
+    alpha_vdim_c : calcInnerProdList(varsP, 1, bP, rdv2Vec[vdir]*acc_e),
+    expr         : gcfac(float(expand(radcan(alpha_vdim_c)))),
+
+    /* Write out the components of alpha_vdim's phase space expansion. */
+    for i : 1 thru numP do (
+      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_vdim[numP*(vdir-1)+i-1], expr[i])
+    ),
+
+    /* Zero out components of alpha which are empty. */
+    alpha_vdim_NoZero   : doMakeExprLst(alpha_vdim_c, alpha_vdim),
+    alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
+
+    /* Volume increment from configuration space. */
+    incr_vdim : incr_vdim+subst(a0=numP*(vdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+vdir]), alpha_vdim_NoZero_e*f_e)),
+
+    /* Evaluate alpha_vdim at cflPt to approximate
+       max(abs(alpha_vdim))/(dv_i/(2p+1)). */
+    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=numP*(vdir-1),alpha_vdim_NoZero_e))))),
+    printf(fh, "  cflFreq += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
+    printf(fh, "~%")
+  ),
+  
+  /* Write out first attempts to simplify the radicals with radcan,
+     e.g. force sqrt(3)*sqrt(5) = sqrt(15). */
+  /* outscripts loads scifac and uses the aggressive factorization routine "gcfac". */
+  writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
+
+  printf(fh, "~%"),
+  printf(fh, "  return cflFreq; ~%"),
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
