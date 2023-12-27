@@ -69,9 +69,10 @@ calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrL, NSurf),
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrR, NSurf),
     if (polyOrder = 1) then (  /* Force p=1 to use hybrid basis. */
-      /* if no toroidal field, use a further reduced quadrature evaluation
-         and nodal basis to exploit the larger sparsity in the x and z updates */
-      if (cdim = 3 and surfDir = 1 and no_by) then (
+      /* if no toroidal field and p=1, use a further reduced quadrature evaluation
+         to exploit the larger sparsity in the x and z updates. 
+         The x update is surfDir = 1 and the z update is surfDir = cdim */
+      if (surfDir = 1 and no_by) then (
         surfNodes : gaussOrd(1+1, 1),
         nodeVars : [z],
         basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", 1, 1, nodeVars, surfNodes),
@@ -82,7 +83,7 @@ calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,
         writeCExprs1(sgn_alphaUpNm, sgn_alphaHatModProj_e),
         sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf_no_by)
       )
-      else if (cdim = 3 and surfDir = 3 and no_by) then (
+      else if (surfDir = cdim and no_by) then (
         surfNodes : gaussOrdGkHyb(1+1, [x], [vpar]),
         nodeVars : [x,vpar],
         basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", 1, 1, nodeVars, surfNodes),

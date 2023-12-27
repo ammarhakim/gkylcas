@@ -223,10 +223,6 @@ poissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
   [varsCall,cdim,varsC,rdy2,rdz2,BstardBmag_e,bmagInv_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
   /* Compute the Poisson bracket in general geometry. */
 
-  varsCall : [x,y,z],
-  cdim     : length(rdx2V),
-  varsC    : makelist(varsCall[d],d,1,cdim),
-
   /* Function that computes the gradient. */
   /* 
      For some reason the following use of "vect" functions was giving extra
@@ -236,9 +232,24 @@ poissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
   */
   fgrad(fIn,vars,diffFacs) := makelist(diff(fIn,vars[d]),d,1,length(vars))*diffFacs,
 
-  if cdim > 1 then (rdy2 : rdx2V[2]) else (rdy2 : 0),
-  if cdim > 2 then (rdz2 : rdx2V[3]) else (rdz2 : 0),
+  cdim : length(rdx2V),
+  if (cdim = 2) then (
+    varsCall : [x,z],
+    rdy2 : 0,
+    rdz2 : rdx2V[2]
+  )
+  else if (cdim = 3) then (
+    varsCall : [x,y,z],
+    rdy2 : rdx2V[2],
+    rdz2 : rdx2V[3]
+  )
+  else (
+    varsCall : [x],
+    rdy2 : 0,
+    rdz2 : 0
+  ),
 
+  varsC : makelist(varsCall[d],d,1,cdim),
   BstardBmag_e : pbFacs[1],
   b_x_e : pbFacs[2], 
   if (no_by) then (

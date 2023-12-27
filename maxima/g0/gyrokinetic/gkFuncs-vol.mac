@@ -24,6 +24,15 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
 
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    bC : subst(varsSub, copylist(bC)),  
+    varsC : subst(varsSub, copylist(varsC)),
+    bP : subst(varsSub, copylist(bP)),  
+    varsP : subst(varsSub, copylist(varsP))
+  ),
+
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
   print("Working on ", funcNm),
@@ -100,7 +109,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     BstardBmag_e : [BstarZdBmag_e]
   )
   else if (cdim = 2) then (
-    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e]
+    BstardBmag_e : [BstarXdBmag_e, BstarZdBmag_e]
   )
   else (
     BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e, BstarZdBmag_e]

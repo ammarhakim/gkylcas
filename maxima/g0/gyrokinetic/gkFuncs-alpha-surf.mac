@@ -23,7 +23,7 @@ load("surf_funcs/surfUtil")$
 fpprec : 24$
 
 buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
+  [pDim,varsC,bC,varsP,bP,vSub,varsSub,surfVar,varLabel,dirLabel,
    surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,basisStr,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
@@ -36,6 +36,15 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
 
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    bC : subst(varsSub, copylist(bC)),  
+    varsC : subst(varsSub, copylist(varsC)),
+    bP : subst(varsSub, copylist(bP)),  
+    varsP : subst(varsSub, copylist(varsP))
+  ),
+
   surfVar : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
@@ -44,13 +53,14 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
   surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    /* if no toroidal field, use a further reduced quadrature evaluation
-       to exploit the larger sparsity in the x and z updates */
-    if (cdim = 3 and surfDir = 1 and no_by) then (
+    /* if no toroidal field and p=1, use a further reduced quadrature evaluation
+       to exploit the larger sparsity in the x and z updates. 
+       The x update is surfDir = 1 and the z update is surfDir = cdim */
+    if (surfDir = 1 and no_by) then (
       surfNodes : gaussOrd(1+1, 1),
       nodeVars : [z]
     )
-    else if (cdim = 3 and surfDir = 3 and no_by) then (
+    else if (surfDir = cdim and no_by) then (
       surfNodes : gaussOrdGkHyb(1+1, [x], [vpar]),
       nodeVars : [x,vpar]
     )
@@ -69,8 +79,9 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   NSurf : length(bSurf),
   numNodes  : length(surfNodes),
   /* if polyOrder = 1, we need to be careful about
-     indexing input arrays since the surface hybrid basis has a different size at the
-     vparallel surfaces and/or we are exploiting the sparsity of alpha more directly
+     indexing input arrays since the surface hybrid basis has a different size in the
+     vparallel surfaces and/or we are more directly exploiting the sparsity of 
+     alpha (e.g., in the x and z direction when no toroidal field, by=0) 
      and thus utilize fewer coefficients to reduce the number of operations */
   if (polyOrder = 1) then (
     tempVars : delete(x,varsP), 
@@ -159,7 +170,7 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
     BstardBmag_e : [BstarZdBmag_e]
   )
   else if (cdim = 2) then (
-    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e]
+    BstardBmag_e : [BstarXdBmag_e, BstarZdBmag_e]
   )
   else (
     BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e, BstarZdBmag_e]
