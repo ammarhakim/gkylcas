@@ -10,18 +10,19 @@ load("gyrokinetic/gkUtil")$
 load("utilities")$
 fpprec : 24$
 
-buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
-  [i,d,pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,rdx2vec,rdv2vec,bmagBasis,
-   ignoreVars,bmag_e,bmagInv_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,phi_e,Apar_e,dAdt_e,dAdtPrev_e,hamil_e,
-   jnk,BstardBmag_e,replaceList,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,dirVar,alpha_e,alpha_c,
+buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,
+   rdx2vec,rdv2vec,allVarLabelsC,
+   bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,
+   hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,dirVar,alpha_e,alpha_c,
    alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c],
 
-  kill(varsC, varsP, basisC, basisP),
-
+  kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC),  numP : length(bP),
+  numC : length(bC),  numP : length(bP), 
 
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
@@ -50,11 +51,9 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
 
-  /* Declare variables with squared of cell centers and rdx2 variables. */
-  for d : 1 thru pDim do (
-    printf(fh, "  double w~aSq = w[~a]*w[~a];~%", varLabel[d], d-1, d-1),
-    printf(fh, "  double rd~a2Sq = rd~a2*rd~a2;~%", varLabel[d], varLabel[d], varLabel[d])
-  ),
+  /* Declare variables with squared of cell centers and rdx2 variables (only need vpar^2). */
+  printf(fh, "  double wvparSq = wvpar*wvpar;~%"),
+  printf(fh, "  double rdvpar2Sq = rdvpar2*rdvpar2;~%"),
   printf(fh, "~%"),
 
   /* Create pointers to the components of b_i. */
@@ -76,14 +75,39 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
 
   inFlds_e : expandInputFields(bC,bmagBasis),
 
+  cmag_e : inFlds_e[2],
+  b_x_e : inFlds_e[7],  
+  b_y_e : inFlds_e[8],  
+  b_z_e : inFlds_e[9],
+  jacobTotInv_e : inFlds_e[10],
+  /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
+  if (no_by) then (
+    BstarXdBmag_e : 0,
+    BstarYdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
+    BstarZdBmag_e : cmag_e*jacobTotInv_e
+  )
+  else (
+    BstarXdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*rdz2*diff(b_y_e,z))*jacobTotInv_e,
+    BstarYdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
+    if (cdim = 1) then (
+      BstarZdBmag_e : cmag_e*jacobTotInv_e
+    )
+    else (
+      BstarZdBmag_e : (cmag_e + ((m_/q_)*(wvpar+vpar/rdvpar2))*rdx2*diff(b_y_e,x))*jacobTotInv_e
+    )
+  ),
+  if (cdim = 1) then (
+    BstardBmag_e : [BstarZdBmag_e]
+  )
+  else if (cdim = 2) then (
+    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e]
+  )
+  else (
+    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e, BstarZdBmag_e]
+  ),
+
   /* Compute electrostatic Hamiltonian and write it out. */
   hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
-
-  /* Compute B* divided by B and write it out. */
-  BstardBmag_e : calcAndWrite_BstardBmag(fh,cdim,bP,bmagBasis,0,m_,q_,
-                                         wvpar,rdx2vec,rdv2vec,inFlds_e,""),
-
-  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
 
   pbAuxFlds : [BstardBmag_e],
   b_x_e : inFlds_e[7],  b_y_e : inFlds_e[8],  b_z_e : inFlds_e[9],
@@ -103,13 +127,14 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
     dirVar    : varsP[dir],         /* Variable in current direction. */
 
     /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
-    alpha_e : poissonBracket(wDir+dirVar/rdDirVar2,hamil_e,m_,q_,rdx2vec,rdv2vec,pbAuxFlds),
+    alpha_e : poissonBracket(wDir+dirVar/rdDirVar2,hamil_e,m_,q_,rdx2vec,rdv2vec,pbAuxFlds,no_by),
 
     /* Project alpha on basis and write to array. */
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
     alpha_c    : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)*rdDirVar2),
     alphaLabel : eval_string(sconcat(alpha, dirLabel)),
-    writeCExprsNoExpand1(alphaLabel, gcfac(expand(facsum(subst(replaceList, alpha_c),append(rdx2vec,rdv2vec))))),
+    clst : [rdx2vec, rdv2vec, m_, q_, wvpar],
+    writeCExprsCollect1(alphaLabel, alpha_c, clst),
     printf(fh, "~%"),
     flush_output(fh),
     alphaNoZero_c : doMakeExprLst(alpha_c, alphaLabel),
@@ -119,16 +144,14 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
     alphaDotGradBasis_e : alpha_e*diff(bP, dirVar),
 
     /* Accumulate alpha.grad(w) in this direction to the direction-summed alpha.grad(w). */
-    alphaSum_e : alphaSum_e + alphaDotGradBasis_e,
-
-    printf(fh, "~%")
+    alphaSum_e : alphaSum_e + alphaDotGradBasis_e
   ),
 
   /* Expand distribution function on basis. */
   f_e : doExpand1(fin,bP),
 
   volTerm_c : fullratsimp(innerProd(varsP, 1, f_e, alphaSum_e)),
-  writeCIncrExprsNoExpand(gcfac(float(subst(replaceList, facsum(volTerm_c,append(rdx2vec,rdv2vec)))))),
+  writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
   flush_output(fh),
   printf(fh, "~%"),
 

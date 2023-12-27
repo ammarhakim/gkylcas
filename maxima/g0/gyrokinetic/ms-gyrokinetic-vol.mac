@@ -9,9 +9,9 @@ load("gyrokinetic/gkFuncs-vol")$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 3$
+minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
@@ -43,10 +43,8 @@ for bInd : 1 thru length(bName) do (
       v : gkVdims[c][gkV],
 
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>5 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
-
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-
         fname : sconcat("~/max-out/gyrokinetic_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         disp(printf(false,"Creating volume file: ~a",fname)),
   
@@ -54,12 +52,25 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "#include <gkyl_gyrokinetic_kernels.h> ~%"),
 
         funcName : sconcat("gyrokinetic_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList),
+        buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
 
         /* Generate the kernel for the second step of GK with Apar. */
         funcName : sconcat("gyrokinetic_step2_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         buildGKStep2VolKernel(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)
+        close(fh),
+
+        /* if cdim > 1, also generate a set of kernels for the case where there is no toroidal field (by = 0) */
+        if (c > 1) then (
+          fname : sconcat("~/max-out/gyrokinetic_no_by_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          disp(printf(false,"Creating volume file (no by): ~a",fname)),
+    
+          fh : openw(fname),
+          printf(fh, "#include <gkyl_gyrokinetic_kernels.h> ~%"),
+
+          funcName : sconcat("gyrokinetic_no_by_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, true),
+          close(fh)
+        )
       )
     )
   )

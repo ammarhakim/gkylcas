@@ -41,6 +41,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
     printf(fh, "~avoid gyrokinetic_M0_step1_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
     printf(fh, "~avoid gyrokinetic_M0_step2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
   ),
+  printf(fh, "~avoid gyrokinetic_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%") 
 )$
 

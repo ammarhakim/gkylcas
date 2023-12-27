@@ -127,6 +127,17 @@ writeCExprsCollect1(lhs, rhs, clst) := block([expr],
   )
 )$
 
+writeCExprsCollectNoExpand1(lhs, rhs, clst) := block([expr],
+  expr : float(rhs),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param : cons(expr[i], clst),
+      e : apply(collectterms, param),
+      printf(fh, "  ~a = ~a; ~%", lhs[i-1], e)
+    )
+  )
+)$
+
 writeLuaIncrExprs(rhs) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (
