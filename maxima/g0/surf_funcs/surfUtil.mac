@@ -24,10 +24,11 @@ load("nodal_operations/quadrature_functions")$
 load("utilities")$
 
 /* Determine the upwinded distribution function in gyrokinetics */
-calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr) := block(
+calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr,no_by) := block(
   [fstrL, fstrR, fLNm, fRNm, fUpNm, sgn_alpha_surfNm, sgn_alphaUpNm, 
-   fSurfl_c, fSurfr_c, fSurfl_e, fSurfr_e, sgn_alphaUp_e, fUp_c],
-
+   fSurfl_c, fSurfr_c, fSurfl_e, fSurfr_e,
+   surfNodes,nodeVars,basisNodal,sgn_alphaNodal_e,bSurf_no_by,sgn_alphaHatModProj_e,sgn_alphaUp_e,fUp_c],
+   
     /* Naming convention for subsequent distribution function evaluations 
        for a cell-based update. If performing the left surface update 
        we need fl(surfVar=+1) and fc(surfVar=-1) (f_lr and f_cl) and if we are performing
@@ -47,12 +48,10 @@ calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,
     sgn_alphaUpNm : eval_string(sconcat("sgn_alphaUp",sideStr)),
 
     printf(file_handle, "  double fUp~a[~a] = {0.};~%", sideStr, NSurf),
-    printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, NSurf),
     fSurfl_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=1, fl_e)),
     fSurfr_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1, fr_e)),
     fSurfl_e : doExpand1(fLNm, bSurf), 
     fSurfr_e : doExpand1(fRNm, bSurf), 
-    sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf), 
 
     /* If sign(alpha_surf) is single signed
        1. f^- (if sign(alpha_surf) = 1), 
@@ -70,11 +69,41 @@ calcAndWrite_GKfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrL, NSurf),
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrR, NSurf),
     if (polyOrder = 1) then (  /* Force p=1 to use hybrid basis. */
-      dirStr : "x",
-      if (surfDir = cdim+1) then (dirStr : "vpar") elseif (surfDir = cdim+2) then (dirStr : "mu"),
-      printf(file_handle, "  ~a_~adir_upwind_quad_to_modal(~a, ~a); ~%", basisStr, dirStr, sgn_alpha_surfNm, sgn_alphaUpNm)
+      /* if no toroidal field, use a further reduced quadrature evaluation
+         and nodal basis to exploit the larger sparsity in the x and z updates */
+      if (cdim = 3 and surfDir = 1 and no_by) then (
+        surfNodes : gaussOrd(1+1, 1),
+        nodeVars : [z],
+        basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", 1, 1, nodeVars, surfNodes),
+        sgn_alphaNodal_e : doExpand1(sgn_alpha_surfNm,basisNodal),
+        bSurf_no_by : basisFromVars("gkhyb",nodeVars,polyOrder),
+        sgn_alphaHatModProj_e : fullratsimp(calcInnerProdList(nodeVars, 1, bSurf_no_by, sgn_alphaNodal_e)),
+        printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, length(bSurf_no_by)),
+        writeCExprs1(sgn_alphaUpNm, sgn_alphaHatModProj_e),
+        sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf_no_by)
+      )
+      else if (cdim = 3 and surfDir = 3 and no_by) then (
+        surfNodes : gaussOrdGkHyb(1+1, [x], [vpar]),
+        nodeVars : [x,vpar],
+        basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", 1, 1, nodeVars, surfNodes),
+        sgn_alphaNodal_e : doExpand1(sgn_alpha_surfNm,basisNodal),
+        bSurf_no_by : basisFromVars("gkhyb",nodeVars,polyOrder),
+        sgn_alphaHatModProj_e : fullratsimp(calcInnerProdList(nodeVars, 1, bSurf_no_by, sgn_alphaNodal_e)),
+        printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, length(bSurf_no_by)),
+        writeCExprs1(sgn_alphaUpNm, sgn_alphaHatModProj_e),
+        sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf_no_by)
+      )
+      else (
+        dirStr : "x",
+        if (surfDir = cdim+1) then (dirStr : "vpar") elseif (surfDir = cdim+2) then (dirStr : "mu"),
+        printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, NSurf),
+        printf(file_handle, "  ~a_~adir_upwind_quad_to_modal(~a, ~a); ~%", basisStr, dirStr, sgn_alpha_surfNm, sgn_alphaUpNm),
+        sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf)
+      )
     ) else (
-      printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm)
+      printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, NSurf),
+      printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),
+      sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf)
     ),
     printf(file_handle, "~%"),
     writeCExprs1(fLNm, fSurfl_c),

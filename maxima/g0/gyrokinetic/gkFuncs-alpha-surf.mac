@@ -44,20 +44,35 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
   surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
+    /* if no toroidal field, use a further reduced quadrature evaluation
+       to exploit the larger sparsity in the x and z updates */
+    if (cdim = 3 and surfDir = 1 and no_by) then (
+      surfNodes : gaussOrd(1+1, 1),
+      nodeVars : [z]
+    )
+    else if (cdim = 3 and surfDir = 3 and no_by) then (
+      surfNodes : gaussOrdGkHyb(1+1, [x], [vpar]),
+      nodeVars : [x,vpar]
+    )
+    else (
+      surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
+      nodeVars : surfIntVars
+    ),
     bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
     basisStr  : sconcat("gkhyb_", cdim, "x", vdim, "v", "_p", polyOrder)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
-    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder),
-    basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder) 
+    nodeVars : surfIntVars,
+    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),
+    basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder) 
   ),
   NSurf : length(bSurf),
   numNodes  : length(surfNodes),
-  /* if polyOrder = 1 and we're doing the vpar update, we need to be careful about
+  /* if polyOrder = 1, we need to be careful about
      indexing input arrays since the surface hybrid basis has a different size at the
-     vparallel surfaces */
-  if (surfDir = cdim+1 and polyOrder = 1) then (
+     vparallel surfaces and/or we are exploiting the sparsity of alpha more directly
+     and thus utilize fewer coefficients to reduce the number of operations */
+  if (polyOrder = 1) then (
     tempVars : delete(x,varsP), 
     tempBasis : basisFromVars("gkhyb",tempVars,polyOrder),
     NSurfIndexing : length(tempBasis),
@@ -164,14 +179,14 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
     printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
       m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",no_by,false),
-    calcAndWrite_sgn_alpha(fh,surfIntVars,surfNodes,numNodes,alphaSurf_e,"R")
+    calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"R")
   )
   else (
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
       m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"L",no_by,false),
-    calcAndWrite_sgn_alpha(fh,surfIntVars,surfNodes,numNodes,alphaSurf_e,"L")
+    calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"L")
   ),
   printf(fh, "  return const_sgn_alpha_surf; ~%"),
   printf(fh, "~%"),
