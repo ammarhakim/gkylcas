@@ -319,7 +319,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
     BstardBmag_e : [BstarZdBmag_e]
   )
   else if (cdim = 2) then (
-    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e]
+    BstardBmag_e : [BstarXdBmag_e, BstarZdBmag_e]
   )
   else (
     BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e, BstarZdBmag_e]
