@@ -58,31 +58,30 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   nI_e : doExpand1(nI, bC),
 
   incrDrag : 0,
-  muDrag : 0,
   cflFreq_mid : makelist(0, i, 1, vdim),
   
-  alphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vnu_e),
-  alst        : doMakeExprLst(alphaDrag_c, alphaDrag),
-  alphaDrag_e : doExpand(alst, bP),
+  vparAlphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vnu_e*rdv2[0]),
+  alst        : doMakeExprLst(vparAlphaDrag_c, alphaDrag),
+  vparAlphaDrag_e : doExpand(alst, bP),
   
   printf(fh, "  double alphaDrag[~a] = {0,0}; ~%", length(bP)),
-  writeCExprs1(alphaDrag, alphaDrag_c),
+  writeCExprs1(alphaDrag, vparAlphaDrag_c),
   printf(fh, "~%"),
 
-  incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),alphaDrag_e*f_e),
+  incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),vparAlphaDrag_e*f_e),
 
-  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*alphaDrag_e)))),
+  cflFreq_mid[1] : gcfac(float(expand(subst(zr,(2*pOrderVpar+1)*0.5*vparAlphaDrag_e)))),
 
   /* mu contribution */
   if vdim = 2 then (
-    alphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vsqnu_e),
-    alst        : doMakeExprLst(alphaDrag_c, alphaDrag),
-    alphaDrag_e : doExpand(alst, bP),
+    muAlphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vsqnu_e*rdv2[1]),
+    alst        : doMakeExprLst(muAlphaDrag_c, alphaDrag),
+    muAlphaDrag_e : doExpand(alst, bP),
     
-    writeCIncrExprs1(alphaDrag, alphaDrag_c),
+    writeCIncrExprs1(alphaDrag, muAlphaDrag_c),
     printf(fh, "~%"),
     
-    incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[1]),alphaDrag_e*f_e)
+    incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),muAlphaDrag_e*f_e)
   ),
 
   /* Write out first attempts to simplify the radicals with radcan, e.g.
@@ -94,7 +93,7 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "~%"), 
       printf(fh, "  return fabs(~a); ~%", cflFreq_mid[1])
   ) else if vdim = 2 then (
-      cflFreq_mid[2] : gcfac(float(expand(subst(zr,(2*polyOrder+1)*0.5*nI_e*vsqnu_e)))),
+      cflFreq_mid[2] : gcfac(float(expand(subst(zr,(2*polyOrder+1)*0.5*muAlphaDrag_e)))),
       printf(fh, "~%"),
       printf(fh, "  return fabs(~a)+fabs(~a); ~%", cflFreq_mid[1], cflFreq_mid[2])
   ),

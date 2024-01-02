@@ -31,7 +31,7 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nI:        ion density. ~%"),
-  printf(fh, "  // nuField:   2/pi*v*nu(v) field dg representation (v'(v||,mu) in notes~%", (1+1)*NC),
+  printf(fh, "  // nuField:   2/pi*v*nu(v) field dg representation (v'(v||,mu) in notes)~%", (1+1)*NC),
   printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
   printf(fh, "  // out:       incremented distribution function in cell ~%"),
   printf(fh, "~%"),
@@ -72,8 +72,10 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", length(bSurf)),
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
+  
+  printf(fh, "  if (~a>0) {~%~%",w[cdim]),
 
-  /* Because -nI*vnu is negative definite, need right edge value */
+  /* Because v > 0, need right edge value */
   /* Evaluate surface projection of Ghat_r = alphaDr_r f_r. */
   Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)),
   /* Zero out components of Ghat which are empty. */
@@ -85,25 +87,37 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_l, Ghat_l_c)
-  ) else (
-    writeCExprs1(Ghat_l, Ghat_l_c)
-  ),
+  
+  writeCExprs1(Ghat_l, Ghat_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprs1(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat_r, Ghat_r_c)
-  ) else (
-    writeCExprs1(Ghat_r, Ghat_r_c)
-  ),
+  printf(fh, " } else { ~%~%"),
+
+  /* Because v < 0, need left edge value */
+  /* Evaluate surface projection of Ghat_r = alphaDr_r f_c. */
+  Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=1, fc_e)),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
+
+  /* Evaluate surface projection of Ghat_l = alphaDr_l f_l. */
+  Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=1, fl_e)),
+  /* Zero out components of Ghat which are empty. */
+  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
+
+  writeCExprs1(Ghat_l, radcan(Ghat_l_c)),
   printf(fh, "~%"),
   flush_output(fh),
+  writeCExprs1(Ghat_r, radcan(Ghat_r_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, " } ~%"),
   
   /* Compute surface contribution integral(phi^- Ghat) on the right. */
   incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1.0, bP), Ghat_l_e),

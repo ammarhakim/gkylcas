@@ -72,79 +72,72 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
 
   printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
-  /* Declare variable with contribution from second integration by parts.
-     This second integration by parts is only for the interior surface.
-     The other contribution comes from the evaluation of the skin cell at 
-     the correct interface (-1 for far left edge, +1 for far right edge). */
   printf(fh, "~%"),
+  
+  /* Function that computes the surface increment (without a 2/dx factor)
+     with upwinding based on the grid velocity. */
+  evSurfIncr(fL_e, fR_e, evAt) := block([Ghat_c,GhatNoZero_c,Ghat_e,incrOut],
+    printf(fh, "  if (~a>0) { ~%~%",w[cdim]),
+    
+    /* Evaluate surface projection of Ghat = alphaDr_r f_right. */
+    if (evAt > 0) then (
+      Ghat_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fR_e))
+    ) else (
+      Ghat_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=-1, fR_e))
+    ),
+    writeCExprsCollect1lhsc(Ghat, radcan(Ghat_c)),
+    printf(fh, "~%"),
+    flush_output(fh),
+    /* Zero out components of Ghat which are empty. */
+    GhatNoZero_c : makelistNoZeros1(Ghat_c, Ghat),
+    Ghat_e       : doExpand(GhatNoZero_c, bSurf),
+
+    printf(fh, "  } else { ~%~%"),
+    
+    /* Evaluate surface projection of Ghat = alphaDr_l f_left. */
+    if (evAt > 0) then (
+      Ghat_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=1, fL_e))
+    ) else (
+      Ghat_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=1, fL_e))
+    ),
+
+    /* Clever factorization is possible for polyOrder = 1, but for higher
+       polynomial orders, factorization is *too* clever and can lead to
+       deeply nested parentheses, not ideal for compiler optimizations */
+    if (polyOrder = 1) then (
+      writeCExprsNoExpand1(Ghat, Ghat_c)
+    ) else (
+      writeCExprs1(Ghat, Ghat_c)
+    ),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    /* Zero out components of Ghat which are empty. */
+    GhatNoZero_c : makelistNoZeros1(Ghat_c, Ghat),
+    Ghat_e       : doExpand(GhatNoZero_c, bSurf),
+
+    printf(fh, "  } ~%"),
+    printf(fh, "~%"),
+
+    /* Compute surface contribution integral(phi^- Ghat) on the left/right. */
+    incrOut : calcInnerProdList(surfVars, -evAt, subst(vv=evAt, bP), Ghat_e),
+    return(incrOut)
+    ),
+  
+  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
-  /* In addition we need the drag term evaluated at +1 (so alphaDr evaluated on the right) */
   printf(fh, "  if (edge == -1) { ~%~%"),
-  /* Write out drag term for far left edge boundary.
-     Need alpha evaluated at +1 for skin-edge interface.
-     NOTE: zero-flux boundary conditions means for far left boundary, no drag term on -1 surface */
-  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_r_c),
-  printf(fh, "~%"),
 
-  /* Because -nI*vsqnu is negative definite, need right edge value */
-  /* Evaluate surface projection of Ghat = nI*vsqnu fSkin to update skin cell. */
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vv=-1, fEdge_e)),
-  /* Ghat_c (coefficients of Ghat) is what gets written. From here
-     on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  else
-    writeCExprs1(Ghat, Ghat_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  /* Increments to the far left skin cell (some dimensional factors missing). What dimensional factors? */
-  incr : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_e),
-  
-  /* Write out contribution. Where does the rdv2 come from?*/
-  writeCIncrExprs1(out, rdv2*incr),
+  incr : evSurfIncr(fSkin_e, fEdge_e, 1.0),
+  writeCIncrExprsCollect1lhsc(out, rdv2*incr),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
-  /* Write out drag term for far right edge boundary.
-     Need alpha evaluated at -1 for skin-edge interface.
-     NOTE: zero-flux boundary conditions means for far right boundary, no drag term on +1 surface */
-  writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_l_c),
-  printf(fh, "~%"),
 
-  /* Because -vsqnu*nI is positive definite, need left edge value */
-  /* Evaluate surface projection of Ghat = nI*vsqnu fSkin to update skin cell. */
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vv=-1, fSkin_e)),
-  /* Ghat_c (coefficients of Ghat) is what gets written. From here
-     on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e : doExpand(glst1, bSurf),
-  
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  else
-    writeCExprs1(Ghat, Ghat_c),
-  printf(fh, "~%"),
-  flush_output(fh),
+  incr : evSurfIncr(fEdge_e, fSkin_e, -1.0),
+  writeCIncrExprsCollect1lhsc(out, rdv2*incr),
 
-  /* Increments to the far right edge skin cell (some dimensional factors missing). */
-  incr : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_e),
-
-  /* Write out contribution. */
-  writeCIncrExprs1(out, rdv2*incr),
-  printf(fh, "~%"),
-
-  printf(fh, "  } ~%"),
-  printf(fh, "~%"),
+  printf(fh, "~%  } ~%"),
 
   printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
   printf(fh, "~%"),
