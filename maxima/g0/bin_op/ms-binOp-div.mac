@@ -1,10 +1,7 @@
-/* Generate kernels that perform binary operations between
-   two fields. Currently two operations are supported:
-     1) Weak division by a scalar function.
-     2) Weak multiplication.
-   This script calls the functions calcBinOp for weak division. */
+/* Generate kernels that perform weak division between
+   two fields. */
 
-load("bin_op/binOp-div-C")$
+load("bin_op/binOp-div")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */

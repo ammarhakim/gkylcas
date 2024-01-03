@@ -1,10 +1,7 @@
-/* Generate kernels that perform binary operations between
-   two fields. Currently two operations are supported:
-     1) Weak division by a scalar function.
-     2) Weak multiplication.
-   This script calls the functions calcBinOp for weak multiplication. */
+/* Generate kernels that perform weak multiplication between
+   two fields. */
 
-load("bin_op/binOp-mul-C")$
+load("bin_op/binOp-mul")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -13,15 +10,19 @@ load(stringproc)$
 minPolyOrder_Ser : 0$
 maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
-maxCdim_Ser : 0$
+minVdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 2$
-maxCdim_Tensor : 3$
+minCdim_Tensor : 1$
+minVdim_Tensor : 1$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -36,17 +37,37 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 for bInd : 1 thru length(bName) do (
   /* Generate kernels for operations between two fields defined on
      spaces with same dimensions (1D, 2D, 3D). */
-  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-    for c : minCdim[bInd] thru maxCdim[bInd] do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+
+/*
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       fname : sconcat("~/max-out/binop_mul_", c, "d_",bName[bInd],"_p", polyOrder, ".c"),
       fh : openw(fname),
-      disp(printf(false,sconcat("Creating ~ax ", bName[bInd]),c)),
+      disp(printf(false,sconcat("Creating ~a ", fname))),
       printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),      
       printf(fh, " ~%"),
       funcName : sconcat("binop_mul_", c, "d_",bName[bInd],"_p", polyOrder),
-      disp(printf(false,sconcat("Working on dg bin_op multiply ", c, "x ", bName[bInd]))),
       calcBinOpConfMultiply(fh, funcName, c, bName[bInd], polyOrder),
       close(fh)
+    ),
+    */
+
+    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        fname : sconcat("~/max-out/binop_cross_mul_", c, "d_", c+v, "d_", bName[bInd],"_p", polyOrder, ".c"),
+        fh : openw(fname),
+        print(sconcat("Creating ", fname)),
+        printf(fh, "#include <gkyl_binop_cross_mul_ser.h> ~%"),      
+        printf(fh, " ~%"),
+        funcName : sconcat("binop_cross_mul_", c, "d_", c+v, "d_", bName[bInd],"_p", polyOrder),
+        calcBinOpCrossMultiply(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 )$

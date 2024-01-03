@@ -1,0 +1,85 @@
+/* Generate kernels that perform weak multiplication of two
+   fields, say if C = A*B where A, B, and C are DG fields. */
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+calcBinOpConfMultiply(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [basisFun, pOrder, varsC, basisC, bW, varsW, wdim, f_e, g_e, fg_c],
+
+  if polyOrder>0 then pOrder : polyOrder else pOrder : 1,
+
+  [varsC, basisC] : loadBasis(basisFun, cdim, pOrder),
+
+  if polyOrder=0 then
+    bW : [basisC[1]]
+  else
+    bW : copylist(basisC),
+  varsW : copylist(varsC),
+  wdim  : cdim,
+    
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *f, const double *g, double *fg) ~%{ ~%", funcNm),
+  printf(fh, "  // f:  First input DG field. ~%"),
+  printf(fh, "  // g:  Second input DG field. ~%"),  
+  printf(fh, "  // fg: Output DG field f*g using weak multiplication. ~%"),
+  printf(fh, " ~%"),
+
+  f_e : doExpand1(f, bW),
+  g_e : doExpand1(g, bW),
+  fg_c : calcInnerProdList(varsW, 1, bW, f_e*g_e),
+
+  printf(fh, "  double tmp[~a] = {0.};~%", length(bW)),
+  writeCExprs1(tmp, fg_c),
+  printf(fh, " ~%"),
+  flush_output(fh),
+
+  writeCExprs1(fg, tmp),
+
+  printf(fh, "}~%")
+)$
+
+calcBinOpCrossMultiply(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [pOrder, modNm, varsC, basisC, varsP, basisP, bC, bP, numP, f_e, g_e, fg_c],
+
+  if polyOrder>0 then pOrder : polyOrder else pOrder : 1,
+
+  if pOrder=1 and basisFun="ser" then (
+    modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+    load(modNm),
+    basisC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
+    basisP : copylist(basisP[pOrder]),  varsP : copylist(varsP)
+  ) else (
+    [varsC, basisC, varsP, basisP] : loadPhaseBasis(basisFun, cdim, vdim, pOrder)
+  ),
+
+  if polyOrder=0 then (
+    bC : [basisC[1]],
+    bP : [basisP[1]]
+  ) else (
+    bC : copylist(basisC),
+    bP : copylist(basisP)
+  ),
+  numP : length(bP),
+    
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *f, const double *g, double *fg) ~%{ ~%", funcNm),
+  printf(fh, "  // f:  First input DG field. ~%"),
+  printf(fh, "  // g:  Second input DG field. ~%"),  
+  printf(fh, "  // fg: Output DG field f*g using weak multiplication. ~%"),
+  printf(fh, " ~%"),
+
+  f_e : doExpand1(f, bC),
+  g_e : doExpand1(g, bP),
+  fg_c : calcInnerProdList(varsP, 1, bP, f_e*g_e),
+
+  printf(fh, "  double tmp[~a] = {0.};~%", numP),
+  writeCExprs1(tmp, fg_c),
+  printf(fh, " ~%"),
+  flush_output(fh),
+
+  writeCExprs1(fg, makelist(tmp[i-1],i,1,numP)),
+
+  printf(fh, "}~%")
+)$
