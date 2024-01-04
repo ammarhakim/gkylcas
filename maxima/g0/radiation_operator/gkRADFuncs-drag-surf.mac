@@ -27,10 +27,9 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv       : varsVAll[1],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nI:        ion density. ~%"),
   printf(fh, "  // nuField:   2/pi*v*nu(v) field dg representation (v'(v||,mu) in notes)~%", (1+1)*NC),
   printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
   printf(fh, "  // out:       incremented distribution function in cell ~%"),
@@ -39,8 +38,6 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[1]),
   printf(fh, "~%"),
   
-  /* Expand the ion density in configuration basis. */
-  nI_e : doExpand1(nI, bC),
   /* Expand v*nu(v) in volume basis*/
   vnu_e : doExpand1(nuField, bP),
   /* Create expansions of f_left, f_center, and f_right in volume basis. */
@@ -54,7 +51,7 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     bSurf     : basisFromVars(basisFun,surfVars,polyOrder)
   ),
 
-  alphaDr : vnu_e*nI_e,
+  alphaDr : vnu_e,
 
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
@@ -146,10 +143,9 @@ calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv       : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:    cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:  cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nI:       ion density ~%"),
   printf(fh, "  // nuField:    sqrt(mu*me/2B)*v^2*nu(v) field dg represenation (v''(v||,mu) in notes~%", (vdim+1)*NC),
   printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
   printf(fh, "  // out: incremented distribution function in cell ~%"),
@@ -158,9 +154,6 @@ calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[2]),
   printf(fh, "~%"),
 
-
-  /* Expand the ion density in configuration basis. */
-  nI_e : doExpand1(nI, bC),
   /* Expand v*nu(v) in volume basis*/
   vsqnu_e : doExpand1(nuField, bP),
   /* Create expansions of f_left, f_center, and f_right in volume basis. */
@@ -177,7 +170,7 @@ calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     bSurf     : basisFromVars(basisFun,surfVars,polyOrder)
   ),
   
-  alphaDr : vsqnu_e*nI_e,
+  alphaDr : vsqnu_e,
 
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
@@ -196,7 +189,7 @@ calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
   
-  /* Because -nI*vsqnu is negative definite, need right edge value */
+  /* Because -vsqnu is negative definite, need right edge value */
   /* Evaluate surface projection of Ghat_r = alphaDr_r f_r. */
   Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)),
   /* Zero out components of Ghat which are empty. */

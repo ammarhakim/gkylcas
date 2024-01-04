@@ -28,10 +28,9 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   vv   : varsVAll[1],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nI:        ion density. ~%"),
   printf(fh, "  // nuField:       2/pi*v*nu(v) field dg representation (v'(v||,mu) in notes~%", (1+1)*NC),
   printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
   printf(fh, "  // out:           Incremented distribution function in cell ~%"),
@@ -39,9 +38,6 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
 
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[dir]),
 
-
-  /* Expand the ion density and vsq*nu(v) in volume basis */
-  nI_e : doExpand1(nI, bC),
   vnu_e : doExpand1(nuField, bP),
   
   /* Calculate the alpha-velocity due to drag. */
@@ -60,7 +56,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   ),
   
   /* Calculate alpha-the velocity due to drag in volume basis */
-  alphaDr : nI_e*vnu_e,
+  alphaDr : vnu_e,
 
   /* Project alphaDr evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
@@ -161,10 +157,9 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   vv   : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nI:        ion density. ~%"),
   printf(fh, "  // nuField:       2/pi*v*nu(v) field dg representation (v''(v||,mu) in notes~%", (1+1)*NC),
   printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
   printf(fh, "  // out:           Incremented distribution function in cell ~%"),
@@ -172,8 +167,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[dir]),
 
-  /* Expand the ion density and vsq*nu(v) in volume basis */
-  nI_e : doExpand1(nI, bC),
+  /* Expand the vsq*nu(v) in volume basis */
   vsqnu_e : doExpand1(nuField, bP),
   
   /* Calculate the alpha-velocity due to drag. */
@@ -192,7 +186,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   ),
   
   /* Calculate alpha-the velocity due to drag in volume basis */
-  alphaDr : nI_e*vsqnu_e,
+  alphaDr : vsqnu_e,
 
   /* Project alphaDr evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
@@ -218,8 +212,8 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_r_c),
   printf(fh, "~%"),
 
-  /* Because -nI*vsqnu is negative definite, need right edge value */
-  /* Evaluate surface projection of Ghat = nI*vsqnu fSkin to update skin cell. */
+  /* Because -vsqnu is negative definite, need right edge value */
+  /* Evaluate surface projection of Ghat = vsqnu fSkin to update skin cell. */
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vv=-1, fEdge_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
@@ -250,8 +244,8 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   writeCExprsNoExpand1(alphaDrSurf, alphaDrSurf_l_c),
   printf(fh, "~%"),
 
-  /* Because -vsqnu*nI is positive definite, need left edge value */
-  /* Evaluate surface projection of Ghat = nI*vsqnu fSkin to update skin cell. */
+  /* Because -vsqnu is positive definite, need left edge value */
+  /* Evaluate surface projection of Ghat = vsqnu fSkin to update skin cell. */
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vv=-1, fSkin_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */

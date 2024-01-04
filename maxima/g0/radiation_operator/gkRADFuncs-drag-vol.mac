@@ -33,10 +33,9 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
   vidx1 : vIndex1(cdim,vdim),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nI, const double *vnu, const double *vsqnu, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *vnu, const double *vsqnu, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nI: atomic density ~%"),
   printf(fh, "  // vnu: 2/pi*v*nu(v) dg field representation (v'(v||,mu) in notes) ~%"),
   printf(fh, "  // vsqnu: sqrt(mu*me/2B)*v^2*nu(v) dg field representation (v''(v||,mu) in notes) ~%"),
   printf(fh, "  // f: input distribution function.~%"),
@@ -54,13 +53,11 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /*Expand nu'(v) and nu''(v) in phase basis.*/
   vnu_e : doExpand1(vnu, bP),
   vsqnu_e : doExpand1(vsqnu, bP),
-  /* Expand nI in configuration basis.*/
-  nI_e : doExpand1(nI, bC),
 
   incrDrag : 0,
   cflFreq_mid : makelist(0, i, 1, vdim),
   
-  vparAlphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vnu_e*rdv2[0]),
+  vparAlphaDrag_c : calcInnerProdList(varsP, 1, bP, vnu_e*rdv2[0]),
   alst        : doMakeExprLst(vparAlphaDrag_c, alphaDrag),
   vparAlphaDrag_e : doExpand(alst, bP),
   
@@ -74,7 +71,7 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* mu contribution */
   if vdim = 2 then (
-    muAlphaDrag_c : calcInnerProdList(varsP, 1, bP, nI_e*vsqnu_e*rdv2[1]),
+    muAlphaDrag_c : calcInnerProdList(varsP, 1, bP, vsqnu_e*rdv2[1]),
     alst        : doMakeExprLst(muAlphaDrag_c, alphaDrag),
     muAlphaDrag_e : doExpand(alst, bP),
     
