@@ -35,7 +35,7 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-fh : openw("~/max-out/gkyl_rad_gyrokinetic_kernals.h")$
+fh : openw("~/max-out/gkyl_rad_gyrokinetic_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
@@ -50,11 +50,11 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
       if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        volname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *nI, const double *vnu, const double *vsqnu, const double *f, double* GKYL_RESTRICT out); ~%"),
+        volname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *vnu, const double *vsqnu, const double *f, double* GKYL_RESTRICT out); ~%"),
         printf(fh, volname),
         for dir : 1 thru v do (
-          surfname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_surf", varsVAll[dir], "_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *nI, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%"),
-          bsurfname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_boundary_surf", varsVAll[dir], "_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *nI, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out); ~%"),
+          surfname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_surf", varsVAll[dir], "_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *nuField, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%"),
+          bsurfname : sconcat("GKYL_CU_DH double rad_gyrokinetic_drag_boundary_surf", varsVAll[dir], "_", c, "x", v, "v_", bName[bInd],"_p",polyOrder,"(const double *w, const double *dxv, const double *nuField, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out); ~%"),
           printf(fh, surfname),
           printf(fh, bsurfname)
           ),
