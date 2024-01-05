@@ -72,10 +72,10 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* mu contribution */
   if vdim = 2 then (
     muAlphaDrag_c : calcInnerProdList(varsP, 1, bP, vsqnu_e*rdv2[1]),
-    alst        : doMakeExprLst(muAlphaDrag_c, alphaDrag),
+    alst        : doMakeExprLst(muAlphaDrag_c, betaDrag),
     muAlphaDrag_e : doExpand(alst, bP),
     
-    writeCIncrExprs1(alphaDrag, muAlphaDrag_c),
+    writeCIncrExprs1(betaDrag, muAlphaDrag_c),
     printf(fh, "~%"),
     
     incrDrag : incrDrag + calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),muAlphaDrag_e*f_e)
