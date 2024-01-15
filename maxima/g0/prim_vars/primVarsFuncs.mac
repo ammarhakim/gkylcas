@@ -247,11 +247,12 @@ calcPrimVarsGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   m2_e : doExpand1(m2, bC),
   uparSq_e : doExpand1(uparSq, bC),
 
-  if vdim > 1 then vdim : 3, 
+  vdim_phys : 1,
+  if vdim > 1 then vdim_phys : 3,
 
   /* Calculate vtSq */
   vtSq_c : calcInnerProdList(varsC, 1, bC, (m2_e*m0_inv_e - uparSq_e)),
-  writeCExprs1(vtSq, float(1.0/vdim)*vtSq_c),
+  writeCExprs1(vtSq, float(1.0/vdim_phys)*vtSq_c),
   printf(fh, "~%"),
   flush_output(fh),
 
@@ -338,11 +339,12 @@ calcPrimVarsVt2GK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   m0Sq_inv_e : doExpand1(m0Sq_inv, bC),
   m1Sq_e : doExpand1(m1Sq, bC),
 
-  if vdim > 1 then vdim : 3, 
+  vdim_phys : 1, 
+  if vdim > 1 then vdim_phys : 3, 
 
   /* Calculate vtSq */
   vtSq_c : calcInnerProdList(varsC, 1, bC, (m2m0_e - m1Sq_e)*m0Sq_inv_e),
-  writeCExprs1(vtSq, float(1.0/vdim)*vtSq_c),
+  writeCExprs1(vtSq, float(1.0/vdim_phys)*vtSq_c),
   printf(fh, "~%"),
   flush_output(fh),
 
