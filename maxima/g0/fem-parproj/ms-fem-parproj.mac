@@ -16,18 +16,22 @@ load("fem-parproj/fem-parproj-sol_stencil")$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
+minDim_Ser : 1$
+maxDim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 0$
+maxPolyOrder_Tensor : 2$
+minDim_Tensor : 1$
+maxDim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
-
-dims : [1,3]$
+minDim       : [minDim_Ser, minDim_Tensor]$
+maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
 /**
 **/
@@ -38,8 +42,7 @@ fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
-  for d : 1 thru length(dims) do (
-    c : dims[d],
+  for c : minDim[bInd] thru maxDim[bInd] do (
     /* Number of nodes in linear problem. */
     funcName : sconcat("fem_parproj_num_nodes_global_", c, "x_", bName[bInd]),
     disp(printf(false,sconcat("Working on fem_parproj_num_nodes_global_", c, "x_", bName[bInd]))),
@@ -55,8 +58,7 @@ fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
-  for d : 1 thru length(dims) do (
-    c : dims[d],
+  for c : minDim[bInd] thru maxDim[bInd] do (
     funcName : sconcat("fem_parproj_local_to_global_", c, "x_", bName[bInd]),
     disp(printf(false,sconcat("Working on fem_parproj_local_to_global_", c, "x_", bName[bInd]))),
     generate_fem_parproj_local_to_global(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
@@ -71,8 +73,7 @@ fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
-  for d : 1 thru length(dims) do (
-    c : dims[d],
+  for c : minDim[bInd] thru maxDim[bInd] do (
     funcName : sconcat("fem_parproj_lhs_stencil_noweight_", c, "x_", bName[bInd]),
     generate_fem_parproj_lhs_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd]),
     funcName : sconcat("fem_parproj_lhs_stencil_weighted_", c, "x_", bName[bInd]),
@@ -88,8 +89,7 @@ fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
-  for d : 1 thru length(dims) do (
-    c : dims[d],
+  for c : minDim[bInd] thru maxDim[bInd] do (
     funcName : sconcat("fem_parproj_src_stencil_", c, "x_", bName[bInd]),
     generate_fem_parproj_src_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
   )
@@ -103,8 +103,7 @@ fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
 for bInd : 1 thru length(bName) do (
-  for d : 1 thru length(dims) do (
-    c : dims[d],
+  for c : minDim[bInd] thru maxDim[bInd] do (
     funcName : sconcat("fem_parproj_sol_stencil_", c, "x_", bName[bInd]),
     generate_fem_parproj_sol_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
   )

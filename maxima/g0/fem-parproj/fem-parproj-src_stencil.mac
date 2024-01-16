@@ -31,7 +31,9 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
   /* Only need stencils that include all the nodes in the perp directions.
      This is effectively upper x,y-boundary stencils, so remove all stencil
      locations not on the upper x,y-boundaries. */
-  if dim=3 then (
+  if dim=2 then (
+    stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1))
+  ) else if dim=3 then (
     stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1 and x[2]=1))
   ),
 

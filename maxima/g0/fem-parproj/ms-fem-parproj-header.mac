@@ -6,18 +6,22 @@ load("bvp_utilities/bvp-util")$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
+minDim_Ser : 1$
+maxDim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 0$
+maxPolyOrder_Tensor : 2$
+minDim_Tensor : 1$
+maxDim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
-
-dims : [1,3]$
+minDim       : [minDim_Ser, minDim_Tensor]$
+maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
 /* Types of boundary conditions for which to generate kernels.
      =0 periodic or nondirichlet
@@ -80,7 +84,9 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
   /* Only need stencils that include all the nodes in the perp directions.
      This is effectively upper x,y-boundary stencils, so remove all stencil
      locations not on the upper x,y-boundaries. */
-  if dim=3 then (
+  if dim=2 then (
+    stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1))
+  ) else if dim=3 then (
     stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1 and x[2]=1))
   ),
 
@@ -117,9 +123,7 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
 
 for bInd : 1 thru length(bName) do (
 
-  for d : 1 thru length(dims) do (
-
-    ci : dims[d],
+  for ci : minDim[bInd] thru maxDim[bInd] do (
 
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
       /* Number of nodes in linear problem. */
