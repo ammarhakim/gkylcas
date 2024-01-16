@@ -12,13 +12,11 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,
+  [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,
    polyOrder,bN,numB,vars,nodes,numNodes,phi_c,phi_e,lhs_c,insertVal,dir,
    dirichletBoundaryNodes,dirichletBoundaryNodesI,k,vals_k,triplesStr,m,val],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
@@ -115,13 +113,11 @@ generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
 )$
 
 generate_fem_parproj_weighted_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,polyOrder,
+  [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,polyOrder,
    bN,numB,vars,nodes,numNodes,phi_c,phi_e,mod2nod,wgt_cm,wgt_cn,wgt_c,wgt_e,lhs_c,insertVal,
    dir,dirichletBoundaryNodes,dirichletBoundaryNodesI,k,vals_k,triplesStr,m,val],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),

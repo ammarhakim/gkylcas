@@ -15,14 +15,12 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_local_to_global(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [stencilLoc,bcTypesPerp,bcTypesPar,bcStrs,bcKey,bcCombos,i,sI,bcI,stencilStr,stencilLocCurr,currBC,numCells,idx,polyOrder,
+  [vars,basis,stencilLoc,bcTypesPerp,bcTypesPar,bcStrs,bcKey,bcCombos,i,sI,bcI,stencilStr,stencilLocCurr,currBC,numCells,idx,polyOrder,
    bN,numB,nodes,numNodes,storedNodes,storedNodesBC,numStoredNodes,locToNumStoredNodes,numPS,
    newS,newNodes,upbDirs,nodeMemOff,currNode,cellIdx,nodeOffFac,nodeIdx,upNodeCoords,newNode,
    isOnBoundary,dI,pS,nI,d,hi,j],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),

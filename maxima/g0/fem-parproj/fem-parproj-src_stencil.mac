@@ -12,13 +12,11 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,
+  [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,
    stencilStr,polyOrder,bN,numB,vars,nodes,numNodes,massM,mod2nod,massMod2nod,
    rho_c,src,src_c,insertVal,phiBC_m,phiBC_c,dir,dirichletNodesI,k,opStr],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
