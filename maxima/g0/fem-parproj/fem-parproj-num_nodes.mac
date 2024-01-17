@@ -15,12 +15,10 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,bcI,currBC,stencilStr,polyOrder,numCells,
+  [varsC,basis,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,bcI,currBC,stencilStr,polyOrder,numCells,
    bN,numB,nodes,numNodes,storedNodes,numStoredNodes,numNodesOut,sI,d,numBoundCells],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
