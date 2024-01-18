@@ -203,7 +203,11 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
   for eI : 1 thru length(qPow) do (
     /* Maximum number of elements of qPow (e.g. qPow[0], qPow[1], ...) whose
        powers to search for. */
-    numElemMax : min(256, length(qPow[eI])),
+    if atom(qPow[eI]) then (
+      numElemMax : 0
+    ) else (
+      numElemMax : min(256, length(qPow[eI]))
+    ),
 
     if numElemMax > 0 then (
       for d : 0 thru numElemMax-1 do (
@@ -240,7 +244,14 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
         ),
         if (doSub) then (
           /* Define a separate variable. */
-          newTempVar : sconcat(string(op(qPow[eI])),args(qPow[eI])[1],"R",f),
+          if atom(qPow[eI]) then (
+            qPowOp   : qPow[eI],
+            qPowArgs : ""
+          ) else (
+            qPowOp   : op(qPow[eI]),
+            qPowArgs : args(qPow[eI])[1]
+          ),
+          newTempVar : sconcat(string(qPowOp),qPowArgs,"R",f),
           /* Check that the new variable hasn't already been declared. */
           idx : sublist_indices(alreadyDecl,lambda([x], x=newTempVar)),
           if length(idx)=0 then (
@@ -250,7 +261,7 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
             alreadyDecl : endcons(newTempVar,alreadyDecl)
           ),
           /* Add to the string substitution list, used in writing file. */
-          subList : append(subList,[[sconcat(string(qPow[eI]), "^",f), sconcat(sconcat(string(op(qPow[eI])),args(qPow[eI])[1]),"R",f)]])
+          subList : append(subList,[[sconcat(string(qPow[eI]), "^",f), sconcat(sconcat(string(qPowOp),qPowArgs),"R",f)]])
         )
       )
     )

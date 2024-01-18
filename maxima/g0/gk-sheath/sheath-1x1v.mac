@@ -1,5 +1,5 @@
 /* 
-   Gyrokinetic sheath function for 1x1v kernel.
+   Gyrokinetic sheath function for 1x2v kernel.
 */
 load("modal-basis");
 load("out-scripts");
@@ -8,36 +8,45 @@ load(stringproc)$
 fpprec : 24$
 
 genGkSheathKer1x1v(fh, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,vSub,NP,bVp,NVp,zVar,edge,zVal,phiSheath_e,phiWall_e,deltaPhi_e,quad,
-   nodesZ,numNodesZ,basisNodalZ,f_e,vcutSqQ,fRefl_c,fReflZQ_e,fZQ_e,fZQ_Vp_c,xbar,beta,fReflfacs,
-   fReflQ_ZVp_e,fReflQ_ZVp_c,fReflQ_e],
+  [pdim,varsC,bC,varsP,bP,vSub,NP,varsV,surfPerpVar,surfVars,surfVarsC,bSurf,bV,bVpar,
+   bMu,numBsurf,zvSurfVars,nodesMu,numNodesMu,bNMu,f_e,edge,surfPerpVal,sI,
+   phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,fSurf_e,fSurfMu_q,
+   fReflSurfMu_e,j,nodeIdx,fSurfMu_c,fSurfMu_e,intLims,fReflSurfMu_c,
+   xBar_v,xSqBar_v,fReflSurf_c,fReflSurf_e,fRefl_c],
+
+  pdim : cdim+vdim,
 
   /* Get desired basis. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NP : length(bP),
+  varsV : copylist(varsP),  for d : 1 thru cdim do (varsV : delete(varsC[d],varsV)),
+
+  /* Get name of last config space dimension, which is always assumed to be
+     the direction parallel to the magnetic field (z). */
+  surfPerpVar : varsC[cdim],
+  surfVars  : delete(surfPerpVar, varsP),  /* = vpar. */
+  surfVarsC : delete(surfPerpVar, varsC),  /* = none. */
 
   /* Set up various bases with reduced dimension. */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    bVp : basisFromVars("gkhyb",[vpar],polyOrder)
+    bSurf : basisFromVars("gkhyb",surfVars,polyOrder),
+    bV    : basisFromVars("gkhyb",[vpar],polyOrder),
+    bVpar : basisFromVars("gkhyb",[vpar],polyOrder)
   ) else (
-    bVp : basisFromVars(basisFun,[vpar],polyOrder)
+    bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+    bV    : basisFromVars(basisFun,[vpar],polyOrder),
+    bVpar : basisFromVars(basisFun,[vpar],polyOrder)
   ),
-  NVp : length(bVp),
+  numBsurf : length(bSurf),
   
-  /* Get name of last config space dimension, which is always assumed to be
-     the direction parallel to the magnetic field (z). */
-  zVar : varsC[cdim], /* In 1x1v this is just z */
+  zvSurfVars : append(surfVarsC, []),  /* = none. */
 
-  /* Set up quadrature nodes. */
-  nodesZ    : gaussOrd(polyOrder+1, 1),
-  numNodesZ : length(nodesZ),
-
-  /* Get (quadrature) nodal basis sets. */
-  basisNodalZ : getVarsNodalBasisWithNodes("tensor", 1, polyOrder, [zVar], nodesZ),
-
+  /* Expand input distribution function f on phase-space basis using input coeffs. */
+  f_e : doExpand1(f, bP),
+    
   /* Generate separate kernels for lower/upper boundaries. */
-  edge : ["lower", "upper"],
-  zVal : [-1, 1],
+  edge        : ["lower", "upper"],
+  surfPerpVal : [-1, 1],
 
   for sI : 1 thru length(edge) do (
   
@@ -46,120 +55,110 @@ genGkSheathKer1x1v(fh, cdim, vdim, basisFun, polyOrder) := block(
     
     /* Calculate expansion for deltaPhi = phiSheath - phiWall, evaluated at z=zVal, 
        where zVal=-1 or 1 depending on if we're on the left or right edge of the global domain, respectively. */
-    phiSheath_e : subst(zVar=zVal[sI], doExpand1(phi, bC)),
-    phiWall_e   : subst(zVar=zVal[sI], doExpand1(phiWall, bC)),
+    phiSheath_e : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phi, bC)),
+    phiWall_e   : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phiWall, bC)),
     deltaPhi_e  : phiSheath_e - phiWall_e,
     
-    /* Expand input distribution function f on phase-space basis using input coeffs. */
-    f_e : doExpand1(f, bP),
+    /* Evaluate vcutSqQ = vcut^2. q2Dm = q*2/m. */
+    deltaPhi_q : deltaPhi_e,
+    vcutSq_q   : gcfac(float(fullratsimp(-q2Dm*deltaPhi_q))),
     
-    /* Some naming conventions: 
-       fZQ_e = f evaluated at z nodes (ZQ), expansion in remaining variables (_e).
-       fQ_ZVpMu_c = f projected onto (z,vpar) basis resulting in coefficients (_ZVp_c).
-    */
-    
+    /* Evaluate f at the z surface. */
+    fSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=surfPerpVal[sI], f_e)),
+    fSurf_e : doExpand(fSurf_c, bSurf),
+
     /* Variable declarations/allocations. */
-    printf(fh, "  double vcutSq; double xc, b, xbarVal, fac; ~%"),
-    printf(fh, "  double fReflZQuad[~a][~a]; ~%", numNodesZ, NP),
-    printf(fh, "  ~%~%"),
-    
-    /* Evaluate vcutSqQ = vcut^2. */
-    vcutSqQ : gcfac(float(fullratsimp(-q2Dm*deltaPhi_e))),
+    printf(fh, "  double vcutSq;~%"),
+    printf(fh, "  double fReflSurf[~a] = {0.}; ~%", length(bV)),
+    printf(fh, "~%"),
     
     /* Write vcut^2 at boundary. */
-    printf(fh, "  vcutSq = ~a; ~%", vcutSqQ),
+    printf(fh, "  vcutSq = ~a; ~%", vcutSq_q),
+    printf(fh, "~%"),
     
-    /* If vcut^2 at this node is below all vpar^2 in this cell, BC at this node should be absorbing 
+    /* If vcut^2 at this node is below all vpar^2 in this cell, BC at this node should be absorbing
        so set coefficients of fRefl to 0 (no reflection from this node). */
     printf(fh, "  if (vcutSq <= vlowerSq) { // absorb (no reflection) ~%"),
-    writeCExprsWithZerosNoExpand1(fRefl, makelist(0.,j,1,NP)),
+    printf(fh, "~%"),
+
+    writeCExprsWithZeros1(fReflSurf, makelist(0.,j,1,length(bV))),
+    printf(fh, "~%"),
     
-    /* If vcut^2 at this node is above all vpar^2 in this cell, BC at this node should be full reflection */
-    /* so set coefficients of fRefl to coefficients of f. */
+    /* If vcut^2 at this node is above all vpar^2 in this cell, BC at this node should be full reflection. */
+    /* So set coefficients of fRefl to coefficients of f. */
     printf(fh, "  } else if (vcutSq > vupperSq) { // full reflection ~%"),
-    /* Project f onto basis. */
-    fRefl_c : gcfac(fullratsimp(innerProd(varsP, 1, bP, f_e))),
+    printf(fh, "~%"),
+
+    /* Project f onto vpar basis (bV). */
+    fSurf_c : gcfac(fullratsimp(calcInnerProdList(varsV, 1, bV, fSurf_e))),
     /* Full reflection: set fRefl coefficients to f coefficients. */
-    writeCExprsNoExpand1(fRefl, fRefl_c),
+    writeCExprsNoExpand1(fReflSurf, fSurf_c),
+    printf(fh, "~%"),
     
     /* If vcut^2 at this node is in this cell, BC at this node is partial reflection. */
     printf(fh, "  } else { // partial reflection ~%"),
+    printf(fh, "~%"),
     
-      /* Allocate empty vector for reflected distribution function also evaluated at z nodes. */
-      fReflZQ_e : makelist(0, i,1,numNodesZ),
-      /* f_e is an expansion in z,vpar;
-         now evaluate f_e at z nodes
-         so fZQ_e[j] = fZQ_e[j](vpar) 
-         is evaluated at the z_j nodes. */
-      fZQ_e : evAtNodes(f_e, nodesZ, [zVar]),
-    
-      /* Loop over z_j nodes. */
-      for j : 1 thru numNodesZ do (
-        /* Project f at this z_j node onto vpar basis (bVp). */
-        fZQ_Vp_c : gcfac(fullratsimp(innerProd([vpar], 1, bVp, fZQ_e[j]))),
-  
-        /* Evaluate xbar = slope/cell_avg = f1/f0/sqrt(3) from vpar basis
-           coefficients (recall that this is being done at every z_i node). */
-        xbar : gcfac(float(fZQ_Vp_c[2]/sqrt(3)/fZQ_Vp_c[1])),
-        /* Print as xbarVal. */
-        printf(fh, "  xbarVal = ~a; ~%", xbar),
-        printf(fh, "  // if f is not realizable, no reflection from this node ~%"),
-        /* If abs(xbar)>=1, then f is not realizable. Use .95 as conservative threshold. */ 
-        /* Also not realizable if cell_avg is negative. */
-        printf(fh, "  if(~a <= 0. || fabs(xbarVal)>=.95) { ~%", gcfac(float(fZQ_Vp_c[1]))),
-        /* If not realizable, set reflection coeffs to zero so that no reflection from this node. */
-        writeCExprsWithZerosNoExpand1(fReflZQuad[j-1],makelist(0.,j,1,NVp)),
-  
-        /* If f is realizable at this node...*/
-        printf(fh, "  } else {~%"),
-        /* Compute and write beta = L^-1(xbar), where L^-1=invL is the inverse Langevin function. */
-        beta : invL(xbarVal),
-        printf(fh, "   b = ~a; ~%", beta),
-  
-        /* Compute partial reflection scaling factors for coefficients of f,
-           based on exponential construction. */
-        printf(fh, "   if (wv > 0) {~%"),
-        printf(fh, "    xc = 2.*(sqrt(vcutSq)-wv)/dv; ~%"),
-        fReflfacs : [ "b>500? 0. : b<-500? 1. : fabs(b)<2e-8? (1.+xc)/2. : (exp(b*xc)-exp(-b))/(2.*sinh(b))", 
-                      "b>500? 0. : b<-500? 1. : fabs(b)<2e-8? (1.+xc)/2. : ((b*xc-1)*exp(b*xc)+(b+1)*exp(-b))/2./(b*cosh(b)-sinh(b))",
-                      "b>500? 0. : b<-500? 1. : fabs(b)<2e-8? (1.+xc)/2. : (((b*(3*b*xc*xc-(6*xc+b))+6)*exp(b*xc))/3-(2*(b*b+3*(b+1))*exp(-b))/3)/(-4*b*cosh(b) + 4/3*(3 + b*b)*sinh(b))"],
-        for k : 1 thru NVp do (
-        printf(fh, "    fac = ~a; ~%", fReflfacs[k]),
-        printf(fh, "    if(isnan(fac) || isinf(fac)) {printf(\"reflect fac = \%G, b=\%G, xbarVal=\%G \\n\", fac, b, xbarVal); fac=0.;} ~%"),
-        printf(fh, "    fReflZQuad[~a][~a] = (~a)*fac; ~%", j-1, k-1, gcfac(float(fZQ_Vp_c[k])))
-        ),
-        printf(fh, "   } else { ~%"),
-        printf(fh, "    xc = 2.*(-sqrt(vcutSq)-wv)/dv; ~%"),
-        fReflfacs : [ "b>500? 1. : b<-500? 0. : fabs(b)<2e-8? (1.-xc)/2. : (exp(b)-exp(b*xc))/(2.*sinh(b))", 
-                      "b>500? 1. : b<-500? 0. : fabs(b)<2e-8? (1.-xc)/2. : ((b-1)*exp(b)-(b*xc-1)*exp(b*xc))/2./(b*cosh(b)-sinh(b))", 
-                      "b>500? 1. : b<-500? 0. : fabs(b)<2e-8? (1.-xc)/2. : ((2*(b*b+3*(1-b))*exp(b))/3-((b*(3*b*xc*xc-(6*xc+b))+6)*exp(b*xc))/3)/(-4*b*cosh(b) + 4/3*(3 + b*b)*sinh(b))"],
-        for k : 1 thru NVp do (
-        printf(fh, "    fac = ~a; ~%", fReflfacs[k]),
-        printf(fh, "    if(isnan(fac) || isinf(fac)) {printf(\"reflect fac = \%G, b=\%G, xbarVal=\%G \\n\", fac, b, xbarVal); fac=0.;} ~%"),
-        printf(fh, "    fReflZQuad[~a][~a] = (~a)*fac; ~%", j-1, k-1, gcfac(float(fZQ_Vp_c[k])))
-        ),
-        printf(fh, "   } ~%"),
-        printf(fh, "  } ~%"),
-        /* We just printed bVp coefficients of fRefl at each z_j node. now expand in vpar using those coeffs. */
-        fReflZQ_e[j] : makelist(fReflZQuad[j-1][k-1],k,1,NVp) . bVp
-      ), /* End of j loop over (z)_j nodes. */ 
-  
-      /* Calculate expansion in z,vpar. */
-      fReflQ_ZVp_c : calcInnerProdList([zVar], 1, bC, doExpand(fReflZQ_e, basisNodalZ)),
-      fReflQ_ZVp_e : doExpand(fReflQ_ZVp_c, bC),
-   
-      /* Project fRefl onto z,vpar basis (bP). */
-      fReflQ_ZVp_c : gcfac(fullratsimp(innerProd(varsP, 1, bP, fReflQ_ZVp_e))),
-      /* Write coefficients. */
-      writeCExprsNoExpand1(fRefl, fReflQ_ZVp_c),
-  
-    printf(fh, "  } ~%~%"), /* End of partial reflection else. */
-  
-    /* Expansion in z,vpar of fRefl. */
-    fReflQ_e : makelist(fReflQuad[j-1],j,1,NP) . bP,
-    printf(fh, " ~%"),
+    /* Reflected f(vpar). */
+    fReflSurf_e : 0,
+
+    printf(fh, "    double xBar, xSqBar;~%"),
+    printf(fh, "~%"),
+
+    printf(fh, "    if (wv > 0.) {~%"),
+    printf(fh, "      // vcut in logical space.~%"),
+    printf(fh, "      double vcut_l = 2.*(sqrt(vcutSq)-wv)/dv;~%"),
+    printf(fh, "~%"),
+
+    intLims : [[-1,vcut_l]],
+    fReflSurf_c : calcInnerProdListGen([vpar], intLims, 1, bVpar, fSurf_e),
+    tempVars1 : [],
+    tempVars1 : writeCExprs1noPowers(fReflSurf, fReflSurf_c, [vcut_l], tempVars1),
+    printf(fh, "~%"),
+
+    printf(fh, "    } else {~%"),
+    printf(fh, "      // vcut in logical space.~%"),
+    printf(fh, "      double vcut_l = 2.*(-sqrt(vcutSq)-wv)/dv;~%"),
+    printf(fh, "~%"),
+
+    intLims : [[vcut_l,1]],
+    fReflSurf_c : calcInnerProdListGen([vpar], intLims, 1, bVpar, fSurf_e),
+    tempVars2 : [],
+    tempVars2 : writeCExprs1noPowers(fReflSurf, fReflSurf_c, [vcut_l], tempVars2),
+    printf(fh, "~%"),
+
+    printf(fh, "    }~%"),
+    printf(fh, "~%"),
+
+    /* Evaluate realizability. In 1D a function is realization if
+       |bar{x}|<=1 and |bar{x^2}|<=1, where bar{g}=int g*f dx/int f dx. */
+    xBar_v   : gcfac(float(fReflSurf[1]/(sqrt(3)*fReflSurf[0]))),
+    xSqBar_v : gcfac(float((2*sqrt(5)*fReflSurf[2]+5*fReflSurf[0])/(15*fReflSurf[0]))),
+    printf(fh, "  // If the cut distribution f(vpar), where vpar \in [-1,vcut_l] or [vcut_l/1],~%"),
+    printf(fh, "  // has a cell average < 0, set to 0. If it's >0 but not realizable, set to p=0.~%"),
+    printf(fh, "  xBar = ~a;~%", xBar_v),
+    printf(fh, "  xSqBar = ~a;~%", xSqBar_v),
+    printf(fh, "  if (fReflSurf[0]<0.) {~%",j-1),
+    writeCExprsWithZeros1(fReflSurf, makelist(0,i,1,length(bVpar))),
+    printf(fh, "  } else if (fabs(xBar)>=1. || fabs(xSqBar)>=1.) {~%"),
+    writeCExprsWithZeros1(fReflSurf, makelist(0,i,1,length(bVpar))),
+    printf(fh, "  }~%"),
+    printf(fh, "~%"),
+
+    printf(fh, "  }~%"), /* End of partial reflection else. */
+    printf(fh, "~%"),
+
+    /* Expansion in vpar of fReflSurf. */
+    fReflSurf_e : doExpand1(fReflSurf, bV),
+
+    /* Project expansion onto phase-space basis bP. */
+    fRefl_c : gcfac(fullratsimp(calcInnerProdList(varsP, 1, bP, fReflSurf_e))),
+    /* Write coefficients. */
+    writeCExprsWithZerosNoExpand1(fRefl, fRefl_c),
+
     printf(fh, "}~%")
 
   )
 
 )$
+
