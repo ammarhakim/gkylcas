@@ -139,7 +139,7 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       fReflSurfXYMu_e : makelist(0,j,1,numNodesMu),
 
       printf(fh, "    double xBar, xSqBar;~%"),
-      printf(fh, "    double fReflSurfXYMu[~a][~a] = {0.}; ~%", numNodesMu, length(bV)),
+      printf(fh, "    double fReflSurfXYMu[~a][~a] = {0.}; ~%", numNodesMu, length(bVpar)),
       printf(fh, "~%"),
 
       /* Loop over (mu)_j nodes. */
