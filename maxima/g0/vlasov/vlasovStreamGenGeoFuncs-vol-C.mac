@@ -1,18 +1,30 @@
 /* Compute the volume term for the streaming (v . grad(f)) term
-   in the Vlasov neutral eqn with general geometry. */
+   in the Vlasov neutral eqn with general geometry. 
+   Uses pre-computed cotangent vectors e^i = g^ij e_j 
+   to construct v^i = v . e^i */
 
 load("modal-basis");
 load("out-scripts");
 load(stringproc)$
 fpprec : 24$
 
-cidx1(cdim)      := makelist(i,i,0,cdim-1)$
-vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+cidx(cdim)      := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,cid1,vid1,wDdx,dvDdx,dir,f_e,volTerm,clst,strOut,d],
+  [varsC,bC,varsP,bP,NC,NP,varsV,varsC_p1,bC_p1,varsP_p1,bP_p1,NP_p1,cid,vid,
+   e1_x_e,e1_y_e,e1_z_e,
+   e2_x_e,e2_y_e,e2_z_e,
+   e3_x_e,e3_y_e,e3_z_e,
+   vx_c,vxNoZero_c,vx_e,
+   vy_c,vyNoZero_c,vy_e,
+   vz_c,vzNoZero_c,vz_e,f_e,
+   vx_f_c,vx_fNoZero_c,vx_f_e,
+   vy_f_c,vy_fNoZero_c,vy_f_e,
+   vz_f_c,vz_fNoZero_c,vz_f_e,
+   incr_c_x,incr_c_y,incr_c_z,clst],
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
@@ -20,9 +32,11 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),
   NP : length(bP),
-  print("NP", NP),
   varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
-  print(varsV),
+
+  /* Load p=1 basis for v^i. */
+  [varsC_p1,bC_p1,varsP_p1,bP_p1] : loadPhaseBasis(basisFun, cdim, vdim, 1),
+  NP_p1 : length(bP_p1),
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
@@ -31,54 +45,108 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%"),
 
-  cid1 : cidx1(cdim),
-  vid1 : vidx1(cdim,vdim),
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
 
-  wDdx  : makelist(eval_string(sconcat("w",vid1[i],"Ddx",cid1[i])),i,1,cdim),
-  dvDdx : makelist(eval_string(sconcat("dv",vid1[i],"Ddx",cid1[i])),i,1,cdim),
-
-  /* Cell center and cell length divided by velocity cell length. */
   for dir : 1 thru cdim do (
-    printf(fh, "  double w~aDdx~a  = w[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir]),
-    printf(fh, "  double dv~aDdx~a = dxv[~a]/dxv[~a]; ~%", vid1[dir], dir-1, vid1[dir], cid1[dir])
+    printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir])
   ),
-  printf(fh, "  double Gbar[~a] = {0.0}; ~%", NC),
 
+  printf(fh, "  const double *e1_x = &cot_vec[~a]; ~%", NC*0),
+  printf(fh, "  const double *e1_y = &cot_vec[~a]; ~%", NC*1),
+  printf(fh, "  const double *e1_z = &cot_vec[~a]; ~%", NC*2),
+  printf(fh, "  const double *e2_x = &cot_vec[~a]; ~%", NC*3),
+  printf(fh, "  const double *e2_y = &cot_vec[~a]; ~%", NC*4),
+  printf(fh, "  const double *e2_z = &cot_vec[~a]; ~%", NC*5),
+  printf(fh, "  const double *e3_x = &cot_vec[~a]; ~%", NC*6),
+  printf(fh, "  const double *e3_y = &cot_vec[~a]; ~%", NC*7),
+  printf(fh, "  const double *e3_z = &cot_vec[~a]; ~%", NC*8),
   printf(fh, "~%"),
+
+  printf(fh, "  double vx[~a] = {0.0}; ~%", NP_p1),
+  printf(fh, "  double vy[~a] = {0.0}; ~%", NP_p1),
+  printf(fh, "  double vz[~a] = {0.0}; ~%", NP_p1),
+
+  e1_x_e : doExpand1(e1_x, bC),
+  e1_y_e : doExpand1(e1_y, bC),
+  e1_z_e : doExpand1(e1_z, bC),
+  e2_x_e : doExpand1(e2_x, bC),
+  e2_y_e : doExpand1(e2_y, bC),
+  e2_z_e : doExpand1(e2_z, bC),
+  e3_x_e : doExpand1(e3_x, bC),
+  e3_y_e : doExpand1(e3_y, bC),
+  e3_z_e : doExpand1(e3_z, bC),
+
+  vx_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e1_x_e 
+  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e1_y_e 
+  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e1_z_e), 
+
+  vy_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e2_x_e 
+  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e2_y_e 
+  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e2_z_e), 
+
+  vz_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e3_x_e 
+  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e3_y_e 
+  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e3_z_e), 
+
+  writeCExprs1(vx, vx_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprs1(vy, vy_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprs1(vz, vz_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  vxNoZero_c : doMakeExprLst(vx_c, vx),
+  vx_e : doExpand(vxNoZero_c, bP_p1),
+
+  vyNoZero_c : doMakeExprLst(vy_c, vy),
+  vy_e : doExpand(vyNoZero_c, bP_p1),
+
+  vzNoZero_c : doMakeExprLst(vz_c, vz),
+  vz_e : doExpand(vzNoZero_c, bP_p1),
+
   /* Expand distribution function in phase basis. */
   f_e : doExpand1(f, bP),
-  cot_vec_e : doExpand1(cot_vec, bC),
 
-  cot_vec_e : psubst(makelist(cot_vec[i]=cot_vec[a0+i],i,0,NC-1),cot_vec_e),
-  /* Use something like subst(a0=NC*(dir),cot_vec_e)) */
+  printf(fh, "  double vx_f[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double vy_f[~a] = {0.0}; ~%", NP),
+  printf(fh, "  double vz_f[~a] = {0.0}; ~%", NP),
 
-  /*incr_c :  makelist(0, i, 1, NP),*/
-  clst : append(wDdx,dvDdx),
-  /* Inner product of grad(psi) . v f, where psi is a basis function. */
-  for dir : 1 thru vdim do (
-     Gbar_temp_c : calcInnerProdList(varsV, 2*wDdx[dir]+dvDdx[dir]*varsV[dir], diff(bP,varsP[dir]), f_e),
-     for i : 1 thru NP do (
-       /* Project vel integral onto configuration basis */ 
-       if Gbar_temp_c[i] # 0 then ( 
-        Gbar_c : calcInnerProdList(varsC, 1, bC, Gbar_temp_c[i]),
-        writeCExprsCollect1(Gbar,Gbar_c,clst),
-        Gbar_e : doExpand1(Gbar, bC), /* Write out these coeff */
-        incr_c : float(innerProd(varsC, 1, Gbar_e, subst(a0=NC*(dir-1),cot_vec_e))),
-        printf(fh, "  ~a += ~a; ~%", out[i-1], incr_c),
-        printf(fh, "~%")
-       )
-     )
-     /*writeCIncrExprsCollect1(out,incr_c,clst)*/
-  ),
+  vx_f_c = calcInnerProdList(varsP, 1, bP, vx_e*f_e), 
+  vy_f_c = calcInnerProdList(varsP, 1, bP, vy_e*f_e), 
+  vz_f_c = calcInnerProdList(varsP, 1, bP, vz_e*f_e), 
 
-  clst : append(wDdx,dvDdx),
-  /* writeCIncrExprsCollect1(out,volTerm,clst),*/
+  writeCExprs1(vx_f, vx_f_c),
   printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprs1(vy_f, vy_f_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprs1(vz_f, vz_f_c),
+  printf(fh, "~%"),
+  flush_output(fh),
 
-  strOut : sconcat("fabs(w",vid1[1],"Ddx",0,")+0.5*dv",vid1[1],"Ddx",0),
-  for d : 2 thru cdim do (
-    strOut : sconcat(strOut,"+fabs(w",vid1[d],"Ddx",d-1,")+0.5*dv",vid1[d],"Ddx",d-1)
-  ),
-  printf(fh, "  return ~a*(~a);~%",float(2*polyOrder+1),strOut),
-  printf(fh, "} ~%")
+  vx_fNoZero_c : doMakeExprLst(vx_f_c, vx_f),
+  vx_f_e : doExpand(vx_fNoZero_c, bP),
+
+  vy_fNoZero_c : doMakeExprLst(vy_f_c, vy_f),
+  vy_f_e : doExpand(vy_fNoZero_c, bP),
+
+  vz_fNoZero_c : doMakeExprLst(vz_f_c, vz_f),
+  vz_f_e : doExpand(vz_fNoZero_c, bP),
+
+  incr_c_x = calcInnerProdList(varsP, 1, diff(bP, varsV[1]), vx_f_e), 
+  incr_c_y = calcInnerProdList(varsP, 1, diff(bP, varsV[2]), vy_f_e), 
+  incr_c_z = calcInnerProdList(varsP, 1, diff(bP, varsV[3]), vz_f_e), 
+
+  clst : append(dx10,dx11,dx12),
+  writeCIncrExprsCollect1(out, dx10*incr_c_x + dx11*incr_c_y + dx12*incr_c_z, clst),
+  flush_output(fh),
+  printf(fh, "~%"),
+  printf(fh, "  return 0.0; ~%"),
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
 )$
