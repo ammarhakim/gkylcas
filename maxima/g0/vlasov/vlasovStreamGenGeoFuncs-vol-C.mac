@@ -34,10 +34,6 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   NP : length(bP),
   varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
 
-  /* Load p=1 basis for v^i. */
-  [varsC_p1,bC_p1,varsP_p1,bP_p1] : loadPhaseBasis(basisFun, cdim, vdim, 1),
-  NP_p1 : length(bP_p1),
-
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
@@ -63,10 +59,31 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "  const double *e3_z = &cot_vec[~a]; ~%", NC*8),
   printf(fh, "~%"),
 
-  printf(fh, "  double vx[~a] = {0.0}; ~%", NP_p1),
-  printf(fh, "  double vy[~a] = {0.0}; ~%", NP_p1),
-  printf(fh, "  double vz[~a] = {0.0}; ~%", NP_p1),
+  /* Do the integrations over v first for every combination of v and grad(psi) 
+     and store them in the temporary variable Gbar before multiplying by the
+     corresponding cotangent vector for the final update */
+  printf(fh, "  double Gbar[~a] = {0.0}; ~%", NC),
+  Gbar_e : doExpand1(Gbar, bC),
 
+  /* Expand distribution function in phase basis. */
+  f_e : doExpand1(f, bP),
+
+  /* vx grad(psi) f integrated over velocity space */
+  Gbar_xx_c : calcInnerProdList(varsV, dxv[vid[1]]/2.0*varsV[1] + w[vid[1]], diff(bP,varsP[1]), f_e),
+  Gbar_xy_c : calcInnerProdList(varsV, dxv[vid[2]]/2.0*varsV[2] + w[vid[2]], diff(bP,varsP[1]), f_e),
+  Gbar_xz_c : calcInnerProdList(varsV, dxv[vid[3]]/2.0*varsV[3] + w[vid[3]], diff(bP,varsP[1]), f_e),
+
+  /* vy grad(psi) f integrated over velocity space */
+  Gbar_yx_c : calcInnerProdList(varsV, dxv[vid[1]]/2.0*varsV[1] + w[vid[1]], diff(bP,varsP[2]), f_e),
+  Gbar_yy_c : calcInnerProdList(varsV, dxv[vid[2]]/2.0*varsV[2] + w[vid[2]], diff(bP,varsP[2]), f_e),
+  Gbar_yz_c : calcInnerProdList(varsV, dxv[vid[3]]/2.0*varsV[3] + w[vid[3]], diff(bP,varsP[2]), f_e),
+
+  /* vz grad(psi) f integrated over velocity space */
+  Gbar_zx_c : calcInnerProdList(varsV, dxv[vid[1]]/2.0*varsV[1] + w[vid[1]], diff(bP,varsP[3]), f_e),
+  Gbar_zy_c : calcInnerProdList(varsV, dxv[vid[2]]/2.0*varsV[2] + w[vid[2]], diff(bP,varsP[3]), f_e),
+  Gbar_zz_c : calcInnerProdList(varsV, dxv[vid[3]]/2.0*varsV[3] + w[vid[3]], diff(bP,varsP[3]), f_e),
+
+  /* Expand the cotangent vectors in configuration space */
   e1_x_e : doExpand1(e1_x, bC),
   e1_y_e : doExpand1(e1_y, bC),
   e1_z_e : doExpand1(e1_z, bC),
@@ -77,73 +94,85 @@ calcVlasovStreamGenGeoVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   e3_y_e : doExpand1(e3_y, bC),
   e3_z_e : doExpand1(e3_z, bC),
 
-  vx_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e1_x_e 
-  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e1_y_e 
-  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e1_z_e), 
+  for i : 1 thru NP do (
+    /* Project velocity integrals onto configuration basis 
+       for vx grad(psi) f integrated over velocity space */ 
+    if Gbar_xx_c[i] # 0 then ( 
+      G_xx_c : calcInnerProdList(varsC, 1, bC, Gbar_xx_c[i]),
+      writeCExprs1(Gbar, G_xx_c),
+      incr_xx_c : float(expand(innerProd(varsC, 1, Gbar_e, e1_x_e))),
+      printf(fh, "  ~a += dx10*(~a); ~%", out[i-1], incr_xx_c),
+      printf(fh, "~%")
+    ),
 
-  vy_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e2_x_e 
-  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e2_y_e 
-  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e2_z_e), 
+    if Gbar_xy_c[i] # 0 then ( 
+      G_xy_c : calcInnerProdList(varsC, 1, bC, Gbar_xy_c[i]),
+      writeCExprs1(Gbar, G_xy_c),
+      incr_xy_c : float(expand(innerProd(varsC, 1, Gbar_e, e1_y_e))),
+      printf(fh, "  ~a += dx10*(~a); ~%", out[i-1], incr_xy_c),
+      printf(fh, "~%")
+    ), 
 
-  vz_c : calcInnerProdList(varsP, 1, bP_p1, (dxv[vid[1]]/2.0*varsV[1] + w[vid[1]])*e3_x_e 
-  + (dxv[vid[2]]/2.0*varsV[2] + w[vid[2]])*e3_y_e 
-  + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*e3_z_e), 
+    if Gbar_xz_c[i] # 0 then ( 
+      G_xz_c : calcInnerProdList(varsC, 1, bC, Gbar_xz_c[i]),
+      writeCExprs1(Gbar, G_xz_c),
+      incr_xz_c : float(expand(innerProd(varsC, 1, Gbar_e, e1_z_e))),
+      printf(fh, "  ~a += dx10*(~a); ~%", out[i-1], incr_xz_c),
+      printf(fh, "~%")
+    ), 
 
-  writeCExprs1(vx, vx_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-  writeCExprs1(vy, vy_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-  writeCExprs1(vz, vz_c),
-  printf(fh, "~%"),
-  flush_output(fh),
+    /* Project velocity integrals onto configuration basis 
+       for vy grad(psi) f integrated over velocity space */ 
+    if Gbar_yx_c[i] # 0 then ( 
+      G_yx_c : calcInnerProdList(varsC, 1, bC, Gbar_yx_c[i]),
+      writeCExprs1(Gbar, G_yx_c),
+      incr_yx_c : float(expand(innerProd(varsC, 1, Gbar_e, e2_x_e))),
+      printf(fh, "  ~a += dx11*(~a); ~%", out[i-1], incr_yx_c),
+      printf(fh, "~%")
+    ),
 
-  vxNoZero_c : doMakeExprLst(vx_c, vx),
-  vx_e : doExpand(vxNoZero_c, bP_p1),
+    if Gbar_yy_c[i] # 0 then ( 
+      G_yy_c : calcInnerProdList(varsC, 1, bC, Gbar_yy_c[i]),
+      writeCExprs1(Gbar, G_yy_c),
+      incr_yy_c : float(expand(innerProd(varsC, 1, Gbar_e, e2_y_e))),
+      printf(fh, "  ~a += dx11*(~a); ~%", out[i-1], incr_yy_c),
+      printf(fh, "~%")
+    ), 
 
-  vyNoZero_c : doMakeExprLst(vy_c, vy),
-  vy_e : doExpand(vyNoZero_c, bP_p1),
+    if Gbar_yz_c[i] # 0 then ( 
+      G_yz_c : calcInnerProdList(varsC, 1, bC, Gbar_yz_c[i]),
+      writeCExprs1(Gbar, G_yz_c),
+      incr_yz_c : float(expand(innerProd(varsC, 1, Gbar_e, e2_z_e))),
+      printf(fh, "  ~a += dx11*(~a); ~%", out[i-1], incr_yz_c),
+      printf(fh, "~%")
+    ), 
 
-  vzNoZero_c : doMakeExprLst(vz_c, vz),
-  vz_e : doExpand(vzNoZero_c, bP_p1),
+    /* Project velocity integrals onto configuration basis 
+       for vz grad(psi) f integrated over velocity space */ 
+    if Gbar_zx_c[i] # 0 then ( 
+      G_zx_c : calcInnerProdList(varsC, 1, bC, Gbar_zx_c[i]),
+      writeCExprs1(Gbar, G_zx_c),
+      incr_zx_c : float(expand(innerProd(varsC, 1, Gbar_e, e3_x_e))),
+      printf(fh, "  ~a += dx12*(~a); ~%", out[i-1], incr_zx_c),
+      printf(fh, "~%")
+    ),
 
-  /* Expand distribution function in phase basis. */
-  f_e : doExpand1(f, bP),
+    if Gbar_zy_c[i] # 0 then ( 
+      G_zy_c : calcInnerProdList(varsC, 1, bC, Gbar_zy_c[i]),
+      writeCExprs1(Gbar, G_zy_c),
+      incr_zy_c : float(expand(innerProd(varsC, 1, Gbar_e, e3_y_e))),
+      printf(fh, "  ~a += dx12*(~a); ~%", out[i-1], incr_zy_c),
+      printf(fh, "~%")
+    ), 
 
-  printf(fh, "  double vx_f[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double vy_f[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double vz_f[~a] = {0.0}; ~%", NP),
-
-  vx_f_c = calcInnerProdList(varsP, 1, bP, vx_e*f_e), 
-  vy_f_c = calcInnerProdList(varsP, 1, bP, vy_e*f_e), 
-  vz_f_c = calcInnerProdList(varsP, 1, bP, vz_e*f_e), 
-
-  writeCExprs1(vx_f, vx_f_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-  writeCExprs1(vy_f, vy_f_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-  writeCExprs1(vz_f, vz_f_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  vx_fNoZero_c : doMakeExprLst(vx_f_c, vx_f),
-  vx_f_e : doExpand(vx_fNoZero_c, bP),
-
-  vy_fNoZero_c : doMakeExprLst(vy_f_c, vy_f),
-  vy_f_e : doExpand(vy_fNoZero_c, bP),
-
-  vz_fNoZero_c : doMakeExprLst(vz_f_c, vz_f),
-  vz_f_e : doExpand(vz_fNoZero_c, bP),
-
-  incr_c_x = calcInnerProdList(varsP, 1, diff(bP, varsV[1]), vx_f_e), 
-  incr_c_y = calcInnerProdList(varsP, 1, diff(bP, varsV[2]), vy_f_e), 
-  incr_c_z = calcInnerProdList(varsP, 1, diff(bP, varsV[3]), vz_f_e), 
-
-  clst : append(dx10,dx11,dx12),
-  writeCIncrExprsCollect1(out, dx10*incr_c_x + dx11*incr_c_y + dx12*incr_c_z, clst),
+    if Gbar_zz_c[i] # 0 then ( 
+      G_zz_c : calcInnerProdList(varsC, 1, bC, Gbar_zz_c[i]),
+      writeCExprs1(Gbar, G_zz_c),
+      incr_zz_c : float(expand(innerProd(varsC, 1, Gbar_e, e3_z_e))),
+      printf(fh, "  ~a += dx12*(~a); ~%", out[i-1], incr_zz_c),
+      printf(fh, "~%")
+    )     
+  ),
   flush_output(fh),
   printf(fh, "~%"),
   printf(fh, "  return 0.0; ~%"),
