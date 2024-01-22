@@ -1,5 +1,5 @@
 /*
-  Generate the kernel for surface expansions of the phase space flux
+  Generate the kernel for surface expansions of the phase space characteristics.
 
   The functions called in this file are in gkFuncs-alpha-surf.mac.
 */
@@ -92,6 +92,7 @@ for bInd : 1 thru length(bName) do (
             close(fh)
           )
         ),
+
         /* Surface alpha in vparallel direction.*/
         fname : sconcat("~/max-out/gyrokinetic_alpha_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         disp(printf(false,"Creating alpha surfvx file: ~a",fname)),
