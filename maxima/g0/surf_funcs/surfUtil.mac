@@ -175,7 +175,7 @@ calcAndWrite_VlasovfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,f
         bSurf_p1 : basisFromVars("ser",surfIntVars,1),
         sgn_alphaHatModProj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf_p1, sgn_alphaNodal_e)),
         printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, length(bSurf_p1)),
-        writeCExprs1(sgn_alphaUpNm, sgn_alphaHatModProj_e),
+        writeCExprsNoExpand1(sgn_alphaUpNm, gcfac(float(expand(sgn_alphaHatModProj_e)))),
         sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf_p1)
       )
       else (
