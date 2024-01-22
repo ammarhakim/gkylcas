@@ -15,16 +15,6 @@ minVdim_Ser : 3$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
-/* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
-
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser"]$
@@ -34,7 +24,6 @@ minCdim      : [minCdim_Ser]$
 minVdim      : [minVdim_Ser]$
 maxCdim      : [maxCdim_Ser]$
 maxVdim      : [maxVdim_Ser]$
-
 
 /* Compute the volume contribution from ONLY the streaming term (for use in neutral particle simulations) */
 for bInd : 1 thru length(bName) do (
