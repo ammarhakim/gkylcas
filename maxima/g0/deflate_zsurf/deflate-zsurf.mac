@@ -1,0 +1,67 @@
+load("modal-basis")$
+load(stringproc)$
+load("out-scripts")$
+
+/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other zsurfmetric quantities
+J = det(g_ij))
+b_i = g_iz/sqrt(g_zz)
+*/
+
+deflatezsurf(fh, basisName, polyOrder) := block(
+/* powerset maxima function will give me combos*/
+
+  disp("basisName", basisName),
+  /* get the full 2d basis*/
+  kill(varsC, varsP, basisC, basisP),
+  [vars,basis] : loadBasis(basisName, 2, polyOrder),
+  numCoeffs : length(basis),
+
+  disp("vars", vars),
+  removeVars : [y],
+  disp("list of remove vars", removeVars),
+
+  vars_deflated : [x],
+  removeStr : "rem",
+  removeStr : sconcat(removeStr,removeVars[1]),
+  ndim : length(vars),
+  disp("vars_deflated: ", vars_deflated),
+  disp("removeVars: ", removeVars),
+  disp("Vars", vars),
+  kill(varsC, varsP, basisC, basisP),
+  basis_deflated : basisFromVars(basisName, vars_deflated, polyOrder) ,
+  numCoeffs_deflated : length(basis_deflated),
+
+  /* Use loadBasis functions instead of loading this old way*/
+  /* Can load basis using specific variables x and z for example*/
+
+
+
+  mkzlist(S,N) := makelist(S[i],i,0,N-1),
+
+  fld_zl : mkzlist(fld, numCoeffs),
+  fld_e : doExpand(fld_zl, basis),
+
+  boundaries : ["lo", "up"],
+  boundaryvals : [-1,1],
+
+  for ibry : 1 thru 2 do(
+
+    sublist : makelist(removeVars[k] = boundaryvals[ibry],k,1,length(removeVars)),
+    disp("sublist", sublist),
+
+    fld_deflated_e : subst(sublist, fld_e),
+    fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
+
+
+    printf(fh, "GKYL_CU_DH void deflate_zsurf_~a_~ax_~a_p~a_~a(const double *fld, double *fld_deflated) ~%{ ~%", boundaries[ibry], ndim, basisName, polyOrder, removeStr),
+
+    writeCExprs1(fld_deflated, fld_deflated_c),
+
+    printf(fh, " ~%"),
+    printf(fh, "}~%")
+  )
+
+
+
+
+)$

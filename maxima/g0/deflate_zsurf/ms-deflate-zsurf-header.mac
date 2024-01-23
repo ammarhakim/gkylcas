@@ -1,0 +1,44 @@
+/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+load(stringproc)$
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 1$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","Tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+boundaries : ["lo", "up"]$
+
+
+fName : "~/max-out/gkyl_deflate_zsurf_kernels.h"$
+fh : openw(fName)$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+for bInd : 1 thru 1 do (
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+         for ibry : 1 thru 2 do(
+             boundary : boundaries[ibry],
+             removeVars : [y],
+             removeStr : "rem",
+             removeStr : sconcat(removeStr,removeVars[1]),
+             cD : 2,
+             disp(printf(false,sconcat("Creating header entry for deflate_zsurf_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+
+             printf(fh, "GKYL_CU_DH void deflate_zsurf_~a_~ax_~a_p~a_~a(const double *fld, double *fld_deflated); ~%", boundary, cD, bName[bInd], polyOrder, removeStr)
+          )
+      )
+);
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
