@@ -15,16 +15,17 @@ bName        : ["ser"]$
 minPolyOrder : [minPolyOrder_Ser]$
 maxPolyOrder : [maxPolyOrder_Ser]$
 
-cD : 2$
+cD : [2, 3]$
 
 for bInd : 1 thru length(bName) do (
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          disp(printf(false,sconcat("Creating deflate_zsurf_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          fName : sconcat("~/max-out/deflate_zsurf_", bName[bInd], "_", "p", polyOrder, ".c"),
-          fh : openw(fName),
-          printf(fh, "#include <gkyl_deflate_zsurf_kernels.h>~%~%"),
-          deflatezsurf(fh, bName[bInd], polyOrder),
-          close(fh)
-
+   for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      fName : sconcat("~/max-out/deflate_zsurf_", bName[bInd], "_", "p", polyOrder, ".c"),
+      fh : openw(fName),
+      printf(fh, "#include <gkyl_deflate_zsurf_kernels.h>~%~%"),
+      for cInd : 1 thru length(cD) do (
+          disp(printf(false,sconcat("Creating deflate_zsurf_calc_",bName[bInd]," ~axp~a"),cD[cInd],polyOrder)),
+          deflatezsurf(fh, bName[bInd], polyOrder, cD[cInd])
+      ),
+      close(fh)
   )
 );

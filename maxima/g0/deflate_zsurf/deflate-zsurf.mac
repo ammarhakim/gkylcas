@@ -7,20 +7,26 @@ J = det(g_ij))
 b_i = g_iz/sqrt(g_zz)
 */
 
-deflatezsurf(fh, basisName, polyOrder) := block(
+deflatezsurf(fh, basisName, polyOrder, cdim) := block(
 /* powerset maxima function will give me combos*/
 
   disp("basisName", basisName),
-  /* get the full 2d basis*/
+  /* get the full basis*/
   kill(varsC, varsP, basisC, basisP),
-  [vars,basis] : loadBasis(basisName, 2, polyOrder),
+  [vars,basis] : loadBasis(basisName, cdim, polyOrder),
   numCoeffs : length(basis),
 
   disp("vars", vars),
-  removeVars : [y],
+  if cdim=2 then (
+    removeVars : [y]
+  ),
+
+  if cdim=3 then (
+    removeVars : [z]
+  ),
   disp("list of remove vars", removeVars),
 
-  vars_deflated : [x],
+  vars_deflated : delete(removeVars[1],vars),
   removeStr : "rem",
   removeStr : sconcat(removeStr,removeVars[1]),
   ndim : length(vars),
