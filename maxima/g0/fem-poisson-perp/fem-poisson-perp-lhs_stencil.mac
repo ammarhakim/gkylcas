@@ -236,7 +236,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
           if insertVal[k] then (triplesStr : "insert") else (triplesStr : "accum"),
           for m : 1 thru numB do (
             val : vals_k[1][m],
-            /* MF 2023/05/11: I found one ase in which 5/3 written with 15 significant
+            /* MF 2023/05/11: I found one case in which 5/3 written with 15 significant
             ** digits gave the wrong answer, but 18 sig. digits gave the correct answer.
             ** One way to fix this is by expanding so that 5/3*3. gets written
             ** as 5. */

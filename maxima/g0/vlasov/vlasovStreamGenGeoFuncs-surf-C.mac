@@ -45,7 +45,7 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
   NC : length(bC),
   NP : length(bP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // alpha_geo:  General geometry alpha.~%"),
@@ -224,6 +224,9 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr_l + dx11[dir]*incr_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

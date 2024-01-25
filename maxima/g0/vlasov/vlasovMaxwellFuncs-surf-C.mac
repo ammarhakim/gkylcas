@@ -52,7 +52,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   numBasisP : length(bP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // alpha_geo: Fields used only for general geometry.~%"),
@@ -153,6 +153,11 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr_l + dx11[dir]*incr_r),    
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -167,11 +172,10 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // field:     q/m*EM fields.~%"),
-  printf(fh, "  // ext_field: external q/m*EM fields (unused).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%"),
 
@@ -303,6 +307,9 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr_l + dv11[dir]*incr_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

@@ -48,7 +48,7 @@ calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyO
 
   numBasisP : length(bP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:     Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // alpha_geo:   Fields used only for general geometry.~%"),
@@ -141,6 +141,9 @@ calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyO
 
   printf(fh, "~%  } ~%"),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 )$
 
@@ -155,11 +158,10 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       q/m*EM fields.~%"),
-  printf(fh, "  // ext_field:   external q/m*EM fields (unused).~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
   printf(fh, "  // out:         Output distribution function in skin cell ~%"),
@@ -316,6 +318,9 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
   printf(fh, "~%  } ~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

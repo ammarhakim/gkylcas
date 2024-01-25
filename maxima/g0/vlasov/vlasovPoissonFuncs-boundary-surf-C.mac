@@ -37,11 +37,10 @@ calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       potential (scaled by appropriate factors).~%"),
-  printf(fh, "  // ext_field:   vector potential (scaled by appropriate factors). Unused in pure Vlasov-Poisson. ~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
   printf(fh, "  // out:         Output distribution function in skin cell ~%"),
@@ -221,6 +220,9 @@ calcVlasovPoissonBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
   printf(fh, "~%  } ~%"),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -235,11 +237,10 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
-  printf(fh, "  // field:       potential (scaled by appropriate factors).~%"),
-  printf(fh, "  // ext_field:   vector potential (scaled by appropriate factors). ~%"),
+  printf(fh, "  // field:       potentials, including external (scaled by appropriate factors).~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
   printf(fh, "  // out:         Output distribution function in skin cell ~%"),
@@ -260,16 +261,8 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
 
   if vdim > 1 then (
     /* If vdim = 1, then no magnetic field. */
-    if vdim = 2 then (
-      /* In 2 velocity dimensions, only Ax and Ay. */
-      for d : 1 thru 2 do (
-        printf(fh, "  const double *A~a = &ext_field[~a]; ~%", d-1, numC*(d-1))
-      )
-    ),
-    if vdim = 3 then (
-      for d : 1 thru 3 do (
-        printf(fh, "  const double *A~a = &ext_field[~a]; ~%", d-1, numC*(d-1))
-      )
+    for d : 1 thru vdim do (
+      printf(fh, "  const double *A~a = &field[~a]; ~%", d-1, numC*d)
     )
   ),
 
@@ -423,6 +416,9 @@ calcVlasovPoissonExtEmBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
   incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
   printf(fh, "~%  } ~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

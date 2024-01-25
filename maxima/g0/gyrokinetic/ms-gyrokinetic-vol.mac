@@ -9,8 +9,8 @@ load("gyrokinetic/gkFuncs-vol")$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+minPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 3$
 maxCdim_Ser : 3$
 

@@ -13,7 +13,7 @@ varsVAll : [vpar, mu]$
 
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, isNonuniform) := block(
+calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,surfIntVars,bPp,bmagBasis,fEdge_e,fSkin_e,bType,
    hl_e,hr_e,hOrder,hsol_l,hsol_r,surfVarPhys,nuVtSqSum_e,bSurf,facDiff_e,basisFac,GhatPhaseFac_l,
    GhatPhaseFac_r,ibpPhaseFac_l,ibpPhaseFac_r,vfSkin_l,vfSkin_r,BmagInv_e,surfVar_l,surfVar_r,
@@ -54,7 +54,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   hsol_r : cons(subst(surfVar=0,hr_e),makelist(subst(surfVar=0,diff(hr_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
   /*............. RECOVERY DONE ..............................*/
         
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
   printf(fh, "  // m_: species mass.~%"),
@@ -235,6 +235,9 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   diff_out : makelist(edgeSurf_incr[i-1],i,1,NP),
   edge_out : makelist(boundSurf_incr[i-1],i,1,NP),
   writeCIncrExprsNoExpand1(out, rdvSq4*(diff_out + edge_out + vol_out)),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

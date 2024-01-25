@@ -83,12 +83,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   BstardBmag_e : calcAndWrite_BstardBmag(fh,cdim,bP,bmagBasis,0,m_,q_,
                                          wvpar,rdx2vec,rdv2vec,inFlds_e,""),
 
-  /* Calculate cflFreq = sum_d alpha_d / dxv[d]. */
-  printf(fh, "  double cflFreq = 0.0; ~%"),
-  printf(fh, "  double alphaL = 0.0; ~%"),
-  printf(fh, "  double alphaR = 0.0; ~%"),
-  printf(fh, "~%"),
-
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
 
   pbAuxFlds : [BstardBmag_e],
@@ -127,9 +121,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
     /* Accumulate alpha.grad(w) in this direction to the direction-summed alpha.grad(w). */
     alphaSum_e : alphaSum_e + alphaDotGradBasis_e,
 
-    /* Evaluate cfl by evaluating at all surface quadrature points. */
-    calcAndWrite_quadCFLfreq_wPhaseAlpha(basisFun,polyOrder,bP,dir,alpha_e),
-
     printf(fh, "~%")
   ),
 
@@ -141,7 +132,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   flush_output(fh),
   printf(fh, "~%"),
 
-  printf(fh, "  return cflFreq; ~%"),
+  /* Evaluate CFL frequency in surface kernels. */
+  printf(fh, "  return 0.; ~%"),
   printf(fh, "} ~%"),
   flush_output(fh)
 )$

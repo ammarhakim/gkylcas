@@ -1,0 +1,153 @@
+/**
+ * Operators applied inside the integral of the array_integrate updater. 
+ *
+ */
+load("modal-basis");
+load("out-scripts");
+fpprec : 24$
+
+arrayIntegrate_grad_sq(fh, funcNm, dim, basisFun, polyOrder) := block(
+  [vars,basis,f_e,gradfSq_e,dir,volumeFac,exprStr,subList,k,s],
+  kill(varsC, basisC),
+
+  [vars, basis] : loadBasis(basisFun, dim, polyOrder),
+  numB : length(basis),
+
+  printf(fh, "void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out) ~%{ ~%", funcNm),
+  printf(fh, "~%"),
+
+  f_e : doExpand1(fIn,basis),
+  gradfSq_e : 0,
+
+  for dir : 1 thru dim do (
+    df_e      : -diff(f_e,vars[dir]),
+    gradfSq_e : gradfSq_e + fullratsimp(innerProd(vars,1,1,(4./dxSq[dir-1])*df_e^2))
+  ),
+
+  volumeFac : 1,
+  for dir : 1 thru dim do (
+    volumeFac : volumeFac*dx[dir-1]/2
+  ),
+  volumeFac : volumeFac*content(gradfSq_e)[1],
+  printf(fh, "  const double volFac = ~a;~%", float(volumeFac)),
+  printf(fh, "~%"),
+
+  /* Replace exponentials and write out. */
+  exprStr : string(float(fullratsimp(gradfSq_e/content(gradfSq_e)[1]))*volFac),
+  subList : [],
+  for k : 0 thru numB-1 do (
+    subList : endcons([sconcat("fIn[",k,"]^2"),sconcat("(fIn[",k,"]*fIn[",k,"])")],subList)
+  ),
+  for s : 1 thru length(subList) do (
+    exprStr : ssubst(subList[s][2],subList[s][1],exprStr)
+  ),
+  printf(fh, "  ~a += ~a;~%", out[0], exprStr),
+
+  printf(fh, "}~%"),
+  printf(fh, "~%")
+  
+)$
+
+arrayIntegrate_gradperp_sq(fh, funcNm, dim, basisFun, polyOrder) := block(
+  [dimPerp,vars,basis,f_e,gradfSq_e,dir,volumeFac,exprStr,subList,k,s],
+  kill(varsC, basisC),
+
+  dimPerp : 2,
+
+  [vars, basis] : loadBasis(basisFun, dim, polyOrder),
+  numB : length(basis),
+
+  printf(fh, "void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out) ~%{ ~%", funcNm),
+  printf(fh, "~%"),
+
+  f_e : doExpand1(fIn,basis),
+  gradfSq_e : 0,
+
+  for dir : 1 thru dimPerp do (
+    df_e      : -diff(f_e,vars[dir]),
+    gradfSq_e : gradfSq_e + fullratsimp(innerProd(vars,1,1,(4./dxSq[dir-1])*df_e^2))
+  ),
+
+  volumeFac : 1,
+  for dir : 1 thru dim do (
+    volumeFac : volumeFac*dx[dir-1]/2
+  ),
+  volumeFac : volumeFac*content(gradfSq_e)[1],
+  printf(fh, "  const double volFac = ~a;~%", float(volumeFac)),
+  printf(fh, "~%"),
+
+  /* Replace exponentials and write out. */
+  exprStr : string(float(fullratsimp(gradfSq_e/content(gradfSq_e)[1]))*volFac),
+  subList : [],
+  for k : 0 thru numB-1 do (
+    subList : endcons([sconcat("fIn[",k,"]^2"),sconcat("(fIn[",k,"]*fIn[",k,"])")],subList)
+  ),
+  for s : 1 thru length(subList) do (
+    exprStr : ssubst(subList[s][2],subList[s][1],exprStr)
+  ),
+  printf(fh, "  ~a += ~a;~%", out[0], exprStr),
+
+  printf(fh, "}~%"),
+  printf(fh, "~%")
+  
+)$
+
+arrayIntegrate_eps_gradperp_sq(fh, funcNm, dim, basisFun, polyOrder) := block(
+  [dimPerp,vars,basis,f_e,gradfSq_e,dir,volumeFac,exprStr,subList,k,s],
+  kill(varsC, basisC),
+
+  dimPerp : 2,
+
+  [vars, basis] : loadBasis(basisFun, dim, polyOrder),
+  numB : length(basis),
+
+  printf(fh, "void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out) ~%{ ~%", funcNm),
+  printf(fh, "~%"),
+
+  f_e : doExpand1(fIn,basis),
+  gradfSq_e : 0,
+
+  dfSq_e : 0,
+  subList : [],
+  for k : 0 thru numB-1 do (
+    subList : endcons([sconcat("fIn[",k,"]^2"),sconcat("(fIn[",k,"]*fIn[",k,"])")],subList)
+  ),
+  for dir : 1 thru dimPerp do (
+    df_e   : -diff(f_e,vars[dir]),
+    dfSq_c : calcInnerProdList(vars,1,basis,(4./dxSq[dir-1])*df_e^2),
+    varNm  : sconcat("dfdx",dir-1,"Sq"),
+    printf(fh, "  double ~a[~a] = {0.};~%", varNm, numB),
+    expr : float(dfSq_c),
+    for i : 1 thru length(expr) do (
+      if expr[i] # 0.0 then (
+        exprStr : string(expr[i]),
+        for s : 1 thru length(subList) do (
+          exprStr : ssubst(subList[s][2],subList[s][1],exprStr)
+        ),
+        printf(fh, "  ~a = ~a; ~%", eval_string(varNm)[i-1], exprStr)
+      )
+    ),
+    printf(fh, "~%"),
+
+    dfdxNoZeros_c : makelistNoZeros1(dfSq_c, eval_string(varNm)),
+    dfSq_e : dfSq_e+doExpand(dfdxNoZeros_c,basis)
+  ),
+
+  volumeFac : 1,
+  for dir : 1 thru dim do (
+    volumeFac : volumeFac*dx[dir-1]/2
+  ),
+  printf(fh, "  const double volFac = ~a;~%", float(volumeFac)),
+  printf(fh, "~%"),
+
+  weight_e : doExpand1(weight, basis),
+
+  intOut : fullratsimp(innerProd(vars,1,weight_e,dfSq_e)),
+
+  expr : float(fullratsimp(intOut))*volFac,
+  printf(fh, "  ~a += ~a;~%", out[0], expr),
+
+  printf(fh, "}~%"),
+  printf(fh, "~%")
+  
+)$

@@ -44,7 +44,7 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   hsol_r : cons(subst(surfVar=0,hr_e),makelist(subst(surfVar=0,diff(hr_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
   /*............. RECOVERY DONE ..............................*/
         
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -180,5 +180,10 @@ calcBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   diff_out : makelist(edgeSurf_incr[i-1],i,1,NP),
   edge_out : makelist(boundSurf_incr[i-1],i,1,NP),
   writeCIncrExprsNoExpand1(out, rdvSq4*(diff_out + edge_out + vol_out)),
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
