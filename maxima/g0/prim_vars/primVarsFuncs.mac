@@ -324,7 +324,7 @@ calcPrimVarsVt2GK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double *vtSq = &prim_vars[~a]; ~%", 0),
   printf(fh, " ~%"),
-
+ 
   printf(fh, "  double m0Sq[~a] = {0.0}; ~%~%", NC), 
   printf(fh, "  double m0Sq_inv[~a] = {0.0}; ~%~%", NC), 
   printf(fh, "  double m1Sq[~a] = {0.0}; ~%", NC),
@@ -374,14 +374,18 @@ calcPrimVarsVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // prim_vars: upar = udrift . bhat, vtSq = 1/vdim(m2/m0 - upar^2) (last component). ~%"),
   printf(fh, " ~%"),
 
+  vdim_phys : 1,
+  if vdim > 1 then vdim_phys : 3,
+  print("vdim_phys", vdim_phys),
+
   printf(fh, "  const double *m0 = &moms[~a]; ~%", 0),
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  const double *m1~a = &moms[~a]; ~%", varsV[vi], NC*vi)
   ),
-  printf(fh, "  const double *m2 = &moms[~a]; ~%", NC*(vdim+1)),
+  printf(fh, "  const double *m2 = &moms[~a]; ~%", NC*(vdim_phys+1)),
   printf(fh, " ~%"),
 
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  const double *b_~a = &b_i[~a]; ~%", varsV[vi], NC*(vi-1))
   ),
 
@@ -390,7 +394,7 @@ calcPrimVarsVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, " ~%"),
 
   printf(fh, "  double m0_inv[~a] = {0.0}; ~%~%", NC),
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  double u~a[~a] = {0.0}; ~%", varsV[vi], NC)
   ),
   printf(fh, "  double uparSq[~a] = {0.0}; ~%~%", NC),
@@ -412,7 +416,7 @@ calcPrimVarsVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   m1 : [m1x, m1y, m1z],
   
   /* Calculate udrift.b_ic. */
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  binop_mul_~ad_~a_p~a(~a, m0_inv, ~a); ~%", cdim, basisFun, polyOrder, m1[vi], u[vi])
   ),
   printf(fh, "~%"),
@@ -422,7 +426,7 @@ calcPrimVarsVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   uz_e : doExpand1(uz, bC),
   ui_e : [ux_e, uy_e, uz_e],
   bi_e : [bx_e, by_e, bz_e],
-  upar_c : calcInnerProdList(varsC, 1, bC, sum(ui_e[vi]*bi_e[vi],vi,1,vdim)),
+  upar_c : calcInnerProdList(varsC, 1, bC, sum(ui_e[vi]*bi_e[vi],vi,1,vdim_phys)),
   writeCExprs1(upar, upar_c),
   printf(fh, "~%"),
 
@@ -432,7 +436,7 @@ calcPrimVarsVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Calculate vtSq */
   vtSq_c : calcInnerProdList(varsC, 1, bC, (m2_e*m0_inv_e-uparSq_e)),
-  writeCExprs1(vtSq, float(1.0/vdim)*vtSq_c),
+  writeCExprs1(vtSq, float(1.0/vdim_phys)*vtSq_c),
   printf(fh, "~%"),
   flush_output(fh),
 
@@ -462,19 +466,22 @@ calcPrimVarsUparVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   printf(fh, "  // upar: upar = udrift . bhat. ~%"),
   printf(fh, " ~%"),
 
+  vdim_phys : 1, 
+  if vdim > 1 then vdim_phys : 3,
+
   printf(fh, "  const double *m0 = &moms[~a]; ~%", 0),
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  const double *m1~a = &moms[~a]; ~%", varsV[vi], NC*vi)
   ),
   printf(fh, " ~%"),
 
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  const double *b_~a = &b_i[~a]; ~%", varsV[vi], NC*(vi-1))
   ),
   printf(fh, " ~%"),
 
   printf(fh, "  double m0_inv[~a] = {0.0}; ~%~%", NC),
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  double u~a[~a] = {0.0}; ~%", varsV[vi], NC)
   ),
 
@@ -494,7 +501,7 @@ calcPrimVarsUparVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   m1 : [m1x, m1y, m1z],
   
   /* Calculate udrift.b_ic. */
-  for vi : 1 thru vdim do (
+  for vi : 1 thru vdim_phys do (
     printf(fh, "  binop_mul_~ad_~a_p~a(~a, m0_inv, ~a); ~%", cdim, basisFun, polyOrder, m1[vi], u[vi])
   ),
   printf(fh, "~%"),
@@ -504,7 +511,7 @@ calcPrimVarsUparVlasovToGK(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
   uz_e : doExpand1(uz, bC),
   ui_e : [ux_e, uy_e, uz_e],
   bi_e : [bx_e, by_e, bz_e],
-  upar_c : calcInnerProdList(varsC, 1, bC, sum(ui_e[vi]*bi_e[vi],vi,1,vdim)),
+  upar_c : calcInnerProdList(varsC, 1, bC, sum(ui_e[vi]*bi_e[vi],vi,1,vdim_phys)),
   writeCExprs1(upar, upar_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -571,6 +578,84 @@ calcPrimVarsUGkToVlasov(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   for vi : 1 thru vdim do (
     printf(fh, "  binop_mul_~ad_~a_p~a(upar, ~a, ~a); ~%", cdim, basisFun, polyOrder, bi[vi], upar_i[vi])
   ),
+  printf(fh, " ~%"),
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+calcPrimVarsGkToVlasov(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC, m0_e, m1_e, m0_inv_e, bx_e, by_e, bz_e,
+   upar, m1, upar_x, upar_y, upar_z],
+   
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  NC  : length(bC),
+  print("transform ", cdim,"x", vdim, "v"),
+
+  printf(fh, "#include <gkyl_dg_prim_vars_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *b_i, const double *moms, double* prim_vars) ~%{ ~%", funcNm),
+  printf(fh, "  // moms: Input moments (GK). ~%"),
+  printf(fh, "  // b_i:  Contravariant components of field-aligned unit vector. ~%"),
+  printf(fh, "  // prim_vars: u_par_i = upar*b_i  (first vdim components), vtSq = 1/vdim(m2/m0 - upar^2) (last component)  ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *m0 = &moms[~a]; ~%", 0),
+  printf(fh, "  const double *m1 = &moms[~a]; ~%", NC),
+  printf(fh, "  const double *m2 = &moms[~a]; ~%", NC*2),
+  
+  for vi : 1 thru vdim do (
+    printf(fh, "  const double *b_~a = &b_i[~a]; ~%", varsV[vi], NC*(vi-1))
+  ),
+  printf(fh, " ~%"),
+
+  for vi : 1 thru vdim do (
+    printf(fh, "  double *upar_~a = &prim_vars[~a]; ~%", varsV[vi], NC*(vi-1))
+  ),
+  printf(fh, "  double *vtSq = &prim_vars[~a]; ~%", NC*vdim),	
+  printf(fh, " ~%"),
+  
+  printf(fh, "  double m0_inv[~a] = {0.0}; ~%~%", NC),
+  printf(fh, "  double uparSq[~a] = {0.0}; ~%", NC),	
+
+  m0_e : doExpand1(m0, bC),
+  m0_inv_e : doExpand1(m0_inv, bC),
+  m1_e : doExpand1(m1x, bC),
+
+  printf(fh, "  ~a_~ax_p~a_inv(m0, m0_inv); ~%", basisFun, cdim, polyOrder),
+
+  printf(fh, " ~%"),
+  printf(fh, "  double upar[~a] = {0.0}; ~%", NC),
+
+  bx_e : doExpand1(b_x, bC),
+  by_e : doExpand1(b_y, bC),
+  bz_e : doExpand1(b_z, bC),
+
+  printf(fh, " ~%"),	
+  /* Calculate u_par_i. */
+  printf(fh, "  binop_mul_~ad_~a_p~a(m1, m0_inv, upar); ~%", cdim, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(upar, upar, uparSq); ~%", cdim, basisFun, polyOrder),
+
+  bi : [b_x, b_y, b_z],
+  upar_i : [upar_x, upar_y, upar_z],
+  for vi : 1 thru vdim do (
+    printf(fh, "  binop_mul_~ad_~a_p~a(upar, ~a, ~a); ~%", cdim, basisFun, polyOrder, bi[vi], upar_i[vi])
+  ),
+  printf(fh, " ~%"),
+  m2_e : doExpand1(m2, bC),
+  uparSq_e : doExpand1(uparSq, bC),
+
+  /* Calculate vtSq */
+  vtSq_c : calcInnerProdList(varsC, 1, bC, (m2_e*m0_inv_e - uparSq_e)),
+  writeCExprs1(vtSq, float(1.0/vdim)*vtSq_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
   printf(fh, " ~%"),
   printf(fh, "} ~%"),
   printf(fh, " ~%")
