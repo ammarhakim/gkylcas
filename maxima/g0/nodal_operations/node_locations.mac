@@ -100,6 +100,7 @@ nodesSer5xp3 : matrix([-1,-1,-1,-1,-1],[-1/3,-1,-1,-1,-1],[1/3,-1,-1,-1,-1],[1,-
 nodesSer6xp0 : matrix([0,0,0,0,0,0])$
 
 /* A set of serendipity nodes without the corners. */
+nodesSerNC2xp3 : matrix([-1/3,-1],[1/3,-1],[-1,-1/3],[1,-1/3],[-1,1/3],[1,1/3],[-1/3,1],[1/3,1])$
 nodesSerNC3xp3 : matrix([-1/3,-1,-1],[1/3,-1,-1],[-1,-1/3,-1],[1,-1/3,-1],[-1,1/3,-1],[1,1/3,-1],[-1/3,1,-1],[1/3,1,-1],
                       [-1,-1,-1/3],[1,-1,-1/3],[-1,1,-1/3],[1,1,-1/3],
                       [-1,-1,1/3],[1,-1,1/3],[-1,1,1/3],[1,1,1/3],
@@ -178,7 +179,7 @@ getNodes(basisType, dim, polyOrder) := block(
   ) else (
     error(basisType="unknown")
   ),
-  return(nodes)
+  return(args(nodes))
 )$
 
 /* Nodes for tensor hybrid basis that is a Cartesian product of p=1 Tensor in

@@ -10,8 +10,8 @@ fpprec : 24$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minDim_Ser : 1$
-maxDim_Ser : 6$
+minDim_Ser : 2$
+maxDim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -95,7 +95,67 @@ writeNod2ModKernelHyb(cdim, vdim, basisName) := block([nodes,numNodes,nodToMod,f
   printf(fh, "}~%~%")
 )$
 
-/* Generate kernels for modal-to-nodal transform for regular bases. */
+writeNod2ModQuadSurfInDirKernel(dim, basisName, pOrder) := block(
+  [vars,basis,dirs,surfDir,perpDirs,nodes,quadSurfNodes,numNodes,ord1d,k,d,dir,nod2mod,fnod_c,fmod_mat,fmod_c],
+  /* Nodal to modal transformation for a set of nodes that are on the surface
+     along one direction and are Gauss-Legendre quadrature nodes in the other
+     directions. */
+  
+  [vars,basis] : loadBasis(basisName, dim, pOrder),
+
+  dirs : makelist(i,i,1,dim),
+
+  for surfDir : 1 thru dim do (
+
+    perpDirs : delete(surfDir, dirs),
+
+    printf(fh, "GKYL_CU_DH~%"),
+    printf(fh, "void~%"),
+    printf(fh, "nodal_to_modal_quad_surf~a_~ad_~a_p~a(const double *fnodal, double *fmodal)~%", vars[surfDir], dim, basisName, pOrder),
+    printf(fh, "{~%"),
+
+    /* Construct the nodes by loading the basis nodes and compressing the nodes
+       along the non-dir direction to be at a Gauss-Legender quad location. */
+    nodes : getNodes(basisName, dim, pOrder),
+    numNodes : length(nodes),
+
+    ord1d : gaussOrd(pOrder+1, 1),
+  
+    quadSurfNodes : copylist(nodes),
+    /* ASSUMPTION: only works for p=1 and p=2. */
+    for k : 1 thru numNodes do (
+      for d : 1 thru length(perpDirs) do (
+        dir : perpDirs[d],
+        if (quadSurfNodes[k][dir] = -1) then (
+          quadSurfNodes[k][dir] : ord1d[1][1]
+        ) elseif (quadSurfNodes[k][dir] = 1) then (
+          quadSurfNodes[k][dir] : ord1d[pOrder+1][1]
+        )
+      )
+    ),
+    if dim < 3 then(print(quadSurfNodes)),
+
+    nod2mod : calcNodToModWithNodesAndBasis(quadSurfNodes, basis, vars),
+
+    fnod_c : makelist(fnodal[i-1], i, 1, numNodes),
+    fmod_mat : nod2mod . fnod_c,
+    fmod_c : makelist(fmod_mat[i][1], i, 1, length(basis)),
+
+    /* Write coefficients of surface expansion fupwind. */
+    /* Clever factorization is possible for pOrder = 1, but for higher
+       polynomial orders, factorization is *too* clever and can lead to 
+       deeply nested parentheses, not ideal for compiler optimizations */
+    if (pOrder = 1) then (
+      writeCExprsNoExpand1(fmodal, fmod_c)
+    ) else (
+      writeCExprs1(fmodal, fmod_c)
+    ),
+    printf(fh, "}~%~%")
+  )
+)$
+
+
+/* Generate kernels for nodal-to-modal transform for regular bases. */
 for bInd : 1 thru length(bName) do (
   fname : sconcat("~/max-out/basis_nodal_to_modal_",bName[bInd], ".c"),
   fh : openw(fname),
@@ -112,7 +172,7 @@ for bInd : 1 thru length(bName) do (
   close(fh)
 );
 
-/* Generate kernels for modal-to-nodal transform for hybrid bases. */
+/* Generate kernels for nodal-to-modal transform for hybrid bases. */
 for bInd : 1 thru length(bNameHyb) do (
   fname : sconcat("~/max-out/basis_nodal_to_modal_",bNameHyb[bInd], ".c"),
   fh : openw(fname),
@@ -123,6 +183,24 @@ for bInd : 1 thru length(bNameHyb) do (
     vmax : xreduce(max,vDims[bInd][c]),
     for v : vmin thru vmax do (
       writeNod2ModKernelHyb(c, v, bNameHyb[bInd])
+    )
+  ),
+  close(fh)
+);
+
+/* Generate kernels for nodal-to-modal transformation using special nodes
+   that are at surfaces, and Gauss-Legendre coordinates in the perpendicular
+   (to the surface) directions. Only for serendipity for now.*/
+for bInd : 1 thru length([bName[1]]) do (
+  fname : sconcat("~/max-out/basis_nodal_to_modal_quad_surf_",bName[bInd], ".c"),
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_basis_~a_kernels.h>~%", bName[bInd]),
+
+  for d : minDim[bInd] thru maxDim[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      writeNod2ModQuadSurfInDirKernel(d, bName[bInd], polyOrder)
     )
   ),
   close(fh)
