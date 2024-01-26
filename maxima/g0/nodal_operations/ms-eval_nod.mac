@@ -8,10 +8,10 @@ fpprec : 24$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 0$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minDim_Ser : 1$
-maxDim_Ser : 6$
+minDim_Ser : 2$
+maxDim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -89,6 +89,54 @@ writeNodeCoordsKernelHyb(cdim, vdim, basisName) := block([nodes,numNodes,n,dir],
   printf(fh, "}~%~%")
 )$
 
+writeQuadSurfNodeCoordsKernel(dim, basisName, pOrder) := block([nodes,numNodes,n,dir],
+  /* This one uses nodes that are on the surface in one direction and on
+     Gauss-Legendre nodes in the other directions. */
+  [vars,basis] : loadBasis(basisName, dim, pOrder),
+
+  dirs : makelist(i,i,1,dim),
+
+  for surfDir : 1 thru dim do (
+
+    printf(fh, "GKYL_CU_DH~%"),
+    printf(fh, "void~%"),
+    printf(fh, "node_coords_quad_surf~a_~ad_~a_p~a(double *node_coords)~%", vars[surfDir], dim, basisName, pOrder),
+    printf(fh, "{~%"),
+
+    perpDirs : delete(surfDir, dirs),
+
+    /* Construct the nodes by loading the basis nodes and compressing the nodes
+       along the non-dir direction to be at a Gauss-Legender quad location. */
+    nodes : getNodes(basisName, dim, pOrder),
+    numNodes : length(nodes),
+
+    ord1d : gaussOrd(pOrder+1, 1),
+
+    quadSurfNodes : copylist(nodes),
+    /* ASSUMPTION: only works for p=1 and p=2. */
+    for k : 1 thru numNodes do (
+      for d : 1 thru length(perpDirs) do (
+        dir : perpDirs[d],
+        if (quadSurfNodes[k][dir] = -1) then (
+          quadSurfNodes[k][dir] : ord1d[1][1]
+        ) elseif (quadSurfNodes[k][dir] = 1) then (
+          quadSurfNodes[k][dir] : ord1d[pOrder+1][1]
+        )
+      )
+    ),
+
+    for n : 1 thru numNodes do (
+      for dir : 1 thru dim do (
+        printf(fh, "  node_coords[~a] = ~a;~%", (n-1)*dim + dir-1, float(expand(quadSurfNodes[n][dir])))
+      )
+    ),
+    printf(fh, "}~%")
+  ),
+  printf(fh, "~%~%")
+)$
+
+
+/**
 /* Generate a file for regular bases. */
 for bInd : 1 thru length(bName) do (
   fname : sconcat("~/max-out/basis_node_coords_",bName[bInd], ".c"),
@@ -121,3 +169,22 @@ for bInd : 1 thru length(bNameHyb) do (
   ),
   close(fh)
 );
+**/
+
+/* Generate a file for regular bases and nodes that are on the surface in on
+   direction and at Gauss-Legendre coordinates in the others (serendipity only). */
+for bInd : 1 thru length([bName[1]]) do (
+  fname : sconcat("~/max-out/basis_quad_surf_node_coords_",bName[bInd], ".c"),
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_basis_~a_kernels.h>~%", bName[bInd]),
+
+  for d : minDim[bInd] thru maxDim[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      writeQuadSurfNodeCoordsKernel(d, bName[bInd], polyOrder)
+    )
+  ),
+  close(fh)
+);
+
