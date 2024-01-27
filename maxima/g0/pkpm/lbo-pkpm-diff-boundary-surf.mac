@@ -10,7 +10,7 @@ fpprec : 24$
 
 calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pDim,vid1,vv,surfVars,basis_v,fEdge_e,fSkin_e,bType,
-   hl_e,hr_e,hOrder,hsol_l,hsol_r,nuVtSq_e,bSurf,facDiff_c,expr,i,facDiff_NoZero,
+   hl_e,hr_e,hOrder,hsol_l,hsol_r,nuVtSqSum_e,bSurf,facDiff_c,expr,i,facDiff_NoZero,
    facDiff_NoZero_e,vol_incr_e,Gdiff_l_c,Gdiff_r_c,Gdiff_l_e,Gdiff_r_e,Gdiff2_l_c,Gdiff2_r_c,
    Gdiff2_l_e,Gdiff2_r_e,temp_diff_le,temp_diff_re,temp_edge_le,temp_edge_re,diff_incr_le,
    diff_incr_re,edge_incr_le,edge_incr_re,vol_out,diff_out,edge_out],
@@ -47,14 +47,19 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   hsol_G_1_r : cons(subst(vx=0,h_G_1_r_e),makelist(subst(vx=0,diff(h_G_1_r_e,vx,ord)/(ord!)),ord,1,hOrder)),
   /*............. RECOVERY DONE ..............................*/
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),        
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuVtSq, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuVtSq[~a]:    Thermal speeds squared times collisionality. ~%", NC),
-  printf(fh, "  // fSkin/fEdge: Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in skin cell/last edge cell ~%"),
-  printf(fh, "  // out:         Incremented distribution function in cell ~%"),
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),        
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),
+  printf(fh, "  // nuSum:         Collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: Sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%"),
+  printf(fh, "  // fSkin/fEdge:   Input distribution functions [F_0, T_perp G = T_perp (F_1 - F_0)] in skin cell/last edge cell. ~%"),
+  printf(fh, "  // out:           Incremented distribution functions in skin cell. ~%"),
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", cdim, cdim),
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+  
   /* Access F_0 and T_perp G, first two Laguerre moments */
   printf(fh, "  const double *F_0Skin = &fSkin[~a]; ~%", 0),
   printf(fh, "  const double *G_1Skin = &fSkin[~a]; ~%", NP),  
@@ -67,7 +72,7 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   printf(fh, "~%"),
   /* First compute the contribution coming from the second
      differentiation by parts to left and right cells. */
-  nuVtSq_e : doExpand1(nuVtSq,bC),
+  nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("hyb",surfVars,polyOrder)
   ) else (
@@ -75,8 +80,8 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   ),
 
   /* Volume increment from configuration space. */
-  vol_incr_F_0_e : rdvSq4*calcInnerProdList(varsP, 1, diff(bP,vx,2), nuVtSq_e*F_0_Skin_e),
-  vol_incr_G_1_e : rdvSq4*calcInnerProdList(varsP, 1, diff(bP,vx,2), nuVtSq_e*G_1_Skin_e),
+  vol_incr_F_0_e : rdvSq4*calcInnerProdList(varsP, 1, diff(bP,vx,2), nuVtSqSum_e*F_0_Skin_e),
+  vol_incr_G_1_e : rdvSq4*calcInnerProdList(varsP, 1, diff(bP,vx,2), nuVtSqSum_e*G_1_Skin_e),
   printf(fh, "  double vol_incr_F_0[~a] = {0.0}; ~%", NP),
   printf(fh, "  double vol_incr_G_1[~a] = {0.0}; ~%", NP),
   writeCExprs1(vol_incr_F_0, vol_incr_F_0_e),
@@ -113,10 +118,10 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
                               -calcInnerProdList(surfVars, 1, subst(vx=1, basis_v), Gdiff2_F_0_r_e)),
     temp_edge_F_0_le : -calcInnerProdList(surfVars, -1, subst(vx=-1, basis_v), subst(vx=-1, F_0_Skin_e)),
     temp_edge_F_0_re : -calcInnerProdList(surfVars, 1, subst(vx=1, basis_v), subst(vx=1, F_0_Skin_e)),
-    incr_diff_F_0_le : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_F_0_diff, bP)),
-    incr_diff_F_0_re : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_F_0_diff, bP)),
-    incr_edge_F_0_le : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_F_0_edge, bP)),
-    incr_edge_F_0_re : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_F_0_edge, bP)),
+    incr_diff_F_0_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_F_0_diff, bP)),
+    incr_diff_F_0_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_F_0_diff, bP)),
+    incr_edge_F_0_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_F_0_edge, bP)),
+    incr_edge_F_0_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_F_0_edge, bP)),
 
     printf(fh, "  double temp_F_0_diff[~a] = {0.0}; ~%", NP),
     printf(fh, "  double temp_F_0_edge[~a] = {0.0}; ~%", NP),
@@ -130,10 +135,10 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
                               -calcInnerProdList(surfVars, 1, subst(vx=1, basis_v), Gdiff2_G_1_r_e)),
     temp_edge_G_1_le : -calcInnerProdList(surfVars, -1, subst(vx=-1, basis_v), subst(vx=-1, G_1_Skin_e)),
     temp_edge_G_1_re : -calcInnerProdList(surfVars, 1, subst(vx=1, basis_v), subst(vx=1, G_1_Skin_e)),
-    incr_diff_G_1_le : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_G_1_diff, bP)),
-    incr_diff_G_1_re : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_G_1_diff, bP)),
-    incr_edge_G_1_le : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_G_1_edge, bP)),
-    incr_edge_G_1_re : calcInnerProdList(varsP, nuVtSq_e, bP, doExpand1(temp_G_1_edge, bP)),
+    incr_diff_G_1_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_G_1_diff, bP)),
+    incr_diff_G_1_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_G_1_diff, bP)),
+    incr_edge_G_1_le : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_G_1_edge, bP)),
+    incr_edge_G_1_re : calcInnerProdList(varsP, nuVtSqSum_e, bP, doExpand1(temp_G_1_edge, bP)),
 
     printf(fh, "  double temp_G_1_diff[~a] = {0.0}; ~%", NP),
     printf(fh, "  double temp_G_1_edge[~a] = {0.0}; ~%", NP),
@@ -179,23 +184,23 @@ calcVlasovPKPMLBODiffBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
     printf(fh, "~%")
 
   ) else (
-    incr_diff_F_0_le : fullratsimp(calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, bP), Gdiff_F_0_l_e)
-                              -calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, basis_v), Gdiff2_F_0_l_e)),
-    incr_diff_F_0_re : fullratsimp(calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, bP), Gdiff_F_0_r_e)
-                              -calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, basis_v), Gdiff2_F_0_r_e)),
-    incr_edge_F_0_le : -calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, basis_v), subst(vx=-1, F_0_Skin_e)),
-    incr_edge_F_0_re : -calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, basis_v), subst(vx=1, F_0_Skin_e)),
+    incr_diff_F_0_le : fullratsimp(calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, bP), Gdiff_F_0_l_e)
+                              -calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, basis_v), Gdiff2_F_0_l_e)),
+    incr_diff_F_0_re : fullratsimp(calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, bP), Gdiff_F_0_r_e)
+                              -calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, basis_v), Gdiff2_F_0_r_e)),
+    incr_edge_F_0_le : -calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, basis_v), subst(vx=-1, F_0_Skin_e)),
+    incr_edge_F_0_re : -calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, basis_v), subst(vx=1, F_0_Skin_e)),
 
     printf(fh, "  double diff_F_0_incr[~a] = {0.0}; ~%", NP),
     printf(fh, "  double edge_F_0_incr[~a] = {0.0}; ~%", NP),
     printf(fh, "~%"),
 
-    incr_diff_G_1_le : fullratsimp(calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, bP), Gdiff_G_1_l_e)
-                              -calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, basis_v), Gdiff2_G_1_l_e)),
-    incr_diff_G_1_re : fullratsimp(calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, bP), Gdiff_G_1_r_e)
-                              -calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, basis_v), Gdiff2_G_1_r_e)),
-    incr_edge_G_1_le : -calcInnerProdList(surfVars, -nuVtSq_e, subst(vx=-1, basis_v), subst(vx=-1, G_1_Skin_e)),
-    incr_edge_G_1_re : -calcInnerProdList(surfVars, nuVtSq_e, subst(vx=1, basis_v), subst(vx=1, G_1_Skin_e)),
+    incr_diff_G_1_le : fullratsimp(calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, bP), Gdiff_G_1_l_e)
+                              -calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, basis_v), Gdiff2_G_1_l_e)),
+    incr_diff_G_1_re : fullratsimp(calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, bP), Gdiff_G_1_r_e)
+                              -calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, basis_v), Gdiff2_G_1_r_e)),
+    incr_edge_G_1_le : -calcInnerProdList(surfVars, -nuVtSqSum_e, subst(vx=-1, basis_v), subst(vx=-1, G_1_Skin_e)),
+    incr_edge_G_1_re : -calcInnerProdList(surfVars, nuVtSqSum_e, subst(vx=1, basis_v), subst(vx=1, G_1_Skin_e)),
 
     printf(fh, "  double diff_G_1_incr[~a] = {0.0}; ~%", NP),
     printf(fh, "  double edge_G_1_incr[~a] = {0.0}; ~%", NP),

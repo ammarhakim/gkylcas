@@ -12,13 +12,11 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,
+  [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,
    polyOrder,bN,numB,vars,nodes,numNodes,phi_c,phi_e,lhs_c,insertVal,dir,
    dirichletBoundaryNodes,dirichletBoundaryNodesI,k,vals_k,triplesStr,m,val],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
@@ -31,7 +29,9 @@ generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
   /* Only need stencils that include all the nodes in the perp directions.
      This is effectively upper x,y-boundary stencils, so remove all stencil
      locations not on the upper x,y-boundaries. */
-  if dim=3 then (
+  if dim=2 then (
+    stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1))
+  ) else if dim=3 then (
     stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1 and x[2]=1))
   ),
 
@@ -113,13 +113,11 @@ generate_fem_parproj_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
 )$
 
 generate_fem_parproj_weighted_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,polyOrder,
+  [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,stencilStr,polyOrder,
    bN,numB,vars,nodes,numNodes,phi_c,phi_e,mod2nod,wgt_cm,wgt_cn,wgt_c,wgt_e,lhs_c,insertVal,
    dir,dirichletBoundaryNodes,dirichletBoundaryNodesI,k,vals_k,triplesStr,m,val],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
   coordVarS : getCoordVarS(varsC),
@@ -132,7 +130,9 @@ generate_fem_parproj_weighted_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax)
   /* Only need stencils that include all the nodes in the perp directions.
      This is effectively upper x,y-boundary stencils, so remove all stencil
      locations not on the upper x,y-boundaries. */
-  if dim=3 then (
+  if dim=2 then (
+    stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1))
+  ) else if dim=3 then (
     stencilLoc : sublist(stencilLoc, lambda([x], x[1]=1 and x[2]=1))
   ),
 

@@ -1,3 +1,13 @@
+/* A tool to verify the recovery methods */
+/* Since the recovery is quite important to many aspects of the code, this
+should be tested every time a change is made */
+/* One can run tis directly form command line:
+To create the current results:
+  maxima -r 'load("recovery-unit");testRecov("create");quit();'
+and to test:
+  maxima -r 'load("recovery-unit");testRecov("check");values;quit();'
+*/
+
 load("recovery") $
 
 testRecov(mode) := block(
@@ -39,7 +49,7 @@ testRecov(mode) := block(
     [["Face 3D p1 C1 yx", calcRecovFaceGen("Ser", [y,x], [x,y,z], 0, 0, 1, 1, dg(dg(qBL),dg(qTL)), dg(dg(qBC),dg(qTC)), dg(dg(qBR),dg(qTR)))]],
     [["Face 3D p1 C1 xy", calcRecovFaceGen("Ser", [x,y], [x,y,z], 0, 0, 1, 1, dg(dg(qBL),dg(qTL)), dg(dg(qBC),dg(qTC)), dg(dg(qBR),dg(qTR)))]]
   ),
-  
+
   if mode="create" then (
     fh : openw(fn),
     for i : 1 thru length(tests) do (
