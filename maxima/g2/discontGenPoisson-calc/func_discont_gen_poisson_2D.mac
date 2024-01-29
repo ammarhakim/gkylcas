@@ -1,0 +1,438 @@
+/* Generate Lua code that fills the left-side matrix entries
+   corresponding to the discretization of the generalized Poisson equation
+      nabla_i D^ij nabla_j phi  = - rho
+   with recovery DG in the 2D interior cells. */
+
+load("recovery")$
+load("stringproc")$
+load("modal-basis")$
+
+stencil(basis, polyOrder, fileName, useRec6, useRecVol, isTopBC, isBottomBC, isLeftBC, isRightBC, C) := block(
+  [fh,
+  dirs, Jxx, Jyy, Jxy,
+  ba, baSurfX, baSurfY, numBasis, numSurfBasis],
+
+  dirs : [x, y],
+  Jxx : 4/dx[1]^2,
+  Jyy : 4/dx[2]^2,
+  Jxy : 4/dx[1]/dx[2],
+
+  fh : openw(fileName),
+  printf(fh, "local Lin = require \"Lib.Linalg\"~%"),
+  printf(fh, "local function stencilFn(dx,~%"),
+  printf(fh, "                         DxxC, DyyC, DxyC,~%"),
+  printf(fh, "                         DxxL, DyyL, DxyL,~%"),
+  printf(fh, "                         DxxR, DyyR, DxyR,~%"),
+  printf(fh, "                         DxxB, DyyB, DxyB,~%"),
+  printf(fh, "                         DxxT, DyyT, DxyT,~%"),
+  printf(fh, "                         bcDx, bcNx, bcValx,~%"),
+  printf(fh, "                         bcDy, bcNy, bcValy)~%"),
+  printf(fh, "  local _M = {}~%~%"),
+
+  load(sconcat("basis-precalc/basis", basis, "2x")),
+  ba : basisC[polyOrder],
+  numBasis : length(ba),
+
+  load(sconcat("basis-precalc/basis", basis, "1x")),
+  baSurfX : basisC[polyOrder],
+  baSurfY : subst(x=y, baSurfX),
+  numSurfBasis : length(baSurfX),
+
+  /* Volume ----------------------------------------------------- */
+  if useRecVol then (
+    repfx : if isRightBC then
+              calcRecov1CellGen(basis, x, dirs, polyOrder, C,
+                dg(fL),
+                dg(fC),
+                bc(D=bcDx, N=bcNx, val=bcValx))
+            elseif isLeftBC then
+              calcRecov1CellGen(basis, x, dirs, polyOrder, C,
+                bc(D=bcDx, N=bcNx, val=bcValx),
+                dg(fC),
+                dg(fR))
+            else
+              calcRecov1CellGen(basis, x, dirs, polyOrder, C,
+                dg(fL),
+                dg(fC),
+                dg(fR)),
+
+    repfy : if isTopBC then
+              calcRecov1CellGen(basis, y, dirs, polyOrder, C,
+                dg(fB),
+                dg(fC),
+                bc(D=bcDy, N=bcNy, val=bcValy))
+            elseif isBottomBC then
+              calcRecov1CellGen(basis, y, dirs, polyOrder, C,
+                bc(D=bcDy, N=bcNy, val=bcValy),
+                dg(fC),
+                dg(fT))
+            else
+              calcRecov1CellGen(basis, y, dirs, polyOrder, C,
+                dg(fB),
+                dg(fC),
+                dg(fT))
+  ) else (
+    repfx : doExpand(fC, ba),
+    repfy : repfx
+  ),
+
+  vol : calcInnerProdList(dirs, Jxx, diff(ba, x),
+          doExpand(DxxC, ba) * diff(repfx, x)) +
+        calcInnerProdList(dirs, Jxy, diff(ba, x),
+          doExpand(DxyC, ba) * diff(repfy, y)) +
+        calcInnerProdList(dirs, Jxy, diff(ba, y),
+          doExpand(DxyC, ba) * diff(repfx, x)) +
+        calcInnerProdList(dirs, Jyy, diff(ba, y),
+          doExpand(DyyC, ba) * diff(repfy, y)),
+
+  kill(repfx, repfy),
+
+
+
+  /* Project and write out recovered Ds ------------------------- */
+  /* Dyy Top */
+  recD : calcRecov2CellGen(basis, y, dirs, polyOrder,
+    dg(DyyC),
+    dg(DyyT)),
+  projD : calcInnerProdList([x], 1, baSurfX, subst(y=0, recD)),
+  printf(fh, "  local surfDyyT = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDyyT[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  /* Dyy Bottom */
+  recD : calcRecov2CellGen(basis, y, dirs, polyOrder,
+    dg(DyyB),
+    dg(DyyC)),
+  projD : calcInnerProdList([x], 1, baSurfX, subst(y=0, recD)),
+  printf(fh, "  local surfDyyB = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDyyB[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+
+  /* Dxx Left */
+  recD : calcRecov2CellGen(basis, x, dirs, polyOrder,
+    dg(DxxL),
+    dg(DxxC)),
+  projD : calcInnerProdList([y], 1, baSurfY, subst(x=0, recD)),
+  printf(fh, "  local surfDxxL = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxxL[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  /* Dxx Right */
+  recD : calcRecov2CellGen(basis, x, dirs, polyOrder,
+    dg(DxxC),
+    dg(DxxR)),
+  projD : calcInnerProdList([y], 1, baSurfY, subst(x=0, recD)),
+  printf(fh, "  local surfDxxR = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxxR[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+
+  /* Dxy Top */
+  recD : calcRecov2CellGen(basis, y, dirs, polyOrder,
+    dg(DxyC),
+    dg(DxyT)),
+  projD : calcInnerProdList([x], 1, baSurfX, subst(y=0, recD)),
+  printf(fh, "  local surfDxyT = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxyT[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  /* Dxy Bottom */
+  recD : calcRecov2CellGen(basis, y, dirs, polyOrder,
+    dg(DxyB),
+    dg(DxyC)),
+  projD : calcInnerProdList([x], 1, baSurfX, subst(y=0, recD)),
+  printf(fh, "  local surfDxyB = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxyB[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  /* Dxy Left */
+  recD : calcRecov2CellGen(basis, x, dirs, polyOrder,
+    dg(DxyL),
+    dg(DxyC)),
+  projD : calcInnerProdList([y], 1, baSurfY, subst(x=0, recD)),
+  printf(fh, "  local surfDxyL = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxyL[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  /* Dxy Right */
+  recD : calcRecov2CellGen(basis, x, dirs, polyOrder,
+    dg(DxyC),
+    dg(DxyR)),
+  projD : calcInnerProdList([y], 1, baSurfY, subst(x=0, recD)),
+  printf(fh, "  surfDxyR = {}~%"),
+  for i : 1 thru numSurfBasis do
+    printf(fh, "  surfDxyR[~a] = ~a~%", i, float(expand(projD[i]))),
+  printf(fh, "~%"),
+
+  kill(recD, projD),
+
+
+
+  /* Top -------------------------------------------------------- */
+  if isTopBC then (
+    recf2 : calcRecov2CellGen(basis, y, dirs, polyOrder,
+      dg(fB),
+      dg(fC, bc(D=bcDy, N=bcNy, val=bcValy))),
+    if useRec6 then (
+      recf6 : if isRightBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 2, polyOrder, C,
+                  dg(dg(fBL), dg(fL, bc(D=bcDy, N=bcNy, val=bcValy))),
+                  dg(dg(fB), dg(fC, bc(D=bcDy, N=bcNy, val=bcValy))),
+                  bc(D=bcDx, N=bcNx, val=bcValx))
+              elseif isLeftBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 2, polyOrder, C,
+                  bc(D=bcDx, N=bcNx, val=bcValx),
+                  dg(dg(fB), dg(fC, bc(D=bcDy, N=bcNy, val=bcValy))),
+                  dg(dg(fBR), dg(fR, bc(D=bcDy, N=bcNy, val=bcValy))))
+              else
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 2, polyOrder, C,
+                  dg(dg(fBL), dg(fL, bc(D=bcDy, N=bcNy, val=bcValy))),
+                  dg(dg(fB), dg(fC, bc(D=bcDy, N=bcNy, val=bcValy))),
+                  dg(dg(fBR), dg(fR, bc(D=bcDy, N=bcNy, val=bcValy)))),
+      faceT : doExpand(surfDyyT, baSurfX) * subst(y=2, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyT, baSurfX) * diff(recf6, x) * Jxy
+    ) else (
+      faceT : doExpand(surfDyyT, baSurfX) * subst(y=2, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyT, baSurfX) * subst(y=2, diff(recf2, x)) * Jxy
+    )
+  ) else (
+    recf2 : calcRecov2CellGen(basis, y, dirs, polyOrder,
+      dg(fC),
+      dg(fT)),
+    if useRec6 then (
+      recf6 : if isRightBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fL), dg(fTL)),
+                  dg(dg(fC), dg(fT)),
+                  bc(D=bcDx, N=bcNx, val=bcValx))
+              elseif isLeftBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  bc(D=bcDx, N=bcNx, val=bcValx),
+                  dg(dg(fC), dg(fT)),
+                  dg(dg(fR), dg(fTR)))
+              else
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fL), dg(fTL)),
+                  dg(dg(fC), dg(fT)),
+                  dg(dg(fR), dg(fTR))),
+      faceT : doExpand(surfDyyT, baSurfX) * subst(y=0, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyT, baSurfX) * diff(recf6, x) * Jxy
+    ) else (
+      faceT : doExpand(surfDyyT, baSurfX) * subst(y=0, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyT, baSurfX) * subst(y=0, diff(recf2, x)) * Jxy
+    )
+  ),
+  surfT : calcInnerProdList([x], 1, subst(y=1, ba), faceT),
+  kill(recf2, recf6, faceT),
+
+
+  /* Bottom ----------------------------------------------------- */
+  if isBottomBC then (
+    recf2 : calcRecov2CellGen(basis, y, dirs, polyOrder,
+      dg(fC, bc(D=bcDy, N=bcNy, val=bcValy)),
+      dg(fT)),
+    if useRec6 then (
+      recf6 : if isRightBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, -2, polyOrder, C,
+                  dg(dg(fL, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fTL)),
+                  dg(dg(fC, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fT)),
+                  bc(D=bcDx, N=bcNx, val=bcValx))
+              elseif isLeftBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, -2, polyOrder, C,
+                  bc(D=bcDx, N=bcNx, val=bcValx),
+                  dg(dg(fC, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fT)),
+                  dg(dg(fR, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fTR)))
+              else
+                calcRecovFaceGen(basis, [y,x], dirs, 0, -2, polyOrder, C,
+                  dg(dg(fL, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fTL)),
+                  dg(dg(fC, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fT)),
+                  dg(dg(fR, bc(D=bcDy, N=bcNy, val=bcValy)), dg(fTR))),
+      faceB : doExpand(surfDyyB, baSurfX) * subst(y=-2, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyB, baSurfX) * diff(recf6, x) * Jxy
+    ) else
+      faceB : doExpand(surfDyyB, baSurfX) * subst(y=-2, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyB, baSurfX) * subst(y=-2, diff(recf2, x)) * Jxy
+  ) else (
+    recf2 : calcRecov2CellGen(basis, y, dirs, polyOrder,
+      dg(fB),
+      dg(fC)),
+    if useRec6 then (
+      recf6 : if isRightBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fBL), dg(fL)),
+                  dg(dg(fB), dg(fC)),
+                  bc(D=bcDx, N=bcNx, val=bcValx))
+              elseif isLeftBC then
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  bc(D=bcDx, N=bcNx, val=bcValx),
+                  dg(dg(fB), dg(fC)),
+                  dg(dg(fBR), dg(fR)))
+              else
+                calcRecovFaceGen(basis, [y,x], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fBL), dg(fL)),
+                  dg(dg(fB), dg(fC)),
+                  dg(dg(fBR), dg(fR))),
+      faceB : doExpand(surfDyyB, baSurfX) * subst(y=0, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyB, baSurfX) * diff(recf6, x) * Jxy
+    ) else
+      faceB : doExpand(surfDyyB, baSurfX) * subst(y=0, diff(recf2, y)) * Jyy +
+              doExpand(surfDxyB, baSurfX) * subst(y=0, diff(recf2, x)) * Jxy
+  ),
+  surfB : calcInnerProdList([x], 1, subst(y=-1, ba), faceB),
+  kill(recf2, recf6, faceB),
+
+
+  /* Left ------------------------------------------------------- */
+  if isLeftBC then (
+    recf2 : calcRecov2CellGen(basis, x, dirs, polyOrder,
+      dg(fC, bc(D=bcDx, N=bcNx, val=bcValx)),
+      dg(fR)),
+    if useRec6 then (
+      recf6 : if isTopBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, -2, polyOrder, C,
+                  dg(dg(fB, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fBR)),
+                  dg(dg(fC, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fR)),
+                  bc(D=bcDy, N=bcNy, val=bcValy))
+              elseif isBottomBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, -2, polyOrder, C,
+                  bc(D=bcDy, N=bcNy, val=bcValy),
+                  dg(dg(fC, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fR)),
+                  dg(dg(fT, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fTR)))
+              else
+                calcRecovFaceGen(basis, [x,y], dirs, 0, -2, polyOrder, C,
+                  dg(dg(fB, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fBR)),
+                  dg(dg(fC, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fR)),
+                  dg(dg(fT, bc(D=bcDx, N=bcNx, val=bcValx)), dg(fTR))),
+      faceL : doExpand(surfDxxL, baSurfY) * subst(x=-2, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyL, baSurfY) * diff(recf6, y) * Jxy
+    ) else
+      faceL : doExpand(surfDxxL, baSurfY) * subst(x=-2, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyL, baSurfY) * subst(x=-2, diff(recf2, y)) * Jxy
+  ) else (
+    recf2 : calcRecov2CellGen(basis, x, dirs, polyOrder,
+      dg(fL),
+      dg(fC)),
+    if useRec6 then (
+      recf6 : if isTopBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fBL), dg(fB)),
+                  dg(dg(fL), dg(fC)),
+                  bc(D=bcDy, N=bcNy, val=bcValy))
+              elseif isBottomBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  bc(D=bcDy, N=bcNy, val=bcValy),
+                  dg(dg(fL), dg(fC)),
+                  dg(dg(fTL), dg(fT)))
+              else
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fBL), dg(fB)),
+                  dg(dg(fL), dg(fC)),
+                  dg(dg(fTL), dg(fT))),
+      faceL : doExpand(surfDxxL, baSurfY) * subst(x=0, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyL, baSurfY) * diff(recf6, y) * Jxy
+    ) else
+      faceL : doExpand(surfDxxL, baSurfY) * subst(x=0, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyL, baSurfY) * subst(x=0, diff(recf2, y)) * Jxy
+  ),
+  surfL : calcInnerProdList([y], 1, subst(x=-1, ba), faceL),
+  kill(recf2, recf6, faceL),
+
+
+  /* Right ------------------------------------------------------ */
+  if isRightBC then (
+    recf2 : calcRecov2CellGen(basis, x, dirs, polyOrder,
+      dg(fL),
+      dg(fC, bc(D=bcDx, N=bcNx, val=bcValx))),
+    if useRec6 then (
+      recf6 : if isTopBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 2, polyOrder, C,
+                  dg(dg(fBL), dg(fB, bc(D=bcDx, N=bcNx, val=bcValx))),
+                  dg(dg(fL), dg(fC, bc(D=bcDx, N=bcNx, val=bcValx))),
+                  bc(D=bcDy, N=bcNy, val=bcValy))
+              elseif isBottomBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 2, polyOrder, C,
+                  bc(D=bcDy, N=bcNy, val=bcValy),
+                  dg(dg(fL), dg(fC, bc(D=bcDx, N=bcNx, val=bcValx))),
+                  dg(dg(fTL), dg(fT, bc(D=bcDx, N=bcNx, val=bcValx))))
+              else
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 2, polyOrder, C,
+                  dg(dg(fBL), dg(fB, bc(D=bcDx, N=bcNx, val=bcValx))),
+                  dg(dg(fL), dg(fC, bc(D=bcDx, N=bcNx, val=bcValx))),
+                  dg(dg(fTL), dg(fT, bc(D=bcDx, N=bcNx, val=bcValx)))),
+      faceR : doExpand(surfDxyR, baSurfY) * subst(x=2, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyR, baSurfY) * diff(recf6, y) * Jxy
+    ) else
+      faceR : doExpand(surfDxxR, baSurfY) * subst(x=2, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyR, baSurfY) * subst(x=2, diff(recf2, y)) * Jxy
+  ) else (
+    recf2 : calcRecov2CellGen(basis, x, dirs, polyOrder,
+      dg(fC),
+      dg(fR)),
+    if useRec6 then (
+      recf6 : if isTopBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fB), dg(fBR)),
+                  dg(dg(fC), dg(fR)),
+                  bc(D=bcDy, N=bcNy, val=bcValy))
+              elseif isBottomBC then
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  bc(D=bcDy, N=bcNy, val=bcValy),
+                  dg(dg(fC), dg(fR)),
+                  dg(dg(fT), dg(fTR)))
+              else
+                calcRecovFaceGen(basis, [x,y], dirs, 0, 0, polyOrder, C,
+                  dg(dg(fB), dg(fBR)),
+                  dg(dg(fC), dg(fR)),
+                  dg(dg(fT), dg(fTR))),
+      faceR : doExpand(surfDxxR, baSurfY) * subst(x=0, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyR, baSurfY) * diff(recf6, y)*Jxy
+    ) else
+      faceR : doExpand(surfDxxR, baSurfY) * subst(x=0, diff(recf2, x)) * Jxx +
+              doExpand(surfDxyR, baSurfY) * subst(x=0, diff(recf2, y)) * Jxy
+  ),
+  surfR : calcInnerProdList([y], 1, subst(x=1, ba), faceR),
+  kill(recf2, recf6, faceR),
+
+
+  /* Assembly --------------------------------------------------- */
+  /* st : expand(surfT - surfB + surfR - surfL - vol), */
+  /* I'm not sure the 'expand' here is needed and it significantly
+  increases the execution time for higher polynomial cases --Petr */
+  st : surfT - surfB + surfR - surfL - vol,
+  kill(surfT, surfB, surfR, surfL, vol),
+  stCheck : transpose(makelist(0, i, 1, numBasis)), /* Cross-check */
+
+  fList : [fBL, fL, fTL, fB, fC, fT, fBR, fR, fTR],
+  for m : 1 thru 9 do (
+    cMat : coefmatrix(st, makelist(fList[m][i], i, 1, numBasis)),
+    stCheck : stCheck + cMat. transpose(makelist(fList[m][i], i, 1, numBasis)),
+    printf(fh, "  _M[~a] = Lin.Mat(~a,~a)~%", m, numBasis, numBasis),
+    for i : 1 thru numBasis do (
+      for j : 1 thru numBasis do (
+        printf(fh, "  _M[~a][~a][~a] = ~a~%", m, i, j, float(expand(cMat[i][j])))
+      )
+    )
+  ),
+  cMatx : coefmatrix(st, [bcValx]),
+  cMaty : coefmatrix(st, [bcValy]),
+  /* Santity check: should be all zeros */
+  isZero : makelist(expand(st[i]-stCheck[i][1]-cMatx[i][1]*bcValx-cMaty[i][1]*bcValy),i,1,numBasis),
+  printf(fh, "  _M[10] = Lin.Vec(~a)~%", numBasis),
+  for i : 1 thru numBasis do (
+    printf(fh, "  _M[10][~a] = ~a + ~a~%", i,
+           bcValx*float(expand(cMatx[i][1])), bcValy*float(expand(cMaty[i][1])))
+  ),
+
+  printf(fh, "  return(_M)~%"),
+  printf(fh, "end~%~%"),
+  printf(fh, "return(stencilFn)"),
+  close(fh)
+) $

@@ -1,0 +1,59 @@
+kill(all) $
+load("/home/cagas65/gkeyll/gkylcas/maxima/g2/discontGenPoisson-calc/func_discont_gen_poisson_2D");
+
+
+C : 0 $
+basisLst : ["Ser", "Tensor"] $
+
+for xi : -1 thru 1 do (
+  for yi : -1 thru 1 do (
+    isTopBC : false,
+    isBottomBC : false,
+    isLeftBC : false,
+    isRightBC : false,
+    if xi = -1 then
+      isBottomBC : true
+    elseif xi = 1 then
+      isTopBC : true,
+    if yi = -1 then
+      isLeftBC : true
+    elseif yi = 1 then
+      isRightBC : true,
+
+    for polyOrder : 1 thru 2 do (
+      for bIdx : 1 thru min(length(basisLst),polyOrder) do (
+        basis : basisLst[bIdx],
+
+        for iRec6 : 0 thru 1 do (
+          for iRecVol : 0 thru 1 do (
+            useRec6 : if iRec6 = 0 then false else true,
+            useRecVol : if iRecVol = 0 then false else true,
+
+            if useRec6 then (
+              if useRecVol then
+                schemeNm : "II6"
+              else
+                schemeNm : "I6"
+            ) else (
+              if useRecVol then
+                schemeNm : "II2"
+              else
+                schemeNm : "I2"
+            ),
+
+            fileName : sconcat("~/max-out/dg_gen_poisson_",
+              schemeNm, "_",
+              sdowncase(basis), "_2x",
+              if isTopBC then "_T" else "",
+              if isBottomBC then "_B" else "",
+              if isRightBC then "_R" else "",
+              if isLeftBC then "_L" else "",
+              "_p", polyOrder, ".lua"),
+
+            stencil(basis, polyOrder, fileName, useRec6, useRecVol, isTopBC, isBottomBC, isLeftBC, isRightBC, C)
+          )
+        )
+      )
+    )
+  )
+)
