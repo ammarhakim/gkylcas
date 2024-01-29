@@ -65,7 +65,7 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   incr_mu : calcInnerProdList(varsP, 1, diff(bP,varsVAll[2]),nvsqnu_f_e),
 
   clst : [rdv2[0],rdv2[1]],
-  writeCIncrExprsCollect1(out, rdv2[0]*incr_vpar + rdv2[1]*incr_mu, clst),
+  writeCIncrExprsCollect1(out, -rdv2[0]*incr_vpar-rdv2[1]*incr_mu, clst),
 
   flush_output(fh),
   printf(fh, "~%"),
