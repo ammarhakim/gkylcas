@@ -15,20 +15,28 @@ genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffO
   [vars, basis] : loadBasis(basisType, cdim, polyOrder),
   numB : length(basis),
 
+  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basis),
+
   if constCoeff then (
-    coeffType : "const",
-    coeffAv   : coeff[dir-1]
+    coeffType      : "const",
+    jacobgeo_invAv : fullratsimp(innerProd(vars,1,1,jacobgeo_inv_e)/innerProd(vars,1,1,1)),
+    coeffAv        : coeff[dir-1]/(jacobgeo_invAv)
   ) else (
     coeffType : "var",
     coeff_c   : makelist(coeff[(dir-1)*numB+i-1],i,1,numB),
     coeff_e   : doExpand(coeff_c,basis),
+
+    coeff_c   : calcInnerProdList(vars, jacobgeo_inv_e, basis, coeff_e),
+    coeff_e   : doExpand(coeff_c,basis),
+
     coeffAv   : fullratsimp(innerProd(vars,1,1,coeff_e)/innerProd(vars,1,1,1))
   ),
   
-  printf(fh, "GKYL_CU_DH double ~a_~acoeff_diff~a(const double *w, const double *dx, const double *coeff, const double *q, double* GKYL_RESTRICT out) ~%{~%", funcNm, coeffType, vars[dir]),
+  printf(fh, "GKYL_CU_DH double ~a_~acoeff_diff~a(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{~%", funcNm, coeffType, vars[dir]),
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dx[NDIM]: Cell spacing~%"),
   printf(fh, "  // coeff: Diffusion coefficient vector~%"),
+  printf(fh, "  // jacobgeo_inv: one divided by the configuration space Jacobian.~%"),
   printf(fh, "  // q: Input field~%"),
   printf(fh, "  // out: Incremented output~%~%"),
 
@@ -84,7 +92,7 @@ genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, basisType, polyOrder, diffOrder)
       diffDirsStr :"",
       for dI in diffDirInP do (diffDirsStr : sconcat(diffDirsStr,string(vars[dI]))),
   
-      printf(fh, "GKYL_CU_DH double ~a_~acoeff_diffdirs~a(const double *w, const double *dx, const double *coeff, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, coeffType, diffDirsStr),
+      printf(fh, "GKYL_CU_DH double ~a_~acoeff_diffdirs~a(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, coeffType, diffDirsStr),
   
       printf(fh, "  double cflFreq = 0.;~%"),
       printf(fh, "  ~%"),

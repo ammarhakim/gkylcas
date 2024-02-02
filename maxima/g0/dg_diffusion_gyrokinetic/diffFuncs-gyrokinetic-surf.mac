@@ -21,10 +21,48 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
     if polyOrder=1 then bType : "gkhyb",  /* Force p=1 to mean hybrid. */
     numBasis : length(basis),
   
+    printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
+    printf(fh, "{~%"),
+    printf(fh, "  // w[NDIM]: Cell-center coordinate.~%"),
+    printf(fh, "  // dxv[NDIM]: Cell length.~%"),
+    printf(fh, "  // coeff: Diffusion coefficient.~%"),
+    printf(fh, "  // jacobgeo_inv: one divided by the configuration space Jacobian.~%"),
+    printf(fh, "  // ql: Input field in the left cell.~%"),
+    printf(fh, "  // qc: Input field in the center cell.~%"),
+    printf(fh, "  // qr: Input field in the right cell.~%"),
+    printf(fh, "  // out: Incremented output.~%~%"),
+
+    printf(fh, "  const double rdx2Sq = pow(2./dx[~a],~a.);~%", dir-1, diffOrder),
+    printf(fh, "~%"),
+
     ql_c : makelist(ql[i-1], i, 1, numBasis),
     qc_c : makelist(qc[i-1], i, 1, numBasis),
     qr_c : makelist(qr[i-1], i, 1, numBasis),
+    ql_e : doExpand(ql_c, basis),
+    qc_e : doExpand(qc_c, basis),
+    qr_e : doExpand(qr_c, basis),
+
+    jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
   
+    /* Divide jacobGeo*f by jacobGeo. */
+    fl_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, ql_e),
+    fc_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qc_e),
+    fr_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qr_e),
+
+    /* Divide jacobGeo*f by jacobGeo. */
+    printf(fh, "  double fl[~a];~%", numBasis),
+    writeCExprsNoExpand1(fl, fl_c),
+    fl_c : makelist(fl[i-1], i, 1, numBasis),
+    printf(fh, "~%"),
+    printf(fh, "  double fc[~a];~%", numBasis),
+    writeCExprsNoExpand1(fc, fc_c),
+    fc_c : makelist(fc[i-1], i, 1, numBasis),
+    printf(fh, "~%"),
+    printf(fh, "  double fr[~a];~%", numBasis),
+    writeCExprsNoExpand1(fr, fr_c),
+    fr_c : makelist(fr[i-1], i, 1, numBasis),
+    printf(fh, "~%"),
+
     if constCoeff then (
       coeffType : "const",
       coeff_e : coeff[dir-1]
@@ -38,7 +76,7 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
       coeff_e : doExpand(coeff_c, basisC)
     ),
   
-    qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(ql_c), dg(qc_c), dg(qr_c)),
+    qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(fl_c), dg(fc_c), dg(fr_c)),
   
     /* For higher order diffusion and spatially varying diffusion coefficient, it
        is not clear where the coefficient should appear, e.g. d_xxx( D d_x(f) )
@@ -47,19 +85,7 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
     kernel : calcInnerProdList(vars, 1, basis,
       ((-1)^(diffOrder/2+1))*diff(coeff_e*diff(qRec, vars[dir], diffOrder/2), vars[dir], diffOrder/2)),
     
-    printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
-    printf(fh, "{~%"),
-    printf(fh, "  // w[NDIM]: Cell-center coordinate.~%"),
-    printf(fh, "  // dxv[NDIM]: Cell length.~%"),
-    printf(fh, "  // coeff: Diffusion coefficient.~%"),
-    printf(fh, "  // ql: Input field in the left cell.~%"),
-    printf(fh, "  // qc: Input field in the center cell.~%"),
-    printf(fh, "  // qr: Input field in the right cell.~%"),
-    printf(fh, "  // out: Incremented output.~%~%"),
-
-    printf(fh, "  const double Jfac = pow(2./dx[~a],~a.);~%~%", dir-1, diffOrder),
-  
-    writeCIncrExprsNoExpand(fullratsimp(Jfac*kernel)),
+    writeCIncrExprsNoExpand(fullratsimp(rdx2Sq*kernel)),
     printf(fh, "~%"),
   
     printf(fh, "  return 0.;~%~%"),
