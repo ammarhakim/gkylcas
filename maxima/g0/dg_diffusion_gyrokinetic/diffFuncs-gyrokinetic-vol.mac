@@ -32,7 +32,7 @@ genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffO
     coeffAv   : fullratsimp(innerProd(vars,1,1,coeff_e)/innerProd(vars,1,1,1))
   ),
   
-  printf(fh, "GKYL_CU_DH double ~a_~acoeff_diff~a(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{~%", funcNm, coeffType, vars[dir]),
+  printf(fh, "GKYL_CU_DH double ~a_~acoeff_diff~a(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{~%", funcNm, coeffType, vars[dir]),
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dx[NDIM]: Cell spacing~%"),
   printf(fh, "  // coeff: Diffusion coefficient vector~%"),
@@ -92,14 +92,14 @@ genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, basisType, polyOrder, diffOrder)
       diffDirsStr :"",
       for dI in diffDirInP do (diffDirsStr : sconcat(diffDirsStr,string(vars[dI]))),
   
-      printf(fh, "GKYL_CU_DH double ~a_~acoeff_diffdirs~a(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, coeffType, diffDirsStr),
+      printf(fh, "GKYL_CU_DH double ~a_~acoeff_diffdirs~a(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, coeffType, diffDirsStr),
   
       printf(fh, "  double cflFreq = 0.;~%"),
       printf(fh, "  ~%"),
   
       /* Add contribution from diffusion in each direction. */
       for dI in diffDirInP do (
-        printf(fh, "  cflFreq += ~a_~acoeff_diff~a(w, dx, coeff, q, out);~%", funcNm, coeffType, vars[dI])
+        printf(fh, "  cflFreq += ~a_~acoeff_diff~a(w, dx, coeff, jacobgeo_inv, q, out);~%", funcNm, coeffType, vars[dI])
       ),
       printf(fh, "~%"),
   

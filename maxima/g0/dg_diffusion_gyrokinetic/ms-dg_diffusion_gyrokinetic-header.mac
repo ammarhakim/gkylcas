@@ -64,7 +64,7 @@ for bInd : 1 thru length(bName) do (
             for dI in diffDirInP do (diffDirsStr : sconcat(diffDirsStr,string(vars[dI]))),
 
             funcName : sconcat("dg_diffusion_gyrokinetic_order",dO,"_vol_", cdim, "x_", bName[bInd], "_p", polyOrder, "_", cT, "_diffdirs", diffDirsStr),
-            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out);~%"),
+            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out);~%"),
             printf(fh, funcSign)
           )
         )

@@ -4,7 +4,8 @@ load("out-scripts")$
 fpprec : 24$
 
 genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir, diffOrder) := block(
-  [constCoeff,dim,vars,basis,varsC,basisC,vSub,numBasis,ql_c,qc_c,qr_c,coeffType,coeff_e,coeff_c,qRec,kernel,i],
+  [constCoeff,dim,vars,basis,varsC,basisC,vSub,numBasis,ql_c,qc_c,qr_c,ql_e,qc_e,qr_e,
+   jacobgeo_inv_e,fl_c,fc_c,fr_c,fl_e,fc_e,fr_e,coeffType,coeff_e,coeff_c,qRec,kernel,i],
 
   printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_kernels.h>~%~%"),
 
@@ -21,7 +22,20 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
     if polyOrder=1 then bType : "gkhyb",  /* Force p=1 to mean hybrid. */
     numBasis : length(basis),
   
-    printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, cont double *jacobgeo_inv, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
+    if constCoeff then (
+      coeffType : "const",
+      coeff_e : coeff[dir-1]
+    ) else (
+      coeffType : "var",
+      /* Here we assume diffusion coefficient only depends on position space,
+         but it coule be easily changed to vary with velocity space too. */
+      if vdim=0 then basisC : basis,
+      numBasisC : length(basisC),
+      coeff_c : makelist(coeff[(dir-1)*numBasisC+i-1],i,1,numBasisC),
+      coeff_e : doExpand(coeff_c, basisC)
+    ),
+  
+    printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
     printf(fh, "{~%"),
     printf(fh, "  // w[NDIM]: Cell-center coordinate.~%"),
     printf(fh, "  // dxv[NDIM]: Cell length.~%"),
@@ -54,28 +68,20 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
     writeCExprsNoExpand1(fl, fl_c),
     fl_c : makelist(fl[i-1], i, 1, numBasis),
     printf(fh, "~%"),
+    flush_output(fh),
+
     printf(fh, "  double fc[~a];~%", numBasis),
     writeCExprsNoExpand1(fc, fc_c),
     fc_c : makelist(fc[i-1], i, 1, numBasis),
     printf(fh, "~%"),
+    flush_output(fh),
+
     printf(fh, "  double fr[~a];~%", numBasis),
     writeCExprsNoExpand1(fr, fr_c),
     fr_c : makelist(fr[i-1], i, 1, numBasis),
     printf(fh, "~%"),
+    flush_output(fh),
 
-    if constCoeff then (
-      coeffType : "const",
-      coeff_e : coeff[dir-1]
-    ) else (
-      coeffType : "var",
-      /* Here we assume diffusion coefficient only depends on position space,
-         but it coule be easily changed to vary with velocity space too. */
-      if vdim=0 then basisC : basis,
-      numBasisC : length(basisC),
-      coeff_c : makelist(coeff[(dir-1)*numBasisC+i-1],i,1,numBasisC),
-      coeff_e : doExpand(coeff_c, basisC)
-    ),
-  
     qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(fl_c), dg(fc_c), dg(fr_c)),
   
     /* For higher order diffusion and spatially varying diffusion coefficient, it
