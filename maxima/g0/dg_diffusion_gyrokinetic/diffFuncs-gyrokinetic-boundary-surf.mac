@@ -10,8 +10,9 @@ fpprec : 24$
 
 genDGdiffGyrokineticKernelBoundarySurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir, diffOrder) := block(
   [constCoeff,dim,bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,
-   coeffType,coeff_e,coeff_c,vol_incr_c,fEdge_c,fSkin_c,fSkin_e,hOrder,bcRecCond,
-   i,fRecr_e,edgeSurf_incr_c,fRecl_e,boundSurf_incr_c,vol_out,diff_out,edge_out],
+   coeffType,coeff_e,coeff_c,vol_incr_c,qEdge_c,qSkin_c,qEdge_e,qSkin_2,jacobgeo_inv_e,
+   fEdge_c,fSkin_c,fEdge_e,fSkin_e,hOrder,bcRecCond,i,fRecr_e,edgeSurf_incr_c,fRecl_e,
+   boundSurf_incr_c,vol_out,diff_out,edge_out],
 
   printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_kernels.h>~%~%"),
 
@@ -60,23 +61,29 @@ genDGdiffGyrokineticKernelBoundarySurf(fh, funcNm, cdim, vdim, basisType, polyOr
     qEdge_e : doExpand(qEdge_c, basis),
     qSkin_e : doExpand(qSkin_c, basis),
 
-    jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
+    if constCoeff then (
+      fSkin_c : makelist(qSkin[i-1], i, 1, numBasis),
+      fEdge_c : makelist(qEdge[i-1], i, 1, numBasis)
+    ) else (
+      /* Divide jacobGeo*f by jacobGeo. */
+      jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
   
-    /* Divide jacobGeo*f by jacobGeo. */
-    fSkin_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qSkin_e),
-    fEdge_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qEdge_e),
+      fSkin_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qSkin_e),
+      fEdge_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qEdge_e),
 
-    /* Divide jacobGeo*f by jacobGeo. */
-    printf(fh, "  double fSkin[~a];~%", numBasis),
-    writeCExprsNoExpand1(fSkin, fSkin_c),
-    fSkin_c : makelist(fSkin[i-1], i, 1, numBasis),
+      /* Divide jacobGeo*f by jacobGeo. */
+      printf(fh, "  double fSkin[~a];~%", numBasis),
+      writeCExprsNoExpand1(fSkin, fSkin_c),
+      fSkin_c : makelist(fSkin[i-1], i, 1, numBasis),
+      printf(fh, "~%"),
+      printf(fh, "  double fEdge[~a];~%", numBasis),
+      writeCExprsNoExpand1(fEdge, fEdge_c),
+      fEdge_c : makelist(fEdge[i-1], i, 1, numBasis),
+      printf(fh, "~%")
+    ),
+
     fSkin_e : doExpand(fSkin_c, basis),
-    printf(fh, "~%"),
-    printf(fh, "  double fEdge[~a];~%", numBasis),
-    writeCExprsNoExpand1(fEdge, fEdge_c),
-    fEdge_c : makelist(fEdge[i-1], i, 1, numBasis),
     fEdge_e : doExpand(fEdge_c, basis),
-    printf(fh, "~%"),
 
     /* Volume increment (dimensional factor included later). */
     vol_incr_c : ((-1)^(diffOrder/2+1))*calcInnerProdList(vars, 1, diff(coeff_e*diff(basis,surfVar,diffOrder/2),surfVar,diffOrder/2), fSkin_e),

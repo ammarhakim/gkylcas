@@ -56,31 +56,37 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
     qc_e : doExpand(qc_c, basis),
     qr_e : doExpand(qr_c, basis),
 
-    jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
-  
-    /* Divide jacobGeo*f by jacobGeo. */
-    fl_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, ql_e),
-    fc_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qc_e),
-    fr_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qr_e),
+    if constCoeff then (
+      fl_c : makelist(ql[i-1], i, 1, numBasis),
+      fc_c : makelist(qc[i-1], i, 1, numBasis),
+      fr_c : makelist(qr[i-1], i, 1, numBasis)
+    ) else (
+      /* Divide jacobGeo*f by jacobGeo. */
+      jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
+    
+      fl_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, ql_e),
+      fc_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qc_e),
+      fr_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, qr_e),
 
-    /* Divide jacobGeo*f by jacobGeo. */
-    printf(fh, "  double fl[~a];~%", numBasis),
-    writeCExprsNoExpand1(fl, fl_c),
-    fl_c : makelist(fl[i-1], i, 1, numBasis),
-    printf(fh, "~%"),
-    flush_output(fh),
+      /* Divide jacobGeo*f by jacobGeo. */
+      printf(fh, "  double fl[~a];~%", numBasis),
+      writeCExprsNoExpand1(fl, fl_c),
+      fl_c : makelist(fl[i-1], i, 1, numBasis),
+      printf(fh, "~%"),
+      flush_output(fh),
 
-    printf(fh, "  double fc[~a];~%", numBasis),
-    writeCExprsNoExpand1(fc, fc_c),
-    fc_c : makelist(fc[i-1], i, 1, numBasis),
-    printf(fh, "~%"),
-    flush_output(fh),
+      printf(fh, "  double fc[~a];~%", numBasis),
+      writeCExprsNoExpand1(fc, fc_c),
+      fc_c : makelist(fc[i-1], i, 1, numBasis),
+      printf(fh, "~%"),
+      flush_output(fh),
 
-    printf(fh, "  double fr[~a];~%", numBasis),
-    writeCExprsNoExpand1(fr, fr_c),
-    fr_c : makelist(fr[i-1], i, 1, numBasis),
-    printf(fh, "~%"),
-    flush_output(fh),
+      printf(fh, "  double fr[~a];~%", numBasis),
+      writeCExprsNoExpand1(fr, fr_c),
+      fr_c : makelist(fr[i-1], i, 1, numBasis),
+      printf(fh, "~%"),
+      flush_output(fh)
+    ),
 
     qRec : calcRecov1CellGen(bType, vars[dir], vars, polyOrder, diffOrder-1, dg(fl_c), dg(fc_c), dg(fr_c)),
   

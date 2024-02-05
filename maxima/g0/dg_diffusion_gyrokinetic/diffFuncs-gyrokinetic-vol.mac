@@ -10,7 +10,7 @@ fpprec : 24$
    implied) for n=2,4,6. */
 
 genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
-  [vars,basis,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
+  [vars,basis,numB,jacobgeo_inv_e,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
 
   [vars, basis] : loadBasis(basisType, cdim, polyOrder),
   numB : length(basis),
@@ -18,9 +18,8 @@ genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffO
   jacobgeo_inv_e : doExpand1(jacobgeo_inv, basis),
 
   if constCoeff then (
-    coeffType      : "const",
-    jacobgeo_invAv : fullratsimp(innerProd(vars,1,1,jacobgeo_inv_e)/innerProd(vars,1,1,1)),
-    coeffAv        : coeff[dir-1]/(jacobgeo_invAv)
+    coeffType : "const",
+    coeffAv   : coeff[dir-1]
   ) else (
     coeffType : "var",
     coeff_c   : makelist(coeff[(dir-1)*numB+i-1],i,1,numB),
