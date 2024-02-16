@@ -511,6 +511,8 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "~%"),
     flush_output(fh),
 
+    close(fh),
+
     kill(Grecpv1_upper, Grecpv1_lower, Grecpv2_upper, Grecpv2_lower, surft1_upper_c, surft1_lower_c, surft2_upper_c, surft2_lower_c)
     )
 )$

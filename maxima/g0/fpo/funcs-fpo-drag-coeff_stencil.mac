@@ -92,7 +92,7 @@ generate_fpo_drag_coeff_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) :=
       stencilCells : [C, R],
 
       H_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
-        bcs([der=1, val=dHdv_surf_C_e]), dg(H_C_lst), dg(H_R_lst)),
+        bcs([der=1, val=dHdv_surf_C_e]), dg(H_C_lst), dg(H_R_lst))
     )
     elseif stencilLoc[sI] = [1] then (
       /*

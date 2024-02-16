@@ -1,9 +1,10 @@
-kill(all) $
-load("fpo/funcs-fpo-vlasov-drag-vol") $
-load(stringproc)$
+/*
+  Generate kernels for the updates from the volume term
+  contributions from the drag portion of the 
+  Rosenbluth/Fokker-Planck Operator
+*/
 
-/* This script calls the functions which calculate the
-   updates from the drag portion of the volume contributions. */
+load("fpo/funcs-fpo-vlasov-drag-vol")$
 
 /* ...... USER INPUTS........ */
 
@@ -16,39 +17,31 @@ maxCdim_Ser : 1$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
+/* Note that Serendipity, p = 1, is equivalent to Tensor */
+/* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
-minVdim_Tensor : 1$
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+minVdim_Tensor : 3$
+maxCdim_Tensor : 1$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
-bNames : ["ser"]$
+bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
-minCdim : [minCdim_Ser, minCdim_Tensor]$
-minVdim : [minVdim_Ser, minVdim_Tensor]$
-maxCdim : [maxCdim_Ser, maxCdim_Tensor]$
-maxVdim : [maxVdim_Ser, maxVdim_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-for bInd : 1 thru length(bNames) do (
+for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
-      maxPolyOrderB : maxPolyOrder[bInd],
-      minPolyOrderB : minPolyOrder[bInd],
-      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-       print(sconcat("Generating: fpo_vlasov_drag_vol_",c, "x", v, "v_", bNames[bInd],"_p", polyOrder)),
-        funcName : sconcat("fpo_vlasov_drag_vol_", c, "x", v, "v_", bNames[bInd],"_p",polyOrder),
-        fname : sconcat("~/max-out/",funcName, ".c"),
-        fh : openw(fname),
-        calcFpoDragVol(fh, funcName, c, v, bNames[bInd], polyOrder),
-        close(fh) 
-      )
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      fname : sconcat("~/max-out/testingfpo/fpo_vlasov_drag_vol_",c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
+      funcNm : sconcat("fpo_vlasov_drag_vol_",c,"x3v_",bName[bInd],"_p",polyOrder),
+      generateFpoVlasovDragVol(fname, funcNm, c, bName[bInd], polyOrder)
     )
   )
-) $
-
-
+)$

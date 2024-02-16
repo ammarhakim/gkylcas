@@ -1,10 +1,11 @@
 /*
-  Generate kernels for the updates from the surface term
+  Generate kernels for the updates from the surface and volume term
   contributions from the diffusion portion of the 
-  Rosenbluth/Fokker-Planck Operator
+  Rosenbluth/Fokker-Planck Operator at a domain boundary
 */
 
-load("fpo/funcs-fpo-vlasov-drag-boundary-surf")$
+load("fpo/funcs-fpo-vlasov-diff-boundary-surf-diag")$
+load("fpo/funcs-fpo-vlasov-diff-boundary-surf-cross")$
 
 /* ...... USER INPUTS........ */
 
@@ -37,16 +38,25 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 dirs : [vx, vy, vz]$
+dirCombos : listify(cartesian_product(setify(dirs), setify(dirs)))$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for vidx : 1 thru length(dirs) do (
+    for vidx : 1 thru length(dirCombos) do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-        pv : dirs[vidx],
-        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_drag_boundary_surf",pv,"_",
+        pv1 : dirCombos[vidx][1],
+        pv2 : dirCombos[vidx][2],
+        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder),
-        funcNm : sconcat("fpo_vlasov_drag_boundary_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragBoundarySurf(fname, funcNm, c, bName[bInd], polyOrder, [pv,pv])
+        funcNm : sconcat("fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
+        if (pv1 = pv2) then (
+          /*
+          generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
+          */
+          disp(diag)
+        ) else (
+          generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
+        )
       )
     )
   )

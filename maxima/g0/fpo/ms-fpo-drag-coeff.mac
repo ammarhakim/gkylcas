@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
     for vidx : 1 thru length(dirs) do (
       dir : dirs[vidx],
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-        fname : sconcat("~/max-out/diag/fpo_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
+        fname : sconcat("~/max-out/fpo_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
         funcNm : sconcat("fpo_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
 
         /* Generate stencil kernels */
