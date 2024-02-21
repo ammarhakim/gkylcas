@@ -161,7 +161,7 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     mu_surf_n : gcfac(float(evAtNodes(mu_e,surfNodes,surfIntVars))), 
     for i : 1 thru numSurfNodes do (
       printf(fh, "  vmag_surf = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_surf, mu_surf_n[i]*bmag_surf_n[i]),
-      printf(fh, "  vnu_surf_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma+2))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, vpar_surf)
+      printf(fh, "  vnu_surf_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, vpar_surf)
     ),
     printf(fh, "~%"),
     vnu_surf_nodal_e : doExpand1(vnu_surf_nodal,basisSurfNodal),
@@ -169,11 +169,16 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     vnu_surf_ModProj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vnu_surf_nodal_e)),
     writeCExprs1(drag_rad_nu_surf, vnu_surf_ModProj_e),
     printf(fh, "~%"),
+    printf(fh, "  if ( gkyl_compare(wvpar - dvpar/2.0, 0.0, 1e-4)) {~%"),
+    for i : 1 thru numSurfNodes do (
+      printf(fh, "    drag_rad_nu_surf[~a] = 0.0; ~%", i-1)
+    ),
+    printf(fh, "  }~%"),
     flush_output(fh),
 
     for i : 1 thru numVolNodes do (
       printf(fh, "  vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_vol_n[i], mu_vol_n[i]*bmag_vol_n[i]),
-      printf(fh, "  vnu_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma+2))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, vpar_vol_n[i])
+      printf(fh, "  vnu_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, vpar_vol_n[i])
     ),
     printf(fh, "~%"),
     vnu_nodal_e : doExpand1(vnu_nodal,basisVolNodal),
@@ -191,7 +196,7 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     vpar_sq_surf_n : gcfac(float(evAtNodes(vpar_sq_e,surfNodes,surfIntVars))), 
     for i : 1 thru numSurfNodes do (
       printf(fh, "  vmag_surf = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_surf_n[i], mu_surf*bmag_surf_n[i]),
-      printf(fh, "  vsqnu_surf_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma+2))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, mu_surf)
+      printf(fh, "  vsqnu_surf_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, mu_surf)
     ),
     printf(fh, "~%"),
     vsqnu_surf_nodal_e : doExpand1(vsqnu_surf_nodal,basisSurfNodal),
@@ -203,7 +208,7 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
     for i : 1 thru numVolNodes do (
       printf(fh, "  vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_vol_n[i], mu_vol_n[i]*bmag_vol_n[i]),
-      printf(fh, "  vsqnu_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma+2))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, mu_vol_n[i])
+      printf(fh, "  vsqnu_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, mu_vol_n[i])
     ),
     printf(fh, "~%"),
     vsqnu_nodal_e : doExpand1(vsqnu_nodal,basisVolNodal),
