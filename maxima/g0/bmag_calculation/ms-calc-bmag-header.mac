@@ -5,8 +5,12 @@ load(stringproc)$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
 minCdim_Ser : 2$
 maxCdim_Ser : 2$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -24,7 +28,7 @@ printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
-for bInd : 1 thru 1 do (
+for bInd : 1 thru 2 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
           disp(printf(false,sconcat("Creating header entry for bmag_",bName[bInd]," ~axp~a"),cD,polyOrder)),
