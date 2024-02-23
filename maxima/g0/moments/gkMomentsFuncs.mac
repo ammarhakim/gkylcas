@@ -137,7 +137,7 @@ calcGkM2par(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 )$
 
 /* Perpendicular Particle Energy */
-/* M2perp = < mu/m B f > */
+/* M2perp = < 2mu/m B f > */
 calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,i,fl,bmag_e,Mtemp,tmp_e,M],
 
@@ -164,7 +164,7 @@ calcGkM2perp(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   M : fullratsimp(innerProd(varsC, bC, bmag_e, tmp_e)),
 
-  writeCIncrExprsNoExpand1(out, volFact/m_*expand(M)),
+  writeCIncrExprsNoExpand1(out, 2*volFact/m_*expand(M)),
 
   printf(fh, "} ~%")
 )$

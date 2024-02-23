@@ -1,7 +1,7 @@
 /* Generate kernels that compute the integrated moments of the gyrocenter distribution function
      for use by the gyrokinetic solver. */
 
-load("moments/gkIntMomentsFuncs-C")$
+load("moments/gkIntMomentsFuncs")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
