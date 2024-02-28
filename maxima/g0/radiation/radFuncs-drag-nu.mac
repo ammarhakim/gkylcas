@@ -169,12 +169,6 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     vnu_surf_ModProj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vnu_surf_nodal_e)),
     writeCExprs1(drag_rad_nu_surf, vnu_surf_ModProj_e),
     printf(fh, "~%"),
-    printf(fh, "  if ( gkyl_compare(wvpar - dvpar/2.0, 0.0, 1e-4)) {~%"),
-    for i : 1 thru numSurfNodes do (
-      printf(fh, "    drag_rad_nu_surf[~a] = 0.0; ~%", i-1)
-    ),
-    printf(fh, "  }~%"),
-    flush_output(fh),
 
     for i : 1 thru numVolNodes do (
       printf(fh, "  vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_vol_n[i], mu_vol_n[i]*bmag_vol_n[i]),
