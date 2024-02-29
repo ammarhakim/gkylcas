@@ -172,11 +172,16 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   pOrderCFL : polyOrder,
   if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
 
+  vprimeStr : "",
+  if (surfDir > cdim) then (
+    printf(fh, "  double vmap_prime_min = fmin(fmin(fabs(~a),fabs(~a)),fabs(~a));~%",vmap_prime_l[surfDir-cdim-1],vmap_prime_c[surfDir-cdim-1],vmap_prime_r[surfDir-cdim-1]),
+    vprimeStr : "/vmap_prime_min"
+  ),
   /* Extra 1/2 factor is because we are multiplying by 2/dx and we only need 1/dx 
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
+  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
@@ -369,11 +374,16 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   pOrderCFL : polyOrder,
   if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
 
+  vprimeStr : "",
+  if (surfDir > cdim) then (
+    printf(fh, "  double vmap_prime_min = fmin(fabs(~a),fabs(~a));~%",vmap_prime_edge[surfDir-cdim-1],vmap_prime_skin[surfDir-cdim-1]),
+    vprimeStr : "/vmap_prime_min"
+  ),
   /* Extra 1/2 factor is because we are multiplying by 2/dx and we only need 1/dx 
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
+  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
