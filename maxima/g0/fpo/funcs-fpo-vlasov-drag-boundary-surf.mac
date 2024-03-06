@@ -1,5 +1,5 @@
 /*
-  Generate kernels for the surface and volume terms for the drag 
+  Generate kernels for the surface term for the drag 
   contribution for the Rosenbluth/Fokker-Planck Operator
   at a domain boundary.
 */
@@ -8,34 +8,23 @@ load("modal-basis");
 load("nodal_operations/nodal_functions")$
 load("out-scripts");
 load("recovery");
-load("bvp_utilities/bvp-util");
 
-generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
+generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
+  [vdim, pdim, dim, dirNums, pvdir, varsC, bC, varsP, bP, NC, numSurf, fh, aSkin_lst, aEdge_lst, fSkin_e,
+  fEdge_e, aSkin_e, aEdge_e, a_rec_lo_p, a_rec_up_p, fEdge_R, fEdge_L, fSkin_R, fSkin_L, a_rec_lo,
+  a_rec_up, avg_L_c, avg_R_c, jump_L_c, jump_R_c, surfNodes, numNodes, avg_L_e, jump_L_e, avg_R_e, jump_R_e,
+  aMax_e, Ghat_L_c, Ghat_R_c, glst1_L, Ghat_L_e, glst1_R, Ghat_R_e, drag_incr_up, drag_incr_lo],
   /* FPO is only defined in 3V */
   vdim : 3,
   pdim : cdim+vdim,
   /* Diagonal stencils are always 1D */
   dim : 1,
 
-  pv : dirCombo[1], 
-
   dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
 
   pvdir : assoc(pv,dirNums),
 
   kill(varsC, basisC, varsP, basisP),
-
-  /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
-  coordVarS : getCoordVarS([pv]),
-
-  /* List of stencil locations. Each entry is a dim-dimensional list
-  with -1 meaning it is at a lower boundary, 1 upper boundary, or
-  0 away from boundaries in that direction. */
-  stencilLoc : getStencilCoords(dim),
-
-  /* Ignore internal domain stencil, as that's handled separately */
-  stencilLoc : delete([0], stencilLoc),
 
   /* 
     Load basis, create surface basis, perform recoveries 
@@ -49,162 +38,167 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, dirC
   NC : length(bP),
   numSurf : length(bSurf),
 
-  /* Components of f and D necessary for upcoming recoveries */
-  aL_lst : makelist(aL[i], i, 0, NC-1),
-  aC_lst : makelist(aC[i], i, 0, NC-1),
-  aR_lst : makelist(aR[i], i, 0, NC-1),
+  disp(printf(false, "Creating ~a", fname)),
+  fh : openw(fname), 
+  printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], pdim, polyOrder, pvdir),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%~%", bName[bInd], pdim, polyOrder),
 
-  fL_lst : makelist(fL[i], i, 0, NC-1),
-  fC_lst : makelist(fC[i], i, 0, NC-1),
-  fR_lst : makelist(fR[i], i, 0, NC-1),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *dragCoeffEdge, const double *dragCoeffSkin, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) { ~%", funcNm),
 
-  aC_e : doExpand1(aC, bP),
-  fC_e : doExpand1(fC, bP),
+  printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
+  printf(fh, "  // diffCoeffSkin/Edge: Drag coefficient in skin/edge cell. ~%"),
+  printf(fh, "  // fSkin/Edge: Distribution function in skin/edge cell. ~%"), 
+  printf(fh, "  // out: Incremented output. ~%~%"),
+  printf(fh, "~%"),
 
-  a_rec_lo_e : doExpand1(a_rec_lo, bSurf),
-  a_rec_up_e : doExpand1(a_rec_up, bSurf),
-  f_rec_lo_e : doExpand1(f_rec_lo, bSurf),
-  f_rec_up_e : doExpand1(f_rec_up, bSurf),
+  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
+  printf(fh, " ~%"),
 
-  a_rec_lo : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
-    dg(aL_lst), dg(aC_lst)),
-  a_rec_up : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
-    dg(aC_lst), dg(aR_lst)),
+  printf(fh, "  const double* aSkin = &dragCoeffSkin[~a]; ~%", (pvdir-1-cdim)*NC),
+  printf(fh, "  const double* aEdge = &dragCoeffEdge[~a]; ~%", (pvdir-1-cdim)*NC),
 
-
-  /* Begin iteration over stencil locations */
-  for sI : 1 thru length(stencilLoc) do (
-    /* String used in kernel name to differentiate stencil locations */
-    stencilStr : "",
-    for d : 1 thru dim do (
-      stencilStr : sconcat(stencilStr, "_", 
-      assoc(stencilLoc[sI][d], [[-1, "lo"], [0, "in"], [1, "up"]]), string(dirCombo[d]))
-    ),
-
-    fnameStencil : sconcat(fname, stencilStr, ".c"),
-    disp(printf(false, "Creating ~a", fnameStencil)),
-    fh : openw(fnameStencil),
-    printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
-    printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], pdim, polyOrder, pvdir),
-    printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%~%", bName[bInd], pdim, polyOrder),
-    printf(fh, " ~%"),
-
-    printf(fh, "GKYL_CU_DH void ~a~a(const double *dxv, const double* drag_coeff_stencil[9], const double* f_stencil[9], double* out) { ~%", funcNm, stencilStr),
-    printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
-    printf(fh, "  // drag_coeff_stencil[9]: 9-cell stencil of drag coefficient. ~%"),
-    printf(fh, "  // f_stencil[9]: 9-cell stencil of distribution function. ~%"), 
-    printf(fh, "  // out: Incremented output. ~%~%"),
-    printf(fh, "~%"),
-
-    printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
-    printf(fh, " ~%"),
-
-    if stencilLoc[sI] = [-1] then (
-      printf(fh, "  const double* aC = &drag_coeff_stencil[0][~a]; ~%", (pvdir-1-cdim)*NC),
-      printf(fh, "  const double* aR = &drag_coeff_stencil[1][~a]; ~%", (pvdir-1-cdim)*NC), 
-      printf(fh, "  const double* fC = f_stencil[0]; ~%"),
-      printf(fh, "  const double* fR = f_stencil[1]; ~%")
-    )
-    elseif stencilLoc[sI] = [1] then (
-      printf(fh, "  const double* aL = &drag_coeff_stencil[0][~a]; ~%", (pvdir-1-cdim)*NC),
-      printf(fh, "  const double* aC = &drag_coeff_stencil[1][~a]; ~%", (pvdir-1-cdim)*NC), 
-      printf(fh, "  const double* fL = f_stencil[0]; ~%"),
-      printf(fh, "  const double* fC = f_stencil[1]; ~%")
-    ),
-
-    printf(fh, "~%"),
-
-    /* Initialize Gauss=Legendre quadrature for upwinding */
-    surfNodes : gaussOrd(polyOrder+1, pdim-1),
-    numNodes : length(surfNodes),
-    printf(fh, "  double fUpwindQuad[~a] = {0.0};~%", numNodes),
-    printf(fh, "  double fUpwind[~a] = {0.0};~%", length(bSurf)),
-    printf(fh, "  double alphaDragSurf[~a] = {0.0}; ~%", numSurf),
-    printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
-    printf(fh, "~%"),
-    if stencilLoc[sI] = [-1] then (
-      /*
-        +---+---+---+
-        | + | C | R |
-        +---+---+---+
-      */
-      stencilCells : [C, R],
-      /* No surface contribution from lo side */
-      alphaDragSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, a_rec_up)),
-      alst : doMakeExprLst(alphaDragSurf_c, alphaDragSurf),
-      alphaDragSurf_e : doExpand(alst, bSurf),
-      writeCExprs1(alphaDragSurf, alphaDragSurf_c),
-      printf(fh, "~%"),
-      alphaOrd_n : gcfac(float(evAtNodes(alphaDragSurf_e, surfNodes, surfVars))),
-      for i : 1 thru numNodes do (
-        /* Drag term on right side of interface */
-        printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),  
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fC); ~%", 
-          i-1, sdowncase(basisFun), pdim, polyOrder, pvdir, i-1),
-        printf(fh, "  } else { ~%"),
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fR); ~%", 
-          i-1, sdowncase(basisFun), pdim, polyOrder, pvdir, i-1),
-        printf(fh, "  } ~%")
-      )
-    )
-    elseif stencilLoc[sI] = [1] then (
-      /*
-        +---+---+---+
-        | L | C | + |
-        +---+---+---+
-      */
-      stencilCells : [L, C],
-      
-      /* No surface contribution from up side */
-      alphaDragSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, a_rec_lo)),
-      alst : doMakeExprLst(alphaDragSurf_c, alphaDragSurf),
-      alphaDragSurf_e : doExpand(alst, bSurf),
-      writeCExprs1(alphaDragSurf, alphaDragSurf_c),
-      printf(fh, "~%"),
-      alphaOrd_n : gcfac(float(evAtNodes(alphaDragSurf_e, surfNodes, surfVars))),
-      for i : 1 thru numNodes do (
-        /* Drag term on right side of interface */
-        printf(fh, "  if (~a > 0) { ~%", alphaOrd_n[i]),  
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fL); ~%", 
-          i-1, sdowncase(basisFun), pdim, polyOrder, pvdir, i-1),
-        printf(fh, "  } else { ~%"),
-        printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fC); ~%", 
-          i-1, sdowncase(basisFun), pdim, polyOrder, pvdir, i-1),
-        printf(fh, "  } ~%")
-      )
-    ),
-
-
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", 
-      sdowncase(basisFun), pdim, polyOrder),
-    printf(fh, "~%"),
+  /* Expansions of drag coefficient and f in Skin/Edge cells */ 
+  aSkin_lst : makelist(aSkin[i], i, 0, NC-1),
+  aEdge_lst : makelist(aEdge[i], i, 0, NC-1),
   
-    fHatSurf_e : doExpand1(fUpwind, bSurf),
-    alphaDragSurf_e : doExpand1(alphaDragSurf, bSurf),
-
-    Ghat_c : calcInnerProdList(surfVars, alphaDragSurf_e, bSurf, fHatSurf_e), 
-    glst1 : doMakeExprLst(Ghat_c, Ghat),
-    Ghat_e : doExpand(glst1, bSurf),
+  fSkin_e : doExpand1(fSkin, bP),
+  fEdge_e : doExpand1(fEdge, bP),
   
-    drag_incr_up : calcInnerProdList(surfVars, 1, subst(pv=1, bP), Ghat_e),
-    drag_incr_lo : calcInnerProdList(surfVars, -1, subst(pv=-1, bP), Ghat_e),
+  aSkin_e : doExpand1(aSkin, bP),
+  aEdge_e : doExpand1(aEdge, bP),
 
-    writeCExprs1(Ghat, Ghat_c),
-    printf(fh, "~%"),
-    flush_output(fh),
+  /* Recover continuous drag coefficient across cell boundaries */
+  a_rec_lo_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
+    dg(aSkin_lst), dg(aEdge_lst)),
+  a_rec_up_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
+    dg(aEdge_lst), dg(aSkin_lst)),
 
-    /* Use proper surface contribution */
-    if stencilLoc[sI] = [-1] then (
-      surf_incr : drag_incr_up 
-    ) elseif stencilLoc[sI] = [1] then (
-      surf_incr : drag_incr_lo 
-    ),
+  /* Evaluate f expansions at Left/Right cell boundaries */
+  fEdge_R : subst(pv=1, fEdge_e),
+  fEdge_L : subst(pv=-1, fEdge_e),
 
-    kernel : surf_incr,
-    writeCIncrExprs1(out, 0.5*dv1*kernel),
+  fSkin_R : subst(pv=1, fSkin_e),
+  fSkin_L : subst(pv=-1, fSkin_e),
 
-    printf(fh, "} ~%"),
-    flush_output(fh),
-    close(fh)
-    )
+  /* Evaluate recoveries at Left/Right cell boundaries */
+  a_rec_lo : subst(pv=0, a_rec_lo_p), 
+  a_rec_up : subst(pv=0, a_rec_up_p),
+
+  /* Ghat = 1/2 * (alpha_l*f_l + alpha_r*f_r) - 1/2 * |max(alpha_l, alpha_r)| (f_r - f_l) */
+  avg_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_lo*(fEdge_R + fSkin_L)),
+  avg_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_lo*(fSkin_R + fEdge_L)),
+  jump_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fSkin_L - fEdge_R)),
+  jump_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fEdge_L - fSkin_R)),
+
+  /* Initialize Gauss=Legendre quadrature for upwinding */
+  surfNodes : gaussOrd(polyOrder+1, pdim-1),
+  numNodes : length(surfNodes),
+
+  printf(fh, "  double aQuad[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double aMax[~a] = {0.0}; ~%", numSurf),
+  printf(fh, "  double Ghat[~a] = {0.0}; ~%", numSurf),
+
+  printf(fh, "  double aEdge_R_node = 0.0; ~%"),
+  printf(fh, "  double aSkin_L_node = 0.0; ~%"),
+  printf(fh, "  double aSkin_R_node = 0.0; ~%"),
+  printf(fh, "  double aEdge_L_node = 0.0; ~%~%"),
+  printf(fh, "  double avg_R[~a] = {0.0};~%", NC),
+  printf(fh, "  double jump_R[~a] = {0.0};~%", NC),
+  printf(fh, "  double avg_L[~a] = {0.0};~%", NC),
+  printf(fh, "  double jump_L[~a] = {0.0};~%", NC),
+
+
+
+  /* 
+    If edge == -1, we are doing the left edge boundary and the skin cell needs to be 
+    evaluated at +1 
+
+    +------+------+------+
+    | ++++ | Skin | Edge |
+    +------+------+------+
+  */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  writeCExprs1(avg_R, avg_R_c),
+  writeCExprs1(jump_R, jump_R_c),
+  flush_output(fh),
+
+  avg_L_e : doExpand1(avg_L, bSurf),
+  jump_L_e : doExpand1(jump_L, bSurf),
+  
+  for i : 1 thru numNodes do (
+    printf(fh, "  aSkin_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aSkin); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
+    printf(fh, "  aEdge_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aEdge); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
+    printf(fh, "  aQuad[~a] = fmax(fabs(aSkin_R_node), fabs(aEdge_L_node)); ~%", i-1)
+  ),
+
+
+  /* 
+    Otherwise edge == +1, we are doing the right edge boundary and the skin cell needs 
+    to be evauluated at -1 
+
+    +------+------+------+
+    | Edge | Skin | ++++ |
+    +------+------+------+
+  */
+  printf(fh, "~%  } else { ~%~%"),
+
+  writeCExprs1(avg_L, avg_L_c),
+  writeCExprs1(jump_L, jump_L_c),
+  flush_output(fh),
+
+  avg_R_e : doExpand1(avg_R, bSurf),
+  jump_R_e : doExpand1(jump_R, bSurf),
+
+  for i : 1 thru numNodes do (
+    printf(fh, "  aEdge_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aEdge); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
+    printf(fh, "  aSkin_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aSkin); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
+    printf(fh, "  aQuad[~a] = fmax(fabs(aEdge_R_node), fabs(aSkin_L_node)); ~%", i-1)
+  ),
+  printf(fh, "  } ~%"),
+ 
+  printf(fh, "~%"),
+  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(aQuad, aMax); ~%", basisFun, pdim, polyOrder),
+
+  /* Expansion of aMax in surface basis */
+  aMax_e : doExpand1(aMax, bSurf),
+
+  /* Ghat = 1/2 * (alpha_l*f_l + alpha_r*f_r) - 1/2 * |max(alpha_l, alpha_r)| (f_r - f_l) */
+  Ghat_L_c : calcInnerProdList(surfVars, 1, bSurf, avg_L_e - aMax_e*jump_L_e),
+  Ghat_R_c : calcInnerProdList(surfVars, 1, bSurf, avg_R_e - aMax_e*jump_R_e),
+  glst1_L : doMakeExprLst(Ghat_L_c, Ghat),
+  Ghat_L_e : doExpand(glst1_L, bSurf),
+  glst1_R : doMakeExprLst(Ghat_R_c, Ghat),
+  Ghat_R_e : doExpand(glst1_R, bSurf),
+
+  /* Compute total surface contributions */
+  drag_incr_up : calcInnerProdList(surfVars, -1, subst(pv=1, bP), Ghat_R_e),
+  drag_incr_lo : calcInnerProdList(surfVars, 1, subst(pv=-1, bP), Ghat_L_e),
+
+  /* Write out Ghat at cell boundary */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+  writeCExprs1(Ghat, Ghat_R_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCIncrExprs1(out, 0.5*dv1*drag_incr_lo),
+
+  printf(fh, "~%  } else { ~%~%"),
+
+  writeCExprs1(Ghat, Ghat_L_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCIncrExprs1(out, 0.5*dv1*drag_incr_up),
+
+  printf(fh, "  } ~%"),
+
+  printf(fh, "  return 0.0;"),
+  printf(fh, "} ~%"),
+  flush_output(fh),
+  close(fh)
 )$
+
+

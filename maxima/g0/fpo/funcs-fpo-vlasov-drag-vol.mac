@@ -86,7 +86,7 @@ generateFpoVlasovDragVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
   */
   for d : 1 thru vdim do (
     facDrag_e : a_comps[d],
-    facDrag_mid[d] : dv1_comps[d]*gcfac(float(expand(subst(zr,polyFact*facDrag_e))))
+    facDrag_mid[d] : 0.5*dv1_comps[d]*gcfac(float(expand(subst(zr,polyFact*facDrag_e))))
   ),
 
   printf(fh, "  return fabs(~a) + fabs(~a) + fabs(~a); ~%", facDrag_mid[1], facDrag_mid[2], facDrag_mid[3]),
