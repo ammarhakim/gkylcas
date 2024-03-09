@@ -40,6 +40,8 @@ printPrototype(deco, ci, bStr, pi) := block([si],
     const double *p_surf_l, const double *p_surf_c, const double *p_surf_r, 
     const double *fluid_l, const double *fluid_c, const double *fluid_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
   ),
+  printf(fh, "~avoid fluid_vars_integrated_~ax_~a_p~a(const double *fluid, const double* u_i, const double* p_ij, double* GKYL_RESTRICT int_fluid_vars); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid fluid_vars_source_~ax_~a_p~a(const double* qmem, const double* fluid, const double* p_ij, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~%")
 )$
 
