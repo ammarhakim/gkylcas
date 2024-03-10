@@ -315,7 +315,7 @@ writeCExprs1noPowers(lhs, rhs, qPow, alreadyDecl) := block(
 writeCIncrExprsCollect1noPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
   [i,subList,expr,ep,outStr],
 
-  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 0, alreadyDecl), 
+  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 1, alreadyDecl), 
 
   expr : float(expand(rhs)),
   for i : 1 thru length(rhs) do (
