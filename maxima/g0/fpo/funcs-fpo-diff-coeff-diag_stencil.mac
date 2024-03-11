@@ -15,7 +15,9 @@ load("recovery");
 load("bvp_utilities/bvp-util");
 
 generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
-  [],
+  [vdim, dim, pv1, pv2, dirNums, coordVarS, stencilLoc, stencilStr, pvdir, fnameStencil, fh,
+  varsC, bC, varsP, bP, surfVarspv1, surfVarspv2, bSurfpv1, bSurfpv2, NC, numSurf, G_L_lst, G_C_lst,
+  G_R_lst, G_C_e, d2G_surf_C_e, stencilCells, G_rec, diff_coeff_out],
   /* FPO is only defined in 3V */
   vdim : 3,
 
@@ -45,13 +47,15 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     fh : openw(fnameStencil),
     printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_g_stencil[3], const double* fpo_d2gdv2_surf, double *diff_coeff) {~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_g_stencil[3], const double* fpo_d2gdv2_surf, double *diff_coeff) {~%", funcNm, polyOrder, stencilStr),
     printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
     printf(fh, "  // gamma: Scalar factor gamma. ~%"),
     printf(fh, "  // fpo_g_stencil[3]: 3 cell stencil of Rosenbluth potential G. ~%"),
     printf(fh, "  // fpo_d2gdv2_surf: Surface projection of d2G/dv2 in center cell. ~%"),
     printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
     printf(fh, "~%"),
+    printf(fh, "  // Use cell-average value for gamma. ~%"),
+    printf(fh, " double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
     printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir-1, pvdir-1),
     printf(fh, "~%"),
@@ -126,7 +130,7 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
 
     diff_coeff_out : calcInnerProdList(varsP, 1, bP, diff(G_rec, pv, 2)),
 
-    writeCExprs1(out, gamma*diff_coeff_out*dv1_sq),
+    writeCExprs1(out, gamma_avg*diff_coeff_out*dv1_sq),
     printf(fh, "} ~%"),
     printf(fh, "~%"),
     flush_output(fh)

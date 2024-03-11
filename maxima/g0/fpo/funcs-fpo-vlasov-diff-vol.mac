@@ -10,7 +10,8 @@ load("out-scripts")$
 dirs : [vx, vy, vz]$
 
 generateFpoVlasovDiffVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
-  [],
+  [vdim, varsC, bC, varsP, bP, NC, fh, f_lst, f_e, D_xx_e, D_xy_e, D_xz_e, D_yx_e, D_yy_e, D_yz_e,
+  D_zx_e, D_zy_e, D_zz_e, D_comps, dv1_sq_comps, kernel, zr, polyFact, facDiff_mid, facDiff_e],
 
   /* FPO is always 3V */
   vdim : 3,
@@ -88,11 +89,10 @@ generateFpoVlasovDiffVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
       kernel : 0.5*dv1_sq*calcInnerProdList(varsP, 1, 
         diff(D_e * diff(bP, dir1), dir2), f_e),
       
-
       printf(fh, "  // ~a~a contribution ~%", dir1, dir2),
 
       /* Write out increment for direction combo */
-      writeCIncrExprs1(out, kernel),
+      writeCIncrExprsCollect1lhsc(out, kernel),
       printf(fh, "~%") 
     )
   ),
@@ -110,7 +110,7 @@ generateFpoVlasovDiffVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
   for d1 : 1 thru vdim do (
     for d2 : 1 thru vdim do (
       facDiff_e : D_comps[d1][d2],
-      facDiff_mid[d1][d2] : dv1_sq_comps[d1][d2]*gcfac(
+      facDiff_mid[d1][d2] : 0.25*dv1_sq_comps[d1][d2]*gcfac(
         float(expand(subst(zr,polyFact*facDiff_e))))
     )
   ),
@@ -122,7 +122,9 @@ generateFpoVlasovDiffVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
     )
   ),
   printf(fh, "; ~%"),
+/*
+  printf(fh, "  return fabs(~a) + fabs(~a) + fabs(~a); ~%", facDiff_mid[1][1], facDiff_mid[2][2], facDiff_mid[3][3]),
+  */
   printf(fh, "} ~%"),
-
   close(fh)
 )$

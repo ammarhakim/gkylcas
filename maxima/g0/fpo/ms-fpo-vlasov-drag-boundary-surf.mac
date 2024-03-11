@@ -44,9 +44,9 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
         pv : dirs[vidx],
         fname : sconcat("~/max-out/testingfpo/fpo_vlasov_drag_boundary_surf",pv,"_",
-          c,"x3v_",bName[bInd],"_p",polyOrder),
+          c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
         funcNm : sconcat("fpo_vlasov_drag_boundary_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragBoundarySurf(fname, funcNm, c, bName[bInd], polyOrder, [pv,pv])
+        generateFpoVlasovDragBoundarySurf(fname, funcNm, c, bName[bInd], polyOrder, pv)
       )
     )
   )

@@ -50,10 +50,7 @@ for bInd : 1 thru length(bName) do (
           c,"x3v_",bName[bInd],"_p",polyOrder),
         funcNm : sconcat("fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
         if (pv1 = pv2) then (
-          /*
-          generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
-          */
-          disp(diag)
+          generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx]) 
         ) else (
           generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
         )

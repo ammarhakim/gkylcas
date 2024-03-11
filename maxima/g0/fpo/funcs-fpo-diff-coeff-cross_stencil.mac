@@ -21,7 +21,16 @@ load("recovery");
 load("bvp_utilities/bvp-util");
 
 generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
+  [vdim, dim, pv1, pv2, dirNums, coordVarS, stencilLoc, stencilStr, pvdir1, pvdir2, fnameStencil, fh,
+  varsC, bC, varsP, bP, surfVarspv1, surfVarspv2, bSurfpv1, bSurfpv2, NC, numSurf, GTL_lst, GTC_lst,
+  GTR_lst, GCL_lst, GCC_lst, GCR_lst, GBL_lst, GBC_lst, GBR_lst, GCC_e, g_surf_CC_pv1_lst, g_surf_CC_pv2_lst,
+  g_surf_CL_pv2_lst, g_surf_CR_pv2_lst, dgdpv1_surf_CC_pv2_lst, dgdpv2_surf_CC_pv1_lst g_surf_CC_pv1_e, 
+  g_surf_CC_pv2_e, surft1_pv1_upper_e, surft1_pv1_lower_e, surft1_pv2_upper_e, surft1_pv2_lower_e, 
+  surft2_pv1_upper_e, surft2_pv1_lower_e, surft2_pv2_upper_e, surft2_pv2_lower_e, stencilCells1,
+  stencilCells2, Grecpv2_upper, Grecpv2_lower, surft1_upper_c, surft1_lower_c, Grecpv1_upper, 
+  Grecpv1_lower, surft2_upper_c, surft2_lower_c, surft1_upper_e, surft1_lower_e, surft1_pv, surft1_surfVars,
+  surft2_upper_e, surft2_lower_e, surft2_pv, surft2_surfVars, stencilCells, surf_idx, surft1, surft2,
+  vol, diff_coeff_out],
   /* FPO is only defined in 3V */
   vdim : 3,
   /* Stencils are always 2D */
@@ -61,14 +70,16 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
     printf(fh, " ~%"),
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, double gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
     printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
     printf(fh, "  // gamma: Scalar factor gamma. ~%"),
     printf(fh, "  // fpo_g_stencil[9]: 9 cell stencil of Rosenbluth potential G. ~%"),
     printf(fh, "  // fpo_g_surf_stencil[9]: 9 cell stencil of surface projection of G. ~%"),
-    printf(fhn "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
+    printf(fh, "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
     printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
     printf(fh, "~%"),
+    printf(fh, "  // Use cell-average value for gamma. ~%"),
+    printf(fh, " double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
     printf(fh, "  double dv1_pv1 = 2.0/dxv[~a]; ~%", pvdir1-1),
     printf(fh, "  double dv1_pv2 = 2.0/dxv[~a]; ~%", pvdir2-1),
@@ -506,7 +517,7 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "~%"),
     flush_output(fh),
 
-    writeCExprs1(out, gamma*diff_coeff_out*dv1_sq),
+    writeCExprs1(out, gamma_avg*diff_coeff_out*dv1_sq),
     printf(fh, "} ~%"),
     printf(fh, "~%"),
     flush_output(fh),

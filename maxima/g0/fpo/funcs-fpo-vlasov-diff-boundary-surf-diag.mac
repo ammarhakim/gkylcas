@@ -21,7 +21,12 @@ load("recovery");
 load("bvp_utilities/bvp-util");
 
 generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
+  [vdim, dirNums, pv1, pv2, pvdir1, pvdir2, coordVarS, stencilLoc, varsC, bC, varsP, bP, NC, surfVars, 
+  bSurf, numSurf, fh, DL_lst, DC_lst, DR_lst, fL_lst, fC_lst, fR_lst, DC_e, fC_e, D_rec_lo_e,
+  D_rec_up_e, f_rec_lo_e, f_rec_up_e, df_rec_lo_e, df_rec_up_e, stencilStr, fnameStencil, stencilCells, 
+  f_rec_up_p, D_rec_up_p, D_rec_lo_c, f_rec_lo_c, df_rec_lo_c, D_rec_up_c, f_rec_up_c, df_rec_up_c, surft1_lo_c,
+  surft1_up_c, surft2_up_c, diff_coeff_index, surft1_lo_e, surft1_up_e, surft2_lo_e, surft2_up_e, surft1,
+  surft2, kernel],
   /* FPO is only defined in 3V */
   vdim : 3,
   /* Diagonal stencils are always 1D */
@@ -101,11 +106,16 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
 
     printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir-1, pvdir-1),
     printf(fh, " ~%"),
-    printf(fh, "  double D_rec_lo[~a], D_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double f_rec_lo[~a], f_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double df_rec_lo[~a], df_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double surft1_lo[~a], surft1_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double surft2_lo[~a], surft2_up[~a]; ~%", numSurf, numSurf),
+    printf(fh, "  double D_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double D_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
     printf(fh, "~%"),
 
     if stencilLoc[sI] = [-1] then (
@@ -206,10 +216,6 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
 
     surft2 : calcInnerProdList(surfVars, -1, subst(pv=1, diff(bP,pv)), surft2_up_e) +
       calcInnerProdList(surfVars, 1, subst(pv=-1, diff(bP,pv)), surft2_lo_e),
-
-/*
-    vol : calcInnerProdList(varsP, 1, diff(DC_e * diff(bP, pv), pv), fC_e),
-*/
 
     kernel : surft1 + surft2,
     writeCIncrExprs1(out, 0.5*dv1_sq*kernel),

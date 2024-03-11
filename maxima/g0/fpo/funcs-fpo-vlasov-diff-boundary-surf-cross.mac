@@ -21,7 +21,14 @@ load("recovery");
 load("bvp_utilities/bvp-util");
 
 generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
+  [vdim, dirNums, pv1, pv2, pvdir1, pvdir2, coordVarS, stencilLoc, varsC, bC, varsP, bP, NC, surfVars, 
+  bSurf, numSurf, fh, stencilCells, DCL_lst, DCC_lst, DCR_lst, fTL_lst, fTC_lst, fTR_lst, fCL_lst, 
+  fCC_lst, fCR_lst, fBL_lst, fBC_lst, fBR_lst, DCC_e, fCC_e, gen_D_rec2_lo_p, gen_D_rec2_up_p, 
+  gen_f_rec2_lo_p, gen_f_rec2_up_p, gen_f_rec6_lo_p, gen_f_rec6_up_p, D_rec_lo_e, D_rec_up_e, f_rec_lo_e, 
+  f_rec_up_e, df_rec_lo_e, df_rec_up_e, stencilStr, fnameStencil, D_rec_lo_c, D_rec_up_c, f_rec_lo_c, f_rec_up_c,
+  df_rec_lo_c, df_rec_up_c, surft1_lo_c, surft1_up_c, surft2_lo_c, surft2_up_c, stencilCells1, stencilCells2,
+  surft1_lo_e, surft1_up_e, surft2_lo_e, surft2_up_e, surft1, surft2, diff_coeff_index, kernel],
+
   /* FPO is only defined in 3V */
   vdim : 3,
   /* Stencils are always 2D */
@@ -153,11 +160,16 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
 
     printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1-1, pvdir2-1),
     printf(fh, " ~%"),
-    printf(fh, "  double D_rec_lo[~a], D_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double f_rec_lo[~a], f_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double df_rec_lo[~a], df_rec_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double surft1_lo[~a], surft1_up[~a]; ~%", numSurf, numSurf),
-    printf(fh, "  double surft2_lo[~a], surft2_up[~a]; ~%", numSurf, numSurf),
+    printf(fh, "  double D_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double D_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
     printf(fh, "~%"),
 
     stencilCells1 : [],
@@ -174,7 +186,6 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
     surft2_lo_c : makelist(0, i, 0, numSurf-1),
     surft2_up_c : makelist(0, i, 0, numSurf-1),
   
-  /*
     if (stencilLoc[sI] = [-1, 0]) then (    
       /*
         Left
@@ -283,9 +294,7 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
       surft2_lo_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_lo_e * f_rec_lo_e),
       surft2_up_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_up_e * f_rec_up_e)
     )
-    */
-
-    if (stencilLoc[sI] = [0, -1]) then (
+    elseif (stencilLoc[sI] = [0, -1]) then (
       /*
         Bottom
         +----+----+----+
@@ -326,8 +335,7 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
       /* surft2 = -1/2 * < d/dpv1 (psi-) * Dij * f_rec > */
       surft2_lo_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_lo_e * f_rec_lo_e),
       surft2_up_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_up_e * f_rec_up_e)
-    ),
-/*
+    )
     /* 
       Corners
     */
@@ -412,7 +420,7 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
         )
     )
 
-    if (stencilLoc[sI][1] = 1 and stencilLoc[sI][2] # 0) then (
+    else if (stencilLoc[sI][1] = 1 and stencilLoc[sI][2] # 0) then (
 
     /* Top/Bottom Right Corner */ 
       if (stencilLoc[sI][2] = -1) then (
@@ -494,7 +502,6 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
       )
 
     ),
-*/
     /* Choose stencil indexing order based on directions */
     if (pvdir1 < pvdir2) then (
       stencilCells : stencilCells1
@@ -503,7 +510,7 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
       stencilCells : stencilCells2
     ),
 
-    diff_coeff_index : 3*(pvdir2-cdim-1) + (pvdir1-cdim-1),
+  diff_coeff_index : 3*(pvdir1-cdim-1) + (pvdir2-cdim-1),
     for i : 1 thru length(stencilCells) do (
       printf(fh, "  const double* D~a = &diff_coeff_stencil[~a][~a]; ~%",
         stencilCells[i], i-1, diff_coeff_index*NC),
@@ -544,12 +551,8 @@ generateFpoVlasovDiffBoundarySurfCross(fname, funcNm, cdim, basisFun, polyOrder,
     surft1 : calcInnerProdList(surfVars, 1, subst(pv1=1, bP), surft1_up_e) +
       calcInnerProdList(surfVars, -1, subst(pv1=-1, bP), surft1_lo_e),
 
-    surft2 : calcInnerProdList(surfVars, -1, subst(pv1=1, diff(bP,pv1)), surft2_up_e) +
-      calcInnerProdList(surfVars, 1, subst(pv1=-1, diff(bP,pv1)), surft2_lo_e),
-
-/*
-    vol : calcInnerProdList(varsP, 1, diff(DCC_e * diff(bP, pv1), pv2), fCC_e),
-*/
+    surft2 : calcInnerProdList(surfVars, -1, subst(pv1=1, diff(bP,pv2)), surft2_up_e) +
+      calcInnerProdList(surfVars, 1, subst(pv1=-1, diff(bP,pv2)), surft2_lo_e),
 
     kernel : surft1 + surft2,
 

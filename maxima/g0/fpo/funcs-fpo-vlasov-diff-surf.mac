@@ -8,7 +8,12 @@ load("out-scripts")$
 load("recovery")$
 
 generateFpoVlasovDiffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) := block(
-  [],
+  [vdim, dirNums, pvdir1, pvdir2, varsC, bC, varsP, bP, NC, surfVars, bSurf, numSurf, fh, stencilCells,
+  DCL_lst, DCC_lst, DCR_lst, fTL_lst, fTC_lst, fTR_lst, fCL_lst, fCC_lst, fCR_lst, fBL_lst, fBC_lst, fBR_lst,
+  D_rec2_lo_p, D_rec2_up_p, f_rec2_lo_p, f_rec2_up_p, f_rec6_lo_p, f_rec6_up_p, D_rec_lo_c, D_rec_up_c, 
+  D_rec_lo_e, D_rec_up_e, f_rec_lo_c, f_rec_up_c, f_rec_lo_e, f_rec_up_e, df_rec_lo_c, df_rec_up_c,
+  df_rec_lo_e, df_rec_up_e, surft1_lo_c, surft1_up_c, surft2_lo_c, surft2_up_c, surft1_lo_e, surft1_up_e, 
+  surft2_lo_e, surft2_up_e, kernel],
   /* FPO is always 3V */
   vdim : 3,
 
@@ -37,26 +42,39 @@ generateFpoVlasovDiffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) :=
   printf(fh, "  // out: Incremented output. ~%~%"),
  
   printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%~%", pvdir1-1, pvdir2-1),
-  printf(fh, "  double D_rec_lo[~a], D_rec_up[~a]; ~%", numSurf, numSurf),
-  printf(fh, "  double f_rec_lo[~a], f_rec_up[~a]; ~%", numSurf, numSurf),
-  printf(fh, "  double df_rec_lo[~a], df_rec_up[~a]; ~%", numSurf, numSurf),
-  printf(fh, "  double surft1_lo[~a], surft1_up[~a]; ~%", numSurf, numSurf),
-  printf(fh, "  double surft2_lo[~a], surft2_up[~a]; ~%", numSurf, numSurf),
-  printf(fh, "~%"),
+    printf(fh, "  double D_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double D_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double f_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double df_rec_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "~%"),
 
   printf(fh, "  // Index into D and f stencils. ~%"),
-  printf(fh, "  const double* DCL = diff_coeff_stencil[0]; ~%"),
-  printf(fh, "  const double* DCC = diff_coeff_stencil[1]; ~%"),
-  printf(fh, "  const double* DCR = diff_coeff_stencil[2]; ~%"),
-  printf(fh, "~%"),
+  diff_coeff_index : 3*(pvdir1-cdim-1) + (pvdir2-cdim-1),
 
   if (pv1 = pv2) then (
-    stencilCells : [CL, CC, CR]
+    stencilCells : [CL, CC, CR],
+    printf(fh, "  const double* DCL = &diff_coeff_stencil[0][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCC = &diff_coeff_stencil[1][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCR = &diff_coeff_stencil[2][~a]; ~%", diff_coeff_index*NC)
   ) elseif (pvdir1 < pvdir2) then (
-    stencilCells : [BL, CL, TL, BC, CC, TC, BR, CR, TR]
+    stencilCells : [BL, CL, TL, BC, CC, TC, BR, CR, TR],
+    printf(fh, "  const double* DCL = &diff_coeff_stencil[1][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCC = &diff_coeff_stencil[4][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCR = &diff_coeff_stencil[7][~a]; ~%", diff_coeff_index*NC)
   ) else (
-    stencilCells : [BL, BC, BR, CL, CC, CR, TL, TC, TR]
+    stencilCells : [BL, BC, BR, CL, CC, CR, TL, TC, TR],
+    printf(fh, "  const double* DCL = &diff_coeff_stencil[3][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCC = &diff_coeff_stencil[4][~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  const double* DCR = &diff_coeff_stencil[5][~a]; ~%", diff_coeff_index*NC)
   ),
+
+  printf(fh, "~%"),
 
   for i : 1 thru length(stencilCells) do (
     printf(fh, "  const double* f~a = f_stencil[~a]; ~%", stencilCells[i], i-1)
@@ -105,18 +123,17 @@ generateFpoVlasovDiffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) :=
   D_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(DCL_lst), dg(DCC_lst)),
   D_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(DCC_lst), dg(DCR_lst)),
 
-    /* Diagonal term -> taking derivative d/dpv1 (f) */
+  /* Diagonal term -> taking derivative d/dpv1 (f) */
   f_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(fCL_lst), dg(fCC_lst)),
   f_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(fCC_lst), dg(fCR_lst)),
   
   if (pv1 # pv2) then (
     /* Cross term -> taking derivative of f along pv1 cell boundary */
-    f_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 1,
+    f_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0,
       dg(dg(fBL_lst), dg(fBC_lst)), dg(dg(fCL_lst), dg(fCC_lst)), dg(dg(fTL_lst), dg(fTC_lst))),
-    f_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 1,
+    f_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0,
       dg(dg(fBC_lst), dg(fBR_lst)), dg(dg(fCC_lst), dg(fCR_lst)), dg(dg(fTC_lst), dg(fTR_lst)))
   ),
-
 
   /* Write out recovered quatities */
   D_rec_lo_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv1=0, D_rec2_lo_p)),
@@ -156,12 +173,12 @@ generateFpoVlasovDiffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) :=
   df_rec_up_e : doExpand1(df_rec_up, bSurf),
 
   /* surft1 = 1/2 * < psi- * Dij * d/dvj(f_rec) > */
-  surft1_lo_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_lo_e * df_rec_lo_e),
-  surft1_up_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_up_e * df_rec_up_e),
+  surft1_lo_c : calcInnerProdList(surfVars, D_rec_lo_e, bSurf, df_rec_lo_e),
+  surft1_up_c : calcInnerProdList(surfVars, D_rec_up_e, bSurf, df_rec_up_e),
 
-  /* surft2 = -1/2 * < d/dpv1 (psi-) * Dij * f_rec > */
-  surft2_lo_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_lo_e * f_rec_lo_e),
-  surft2_up_c : calcInnerProdList(surfVars, 1, bSurf, D_rec_up_e * f_rec_up_e),
+  /* surft2 = -1/2 * < d/dpv2 (psi-) * Dij * f_rec > */
+  surft2_lo_c : calcInnerProdList(surfVars, D_rec_lo_e, bSurf, f_rec_lo_e),
+  surft2_up_c : calcInnerProdList(surfVars, D_rec_up_e, bSurf, f_rec_up_e),
 
   /* Write out individual surface term expansions */
   writeCExprs1(surft1_lo, surft1_lo_c),
@@ -182,9 +199,9 @@ generateFpoVlasovDiffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) :=
   
   kernel : calcInnerProdList(surfVars, 1, subst(pv1=1, bP), surft1_up_e) + 
     calcInnerProdList(surfVars, -1, subst(pv1=-1, bP), surft1_lo_e) + 
-    calcInnerProdList(surfVars, -1, subst(pv1=1, diff(bP,pv1)), surft2_up_e) + 
-    calcInnerProdList(surfVars, 1 ,subst(pv1=-1, diff(bP,pv1)), surft2_lo_e),
-  writeCIncrExprs1(out, 0.5*dv1_sq*kernel),
+    calcInnerProdList(surfVars, -1, subst(pv1=1, diff(bP,pv2)), surft2_up_e) + 
+    calcInnerProdList(surfVars, 1 ,subst(pv1=-1, diff(bP,pv2)), surft2_lo_e),
+  writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
 
   /* Return CFL in volume kernel */
   printf(fh, "} ~%"),

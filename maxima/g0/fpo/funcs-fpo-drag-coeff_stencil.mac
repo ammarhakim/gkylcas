@@ -15,7 +15,9 @@ load("recovery");
 load("bvp_utilities/bvp-util");
 
 generate_fpo_drag_coeff_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
-  [],
+  [vdim, dim, dirNums, coordVarS, stencilLoc, stencilStr, pvdir, fnameStencil, fh, varsC, bC, 
+  varsP, bP, surfVars, bSurf, NC, numSurf, H_L_lst, H_C_lst, H_R_lst, H_C_e, dHdv_surf_C_e, stencilCells,
+  H_rec, drag_coeff_out],
   /* FPO is only defined in 3V */
   vdim : 3,
 
@@ -45,13 +47,15 @@ generate_fpo_drag_coeff_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) :=
     fh : openw(fnameStencil),
     printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
 
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double gamma, const double* fpo_h_stencil[3], const double* fpo_dhdv_surf, double *drag_coeff) {~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_h_stencil[3], const double* fpo_dhdv_surf, double *drag_coeff) {~%", funcNm, polyOrder, stencilStr),
     printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
     printf(fh, "  // gamma: Scalar factor gamma. ~%"),
     printf(fh, "  // fpo_h_stencil[3]: 3 cell stencil of Rosenbluth potential H. ~%"),
     printf(fh, "  // fpo_dhdv_surf: Surface projection of dH/dv in center cell. ~%"),
     printf(fh, "  // drag_coeff: Output array for drag coefficient. ~%"),
     printf(fh, "~%"),
+    printf(fh, "  // Use cell-average value for gamma. ~%"),
+    printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
     printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
     printf(fh, "~%"),
@@ -126,7 +130,7 @@ generate_fpo_drag_coeff_stencil(fname, funcNm, cdim, basisFun, polyOrder, pv) :=
 
     drag_coeff_out : calcInnerProdList(varsP, 1, bP, diff(H_rec, pv)),
 
-    writeCExprs1(out, 2.0*gamma*drag_coeff_out*dv1),
+    writeCExprs1(out, 2.0*gamma_avg*drag_coeff_out*dv1),
     printf(fh, "} ~%"),
     printf(fh, "~%"),
     flush_output(fh)
