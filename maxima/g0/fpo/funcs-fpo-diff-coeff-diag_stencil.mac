@@ -55,7 +55,7 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
     printf(fh, "~%"),
     printf(fh, "  // Use cell-average value for gamma. ~%"),
-    printf(fh, " double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
+    printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
     printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir-1, pvdir-1),
     printf(fh, "~%"),
