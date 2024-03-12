@@ -5,7 +5,7 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("surf_funcs/surfUtil")$
+load("vlasov/vlasovUtil")$
 fpprec : 24$
 
 dvdx : [dv0dx0, dv1dx1, dv2dx2]$

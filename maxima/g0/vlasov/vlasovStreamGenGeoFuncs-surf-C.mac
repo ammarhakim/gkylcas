@@ -5,7 +5,7 @@ load("out-scripts")$
 load(stringproc)$
 load("nodal_operations/nodal_functions")$
 load("scifac")$
-load("surf_funcs/surfUtil")$
+load("vlasov/vlasovUtil")$
 fpprec : 24$
 
 varsV : [vx, vy, vz]$

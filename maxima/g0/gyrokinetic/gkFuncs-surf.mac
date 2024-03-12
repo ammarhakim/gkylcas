@@ -6,7 +6,6 @@ load("out-scripts")$
 load(stringproc)$
 load("scifac")$
 load("gyrokinetic/gkUtil")$
-load("surf_funcs/surfUtil")$
 fpprec : 24$
 
 calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
