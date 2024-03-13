@@ -118,7 +118,7 @@ polyOrder:1;*/
 
 
 
-  printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *bmaginv, double *bmaginvsq, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2) ~%{ ~%", ndim, basisName, polyOrder),
+  printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2) ~%{ ~%", ndim, basisName, polyOrder),
 
 
   /*separate gFld*/
@@ -243,19 +243,11 @@ polyOrder:1;*/
   for n : 1 thru numEvNodes do(
     printf(fh, "bmaginv_n[~a] = 1.0/bmag_n[~a]; ~%", n-1, n-1)
   ),
-  printf(fh, "// Convert nodal to modal for bmaginv ~%"),
-  temp:calcModCoeff(mkzlist(bmaginv_n,numEvNodes)),
-  temp2 : makelist(temp[k][1],k,1,numEvNodes),
-  writeCExprs1(concat(bmaginv),temp2),
 
   printf(fh, "// Calculate bmaginvsq at nodes ~%"),
   for n : 1 thru numEvNodes do(
     printf(fh, "bmaginvsq_n[~a] = bmaginv_n[~a]*bmaginv_n[~a]; ~%", n-1, n-1, n-1)
   ),
-  printf(fh, "// Convert nodal to modal for bmaginvsq ~%"),
-  temp:calcModCoeff(mkzlist(bmaginvsq_n,numEvNodes)),
-  temp2 : makelist(temp[k][1],k,1,numEvNodes),
-  writeCExprs1(concat(bmaginvsq),temp2),
 
 
 
