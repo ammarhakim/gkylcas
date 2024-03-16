@@ -88,8 +88,8 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyO
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=-1,alphaDr))),
   alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=1,alphaDr))),
-  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf),
-  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf),
+  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf),
+  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf),
   alphaDrSurf_l_e : doExpand(alst_l, bSurf),
   alphaDrSurf_r_e : doExpand(alst_r, bSurf),
 

@@ -3,6 +3,7 @@
 
 load("modal-basis")$
 load("out-scripts")$
+load("utilities")$
 load(stringproc)$
 load("scifac")$
 fpprec : 24$
@@ -17,11 +18,6 @@ vTransSubs : [vvx=vx*dv1/2+wv1, vvy=vy*dv2/2+wv2, vvz=vz*dv3/2+wv3]$
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcDualsGenGeo(fh, funcNm, cdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, NP, NC, varsV, 

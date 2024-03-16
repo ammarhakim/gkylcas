@@ -139,7 +139,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     writeCExprsCollect1(alphaLabel, alpha_c, clst),
     printf(fh, "~%"),
     flush_output(fh),
-    alphaNoZero_c : doMakeExprLst(alpha_c, alphaLabel),
+    alphaNoZero_c : makelistNoZeros1(alpha_c, alphaLabel),
     alpha_e       : doExpand(alphaNoZero_c, bP),
 
     /* Note: factor of 2/dxv already included in alpha_e. */

@@ -112,7 +112,7 @@ calcAndWrite_HamilES(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr) := block(
   printf(fH, "~%"),
   flush_output(fH),
 
-  hamilNoZero_c : doMakeExprLst(hamil_c, hamilCvar),
+  hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
 
@@ -142,7 +142,7 @@ calc_HamilES_no_write(charge,mass,wv,rdv2,bP,inFlds) := block(
   /* Project Hamiltonian onto basis functions */
   hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
 
-  hamilNoZero_c : doMakeExprLst(hamil_c, hamil),
+  hamilNoZero_c : makelistNoZeros1(hamil_c, hamil),
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
 
@@ -194,7 +194,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
       printf(fh, "~%"),
       flush_output(fh)
     ),
-    BstarXdBmag_noZero_c : doMakeExprLst(BstarXdBmag_c, eval_string(sconcat("BstarXdBmag",sideStr))),
+    BstarXdBmag_noZero_c : makelistNoZeros1(BstarXdBmag_c, eval_string(sconcat("BstarXdBmag",sideStr))),
     BstarXdBmag_e : BstarXdBmag_noZero_c . bP,
 
     BstarYdBmag_c : calcInnerProdList(varsP, 1, bP, BstarYdBmag_e),
@@ -204,7 +204,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
       printf(fh, "~%"),
       flush_output(fh)
     ),
-    BstarYdBmag_noZero_c : doMakeExprLst(BstarYdBmag_c, eval_string(sconcat("BstarYdBmag",sideStr))),
+    BstarYdBmag_noZero_c : makelistNoZeros1(BstarYdBmag_c, eval_string(sconcat("BstarYdBmag",sideStr))),
     BstarYdBmag_e : BstarYdBmag_noZero_c . bP
   ),
   if cdim # 2 then (
@@ -215,7 +215,7 @@ calcAndWrite_BstardBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv2
       printf(fh, "~%"),
       flush_output(fh)
     ),
-    BstarZdBmag_noZero_c : doMakeExprLst(BstarZdBmag_c, eval_string(sconcat("BstarZdBmag",sideStr))),
+    BstarZdBmag_noZero_c : makelistNoZeros1(BstarZdBmag_c, eval_string(sconcat("BstarZdBmag",sideStr))),
     BstarZdBmag_e : BstarZdBmag_noZero_c . bP
   ),
 
@@ -262,7 +262,7 @@ calcAndWrite_BstarZdBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv
   writeCExprsNoExpand1(eval_string(sconcat("BstarZdBmag",sideStr)), gcfac(subst(replaceList, BstarZdBmag_c))),
   printf(fh, "~%"),
   flush_output(fh),
-  BstarZdBmag_noZero_c : doMakeExprLst(BstarZdBmag_c, eval_string(sconcat("BstarZdBmag",sideStr))),
+  BstarZdBmag_noZero_c : makelistNoZeros1(BstarZdBmag_c, eval_string(sconcat("BstarZdBmag",sideStr))),
   BstarZdBmag_e : BstarZdBmag_noZero_c . bP,
 
   return(BstarZdBmag_e)
@@ -365,7 +365,7 @@ calcAndWrite_alphaEM(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   writeCExprsNoExpand1(alphaCvar, subst(replaceList,alpha_c)),
   printf(fh, "~%"),
   flush_output(fh),
-  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   alphaUpSurf_e : alphaSurf_e,
@@ -426,7 +426,7 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   writeCExprsCollect1(alphaCvar, alpha_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
-  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
@@ -477,7 +477,7 @@ calc_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
      onto surface basis and print to C variable alpha. */
   alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha_e)),
   alphaCvar : eval_string(sconcat("alpha",sideStr)),
-  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
@@ -666,7 +666,7 @@ calcAndWrite_upwindIncr_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir,sideStr
   printf(fH, "~%"),
   flush_output(fH),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero : doMakeExprLst(Ghat_c, eval_string(sconcat("Ghat",sideStr))),
+  GhatNoZero : makelistNoZeros1(Ghat_c, eval_string(sconcat("Ghat",sideStr))),
   Ghat_e     : doExpand(GhatNoZero, bSurf),
 
   incr_c : fullratsimp(calcInnerProdList(surfIntVars, -evPoint, subst(surfVar=evPoint, bP), Ghat_e)),
@@ -759,7 +759,7 @@ calcAndWrite_upwindIncr_cflFreq_wQuadNodeAlpha(fH,basisType,polyOrder,bP,surfDir
   printf(fH, "~%"),
   flush_output(fH),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero : doMakeExprLst(Ghat_c, eval_string(sconcat("Ghat",sideStr))),
+  GhatNoZero : makelistNoZeros1(Ghat_c, eval_string(sconcat("Ghat",sideStr))),
   Ghat_e     : doExpand(GhatNoZero, bSurf),
 
   incr_c : fullratsimp(calcInnerProdList(surfIntVars, -evPoint, subst(surfVar=evPoint, bP), Ghat_e)),

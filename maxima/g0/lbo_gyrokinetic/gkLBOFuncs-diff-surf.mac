@@ -72,7 +72,7 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
     writeCExprs1(diffFac, diffFac_c),
     printf(fh, "~%"),
 
-    diffFacNoZeros_c : doMakeExprLst(diffFac_c, diffFac),
+    diffFacNoZeros_c : makelistNoZeros1(diffFac_c, diffFac),
     diffFac_e : doExpand(diffFacNoZeros_c, bC),
     f_xx_e    : diff((w[cdim+1]+(dxv[cdim+1]/2)*surfVar)*diff(h_e, surfVar), surfVar)
   ),

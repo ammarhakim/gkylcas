@@ -19,11 +19,6 @@ dx11  : [dx10, dx11, dx12]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := block(
   [varsC, bC, varsP, bP, basisP_p1, bP_p1, NP_p1, NC, NP, varsV, cid, vid, 
    cv, vv, surfVars, bSurf, bSurf_p1, 
@@ -104,9 +99,9 @@ calcVlasovStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, p) := b
                                                         + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*ei_z_surf_e), 
 
   /* alpha sparsity the same on left and right */                                                      
-  alphaLNoZero_c : doMakeExprLst(alpha_surf_c, alphaL),
+  alphaLNoZero_c : makelistNoZeros1(alpha_surf_c, alphaL),
   alphaSurfL_e : doExpand(alphaLNoZero_c, bSurf_p1),                                                        
-  alphaRNoZero_c : doMakeExprLst(alpha_surf_c, alphaR),
+  alphaRNoZero_c : makelistNoZeros1(alpha_surf_c, alphaR),
   alphaSurfR_e : doExpand(alphaRNoZero_c, bSurf_p1),   
 
   printf(fh, "  const double *alphaL = &alpha_surf_l[~a];~%", (dir-1)*NSurf_p1),
@@ -239,9 +234,9 @@ calcVlasovBoundaryStreamGenGeoUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun,
                                                         + (dxv[vid[3]]/2.0*varsV[3] + w[vid[3]])*ei_z_surf_e), 
 
   /* alpha sparsity the same on left and right */                                                      
-  alphaLNoZero_c : doMakeExprLst(alpha_surf_c, alphaL),
+  alphaLNoZero_c : makelistNoZeros1(alpha_surf_c, alphaL),
   alphaSurfL_e : doExpand(alphaLNoZero_c, bSurf_p1),                                                        
-  alphaRNoZero_c : doMakeExprLst(alpha_surf_c, alphaR),
+  alphaRNoZero_c : makelistNoZeros1(alpha_surf_c, alphaR),
   alphaSurfR_e : doExpand(alphaRNoZero_c, bSurf_p1),   
 
   /* When we need the surface alpha at +1, we use alpha_edge 

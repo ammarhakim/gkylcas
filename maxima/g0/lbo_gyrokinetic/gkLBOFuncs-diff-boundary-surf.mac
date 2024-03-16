@@ -126,10 +126,10 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
     printf(fh, "~%"),
 
     /* Zero out components of alpha which are empty. */
-    facDiff_NoZero : doMakeExprLst(facDiff_c, facDiff)
+    facDiff_NoZero : makelistNoZeros1(facDiff_c, facDiff)
   ) else (
     /* Zero out components of alpha which are empty. */
-    facDiff_NoZero : doMakeExprLst(facDiff_c, nuVtSqSum)
+    facDiff_NoZero : makelistNoZeros1(facDiff_c, nuVtSqSum)
   ),
   facDiff_e : doExpand(facDiff_NoZero, bC),
 

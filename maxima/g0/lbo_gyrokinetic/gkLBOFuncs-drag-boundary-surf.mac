@@ -70,8 +70,8 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
   alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
-  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf),
-  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf),
+  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf),
+  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf),
   alphaDrSurf_l_e : doExpand(alst_l, bSurf),
   alphaDrSurf_r_e : doExpand(alst_r, bSurf),
 
@@ -145,7 +145,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  glst1  : makelistNoZeros1(Ghat_c, Ghat),
   Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
@@ -200,7 +200,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,fHatSurf_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  glst1  : makelistNoZeros1(Ghat_c, Ghat),
   Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
@@ -277,8 +277,8 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
   alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
-  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf),
-  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf),
+  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf),
+  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf),
   alphaDrSurf_l_e : doExpand(alst_l, bSurf),
   alphaDrSurf_r_e : doExpand(alst_r, bSurf),
 
@@ -303,7 +303,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vv=-1, fEdge_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  glst1  : makelistNoZeros1(Ghat_c, Ghat),
   Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher
@@ -335,7 +335,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vv=-1, fSkin_e)),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
-  glst1  : doMakeExprLst(Ghat_c, Ghat),
+  glst1  : makelistNoZeros1(Ghat_c, Ghat),
   Ghat_e : doExpand(glst1, bSurf),
   
   /* Clever factorization is possible for polyOrder = 1, but for higher

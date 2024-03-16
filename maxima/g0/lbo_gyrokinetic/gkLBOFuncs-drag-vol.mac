@@ -1,5 +1,6 @@
 load("modal-basis")$
 load("out-scripts");
+load("utilities");
 load(stringproc)$
 
 fpprec : 24$
@@ -11,9 +12,6 @@ fpprec : 24$
 varsVAll : [vpar, mu]$
 
 vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
 
 calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,pOrderVpar,zr,vidx1,dir,f_e,nuSum_e,nuUSum_e,
@@ -78,7 +76,7 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   printf(fh, "~%"),
   /* Zero out components of alpha which are empty. */
-  alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag, a0),
+  alphaDrag_NoZero   : makelistNoZerosOff1(alphaDrag_e, alphaDrag, a0),
   alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
   /* Evaluate alpha_vdim at zr to approximate
      max(abs(alpha_vdim))/(dv_i/(2p+1)). */
@@ -97,7 +95,7 @@ calcGkLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
-    alphaDrag_NoZero   : doMakeExprLstOff(alphaDrag_e, alphaDrag,a0),
+    alphaDrag_NoZero   : makelistNoZerosOff1(alphaDrag_e, alphaDrag,a0),
     alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
     /* Evaluate alpha_vdim at zr to approximate
        max(abs(alpha_vdim))/(dv_i/(2p+1)). */

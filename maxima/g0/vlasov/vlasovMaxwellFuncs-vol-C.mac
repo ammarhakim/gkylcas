@@ -38,8 +38,6 @@ calcAccel(vdir, vdim, bc) :=
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
-
 calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [bP,bC,NP,NC,cflPt,cid,vid,dir,f_e,incr_cdim,incr_vdim,cdir,vdir,expr,alpha_cdim_c,alpha_vdim_c,amid],
 
@@ -120,7 +118,7 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     printf(fh, "  cflFreq_mid += ~a*(fabs(~a)+~a); ~%", float(2*polyOrder+1), wdx[cdir], 0.5*dvdx[cdir]),
     printf(fh, "~%"),
     /* zero out components of alpha which are empty */
-    alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
+    alpha_cdim_NoZero   : makelistNoZerosOff1(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
     /* Volume increment from configuration space. */
@@ -140,7 +138,7 @@ calcVlasovMaxwellVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     ),
 
     /* zero out components of alpha which are empty */
-    alpha_vdim_NoZero   : doMakeExprLstOff(alpha_vdim_c, alpha_vdim, a0),
+    alpha_vdim_NoZero   : makelistNoZerosOff1(alpha_vdim_c, alpha_vdim, a0),
     alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
     /* evaluate alpha_vdim at cflPt to approximate

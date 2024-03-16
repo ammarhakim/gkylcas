@@ -74,7 +74,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   facDiff_c : calcInnerProdList(varsC, 1, bC, nuVtSqSum_e),
   if polyOrder>1 then (
     /* Zero out components of alpha which are empty. */
-    facDiff_NoZero   : doMakeExprLst(facDiff_c, facDiffVpar),
+    facDiff_NoZero   : makelistNoZeros1(facDiff_c, facDiffVpar),
     facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC),
 
     /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
@@ -89,7 +89,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "~%")
   ) else (
     /* Zero out components of alpha which are empty. */
-    facDiff_NoZero   : doMakeExprLst(facDiff_c, nuVtSqSum),
+    facDiff_NoZero   : makelistNoZeros1(facDiff_c, nuVtSqSum),
     facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC)
   ),
 
@@ -114,7 +114,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsVAll[2]+rdv2[1]*w[vidx1[2]])),
 
       /* Zero out components of alpha which are empty. */
-      facDiffMu_NoZero : doMakeExprLst(facDiff_c, facDiffMu),
+      facDiffMu_NoZero : makelistNoZeros1(facDiff_c, facDiffMu),
       facDiff_NoZero_e : facDiff_NoZero_e+polyFact*2*m_*rdv2[1]*doExpand(facDiffMu_NoZero, bC),
 
       /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */

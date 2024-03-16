@@ -68,8 +68,8 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
   alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
-  alst_l          : doMakeExprLst(alphaDrSurf_l_c, alphaDrSurf_l),
-  alst_r          : doMakeExprLst(alphaDrSurf_r_c, alphaDrSurf_r),
+  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf_l),
+  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf_r),
   alphaDrSurf_l_e : doExpand(alst_l, bSurf),
   alphaDrSurf_r_e : doExpand(alst_r, bSurf),
   printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", length(bSurf)),
@@ -166,8 +166,8 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   Ghat_r_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,fHatSurf_r_e),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
   ** on we can simply refer to Ghat. */
-  glst1_l  : doMakeExprLst(Ghat_l_c, Ghat_l),
-  glst1_r  : doMakeExprLst(Ghat_r_c, Ghat_r),
+  glst1_l  : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  glst1_r  : makelistNoZeros1(Ghat_r_c, Ghat_r),
   Ghat_l_e : doExpand(glst1_l, bSurf),
   Ghat_r_e : doExpand(glst1_r, bSurf),
   drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
