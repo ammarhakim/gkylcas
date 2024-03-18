@@ -1,6 +1,6 @@
 /* Generate kernels that compute the moments of the distribution
    function in Vlasov and gyrokinetic models. */
-load("lenard_bernstein_operator/gkBoundaryCorr")$
+load("lbo_gyrokinetic/gkBoundaryCorr")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -17,7 +17,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 0$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
