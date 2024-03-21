@@ -2,18 +2,20 @@ load("modal-basis")$
 load("out-scripts");
 load("nodal_operations/nodal_functions")$
 load("utilities")$
+load("lbo_gyrokinetic/gkLBO_util")$
 load(stringproc)$
 fpprec : 24$
 
 /* This script generates the kernels for the surface term
-   drag contribution from Lenard Bernstein operator. */
+   drag contribution from Lenard Bernstein operator allowing
+   for a velocity coordinate mapping.. */
 
 varsVAll : [vpar, mu]$
 vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,
-   fl_e,fc_e,fr_e,surf_cvars,surf_vvars,bSurf,surfNodes,numNodes,alphaDrSurf_l_c,
+   surf_cvars,surf_vvars,bSurf,surfNodes,numNodes,alphaDrSurf_l_c,
    alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,alphaOrd_l_n,
    alphaOrd_r_n,surfNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,
    fHatSurf_r_e,Ghat_l_c,Ghat_r_c,glst1_l,glst1_r,Ghat_l_e,Ghat_r_e,drag_incr_l,drag_incr_r],
@@ -22,20 +24,24 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim     : cdim+vdim,
   vid1     : vidx1(cdim,vdim),
   vv       : varsVAll[1],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_l, const double *vmap_prime_c, const double *vmap_prime_r, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: velocity space mapping.~%"),
+  printf(fh, "  // vmap_prime_l,vmap_prime_c,vmap_prime_r: velocity space mapping derivative in left, center and right cells.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
   printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
-  printf(fh, "  // fl/fc/fr:  distribution function in cells ~%"),
-  printf(fh, "  // out:       incremented distribution function in cell ~%"),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
   printf(fh, "~%"),
 
   /* Create a pointer to nuUSum. */
@@ -44,18 +50,13 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[1]),
   printf(fh, "~%"),
-    
+
   nuSum_e : doExpand1(nuSum,bC),
   /* Expand the mean flow speed in the configuration basis. */
   nuUSum_e : doExpand1(nuUSum,bC),
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : nuSum_e*((1/2)*dxv[vid1[1]]*vv+w[vid1[1]])-nuUSum_e,
+  alphaDr : nuSum_e*vmap_e[1]-nuUSum_e,
     
-  /* Create expansions of f_left, f_center, and f_right on volume basis. */
-  fl_e : doExpand1(fl, bP),
-  fc_e : doExpand1(fc, bP),
-  fr_e : doExpand1(fr, bP),
-
   /* Surface basis (equivalent to basis of one lower
      dimensionality without surface variable), and
      surface nodes given by tensor product of Gauss-Legendre quadrature points. */
@@ -109,6 +110,10 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
 
+  vmap_prime_fac_l : subst(vmap_prime=vmap_prime_l, vmap_prime_e[1]),
+  vmap_prime_fac_c : subst(vmap_prime=vmap_prime_c, vmap_prime_e[1]),
+  vmap_prime_fac_r : subst(vmap_prime=vmap_prime_r, vmap_prime_e[1]),
+
   alphaSimp(a) := float(expand(fullratsimp(a))),
   basisStr : sconcat(basisFun, "_", cdim+vdim, "x"),
   rcoFac_l : 1.,  rcoFac_r : 1.,
@@ -124,21 +129,21 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   for i : 1 thru numNodesConfig do (
     printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_l_n[i]*rcoFac_l)),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fl); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fl)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_l)
     ),
     printf(fh, "  } else { ~%"),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad_l[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fc)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_c)
     ),
     printf(fh, "  } ~%"),
     /* Drag term on right side of interface */
     printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_r_n[i]*rcoFac_r)),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fc); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fc)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_c)
     ),
     printf(fh, "  } else { ~%"),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fr); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad_r[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fr)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_r)
     ),
     printf(fh, "  } ~%")
   ),
@@ -199,7 +204,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
 calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block( 
   [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,alphaDr,
-   fl_e,fc_e,fr_e,bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
+   bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
    alphaDrSurf_l_e,alphaDrSurf_r_e,Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,
    Ghat_l_e,Ghat_r_e,incr_l,incr_r],
 
@@ -207,14 +212,18 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim     : cdim+vdim,
   vid1     : vidx1(cdim,vdim),
   vv       : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_l, const double *vmap_prime_c, const double *vmap_prime_r, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: velocity space mapping.~%"),
+  printf(fh, "  // vmap_prime_l,vmap_prime_c,vmap_prime_r: velocity space mapping derivative in left, center and right cells.~%"),
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -230,13 +239,8 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   nuSum_e : doExpand1(nuSum,bC),
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : 2.0*nuSum_e*((1/2)*dxv[vid1[2]]*vv+w[vid1[2]]),
+  alphaDr : 2.0*nuSum_e*vmap_e[2],
     
-  /* Create expansions of f_left, f_center, and f_right on volume basis. */
-  fl_e : doExpand1(fl, bP),
-  fc_e : doExpand1(fc, bP),
-  fr_e : doExpand1(fr, bP),
-
   /* Surface basis. Equivalent to basis of one lower
      dimensionality without surface variable. */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
@@ -262,15 +266,21 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
   
+  vmap_prime_fac_l : subst(vmap_prime=vmap_prime_l, vmap_prime_e[2]),
+  vmap_prime_fac_c : subst(vmap_prime=vmap_prime_c, vmap_prime_e[2]),
+  vmap_prime_fac_r : subst(vmap_prime=vmap_prime_r, vmap_prime_e[2]),
+
   /* Because -2*nu*mu is negative definite, need right edge value */
   /* Evaluate surface projection of Ghat_r = 2*nu*mu_r f_r. */
-  Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)),
+  fr_e : doExpand1(fr, bP),
+  Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)/vmap_prime_fac_r),
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
   Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = 2*nu*mu_l f_c. */
-  Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=-1, fc_e)),
+  fc_e : doExpand1(fc, bP),
+  Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=-1, fc_e)/vmap_prime_fac_c),
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),

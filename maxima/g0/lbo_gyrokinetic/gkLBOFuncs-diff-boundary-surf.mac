@@ -2,6 +2,7 @@ load("modal-basis")$
 load("out-scripts");
 load("recovery")$
 load("utilities")$
+load("lbo_gyrokinetic/gkLBO_util")$
 load(stringproc)$
 fpprec : 24$
 
@@ -11,25 +12,39 @@ fpprec : 24$
 
 varsVAll : [vpar, mu]$
 
-vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,surfIntVars,bPp,bmagBasis,fEdge_e,fSkin_e,bType,
-   hl_e,hr_e,hOrder,hsol_l,hsol_r,surfVarPhys,nuVtSqSum_e,bSurf,facDiff_e,basisFac,GhatPhaseFac_l,
-   GhatPhaseFac_r,ibpPhaseFac_l,ibpPhaseFac_r,vfSkin_l,vfSkin_r,BmagInv_e,surfVar_l,surfVar_r,
-   facDiff_c,expr,i,facDiff_NoZero,vol_incr_c,Gdiff_c,Gdiff2_c,edgeSurf_c,edgeSurf_incr_c,
-   boundSurf_c,boundSurf_incr_c,vol_out,diff_out,edge_out],
+  [varsC,bC,varsP,bP,vSub,NC,NP,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,surfIntVars,
+   vmap_edge_e,vmap_skin_e,bmagBasis,bType,hl_e,hr_e,dxvRec_edge,dxvRec_skin,nuVtSqSum_e,
+   BmagInv_e,bSurf,facDiff_e,surfVar_l,surfVar_r,facDiff_c,facDiff_NoZero,fprimel_e,fprimer_e,
+   GhatPhaseFac_l,GhatPhaseFac_r,Gdiff_c,edgeSurf_c,edgeSurf_incr_c,diff_out],
+
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap_edge, const double *vmap_skin, const double *vmap_prime, const double *jacobvel, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap_edge,vmap_skin: velocity space mapping.~%"),
+  printf(fh, "  // vmap_prime: velocity space mapping derivative (in the skin cell).~%"),
+  printf(fh, "  // jacobvel: velocity space jacobian.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", 2*NC),
+  printf(fh, "  // fskin/edge: Distribution function in cells ~%"),
+  printf(fh, "  // out: Incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim    : cdim+vdim,
-  vidx1   : vIndex1(cdim,vdim),
+  vidx1   : makelist(i,i,cdim,cdim+vdim-1),
   surfVar : varsVAll[dir],
   surfIntVars : delete(surfVar,varsP),
 
-  bPp : diff(bP,surfVar),  /* Basis derivative. */
+  vmap_edge_e : subst(vmap=vmap_edge, copylist(vmap_e)),
+  vmap_skin_e : subst(vmap=vmap_skin, copylist(vmap_e)),
 
   /* Load a basis that only has the variables B depends on (we assume it
      doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
@@ -38,33 +53,31 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
     if not freeof(y,bC[i]) then ( bmagBasis[i] : 0 )
   ),
 
-  fEdge_e : doExpand1(fedge, bP),
-  fSkin_e : doExpand1(fskin, bP),
-
   /* Construct the recovery polynomial */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
     bType : "gkhyb"
   else
     bType : basisFun,
-  hl_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fedge[i-1],i,1,NP)), dg(makelist(fskin[i-1],i,1,NP))),
-  hr_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,dg(makelist(fskin[i-1],i,1,NP)), dg(makelist(fedge[i-1],i,1,NP))),
-  /* Derivatives of recovery polynomials. */
-  hOrder : 2*polyOrder+1,
-  hsol_l : cons(subst(surfVar=0,hl_e),makelist(subst(surfVar=0,diff(hl_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
-  hsol_r : cons(subst(surfVar=0,hr_e),makelist(subst(surfVar=0,diff(hr_e,surfVar,ord)/(ord!)),ord,1,hOrder)),
-  /*............. RECOVERY DONE ..............................*/
-        
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]: Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]: Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_: species mass.~%"),
-  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
-  printf(fh, "  // fskin/edge: Distribution function in cells ~%"),
-  printf(fh, "  // out: Incremented distribution function in cell ~%"),
+
+  /* Scale the distribution by the velocity space jacobian. */
+  printf(fh, "  double fedge_over_jacv[~a], fskin_over_jacv[~a];~%", NP, NP),
+  writeCExprs1(fedge_over_jacv, makelist(fedge[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fskin_over_jacv, makelist(fskin[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+
+  printf(fh, "  double dv_edge = ~a;~%", float(expand( subst(surfVar=1, vmap_edge_e[dir]) - subst(surfVar=-1, vmap_edge_e[dir]) ))),
+  printf(fh, "  double dv_skin = ~a;~%", float(expand( subst(surfVar=1, vmap_skin_e[dir]) - subst(surfVar=-1, vmap_skin_e[dir]) ))),
   printf(fh, "~%"),
 
+  dxvRec_edge : makelist(2, i, 1, pDim),  dxvRec_edge[dir] : dv_edge,
+  dxvRec_skin : makelist(2, i, 1, pDim),  dxvRec_skin[dir] : dv_skin,
+
+  hl_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_edge,dxvRec_skin,
+    dg(makelist(fedge_over_jacv[i-1],i,1,NP)), dg(makelist(fskin_over_jacv[i-1],i,1,NP))),
+  hr_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_skin,dxvRec_edge,
+    dg(makelist(fskin_over_jacv[i-1],i,1,NP)), dg(makelist(fedge_over_jacv[i-1],i,1,NP))),
+
+  /*............. RECOVERY DONE ..............................*/
+        
   /* Create a pointer to nuVtSqSum. */
   printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
   printf(fh, "~%"),
@@ -72,87 +85,47 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vidx1[dir], vidx1[dir]),
   printf(fh, "~%"),
 
-  surfVarPhys : (dxv[vidx1[dir]]/2)*surfVar+w[vidx1[dir]],
-                
   /* First compute the contribution coming from the second
      differentiation by parts to left and right cells. */
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
+  BmagInv_e   : doExpand1(bmag_inv, bmagBasis),
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
   ) else (
     bSurf : basisFromVars(basisFun,surfIntVars,polyOrder)
   ),
-     
+
   /* facDiff_c = < psi, nuVtSqSum > for vpar term,
                < psi, (2*m/B)*nuVtSqSum > for mu term.
-     basisFac: factor multiplying facDiff in volume term.
-     GhatPhaseFac : phase-space dependent factor in hat{G} (surface term).
-     ibpPhaseFac : phase-space dependent factor in surface term from 2nd IBP. */
+     GhatPhaseFac : phase-space dependent factor in hat{G} (surface term). */
   if dir=1 then (
-    facDiff_e : nuVtSqSum_e,
-    basisFac  : diff(bP,surfVar,2),
-    GhatPhaseFac_l : hsol_l[2],
-    GhatPhaseFac_r : hsol_r[2],
-    ibpPhaseFac_l  : hsol_l[1],
-    ibpPhaseFac_r  : hsol_r[1],
-    vfSkin_l       : subst(surfVar=-1, fSkin_e),
-    vfSkin_r       : subst(surfVar=1, fSkin_e)
+    facDiff_e : nuVtSqSum_e*vmap_prime[2],
+    surfVar_l : 1,
+    surfVar_r : 1
   ) elseif dir=2 then (
-    BmagInv_e : doExpand1(bmag_inv,bmagBasis),
-    facDiff_e : 2*m_*BmagInv_e*nuVtSqSum_e,
-    basisFac  : diff(surfVarPhys*diff(bP,surfVar),surfVar),
-    printf(fh, "  double surfVar_l = ~a;~%", float(subst(surfVar=-1, surfVarPhys))),
-    printf(fh, "  double surfVar_r = ~a;~%", float(subst(surfVar=1, surfVarPhys))),
-    printf(fh, "~%"),
-    GhatPhaseFac_l : surfVar_l*hsol_l[2],
-    GhatPhaseFac_r : surfVar_r*hsol_r[2],
-    ibpPhaseFac_l  : surfVar_l*hsol_l[1],
-    ibpPhaseFac_r  : surfVar_r*hsol_r[1],
-    vfSkin_l       : surfVar_l*subst(surfVar=-1, fSkin_e),
-    vfSkin_r       : surfVar_r*subst(surfVar=1, fSkin_e)
-  ),
-  facDiff_c : calcInnerProdList(varsC, 1, bC, facDiff_e),
-
-  if dir=2 then (
-    /* facDiff = 2*m*nu*vtSq/B. */
+    facDiff_c : calcInnerProdList(varsC, 1, bC, 2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime[1]),
     printf(fh, "  double facDiff[~a]; ~%", NC),
-    /* Write out the components of facDiff's expansion. */
-    printf(fh, "  // Expand diffusion coefficient in conf basis.~%"),
-    expr : gcfac(float(expand(radcan(facDiff_c)))),
-    for i : 1 thru NC do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", facDiff[i-1], expr[i])
-    ),
+    writeCExprs1(facDiff, facDiff_c),
     printf(fh, "~%"),
 
-    /* Zero out components of alpha which are empty. */
-    facDiff_NoZero : makelistNoZeros1(facDiff_c, facDiff)
-  ) else (
-    /* Zero out components of alpha which are empty. */
-    facDiff_NoZero : makelistNoZeros1(facDiff_c, nuVtSqSum)
-  ),
-  facDiff_e : doExpand(facDiff_NoZero, bC),
+    facDiff_NoZero : makelistNoZeros1(facDiff_c, facDiff),
+    facDiff_e : doExpand(facDiff_NoZero, bC),
 
-  /* Volume increment. Dimensional factor included later. */
-  if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
-    /* This simplification only works for p=1 because it is a tensor product of
-       conf and velocity space (remains to be checked for tensor basis). */
-    bFacFskin_c : calcInnerProdList(varsP, 1, basisFac, fSkin_e),
-    printf(fh, "  double bFacFskin[~a] = {0.0}; ~%", NP),
-    writeCExprs1(bFacFskin, bFacFskin_c),
-    printf(fh, "~%"),
-    bFacFskin_c : makelistNoZeros1(bFacFskin_c, bFacFskin),
-
-    vol_incr_c : calcInnerProdList(varsP, 1, bP, facDiff_e*doExpand(bFacFskin_c, bP))
-  ) else (
-    vol_incr_c : calcInnerProdList(varsP, 1, basisFac, facDiff_e*fSkin_e)
+    printf(fh, "  double surfVar_l = ~a;~%", float(subst(surfVar=-1, vmap_skin_e[dir]))),
+    printf(fh, "  double surfVar_r = ~a;~%", float(subst(surfVar=1 , vmap_skin_e[dir]))),
+    printf(fh, "~%")
   ),
-  printf(fh, "  double vol_incr[~a] = {0.0};~%", NP),
-  writeCExprsNoExpand1(vol_incr, vol_incr_c),
-  printf(fh, "~%"),
-    
+
+  fprimel_e : fullratsimp(subst(surfVar=0, diff(hl_e, surfVar))),
+  fprimer_e : fullratsimp(subst(surfVar=0, diff(hr_e, surfVar))),
+     
+  GhatPhaseFac_l : surfVar_l*fprimel_e,
+  GhatPhaseFac_r : surfVar_r*fprimer_e,
+
+  collList : [dv_edge,dv_skin,dv_edgeR2,dv_skinR2,surfVar_l,surfVar_r],
+
   printf(fh, "  double edgeSurf_incr[~a] = {0.0}; ~%", NP),
-  printf(fh, "  double boundSurf_incr[~a] = {0.0}; ~%", NP),
   printf(fh, "~%"),
   printf(fh, "  if (edge == -1) { ~%~%"),
     
@@ -161,33 +134,23 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
        conf and velocity space (remains to be checked for tensor basis). */
 
     Gdiff_c  : calcInnerProdList(surfIntVars,1,bSurf,GhatPhaseFac_r),
-    Gdiff2_c : calcInnerProdList(surfIntVars,1,bSurf,ibpPhaseFac_r),
+
+    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bP), doExpand(Gdiff_c, bSurf))),
 
     printf(fh, "  double edgeSurf[~a] = {0.0}; ~%", NP),
-    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bP), doExpand(Gdiff_c, bSurf))
-                            -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), doExpand(Gdiff2_c, bSurf))),
-    writeCExprs1(edgeSurf, edgeSurf_c),
+    tmpPowVars : [],
+    tmpPowVars : writeCExprsCollect1noPowers(edgeSurf, edgeSurf_c, collList, [dv_edge,dv_skin], tmpPowVars),
     printf(fh, "~%"),
       
-    edgeSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(edgeSurf, bP))),
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(edgeSurf, bP)))
 
-    printf(fh, "  double boundSurf[~a] = {0.0}; ~%", NP),
-    boundSurf_c : fullratsimp(-calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), vfSkin_l)),
-    writeCExprs1(boundSurf, boundSurf_c),
-    printf(fh, "~%"),
-      
-    boundSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(boundSurf, bP)))
   ) else (
     Gdiff_c : calcInnerProdList(varsP,1,bP,facDiff_e*GhatPhaseFac_r),
 
-    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bP), subst(surfVar=1,doExpand(Gdiff_c, bP)))
-                                 -calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bPp), facDiff_e*ibpPhaseFac_r)),
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, 1, subst(surfVar=1, bP), subst(surfVar=1,doExpand(Gdiff_c, bP))))
 
-    boundSurf_incr_c : fullratsimp(-calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), subst(surfVar=-1,facDiff_e*vfSkin_l)))
   ),
   writeCExprsNoExpand1(edgeSurf_incr, edgeSurf_incr_c),
-  printf(fh, "~%"),
-  writeCExprsNoExpand1(boundSurf_incr, boundSurf_incr_c),
   printf(fh, "~%"),
   
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evaluated at -1 */
@@ -198,43 +161,32 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
        conf and velocity space (remains to be checked for tensor basis). */
 
     Gdiff_c  : calcInnerProdList(surfIntVars,1,bSurf,GhatPhaseFac_l),
-    Gdiff2_c : calcInnerProdList(surfIntVars,1,bSurf,ibpPhaseFac_l),
+
+    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bP), doExpand(Gdiff_c, bSurf))),
 
     printf(fh, "  double edgeSurf[~a] = {0.0}; ~%", NP),
-    edgeSurf_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bP), doExpand(Gdiff_c, bSurf))
-                            -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), doExpand(Gdiff2_c, bSurf))),
-    writeCExprsNoExpand1(edgeSurf, edgeSurf_c),
+    tmpPowVars : [],
+    tmpPowVars : writeCExprsCollect1noPowers(edgeSurf, edgeSurf_c, collList, [dv_edge,dv_skin], tmpPowVars),
     printf(fh, "~%"),
       
-    edgeSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(edgeSurf, bP))),
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(edgeSurf, bP)))
 
-    printf(fh, "  double boundSurf[~a] = {0.0}; ~%", NP),
-    boundSurf_c : fullratsimp(-calcInnerProdList(surfIntVars, 1,  subst(surfVar=1, bPp), vfSkin_r)),
-    writeCExprsNoExpand1(boundSurf, boundSurf_c),
-    printf(fh, "~%"),
-      
-    boundSurf_incr_c : fullratsimp(calcInnerProdList(varsP, facDiff_e, bP, doExpand1(boundSurf, bP)))
   ) else (
     Gdiff_c : calcInnerProdList(varsP,1,bP,facDiff_e*GhatPhaseFac_l),
 
-    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bP), subst(surfVar=-1,doExpand(Gdiff_c, bP)))
-                                 -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bPp), facDiff_e*ibpPhaseFac_l)),
+    edgeSurf_incr_c : fullratsimp(calcInnerProdList(surfIntVars, -1, subst(surfVar=-1, bP), subst(surfVar=-1,doExpand(Gdiff_c, bP))))
 
-    boundSurf_incr_c : fullratsimp(-calcInnerProdList(surfIntVars, 1,  subst(surfVar=1, bPp), subst(surfVar=1,facDiff_e*vfSkin_r)))
   ),
 
   writeCExprsNoExpand1(edgeSurf_incr, edgeSurf_incr_c),
-  printf(fh, "~%"),
-  writeCExprsNoExpand1(boundSurf_incr, boundSurf_incr_c),
   printf(fh, "~%"),
 
   printf(fh, "  } ~%"),
   printf(fh, "~%"),
 
-  vol_out  : makelist(vol_incr[i-1],i,1,NP),
   diff_out : makelist(edgeSurf_incr[i-1],i,1,NP),
-  edge_out : makelist(boundSurf_incr[i-1],i,1,NP),
-  writeCIncrExprsNoExpand1(out, rdvSq4*(diff_out + edge_out + vol_out)),
+  writeCIncrExprsNoExpand1(out, rdvSq4*diff_out),
+  printf(fh, "~%"),
 
   printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
   printf(fh, "~%"),

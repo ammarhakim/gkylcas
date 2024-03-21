@@ -1,4 +1,4 @@
-load("lenard_bernstein_operator/gkLBOFuncs-diff-surf")$
+load("lbo_gyrokinetic/gkLBOFuncs-diff-surf")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -9,7 +9,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$

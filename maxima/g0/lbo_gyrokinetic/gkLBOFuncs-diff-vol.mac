@@ -1,39 +1,26 @@
 load("modal-basis")$
 load("out-scripts")$
 load("utilities")$
+load("lbo_gyrokinetic/gkLBO_util")$
 load(stringproc)$
-
 fpprec : 24$
 
 /* This script generates the kernels for the diffusion volume
    kernel of the Lenard Bernstein operator for the
    gyrokinetic equation. It only computes the CFL frequency. */
 
-varsVAll : [vpar, mu]$
-
-vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,pOrderVpar,vidx1,dir,f_e,nuSum_e,
-   nuVtSqSum_e,zr,facDiff_c,facDiff_NoZero,facDiff_NoZero_e,i,BmagInv_e,
-   facDiffMu_NoZero,expr,polyFact,facDiff_mid],
+  [varsC,bC,varsP,bP,NP,NC,vmap_e,vmapSq_e,vmap_prime_e,pOrderVpar,vidx1,dir,f_e,nuSum_e,
+   nuVtSqSum_e,zr,facDiff_c,facDiff_e,i,BmagInv_e,
+   expr,polyFact,facDiff_mid],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
+  printf(fh, "~%"),
 
-  /* Load basis of dimensionality requested. */
-  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
-  NC : length(bC),  NP : length(bP),
-
-  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
-     mean hybrid basis. */
-  pOrderVpar : polyOrder,
-  if polyOrder=1 then ( pOrderVpar : 2 ),
-
-  vidx1 : vIndex1(cdim,vdim),
-
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: velocity space mapping.~%"),
+  printf(fh, "  // vmap_prime: velocity space mapping derivative.~%"),
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -42,15 +29,27 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // out: incremented output ~%"),
   printf(fh, "~%"),
 
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bC),  NP : length(bP),
+
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  pOrderVpar : polyOrder,
+  if polyOrder=1 then ( pOrderVpar : 2 ),
+
+  vidx1 : makelist(i,i,cdim,cdim+vdim-1),
+
   /* Create a pointer to nuVtSqSum. */
   printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  double rdv2[~a]; ~%", vdim),
-  printf(fh, "  double rdvSq4[~a]; ~%", vdim),
+  printf(fh, "  double rdvVmapPrimeSq4[~a]; ~%", vdim),
   for dir : 1 thru vdim do (
-    printf(fh, "  rdv2[~a]   = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir]),
-    printf(fh, "  rdvSq4[~a] = rdv2[~a]*rdv2[~a]; ~%", dir-1, dir-1, dir-1)
+    printf(fh, "  rdvVmapPrimeSq4[~a] = 4.0/(dxv[~a]*dxv[~a]*vmap_prime[~a]*vmap_prime[~a]); ~%", dir-1, vidx1[dir], vidx1[dir], dir-1, dir-1)
   ),
   printf(fh, "~%"),
 
@@ -61,41 +60,41 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   nuSum_e     : doExpand1(nuSum, bC),
   nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
 
+  vol_c : makelist(0,i,1,NP), /* Volume term. */
+
   /* Specify a point to evaluate alpha at for use in computing CFL.
      Here we choose the middle of the cell, where coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
+
+  cflFreq : 0,
 
   /* ..................... vpar contribution ...................... */
 
   /* Polynomial order factor in CFL frequency. */
   polyFact : (pOrderVpar+1)^2,
 
-  /* facDiff = (2/(Delta vpar))^2 * < psi, nuVtSqSum >. */
-  facDiff_c : calcInnerProdList(varsC, 1, bC, nuVtSqSum_e),
-  if polyOrder>1 then (
-    /* Zero out components of alpha which are empty. */
-    facDiff_NoZero   : makelistNoZeros1(facDiff_c, facDiffVpar),
-    facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC),
+  /* facDiff = (2/(Delta vpar))^2 * < psi, nuVtSqSum/vpar'^2 >. */
+  facDiff_c : calcInnerProdList(varsC, 1, bC, rdvVmapPrimeSq4[0]*nuVtSqSum_e),
 
-    /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
-    printf(fh, "  double facDiffVpar[~a];~%", NC),
-    /* Write out the components of facDiff's expansion. */
-    printf(fh, "  // Expand nuVtSqSum in phase basis.~%"),
-    expr : gcfac(float(expand(radcan(facDiff_c)))),
-    for i : 1 thru NC do (
-      if (expr[i] # 0.0) and (not freeof(facDiffVpar[i-1],subst(zr,facDiff_NoZero_e))) then 
-        printf(fh, "  ~a = ~a; ~%", facDiffVpar[i-1], expr[i])
-    ),
-    printf(fh, "~%")
-  ) else (
+  if pOrderVpar>1 then (
+    /* Only used in increment if polyOrderVpar>1. */
+    printf(fh, "  // Expand nuVtSqSum/vmap_prime[0]^2 in conf basis.~%"),
+    printf(fh, "  double facDiffVpar[~a] = {0.};~%", NC),
+    writeCExprsCollect1lhsc(facDiffVpar, radcan(facDiff_c)),
+    printf(fh, "~%"),
+
     /* Zero out components of alpha which are empty. */
-    facDiff_NoZero   : makelistNoZeros1(facDiff_c, nuVtSqSum),
-    facDiff_NoZero_e : polyFact*rdvSq4[0]*doExpand(facDiff_NoZero, bC)
+    facDiff_c : makelistNoZeros1(facDiff_c, facDiffVpar)
   ),
+
+  facDiff_e : doExpand(facDiff_c, bC),
+
+  vol_c : vol_c + calcInnerProdList(varsP, facDiff_e, diff(bP, vpar, 2), f_e),
+
+  cflFreq : cflFreq + gcfac(float(expand(subst(zr, polyFact*facDiff_e )))),
 
   /* ..................... mu contribution ...................... */
 
-  /* facDiff = (2/(Delta mu))^2 * < psi, 2*m_*bmag_inv*nuVtSqSum*mu >. */
   if vdim > 1 then (
 
     /* Polynomial order factor in CFL frequency. */
@@ -109,40 +108,28 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     BmagInv_e : doExpand1(bmag_inv,bmagBasis),
 
-    if polyOrder>1 then (
+    /* facDiff = (2/(Delta mu))^2 * < psi, 2*m_*bmag_inv*nuVtSqSum/mu'^2 >. */
+    facDiff_c : calcInnerProdList(varsC,1,bC,2*m_*rdvVmapPrimeSq4[1]*BmagInv_e*nuVtSqSum_e),
 
-      facDiff_c : calcInnerProdList(varsP,1,bP,BmagInv_e*nuVtSqSum_e*(varsVAll[2]+rdv2[1]*w[vidx1[2]])),
+    printf(fh, "  // Expand mu diffusion coefficient in phase basis.~%"),
+    printf(fh, "  double facDiffMu[~a] = {0.};~%", NC),
+    writeCExprsCollect1lhsc(facDiffMu, radcan(facDiff_c)),
+    printf(fh, "~%"),
 
-      /* Zero out components of alpha which are empty. */
-      facDiffMu_NoZero : makelistNoZeros1(facDiff_c, facDiffMu),
-      facDiff_NoZero_e : facDiff_NoZero_e+polyFact*2*m_*rdv2[1]*doExpand(facDiffMu_NoZero, bC),
+    /* Zero out components of alpha which are empty. */
+    facDiff_c : makelistNoZeros1(facDiff_c, facDiffMu),
 
-      /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
-      /* facDiff = nuVtSqSum. Only used in increment if polyOrder>1. */
-      printf(fh, "  double facDiffMu[~a];~%", NP),
-      /* Write out the components of facDiff's expansion. */
-      printf(fh, "  // Expand mu diffusion coefficient in phase basis.~%"),
-      expr : gcfac(float(expand(radcan(facDiff_c)))),
-      for i : 1 thru NP do (
-        if (expr[i] # 0.0) and (not freeof(facDiffMu[i-1],subst(zr,facDiff_NoZero_e))) then
-          printf(fh, "  ~a = ~a; ~%", facDiffMu[i-1], expr[i])
-      ),
-      printf(fh, "~%")
-    ) else (
-      facDiff_c : calcInnerProdList(varsP,1,bP,polyFact*2*m_*BmagInv_e*nuVtSqSum_e*(rdv2[1]*varsVAll[2]+rdvSq4[1]*w[vidx1[2]])),
+    facDiff_e : doExpand(facDiff_c, bC),
 
-      /* Zero out components of alpha which are empty. */
-      facDiff_NoZero_e : facDiff_NoZero_e+doExpand(facDiff_c, bP)
-    )
+    vol_c : vol_c + calcInnerProdList(varsP, facDiff_e, diff(vmap_e[2]*diff(bP, mu),mu), f_e),
+
+    cflFreq : cflFreq + gcfac(float(expand(subst(zr, polyFact*vmap_e[2]*facDiff_e ))))
   ),
 
-  facDiff_mid : gcfac(float(expand(subst(zr,facDiff_NoZero_e)))),
+  writeCIncrExprs1(out, vol_c),
+  printf(fh, "~%"),
 
-  /* Replace the rdv2[1]^2: */
-  facDiff_mid : subst(rdv2[1]^2=pow(rdv2[1],2), facDiff_mid),
-
-  printf(fh, "  return fabs(~a); ~%", facDiff_mid),
-
+  printf(fh, "  return fabs(~a); ~%", cflFreq),
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

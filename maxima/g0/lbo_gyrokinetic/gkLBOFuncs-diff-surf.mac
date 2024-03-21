@@ -2,6 +2,7 @@ load("modal-basis")$
 load("out-scripts");
 load("recovery")$
 load("utilities")$
+load("lbo_gyrokinetic/gkLBO_util")$
 load(stringproc)$
 fpprec : 24$
 
@@ -9,21 +10,41 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator
    in the gyrokinetic equation. */
 
-varsVAll  : [vpar, mu]$
-vIndex1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+varsVAll : [vpar, mu]$
 
 calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,vSub,NC,NP,pDim,vidx1,surfVar,bmagBasis,bType,h_e,f_xx_c,nuVtSqSum_e,diffFac_e,incr_c],
+  [varsC,bC,varsP,bP,vSub,NC,NP,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
+   vmapl_e,vmapc_e,vmapr_e,bmagBasis,bType,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,diffFac_e,
+   diffFacV,diffFac_c,diffFacNoZeros_c,fprimel_e,fprimer_e,fprimel_c,fprimer_c,
+   incrl_c,incrr_c],
   
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmapl, const double *vmapc, const double *vmapr, const double *vmap_prime, const double *jacobvel, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmapl,vmapc,vmapr: velocity space mapping.~%"),
+  printf(fh, "  // vmap_prime: velocity space mapping derivative.~%"),
+  printf(fh, "  // jacobvel: velocity space jacobian.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", 2*NC),
+  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
+  printf(fh, "  // out: incremented distribution function in cell ~%"),
+  printf(fh, "~%"),
+
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
-
-  /* Number of basis monomials. */
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim    : cdim+vdim,
-  vidx1   : vIndex1(cdim,vdim),
+  vidx1   : makelist(i,i,cdim,cdim+vdim-1),
   surfVar : varsVAll[dir],
+
+  vmapl_e : subst(vmap=vmapl, copylist(vmap_e)),
+  vmapc_e : subst(vmap=vmapc, copylist(vmap_e)),
+  vmapr_e : subst(vmap=vmapr, copylist(vmap_e)),
 
   /* Load a basis that only has the variables B depends on (we assume it
      doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
@@ -32,69 +53,93 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
     if not freeof(y,bC[i]) then ( bmagBasis[i] : 0 )
   ),
 
-  /* Construct the recovery polynomial */
+  /* Construct the recovery polynomials */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
     bType : "gkhyb"
   else
     bType : basisFun,
-  h_e : calcRecov1CellGen(bType, surfVar, varsP, polyOrder, 1,
-    dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
-  /*............. RECOVERY DONE ..............................*/
-    
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // m_: species mass.~%"),
-  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
-  printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
-  printf(fh, "  // out: incremented distribution function in cell ~%"),
+
+  /* Scale the distribution by the velocity space jacobian. */
+  printf(fh, "  double fl_over_jacv[~a], fc_over_jacv[~a], fr_over_jacv[~a];~%", NP, NP, NP),
+  writeCExprs1(fl_over_jacv, makelist(fl[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fc_over_jacv, makelist(fc[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fr_over_jacv, makelist(fr[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+
+  printf(fh, "  double dvl = ~a;~%", float(expand( subst(surfVar=1, vmapl_e[dir]) - subst(surfVar=-1, vmapl_e[dir]) ))),
+  printf(fh, "  double dvc = ~a;~%", float(expand( subst(surfVar=1, vmapc_e[dir]) - subst(surfVar=-1, vmapc_e[dir]) ))),
+  printf(fh, "  double dvr = ~a;~%", float(expand( subst(surfVar=1, vmapr_e[dir]) - subst(surfVar=-1, vmapr_e[dir]) ))),
   printf(fh, "~%"),
 
+  dxvRecl : makelist(2, i, 1, pDim),  dxvRecl[dir] : dvl,
+  dxvRecc : makelist(2, i, 1, pDim),  dxvRecc[dir] : dvc,
+  dxvRecr : makelist(2, i, 1, pDim),  dxvRecr[dir] : dvr,
+
+  hl_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecl, dxvRecc,
+    dg(makelist(fl_over_jacv[i-1],i,1,NP)), dg(makelist(fc_over_jacv[i-1],i,1,NP))),
+  hr_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecc, dxvRecr,
+    dg(makelist(fc_over_jacv[i-1],i,1,NP)), dg(makelist(fr_over_jacv[i-1],i,1,NP))),
+
+  /*............. RECOVERY DONE ..............................*/
+    
   /* Create a pointer to nuVtSqSum. */
   printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
   printf(fh, "~%"),
 
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vidx1[dir], vidx1[dir]),
-  printf(fh, "  double incr[~a] = {0.0}; ~%", NP),
   printf(fh, "~%"),
     
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
   BmagInv_e   : doExpand1(bmag_inv,bmagBasis),
     
   if dir=1 then (
-    diffFac_e : nuVtSqSum_e,
-    f_xx_e    : diff(h_e, surfVar, 2)
+    diffFac_e : nuVtSqSum_e*vmap_prime[2],
+    diffFacV  : 1
   ) elseif dir=2 then (
-    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
+    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime[1]),
+    diffFacV  : vmapc_e[2],
     printf(fh, "  double diffFac[~a] = {0.}; ~%", NC),
     writeCExprs1(diffFac, diffFac_c),
     printf(fh, "~%"),
 
     diffFacNoZeros_c : makelistNoZeros1(diffFac_c, diffFac),
-    diffFac_e : doExpand(diffFacNoZeros_c, bC),
-    f_xx_e    : diff((w[cdim+1]+(dxv[cdim+1]/2)*surfVar)*diff(h_e, surfVar), surfVar)
+    diffFac_e : doExpand(diffFacNoZeros_c, bC)
   ),
+
+  fprimel_e : fullratsimp(subst(surfVar=-1,diffFacV) * subst(surfVar=0, diff(hl_e, surfVar))),
+  fprimer_e : fullratsimp(subst(surfVar=1 ,diffFacV) * subst(surfVar=0, diff(hr_e, surfVar))),
 
   if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
     /* This simplification only works for p=1 because it is a tensor product of
        conf and velocity space (remains to be checked for tensor basis). */
 
-    /* Write out the second derivative of the recovered distribution. */
-    printf(fh, "  double f_xx[~a] = {0.0}; ~%", NP),
-    f_xx_c : calcInnerProdList(varsP, 1, bP, f_xx_e),
-    writeCExprs1(f_xx, f_xx_c),
+    tmpPowVars : [],
+    clst : [dvl,dvc,dvr,dvlR2,dvcR2,dvrR2],
+    /* Write out the derivative of the recovered distribution (times diffFacV). */
+    printf(fh, "  double fprimel[~a] = {0.0}; ~%", NP),
+    fprimel_c : calcInnerProdList(varsP, 1, bP, fprimel_e),
+    tmpPowVars : writeCExprsCollect1noPowers(fprimel, fprimel_c, clst, [dvl,dvc,dvr], tmpPowVars),
     printf(fh, "~%"),
 
-    f_xx_e : doExpand(makelistNoZeros1(f_xx_c, f_xx),bP)
+    printf(fh, "  double fprimer[~a] = {0.0}; ~%", NP),
+    fprimer_c : calcInnerProdList(varsP, 1, bP, fprimer_e),
+    tmpPowVars : writeCExprsCollect1noPowers(fprimer, fprimer_c, clst, [dvl,dvc,dvr], tmpPowVars),
+    printf(fh, "~%"),
+
+    fprimel_e : doExpand(makelistNoZeros1(fprimel_c, fprimel),bP),
+    fprimer_e : doExpand(makelistNoZeros1(fprimer_c, fprimer),bP)
   ),
 
-  incr_c : calcInnerProdList(varsP, diffFac_e, bP, f_xx_e),
-  writeCExprs1(incr, incr_c),
+  printf(fh, "  double incrl[~a] = {0.0}; ~%", NP),
+  incrl_c : calcInnerProdList(varsP, diffFac_e, bP, fprimel_e),
+  writeCExprs1(incrl, incrl_c),
   printf(fh, "~%"),
   
-  writeCIncrExprs1(out, rdvSq4*makelistNoZeros1(incr_c, incr)), 
+  printf(fh, "  double incrr[~a] = {0.0}; ~%", NP),
+  incrr_c : calcInnerProdList(varsP, diffFac_e, bP, fprimer_e),
+  writeCExprs1(incrr, incrr_c),
+  printf(fh, "~%"),
+  
+  writeCIncrExprsCollect1(out, rdvSq4*( makelistNoZeros1(incrr_c, incrr) - makelistNoZeros1(incrl_c, incrl) ), [rdvSq4]), 
   printf(fh, "~%"),
 
   printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */

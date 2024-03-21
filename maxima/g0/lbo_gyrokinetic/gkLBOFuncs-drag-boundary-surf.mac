@@ -3,6 +3,7 @@ load("out-scripts");
 load("nodal_operations/nodal_functions")$
 load("recovery")$
 load("utilities")$
+load("lbo_gyrokinetic/gkLBO_util")$
 load(stringproc)$
 
 fpprec : 24$
@@ -23,20 +24,24 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim : cdim+vdim,
   vid1 : vidx1(cdim,vdim),
   vv   : varsVAll[1],
   surfVars : delete(vv,varsP),
     
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_edge, const double *vmap_prime_skin, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: velocity space mapping in skin cell.~%"),
+  printf(fh, "  // vmap_prime_edge,vmap_prime_skin: velocity space mapping derivative in edge and skin cells.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
   printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
-  printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
-  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "  // fEdge,fSkin: Distribution function in edge and skin cells ~%"),
+  printf(fh, "  // out: Incremented distribution function in skin cell ~%"),
   printf(fh, "~%"),
 
   /* Create a pointer to nuUSum. */
@@ -66,7 +71,7 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   numNodes : length(surfNodes),
 
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : nuSum_e*((1/2)*dxv[vid1[1]]*vv+w[vid1[1]])-nuUSum_e,
+  alphaDr : nuSum_e*vmap_e[1]-nuUSum_e,
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
   alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
   alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
@@ -97,6 +102,10 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   printf(fh, "  double fUpwind[~a] = {0.0};;~%", length(bSurf)),
   printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "~%"),
+
+  vmap_prime_fac_edge : subst(vmap_prime=vmap_prime_edge, vmap_prime_e[1]),
+  vmap_prime_fac_skin : subst(vmap_prime=vmap_prime_skin, vmap_prime_e[1]),
+
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   /* In addition we need the drag term evaluated at +1 (so alphaDr evaluated on the right) */
   printf(fh, "  if (edge == -1) { ~%~%"),
@@ -120,13 +129,13 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
     rcoFac_r : 1./(content(alphaOrd_r_n[1],alphaDrSurf[0])[1])
   ),
   for i : 1 thru numNodesConfig do (
-    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_r_n[i]*rcoFac_r)),
+    printf(fh, "  if (~a < 0.0) { ~%", alphaSimp(alphaOrd_r_n[i]*rcoFac_r)),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fSkin)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_skin)
     ),
     printf(fh, "  } else { ~%"),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fEdge)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_edge)
     ),
     printf(fh, "  } ~%")
   ),
@@ -175,13 +184,13 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   /* Within the skin cell, we need alpha_l (alpha evaluated at -1)
      just like how the skin cell is evaluated at -1 */
   for i : 1 thru numNodesConfig do (
-    printf(fh, "  if (~a < 0) { ~%", alphaSimp(alphaOrd_l_n[i]*rcoFac_l)),
+    printf(fh, "  if (~a < 0.0) { ~%", alphaSimp(alphaOrd_l_n[i]*rcoFac_l)),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_r(fEdge)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_edge)
     ),
     printf(fh, "  } else { ~%"),
     for j : 1 thru numNodesVel do (
-      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel)
+      printf(fh, "    fUpwindQuad[~a] = ~a_p~a_surfx~a_eval_quad_node_~a_l(fSkin)/~a; ~%", (j-1)+(i-1)*numNodesVel, basisStr, polyOrder, cdim+dir, (j-1)+(i-1)*numNodesVel, vmap_prime_fac_skin)
     ),
     printf(fh, "  } ~%")
   ),
@@ -239,20 +248,24 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
   pDim : cdim+vdim,
   vid1 : vidx1(cdim,vdim),
   vv   : varsVAll[2],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fSkin, const double *fEdge, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:     cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:   cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // m_:        species mass.~%"),
-  printf(fh, "  // bmag_inv:  1/(magnetic field magnitude). ~%"),
-  printf(fh, "  // nuSum:     collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_edge, const double *vmap_prime_skin, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: velocity space mapping in skin cell.~%"),
+  printf(fh, "  // vmap_prime_edge,vmap_prime_skin: velocity space mapping derivative in edge and skin cells.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
+  printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
   printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
-  printf(fh, "  // fSkin/Edge:    Distribution function in cells ~%"),
-  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "  // fEdge,fSkin: Distribution function in edge and skin cells ~%"),
+  printf(fh, "  // out: Incremented distribution function in cell ~%"),
   printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vid1[dir]),
   printf(fh, "~%"),
 
@@ -260,11 +273,11 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
     
   nuSum_e : doExpand1(nuSum,bC),
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : 2.0*nuSum_e*((1/2)*dxv[vid1[2]]*vv+w[vid1[2]]),
+  alphaDr : 2.0*nuSum_e*vmap_e[2],
 
-  /* Create expansions of f_skin, f_edge on volume basis. */
-  fSkin_e : doExpand1(fSkin, bP),
+  /* Create expansions of f_edge, f_skin on volume basis. */
   fEdge_e : doExpand1(fEdge, bP),
+  fSkin_e : doExpand1(fSkin, bP),
 
   /* Surface basis. Equivalent to basis of one lower
      dimensionality without surface variable. */
@@ -284,9 +297,11 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
   printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
-  /* Declare variable with contribution from second integration by parts.
-     This second integration by parts is only for the interior surface.
-     The other contribution comes from the evaluation of the skin cell at 
+
+  vmap_prime_fac_edge : subst(vmap_prime=vmap_prime_edge, vmap_prime_e[2]),
+  vmap_prime_fac_skin : subst(vmap_prime=vmap_prime_skin, vmap_prime_e[2]),
+
+  /* This contribution comes from the evaluation of the skin cell at 
      the correct interface (-1 for far left edge, +1 for far right edge). */
   printf(fh, "~%"),
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
@@ -300,7 +315,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
   /* Because -2*nu*mu is negative definite, need right edge value */
   /* Evaluate surface projection of Ghat = 2*nu*mu_r fEdge to update skin cell. */
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vv=-1, fEdge_e)),
+  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,subst(vv=-1, fEdge_e)/vmap_prime_fac_edge),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
   glst1  : makelistNoZeros1(Ghat_c, Ghat),
@@ -332,7 +347,7 @@ calcGkLBOBoundaryDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
   /* Because -2*nu*mu is negative definite, need right edge value */
   /* Evaluate surface projection of Ghat = 2*nu*mu_l fSkin to update skin cell. */
-  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vv=-1, fSkin_e)),
+  Ghat_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,subst(vv=-1, fSkin_e)/vmap_prime_fac_skin),
   /* Ghat_c (coefficients of Ghat) is what gets written. From here
      on we can simply refer to Ghat. */
   glst1  : makelistNoZeros1(Ghat_c, Ghat),

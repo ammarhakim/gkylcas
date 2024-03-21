@@ -5,6 +5,7 @@
 /* IMPORTANT: p=1 code below assumes vMin is negative and vMax positive. */
 load("modal-basis");
 load("out-scripts");
+load("lbo_gyrokinetic/gkLBO_util");
 load(stringproc)$
 fpprec : 24$
 
@@ -15,10 +16,11 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [i,e,varsC,bC,varsP,bP,vSub,NP,NC,vmap_e,vmapSq_e,vmap_prime_e,vv,surfVars,dv,
    f_e,fLo_e,fUp_e,fBlo_c,fBup_c,expr,expr_v,param,param_v],
     
-  printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double _m, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *vmap_prime, double _m, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // edge:      indicator of which velocity grid edge is being considered (VX/VPAR, VY/MU, VZ). ~%"),
   printf(fh, "  // vBoundary: velocity at the boundary of the velocity grid. ~%"),
   printf(fh, "  // dxv[~a]:    cell length in each direction. ~%", cdim+vdim),
+  printf(fh, "  // vmap_prime: velocity space mapping derivative (in the skin cell).~%"),
   printf(fh, "  // _m:        species mass. ~%"),
   printf(fh, "  // fIn:   distribution function at lower/upper velocity boundaries. ~%"),
   printf(fh, "  // out:       \int dS of f|^(vmax)_(vmin) [first vdim components] and vf^(vmax)_(vmin) [last component]. ~%"),
@@ -28,6 +30,9 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+        
   printf(fh, "  double dS = 0.0; ~%"),
   printf(fh, " ~%"),
 
@@ -59,36 +64,32 @@ calcBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     /* Surface integral above was done in [-1,1] computational space. Surface
        factor needs to be multiplied to obtain result from physical grid. */
 
-    /* extra factor in integration */
-    if (vdim=1) then (
-      printf(fh, "  dS = ~a; ~%", float(1/(2.0^(vdim-1)))*surfExpr)
-    ) else (
-      if (dir = 1) then (
-        printf(fh, "  dS = ~a/_m; ~%", float(2.0*%pi*1/(2.0^(vdim-1)))*surfExpr)
-      ) else (
-        printf(fh, "  dS = ~a/_m; ~%", float(4.0*%pi*1/(2.0^(vdim-1)))*surfExpr)
-      )
-    ),
+    /* Extra factor in integration. */
+    printf(fh, "  dS = ~a; ~%", float((((2^dir)*%pi/_m)^(vdim-1)) * 1/(2^(vdim-1)))*surfExpr),
     printf(fh, " ~%"),
+
+    collList : [dS,vBoundary,vmap_prime[0],vmap_prime[1]],
     
     printf(fh, "  if (edge == GKYL_~a_LOWER) {~%", supcase(string(varsVCartAll[dir]))),
     printf(fh, " ~%"),
 
-    bCorrLo_c : [dS*fSurfIntLo_c, dS*vBoundary[dir-1]*fSurfIntLo_c],
+    bCorrLo_c : [dS*fSurfIntLo_c/vmap_prime_e[dir], dS*vBoundary[dir-1]*fSurfIntLo_c/vmap_prime_e[dir]],
+
     if (dir = 1) then (
-      writeCIncrExprsOffCollect1(out, bCorrLo_c[1], 0, [dS])
+      writeCIncrExprsOffCollect1(out, bCorrLo_c[1], 0, collList)
     ),
-    writeCIncrExprsOffCollect1(out, bCorrLo_c[2], NC, [dS,vBoundary]),
+    writeCIncrExprsOffCollect1(out, bCorrLo_c[2], NC, collList),
     printf(fh, " ~%"),
 
     printf(fh, "  } else if (edge == GKYL_~a_UPPER) {~%", supcase(string(varsVCartAll[dir]))),
     printf(fh, " ~%"),
 
-    bCorrUp_c : [dS*fSurfIntUp_c, dS*vBoundary[dir+vdim-1]*fSurfIntUp_c],
+    bCorrUp_c : [dS*fSurfIntUp_c/vmap_prime_e[dir], dS*vBoundary[dir+vdim-1]*fSurfIntUp_c/vmap_prime_e[dir]],
+
     if (dir = 1) then (
-      writeCIncrExprsOffCollect1(out, bCorrUp_c[1], 0, [dS])
+      writeCIncrExprsOffCollect1(out, bCorrUp_c[1], 0, collList)
     ),
-    writeCIncrExprsOffCollect1(out, bCorrUp_c[2], NC, [dS,vBoundary]),
+    writeCIncrExprsOffCollect1(out, bCorrUp_c[2], NC, collList),
     printf(fh, " ~%"),
 
     printf(fh, "  }~%"),

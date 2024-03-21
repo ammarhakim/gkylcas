@@ -1,4 +1,4 @@
-load("lenard_bernstein_operator/gkLBOFuncs-diff-vol")$
+load("lbo_gyrokinetic/gkLBOFuncs-diff-vol")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -9,7 +9,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see beginning of v loop below though. */
 maxCdim_Ser : 3$
@@ -20,8 +20,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 1$
-maxVdim_Tensor : 2$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 gkVdims : [[1,2], [2], [2]]$
 
