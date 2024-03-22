@@ -30,7 +30,7 @@ gkVdims   : [[1,2], [2], [2]]$
 
 printPrototypeMomBcorr(deco, ci, vi, bStr, pi) := block([],
 
-  printf(fh, "~avoid mom_bcorr_lbo_gyrokinetic_~ax~av_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double _m, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
+  printf(fh, "~avoid mom_bcorr_lbo_gyrokinetic_~ax~av_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *vmap_prime, double _m, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
 )$
 
 
