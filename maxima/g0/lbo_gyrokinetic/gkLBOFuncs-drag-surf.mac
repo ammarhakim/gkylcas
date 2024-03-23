@@ -10,26 +10,24 @@ fpprec : 24$
    drag contribution from Lenard Bernstein operator allowing
    for a velocity coordinate mapping.. */
 
-varsVAll : [vpar, mu]$
-vidx1(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,nuUSum_e,alphaDr,
-   surf_cvars,surf_vvars,bSurf,surfNodes,numNodes,alphaDrSurf_l_c,
-   alphaDrSurf_r_c,alst_l,alst_r,alphaDrSurf_l_e,alphaDrSurf_r_e,alphaOrd_l_n,
-   alphaOrd_r_n,surfNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,
-   fHatSurf_r_e,Ghat_l_c,Ghat_r_c,glst1_l,glst1_r,Ghat_l_e,Ghat_r_e,drag_incr_l,drag_incr_r],
+  [varsC,bC,varsP,bP,vSub,NP,NC,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vid1,vv,surfVars,
+   nuSum_e,nuUSum_e,alphaDr,surf_cvars,surf_vvars,bSurf,surfNodes,numBSurf,numNodes,
+   alphaDrSurf_l_c,alphaDrSurf_r_c,alphaDrSurf_l_e,alphaDrSurf_r_e,alphaOrd_l_n,alphaOrd_r_n,
+   surfNodesConfig,numNodesVel,i,rcoFac_l,rcoFac_r,j,fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,
+   Ghat_r_c,glst1_l,glst1_r,Ghat_l_e,Ghat_r_e,drag_incr_l,drag_incr_r],
   
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   /* Expand velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   pDim     : cdim+vdim,
-  vid1     : vidx1(cdim,vdim),
-  vv       : varsVAll[1],
+  vid1     : makelist(i,i,cdim,cdim+vdim-1),
+  vv       : varsV[1],
   surfVars : delete(vv,varsP),
 
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_l, const double *vmap_prime_c, const double *vmap_prime_r, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
@@ -39,7 +37,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (1+1)*NC),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", 2*NC),
   printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
   printf(fh, "  // out: incremented distribution function in cell ~%"),
   printf(fh, "~%"),
@@ -70,20 +68,22 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     surfNodes : gaussOrd(polyOrder+1, pDim-1)
   ),
   numNodes : length(surfNodes),
+  numBSurf : length(bSurf),
 
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
-  alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
-  alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
-  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf_l),
-  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf_r),
-  alphaDrSurf_l_e : doExpand(alst_l, bSurf),
-  alphaDrSurf_r_e : doExpand(alst_r, bSurf),
-  printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", length(bSurf)),
+  alphaDrSurf_l_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
+  alphaDrSurf_r_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
+  printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", numBSurf),
   writeCExprs1(alphaDrSurf_l, alphaDrSurf_l_c),
   printf(fh, "~%"),
-  printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", numBSurf),
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
+
+  alphaDrSurf_l_c : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf_l),
+  alphaDrSurf_r_c : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf_r),
+  alphaDrSurf_l_e : doExpand(alphaDrSurf_l_c, bSurf),
+  alphaDrSurf_r_e : doExpand(alphaDrSurf_r_c, bSurf),
 
   /* Upwind the drag term using quadrature point evaluation. */
 
@@ -104,10 +104,10 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "  double fUpwindQuad_l[~a] = {0.0};~%", numNodes),
   printf(fh, "  double fUpwindQuad_r[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double fUpwind_l[~a] = {0.0};~%", length(bSurf)),
-  printf(fh, "  double fUpwind_r[~a] = {0.0};~%", length(bSurf)),
-  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double fUpwind_l[~a] = {0.0};~%", numBSurf),
+  printf(fh, "  double fUpwind_r[~a] = {0.0};~%", numBSurf),
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", numBSurf),
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", numBSurf),
   printf(fh, "~%"),
 
   vmap_prime_fac_l : subst(vmap_prime=vmap_prime_l, vmap_prime_e[1]),
@@ -115,7 +115,7 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vmap_prime_fac_r : subst(vmap_prime=vmap_prime_r, vmap_prime_e[1]),
 
   alphaSimp(a) := float(expand(fullratsimp(a))),
-  basisStr : sconcat(basisFun, "_", cdim+vdim, "x"),
+  basisStr : sconcat(basisFun, "_", pDim, "x"),
   rcoFac_l : 1.,  rcoFac_r : 1.,
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
     alphaSimp(a) := fullratsimp(a),
@@ -165,14 +165,6 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
  
   Ghat_l_c : calcInnerProdList(surfVars,alphaDrSurf_l_e,bSurf,fHatSurf_l_e),
   Ghat_r_c : calcInnerProdList(surfVars,alphaDrSurf_r_e,bSurf,fHatSurf_r_e),
-  /* Ghat_c (coefficients of Ghat) is what gets written. From here
-  ** on we can simply refer to Ghat. */
-  glst1_l  : makelistNoZeros1(Ghat_l_c, Ghat_l),
-  glst1_r  : makelistNoZeros1(Ghat_r_c, Ghat_r),
-  Ghat_l_e : doExpand(glst1_l, bSurf),
-  Ghat_r_e : doExpand(glst1_r, bSurf),
-  drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
-  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
 
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -193,6 +185,16 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
   
+  /* Ghat_c (coefficients of Ghat) is what gets written. From here
+  ** on we can simply refer to Ghat. */
+  Ghat_l_c : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  Ghat_r_c : makelistNoZeros1(Ghat_r_c, Ghat_r),
+  Ghat_l_e : doExpand(Ghat_l_c, bSurf),
+  Ghat_r_e : doExpand(Ghat_r_c, bSurf),
+
+  drag_incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1, bP), Ghat_l_e),
+  drag_incr_r : calcInnerProdList(surfVars, 1, subst(vv=1, bP), Ghat_r_e),
+
   writeCIncrExprs1(out, rdv2*drag_incr_r + rdv2*drag_incr_l), 
   printf(fh, "~%"),
 
@@ -203,21 +205,21 @@ calcGkLBODragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 );
 
 calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block( 
-  [varsC,bC,varsP,bP,vSub,NP,NC,pDim,vid1,vv,surfVars,nuSum_e,alphaDr,
-   bSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alst_l,alst_r,
-   alphaDrSurf_l_e,alphaDrSurf_r_e,Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,
-   Ghat_l_e,Ghat_r_e,incr_l,incr_r],
+  [varsC,bC,varsP,bP,vSub,NP,NC,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vid1,vv,surfVars,
+   nuSum_e,alphaDr,bSurf,numBSurf,alphaDrSurf_l_c,alphaDrSurf_r_c,alphaDrSurf_l_e,alphaDrSurf_r_e,
+   Ghat_l_c,Ghat_r_c,GhatNoZero_l,GhatNoZero_r,Ghat_l_e,Ghat_r_e,incr_l,incr_r],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
+  varsV : makelist(varsP[cdim+i],i,1,vdim),
 
   /* Expand velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   pDim     : cdim+vdim,
-  vid1     : vidx1(cdim,vdim),
-  vv       : varsVAll[2],
+  vid1     : makelist(i,i,cdim,cdim+vdim-1),
+  vv       : varsV[2],
   surfVars : delete(vv,varsP),
 
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap, const double *vmap_prime_l, const double *vmap_prime_c, const double *vmap_prime_r, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
@@ -227,7 +229,7 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", (vdim+1)*NC),
+  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", 2*NC),
   printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
   printf(fh, "  // out: incremented distribution function in cell ~%"),
   printf(fh, "~%"),
@@ -248,23 +250,25 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ) else (
     bSurf : basisFromVars(basisFun,surfVars,polyOrder)
   ),
+  numBSurf : length(bSurf),
 
-  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", length(bSurf)),
-  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", numBSurf),
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", numBSurf),
 
   /* Project alphaDrag evaluated at interior surface onto surf basis. */
-  alphaDrSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
-  alphaDrSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
-  alst_l          : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf_l),
-  alst_r          : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf_r),
-  alphaDrSurf_l_e : doExpand(alst_l, bSurf),
-  alphaDrSurf_r_e : doExpand(alst_r, bSurf),
-  printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", length(bSurf)),
+  alphaDrSurf_l_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=-1,alphaDr))),
+  alphaDrSurf_r_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=1,alphaDr))),
+  printf(fh, "  double alphaDrSurf_l[~a] = {0.0}; ~%", numBSurf),
   writeCExprs1(alphaDrSurf_l, alphaDrSurf_l_c),
   printf(fh, "~%"),
-  printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alphaDrSurf_r[~a] = {0.0}; ~%", numBSurf),
   writeCExprs1(alphaDrSurf_r, alphaDrSurf_r_c),
   printf(fh, "~%"),
+
+  alphaDrSurf_l_c : makelistNoZeros1(alphaDrSurf_l_c, alphaDrSurf_l),
+  alphaDrSurf_r_c : makelistNoZeros1(alphaDrSurf_r_c, alphaDrSurf_r),
+  alphaDrSurf_l_e : doExpand(alphaDrSurf_l_c, bSurf),
+  alphaDrSurf_r_e : doExpand(alphaDrSurf_r_c, bSurf),
   
   vmap_prime_fac_l : subst(vmap_prime=vmap_prime_l, vmap_prime_e[2]),
   vmap_prime_fac_c : subst(vmap_prime=vmap_prime_c, vmap_prime_e[2]),
@@ -274,16 +278,10 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Evaluate surface projection of Ghat_r = 2*nu*mu_r f_r. */
   fr_e : doExpand1(fr, bP),
   Ghat_r_c : calcInnerProdList(surfVars, alphaDrSurf_r_e, bSurf, subst(vv=-1, fr_e)/vmap_prime_fac_r),
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = 2*nu*mu_l f_c. */
   fc_e : doExpand1(fc, bP),
   Ghat_l_c : calcInnerProdList(surfVars, alphaDrSurf_l_e, bSurf, subst(vv=-1, fc_e)/vmap_prime_fac_c),
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   /* Clever factorization is possible for polyOrder = 1, but for higher
      polynomial orders, factorization is *too* clever and can lead to 
@@ -303,6 +301,12 @@ calcGkLBODragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   printf(fh, "~%"),
   flush_output(fh),
+
+  /* Zero out components of Ghat which are empty. */
+  Ghat_r_c : makelistNoZeros1(Ghat_r_c, Ghat_r),
+  Ghat_l_c : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  Ghat_r_e : doExpand(Ghat_r_c, bSurf),
+  Ghat_l_e : doExpand(Ghat_l_c, bSurf),
   
   /* Compute surface contribution integral(phi^- Ghat) on the right. */
   incr_l : calcInnerProdList(surfVars, -1, subst(vv=-1.0, bP), Ghat_l_e),

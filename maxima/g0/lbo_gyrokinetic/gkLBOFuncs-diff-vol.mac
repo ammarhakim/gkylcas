@@ -118,7 +118,6 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
     /* Zero out components of alpha which are empty. */
     facDiff_c : makelistNoZeros1(facDiff_c, facDiffMu),
-
     facDiff_e : doExpand(facDiff_c, bC),
 
     vol_c : vol_c + calcInnerProdList(varsP, facDiff_e, diff(vmap_e[2]*diff(bP, mu),mu), f_e),
