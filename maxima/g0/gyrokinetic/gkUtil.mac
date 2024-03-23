@@ -29,6 +29,11 @@ expandVmapFields(varsP) := block(
     vmap_prime_e : endcons(vmap_prime[d-1], vmap_prime_e)
   ),
 
+  /* Make mu'=1 if vdim=1 to avoid other if-statements in other Maxima scripts. */
+  if (vdim=1) then (
+    vmap_prime_e : endcons(1, vmap_prime_e)
+  ),
+
   return([vmap_e,vmapSq_e,vmap_prime_e])
 )$
 

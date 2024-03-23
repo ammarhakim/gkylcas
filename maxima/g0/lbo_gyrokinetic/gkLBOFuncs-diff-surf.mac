@@ -10,10 +10,8 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator
    in the gyrokinetic equation. */
 
-varsVAll : [vpar, mu]$
-
 calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,vSub,NC,NP,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
+  [varsC,bC,varsP,bP,vSub,NC,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
    vmapl_e,vmapc_e,vmapr_e,bmagBasis,bType,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,diffFac_e,
    diffFacV,diffFac_c,diffFacNoZeros_c,fprimel_e,fprimer_e,fprimel_c,fprimer_c,
    incrl_c,incrr_c],
@@ -34,13 +32,14 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
+  varsV : makelist(varsP[i+cdim],i,1,vdim),
 
   /* Expand velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   pDim    : cdim+vdim,
   vidx1   : makelist(i,i,cdim,cdim+vdim-1),
-  surfVar : varsVAll[dir],
+  surfVar : varsV[dir],
 
   vmapl_e : subst(vmap=vmapl, copylist(vmap_e)),
   vmapc_e : subst(vmap=vmapc, copylist(vmap_e)),
@@ -92,10 +91,10 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   BmagInv_e   : doExpand1(bmag_inv,bmagBasis),
     
   if dir=1 then (
-    diffFac_e : nuVtSqSum_e*vmap_prime[2],
+    diffFac_e : nuVtSqSum_e*vmap_prime_e[2],
     diffFacV  : 1
   ) elseif dir=2 then (
-    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime[1]),
+    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime_e[1]),
     diffFacV  : vmapc_e[2],
     printf(fh, "  double diffFac[~a] = {0.}; ~%", NC),
     writeCExprs1(diffFac, diffFac_c),

@@ -100,11 +100,11 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
                < psi, (2*m/B)*nuVtSqSum > for mu term.
      GhatPhaseFac : phase-space dependent factor in hat{G} (surface term). */
   if dir=1 then (
-    facDiff_e : nuVtSqSum_e*vmap_prime[2],
+    facDiff_e : nuVtSqSum_e*vmap_prime_e[2],
     surfVar_l : 1,
     surfVar_r : 1
   ) elseif dir=2 then (
-    facDiff_c : calcInnerProdList(varsC, 1, bC, 2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime[1]),
+    facDiff_c : calcInnerProdList(varsC, 1, bC, 2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime_e[1]),
     printf(fh, "  double facDiff[~a]; ~%", NC),
     writeCExprs1(facDiff, facDiff_c),
     printf(fh, "~%"),

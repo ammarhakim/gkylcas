@@ -1,7 +1,4 @@
-/*
-    Functions used by the GK LBO.
-*/
-load("modal-basis");
+/* Utility functions for gyrokinetic moments maxima. */
 
 expandVmapFields(varsP) := block(
   /* Expand the fields used for the velocity mapping. */
@@ -35,3 +32,4 @@ expandVmapFields(varsP) := block(
 
   return([vmap_e,vmapSq_e,vmap_prime_e])
 )$
+
