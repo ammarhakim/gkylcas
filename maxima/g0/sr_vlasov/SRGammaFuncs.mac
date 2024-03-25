@@ -44,15 +44,14 @@ calcGamma2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   VySq_e : doExpand1(V_1_sq, bC),
   VzSq_e : doExpand1(V_2_sq, bC),
 
-  unit : calcInnerProdList(varsC, 1, bC, 1.0),
   if (vdim = 1) then (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e)
   )
   elseif (vdim = 2) then (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e - VySq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e - VySq_e)
   )
   else (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e - VySq_e - VzSq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e - VySq_e - VzSq_e)
   ),
 
   printf(fh, "  double Gamma2_inv[~a] = {0.0}; ~%", NC),
@@ -120,15 +119,14 @@ calcGammaInv(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   VySq_e : doExpand1(V_1_sq, bC),
   VzSq_e : doExpand1(V_2_sq, bC),
 
-  unit : calcInnerProdList(varsC, 1, bC, 1.0),
   if (vdim = 1) then (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e)
   )
   elseif (vdim = 2) then (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e - VySq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e - VySq_e)
   )
   else (
-    denom_e : calcInnerProdList(varsC, 1, bC, unit[1] - VxSq_e - VySq_e - VzSq_e)
+    denom_e : calcInnerProdList(varsC, 1, bC, 1 - VxSq_e - VySq_e - VzSq_e)
   ),
 
   printf(fh, "  double Gamma2_inv[~a] = {0.0}; ~%", NC),
