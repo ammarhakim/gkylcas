@@ -1,0 +1,87 @@
+/* Generate kernels that take a function f at Gauss-Legendre quadrature nodes,
+   and do a nodal-to-modal transformation to yield the modal DG coefficients of f. */
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("scifac")$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+genSurfUpdwindQuadToModalKernel(fh, pdim, basisName, pOrder) := block(
+  [vars,basis,nodes,numNodes,f_e,
+  basisNodal,fHatNodal_e,fHatModProj_e],
+
+  [vars,basis] : loadBasis(basisName, pdim, pOrder),
+
+  /* Nodes given by tensor product of Gauss-Legendre quadrature points. */
+  nodes : gaussOrd(pOrder+1, pdim),
+  numNodes  : length(nodes),
+
+  f_e : doExpand1(fModal, basis),
+
+  printf(fh, "GKYL_CU_DH ~%"), 
+  printf(fh, "void ~%"),
+  printf(fh, "quad_to_modal_~ad_~a_p~a(const double* fquad, double* GKYL_RESTRICT fmodal) { ~%", pdim, basisName, pOrder),
+
+  /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
+  if (pOrder = 1) then (
+    /* Serendipity and Tensor are identical for p=1 */
+    basisNodal  : getVarsNodalBasisWithNodes("Ser", pdim, pOrder, vars, nodes)
+  )
+  else (
+    basisNodal  : getVarsNodalBasisWithNodes("Tensor", pdim, pOrder, vars, nodes)
+  ),
+  fHatNodal_e : doExpand1(fQuad,basisNodal),
+  /* Project nodal basis back onto modal basis */
+  fHatModProj_e : fullratsimp(calcInnerProdList(vars, 1, basis, fHatNodal_e)),
+
+  /* Write out projection of tensor nodal basis onto modal basis */
+  /* Clever factorization is possible for polyOrder = 1, but for higher
+     polynomial orders, factorization is *too* clever and can lead to 
+     deeply nested parentheses, not ideal for compiler optimizations */
+  if (pOrder = 1) then (
+    writeCExprsNoExpand1(f, fHatModProj_e)
+  ) else (
+    writeCExprs1(fModal, fHatModProj_e)
+  ),
+  flush_output(fh),
+
+  printf(fh, "} ~%")
+)$
+
+genSurfUpdwindQuadToModalKernelHyb(fh, cdim, vdim, basisName) := block(
+  [pdim,varsc,basisc,varsp,basisp,varsv,nodes,numNodes,
+   f_e,basisNodal,fHatNodal_e,fHatModProj_e],
+
+  pdim : cdim+vdim,
+
+  if basisName = "hyb" then (
+    [varsc,basisc,varsp,basisp] : loadPhaseBasis(basisName, cdim, vdim, 1),
+    nodes : gaussOrdHyb(1+1, cdim, vdim)
+  ) elseif basisName = "gkhyb" then (
+    [varsc,basisc,varsp,basisp,vsub] : loadGkBasis(basisName, cdim, vdim, 1),
+    varsv : listify(setdifference(setify(varsp),setify(varsc))),
+    nodes : gaussOrdGkHyb(1+1, varsc, varsv)
+  ),
+
+  f_e : doExpand1(fModal, basisp),
+
+  numNodes : length(nodes),
+
+  printf(fh, "GKYL_CU_DH ~%"), 
+  printf(fh, "void ~%"),
+  printf(fh, "quad_to_modal_~ax~av_~a_p1(const double* fquad, double* GKYL_RESTRICT fmodal) { ~%", cdim, vdim, basisName),
+
+  /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
+  basisNodal  : getVarsNodalBasisWithNodesHyb(basisName, cdim, vdim, varsp, nodes),
+  fHatNodal_e : doExpand1(fQuad,basisNodal),
+  /* Project nodal basis back onto modal basis */
+  fHatModProj_e : fullratsimp(calcInnerProdList(varsp, 1, basisp, fHatNodal_e)),
+
+  /* Write out projection of tensor nodal basis onto modal basis. */
+  writeCExprs1(fModal, fHatModProj_e),
+  flush_output(fh),
+
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
