@@ -1,0 +1,56 @@
+/* Maxima function used to generate kernel which shifts the distribution
+   function to make it positivity control points (PCPs). */
+load("modal-basis")$
+load("out-scripts")$
+load("nodal_operations/nodal_functions")$
+load(stringproc)$
+fpprec : 24$
+
+genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
+  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_e,pcpNodes,numNodes,f_n,i,nodToMod,f_c],
+
+  printf(fh, "GKYL_CU_DH double ~a(double ffloor, const double *fIn, const double *fOut) ~%{ ~%", funcNm),
+  printf(fh, "  // ffloor: Distribution function floor to shift to when f<0.~%"),
+  printf(fh, "  // fin: input distribution function.~%"),
+  printf(fh, "  // fout: output distribution function.~%"),
+  printf(fh, "~%"),
+
+  kill(varsC,varsP,bC,bP),
+  pdim : cdim+vdim,
+
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP),
+  varsV : makelist(varsP[i+cdim],i,1,vdim),
+
+  f_e : doExpand1(fIn, bP),
+
+  /* Construct a set of nodes that are PCPs + 0 in vpar, and PCPs in other
+     dimensions. */ 
+  pcpNodes : (1/3) * getNodesGkHyb(cdim, vdim),
+  numNodes : length(pcpNodes),
+
+  /* Evaluate f at PCPs. */
+  f_n : evAtNodes(f_e, pcpNodes, varsP),
+  printf(fh, "  double fnod[~a];~%",numNodes),
+  writeCExprs1(fnod, f_n),
+  printf(fh, "~%"),
+
+  /* Loop over the nodes, and if f at that node is <0, set it to the minimum f. */
+  printf(fh, "  // If f < 0. at positivity control points, set it to ffloor.~%"),
+  for i : 1 thru numNodes do (
+    printf(fh, "  if (fnod[~a] < 0.) fnod[~a] = ffloor;~%", i-1, i-1)
+  ),
+  printf(fh, "~%"),
+
+  f_n : makelist(fnod[i-1],i,1,numNodes),
+  nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, pcpNodes),
+
+  f_c : nodToMod . f_n,
+  f_c : makelist(fullratsimp(f_c[i][1]),i,1,numP),
+
+  writeCExprs1(fout, f_c),
+  printf(fh, "~%"),
+
+  printf(fh, "}~%")
+
+)$
