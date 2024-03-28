@@ -3,6 +3,18 @@
 */
 load("modal-basis");
 
+getAxisymmetricConfBasis(confBasis) := block(
+  /* Load a basis that only has the variables B depends on (we assume it
+     doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
+  [numBasisC,i],
+  numBasisC : length(confBasis),
+  axisymmBasis : copylist(confBasis),
+  for i : 1 thru numBasisC do (
+    if not freeof(y,confBasis[i]) then ( axisymmBasis[i] : 0 )
+  ),
+  return(axisymmBasis)
+)$
+
 expandVmapFields(varsP) := block(
   /* Expand the fields used for the velocity mapping. */
   [pDim,vdim,cdim,jnk,vmapBasis,vmapSqBasis,vmapBnum,vmapSqBnum,

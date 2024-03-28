@@ -12,9 +12,10 @@ fpprec : 24$
 
 calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub,NC,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
-   vmapl_e,vmapc_e,vmapr_e,bmagBasis,bType,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,diffFac_e,
-   diffFacV,diffFac_c,diffFacNoZeros_c,fprimel_e,fprimer_e,fprimel_c,fprimer_c,
-   incrl_c,incrr_c],
+   surfIntVars,bSurf,numBSurf,vmapl_e,vmapc_e,vmapr_e,bmagBasis,bType,dxvRecl,dxvRecc,dxvRecr,
+   hl_e,hr_e,nuVtSqSum_e,BmagInv_e,confFac_e,dfVfac,fVfac,confFac_c,vpSqSub,
+   dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e,dfRecFacl_c,dfRecFacr_c,fRecFacl_c,fRecFacr_c,
+   bPp,incrl_c,incrr_c],
   
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmapl, const double *vmapc, const double *vmapr, const double *vmap_prime, const double *jacobvel, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
@@ -37,20 +38,26 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   /* Expand velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
-  pDim    : cdim+vdim,
-  vidx1   : makelist(i,i,cdim,cdim+vdim-1),
-  surfVar : varsV[dir],
+  pDim        : cdim+vdim,
+  vidx1       : makelist(i,i,cdim,cdim+vdim-1),
+  surfVar     : varsV[dir],
+  surfIntVars : delete(surfVar,varsP),
+
+  bPp : diff(bP, surfVar),
+
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder)
+  ),
+  numBSurf : length(bSurf),
 
   vmapl_e : subst(vmap=vmapl, copylist(vmap_e)),
   vmapc_e : subst(vmap=vmapc, copylist(vmap_e)),
   vmapr_e : subst(vmap=vmapr, copylist(vmap_e)),
 
-  /* Load a basis that only has the variables B depends on (we assume it
-     doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
-  bmagBasis : copylist(bC),
-  for i : 1 thru NC do (
-    if not freeof(y,bC[i]) then ( bmagBasis[i] : 0 )
-  ),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
 
   /* Construct the recovery polynomials */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
@@ -69,9 +76,9 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   printf(fh, "  double dvr = ~a;~%", float(expand( subst(surfVar=1, vmapr_e[dir]) - subst(surfVar=-1, vmapr_e[dir]) ))),
   printf(fh, "~%"),
 
-  dxvRecl : makelist(2, i, 1, pDim),  dxvRecl[dir] : dvl,
-  dxvRecc : makelist(2, i, 1, pDim),  dxvRecc[dir] : dvc,
-  dxvRecr : makelist(2, i, 1, pDim),  dxvRecr[dir] : dvr,
+  dxvRecl : makelist(2, i, 1, pDim),  dxvRecl[cdim+dir] : dvl,
+  dxvRecc : makelist(2, i, 1, pDim),  dxvRecc[cdim+dir] : dvc,
+  dxvRecr : makelist(2, i, 1, pDim),  dxvRecr[cdim+dir] : dvr,
 
   hl_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecl, dxvRecc,
     dg(makelist(fl_over_jacv[i-1],i,1,NP)), dg(makelist(fc_over_jacv[i-1],i,1,NP))),
@@ -84,28 +91,65 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", 1*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", vidx1[dir], vidx1[dir]),
+  printf(fh, "  double rdv2 = 2.0/dxv[~a]; ~%", vidx1[dir]),
+  printf(fh, "  double rdv2Sq = rdv2*rdv2; ~%"),
   printf(fh, "~%"),
     
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
   BmagInv_e   : doExpand1(bmag_inv,bmagBasis),
     
+  /* confFac_c = < psi, nuVtSqSum*mu' > for vpar term,
+                 < psi, (2*m/B)*nuVtSqSum*vpar' > for mu term.
+     dfRecFac : phase-space dependent factor from 1st IBP.
+     fRecFac : phase-space dependent factor from 2nd IBP. */
   if dir=1 then (
-    diffFac_e : nuVtSqSum_e*vmap_prime_e[2],
-    diffFacV  : 1
+    confFac_e : nuVtSqSum_e,
+    dfVfac    : vmap_prime_e[2],
+    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2
   ) elseif dir=2 then (
-    diffFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e*vmap_prime_e[1]),
-    diffFacV  : vmapc_e[2],
-    printf(fh, "  double diffFac[~a] = {0.}; ~%", NC),
-    writeCExprs1(diffFac, diffFac_c),
+    confFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
+    printf(fh, "  double confFac[~a] = {0.}; ~%", NC),
+    writeCExprs1(confFac, confFac_c),
     printf(fh, "~%"),
+    confFac_c : makelistNoZeros1(confFac_c, confFac),
 
-    diffFacNoZeros_c : makelistNoZeros1(diffFac_c, diffFac),
-    diffFac_e : doExpand(diffFacNoZeros_c, bC)
+    confFac_e : doExpand(confFac_c, bC),
+    dfVfac    : vmap_prime_e[1] * vmapc_e[dir],
+    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2 * vmapc_e[dir]
   ),
 
-  fprimel_e : fullratsimp(subst(surfVar=-1,diffFacV) * subst(surfVar=0, diff(hl_e, surfVar))),
-  fprimer_e : fullratsimp(subst(surfVar=1 ,diffFacV) * subst(surfVar=0, diff(hr_e, surfVar))),
+  printf(fh, "  double vmap_primeSq[~a];~%", vdim),
+  for d : 1 thru vdim do (
+    printf(fh, "  vmap_primeSq[~a] = pow(vmap_prime[~a],2);~%", d-1, d-1)
+  ),
+  printf(fh, "~%"),
+
+  vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq[i-1],i,1,vdim),
+  printf(fh, "  double dfVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,dfVfac)))),
+  printf(fh, "  double dfVfac_r = ~a; ~%", float(subst(vpSqSub,subst(surfVar=1 ,dfVfac)))),
+  printf(fh, "~%"),
+
+  printf(fh, "  double fVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,fVfac)))),
+  printf(fh, "  double fVfac_r = ~a; ~%", float(subst(vpSqSub,subst(surfVar=1 ,fVfac)))),
+  printf(fh, "~%"),
+
+  dfRecFacl_e : fullratsimp(dfVfac_l * subst(surfVar=0, diff(hl_e, surfVar))),
+  dfRecFacr_e : fullratsimp(dfVfac_r * subst(surfVar=0, diff(hr_e, surfVar))),
+
+  fRecFacl_e : fullratsimp(fVfac_l * subst(surfVar=0, hl_e)),
+  fRecFacr_e : fullratsimp(fVfac_r * subst(surfVar=0, hr_e)),
+
+  dfRecFacl_c : calcInnerProdList(surfIntVars, 1, bSurf, dfRecFacl_e),
+  dfRecFacr_c : calcInnerProdList(surfIntVars, 1, bSurf, dfRecFacr_e),
+
+  fRecFacl_c : calcInnerProdList(surfIntVars, 1, bSurf, fRecFacl_e),
+  fRecFacr_c : calcInnerProdList(surfIntVars, 1, bSurf, fRecFacr_e),
+
+  phaseFacl_c : rdv2  *calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bP ), dfRecFacl_e)
+               -rdv2Sq*calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bPp), fRecFacl_e),
+
+  phaseFacr_c : rdv2  *calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP ), dfRecFacr_e)
+               -rdv2Sq*calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bPp), fRecFacr_e),
 
   if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
     /* This simplification only works for p=1 because it is a tensor product of
@@ -113,32 +157,34 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
     tmpPowVars : [],
     clst : [dvl,dvc,dvr,dvlR2,dvcR2,dvrR2],
-    /* Write out the derivative of the recovered distribution (times diffFacV). */
-    printf(fh, "  double fprimel[~a] = {0.0}; ~%", NP),
-    fprimel_c : calcInnerProdList(varsP, 1, bP, fprimel_e),
-    tmpPowVars : writeCExprsCollect1noPowers(fprimel, fprimel_c, clst, [dvl,dvc,dvr], tmpPowVars),
+    /* Write out the phase factor. */
+    printf(fh, "  double phaseFacl[~a] = {0.0}; ~%", NP),
+    tmpPowVars : writeCExprsCollect1noPowers(phaseFacl, phaseFacl_c, clst, [dvl,dvc,dvr], tmpPowVars),
     printf(fh, "~%"),
 
-    printf(fh, "  double fprimer[~a] = {0.0}; ~%", NP),
-    fprimer_c : calcInnerProdList(varsP, 1, bP, fprimer_e),
-    tmpPowVars : writeCExprsCollect1noPowers(fprimer, fprimer_c, clst, [dvl,dvc,dvr], tmpPowVars),
+    printf(fh, "  double phaseFacr[~a] = {0.0}; ~%", NP),
+    tmpPowVars : writeCExprsCollect1noPowers(phaseFacr, phaseFacr_c, clst, [dvl,dvc,dvr], tmpPowVars),
     printf(fh, "~%"),
 
-    fprimel_e : doExpand(makelistNoZeros1(fprimel_c, fprimel),bP),
-    fprimer_e : doExpand(makelistNoZeros1(fprimer_c, fprimer),bP)
+    phaseFacl_e : doExpand(makelistNoZeros1(phaseFacl_c, phaseFacl), bP),
+    phaseFacr_e : doExpand(makelistNoZeros1(phaseFacr_c, phaseFacr), bP)
+  ) else (
+    phaseFacl_e : doExpand(phaseFacl_c, bP),
+    phaseFacr_e : doExpand(phaseFacr_c, bP)
   ),
 
+  incrl_c : calcInnerProdList(varsP, confFac_e, bP, phaseFacl_e),
+  incrr_c : calcInnerProdList(varsP, confFac_e, bP, phaseFacr_e),
+
   printf(fh, "  double incrl[~a] = {0.0}; ~%", NP),
-  incrl_c : calcInnerProdList(varsP, diffFac_e, bP, fprimel_e),
   writeCExprs1(incrl, incrl_c),
   printf(fh, "~%"),
   
   printf(fh, "  double incrr[~a] = {0.0}; ~%", NP),
-  incrr_c : calcInnerProdList(varsP, diffFac_e, bP, fprimer_e),
   writeCExprs1(incrr, incrr_c),
   printf(fh, "~%"),
   
-  writeCIncrExprsCollect1(out, rdvSq4*( makelistNoZeros1(incrr_c, incrr) - makelistNoZeros1(incrl_c, incrl) ), [rdvSq4]), 
+  writeCIncrExprs1(out, makelistNoZeros1(incrr_c, incrr) - makelistNoZeros1(incrl_c, incrl)), 
   printf(fh, "~%"),
 
   printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */

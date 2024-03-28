@@ -11,7 +11,7 @@ fpprec : 24$
 
 calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,vmap_e,vmapSq_e,vmap_prime_e,pOrderVpar,vidx1,dir,f_e,nuSum_e,
-   nuVtSqSum_e,zr,facDiff_c,facDiff_e,i,BmagInv_e,
+   nuVtSqSum_e,zr,facDiff_c,facDiff_e,i,bmagInv_e,
    expr,polyFact,facDiff_mid],
 
   printf(fh, "#include <gkyl_lbo_gyrokinetic_kernels.h> ~%"),
@@ -78,7 +78,7 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   if pOrderVpar>1 then (
     /* Only used in increment if polyOrderVpar>1. */
-    printf(fh, "  // Expand nuVtSqSum/vmap_prime[0]^2 in conf basis.~%"),
+    printf(fh, "  // Expand nuVtSqSum/vpar'^2 in conf basis.~%"),
     printf(fh, "  double facDiffVpar[~a] = {0.};~%", NC),
     writeCExprsCollect1lhsc(facDiffVpar, radcan(facDiff_c)),
     printf(fh, "~%"),
@@ -100,18 +100,15 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     /* Polynomial order factor in CFL frequency. */
     polyFact : (polyOrder+1)^2,
 
-    /* Load a basis that only has the variables B depends on (we assume it
-       doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
-    bmagBasis : copylist(bC),
-    for i : 1 thru NC do (
-      if not freeof(y,bC[i]) then ( bmagBasis[i] : 0 )
-    ),
-    BmagInv_e : doExpand1(bmag_inv,bmagBasis),
+    /* Axisymmetric basis (independent of y). */
+    bmagBasis : getAxisymmetricConfBasis(bC),
+
+    bmagInv_e : doExpand1(bmag_inv,bmagBasis),
 
     /* facDiff = (2/(Delta mu))^2 * < psi, 2*m_*bmag_inv*nuVtSqSum/mu'^2 >. */
-    facDiff_c : calcInnerProdList(varsC,1,bC,2*m_*rdvVmapPrimeSq4[1]*BmagInv_e*nuVtSqSum_e),
+    facDiff_c : calcInnerProdList(varsC,1,bC,2*m_*rdvVmapPrimeSq4[1]*bmagInv_e*nuVtSqSum_e),
 
-    printf(fh, "  // Expand mu diffusion coefficient in phase basis.~%"),
+    printf(fh, "  // Expand 2*m*nuVtSqSum/bmag/mu'^2 in conf basis.~%"),
     printf(fh, "  double facDiffMu[~a] = {0.};~%", NC),
     writeCExprsCollect1lhsc(facDiffMu, radcan(facDiff_c)),
     printf(fh, "~%"),
