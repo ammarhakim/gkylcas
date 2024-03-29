@@ -17,15 +17,15 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
    dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e,dfRecFacl_c,dfRecFacr_c,fRecFacl_c,fRecFacr_c,
    bPp,incrl_c,incrr_c],
   
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmapl, const double *vmapc, const double *vmapr, const double *vmap_prime, const double *jacobvel, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmapl, const double *vmapc, const double *vmapr, const double *vmap_prime, const double *jacobvell, const double *jacobvelc, const double *jacobvelr, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // dxv: cell spacing. ~%"),
   printf(fh, "  // vmapl,vmapc,vmapr: velocity space mapping.~%"),
   printf(fh, "  // vmap_prime: velocity space mapping derivative.~%"),
   printf(fh, "  // jacobvel: velocity space jacobian.~%"),
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
-  printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%", 2*NC),
+  printf(fh, "  // nuPrimMomsSum: sum of bulk velocities and thermal speeds squared times their respective collisionalities. ~%"),
   printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
   printf(fh, "  // out: incremented distribution function in cell ~%"),
   printf(fh, "~%"),
@@ -67,9 +67,9 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
   /* Scale the distribution by the velocity space jacobian. */
   printf(fh, "  double fl_over_jacv[~a], fc_over_jacv[~a], fr_over_jacv[~a];~%", NP, NP, NP),
-  writeCExprs1(fl_over_jacv, makelist(fl[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fc_over_jacv, makelist(fc[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fr_over_jacv, makelist(fr[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fl_over_jacv, makelist(fl[i-1]/jacobvell[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fc_over_jacv, makelist(fc[i-1]/jacobvelc[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fr_over_jacv, makelist(fr[i-1]/jacobvelr[0],i,1,NP)),  printf(fh, "~%"),
 
   printf(fh, "  double dvl = ~a;~%", float(expand( subst(surfVar=1, vmapl_e[dir]) - subst(surfVar=-1, vmapl_e[dir]) ))),
   printf(fh, "  double dvc = ~a;~%", float(expand( subst(surfVar=1, vmapc_e[dir]) - subst(surfVar=-1, vmapc_e[dir]) ))),
@@ -105,7 +105,7 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   if dir=1 then (
     confFac_e : nuVtSqSum_e,
     dfVfac    : vmap_prime_e[2],
-    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2
+    fVfac     : jacobvelc[0]/(vmap_prime_e[dir])^2
   ) elseif dir=2 then (
     confFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
     printf(fh, "  double confFac[~a] = {0.}; ~%", NC),
@@ -115,16 +115,13 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
     confFac_e : doExpand(confFac_c, bC),
     dfVfac    : vmap_prime_e[1] * vmapc_e[dir],
-    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2 * vmapc_e[dir]
+    fVfac     : jacobvelc[0]/(vmap_prime_e[dir])^2 * vmapc_e[dir]
   ),
 
-  printf(fh, "  double vmap_primeSq[~a];~%", vdim),
-  for d : 1 thru vdim do (
-    printf(fh, "  vmap_primeSq[~a] = pow(vmap_prime[~a],2);~%", d-1, d-1)
-  ),
+  printf(fh, "  double vmap_primeSq = pow(vmap_prime[~a],2);~%", dir-1),
   printf(fh, "~%"),
 
-  vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq[i-1],i,1,vdim),
+  vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq,i,1,vdim),
   printf(fh, "  double dfVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,dfVfac)))),
   printf(fh, "  double dfVfac_r = ~a; ~%", float(subst(vpSqSub,subst(surfVar=1 ,dfVfac)))),
   printf(fh, "~%"),

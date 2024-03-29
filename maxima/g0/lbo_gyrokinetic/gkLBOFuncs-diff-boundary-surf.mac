@@ -15,11 +15,11 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
    bPp,vmap_edge_e,vmap_skin_e,bmagBasis,bType,fskin_over_jacv_e,dxvRec_edge,dxvRec_skin,hl_e,hr_e,nuVtSqSum_e,
    BmagInv_e,bSurf,numBSurf,confFac_e,dfVfac,fVfac,confFac_c,vpSqSub,dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e],
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap_edge, const double *vmap_skin, const double *vmap_prime, const double *jacobvel, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap_edge, const double *vmap_skin, const double *vmap_prime, const double *jacobvel_edge, const double *jacobvel_skin, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv: Cell spacing. ~%"),
   printf(fh, "  // vmap_edge,vmap_skin: velocity space mapping.~%"),
   printf(fh, "  // vmap_prime: velocity space mapping derivative (in the skin cell).~%"),
-  printf(fh, "  // jacobvel: velocity space jacobian.~%"),
+  printf(fh, "  // jacobvel_edge,jacobvel_skin: velocity space jacobian.~%"),
   printf(fh, "  // m_: species mass.~%"),
   printf(fh, "  // bmag_inv: 1/(magnetic field magnitude). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
@@ -57,8 +57,8 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
   /* Scale the distribution by the velocity space jacobian. */
   printf(fh, "  double fedge_over_jacv[~a], fskin_over_jacv[~a];~%", NP, NP),
-  writeCExprs1(fedge_over_jacv, makelist(fedge[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fskin_over_jacv, makelist(fskin[i-1]/jacobvel[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fedge_over_jacv, makelist(fedge[i-1]/jacobvel_edge[0],i,1,NP)),  printf(fh, "~%"),
+  writeCExprs1(fskin_over_jacv, makelist(fskin[i-1]/jacobvel_skin[0],i,1,NP)),  printf(fh, "~%"),
 
   fskin_over_jacv_e : doExpand1(fskin_over_jacv, bP),
 
@@ -101,7 +101,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   if dir=1 then (
     confFac_e : nuVtSqSum_e,
     dfVfac    : vmap_prime_e[2],
-    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2
+    fVfac     : jacobvel_skin[0]/(vmap_prime_e[dir])^2
   ) elseif dir=2 then (
     confFac_c : calcInnerProdList(varsC, 1, bC, 2*m_*BmagInv_e*nuVtSqSum_e),
     printf(fh, "  double confFac[~a]; ~%", NC),
@@ -111,16 +111,13 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
     confFac_e : doExpand(confFac_c, bC),
     dfVfac    : vmap_prime_e[1] * vmap_skin_e[dir],
-    fVfac     : jacobvel[0]/(vmap_prime_e[dir])^2 * vmap_skin_e[dir]
+    fVfac     : jacobvel_skin[0]/(vmap_prime_e[dir])^2 * vmap_skin_e[dir]
   ),
 
-  printf(fh, "  double vmap_primeSq[~a];~%", vdim),
-  for d : 1 thru vdim do (
-    printf(fh, "  vmap_primeSq[~a] = pow(vmap_prime[~a],2);~%", d-1, d-1)
-  ),
+  printf(fh, "  double vmap_primeSq = pow(vmap_prime[~a],2);~%", dir-1),
   printf(fh, "~%"),
 
-  vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq[i-1],i,1,vdim),
+  vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq,i,1,vdim),
   printf(fh, "  double dfVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,dfVfac)))),
   printf(fh, "  double dfVfac_r = ~a; ~%", float(subst(vpSqSub,subst(surfVar=1 ,dfVfac)))),
   printf(fh, "~%"),
