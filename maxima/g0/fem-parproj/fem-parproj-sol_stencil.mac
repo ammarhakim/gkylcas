@@ -10,11 +10,9 @@ load("fem/fem-util");
 fpprec : 24$
 
 generate_fem_parproj_sol_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
-  [polyOrder,bN,numB,vars,stencil,sol,sol_c,k],
+  [varsC,basis,polyOrder,bN,numB,vars,stencil,sol,sol_c,k],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   for polyOrder : pMin thru pMax do (
 

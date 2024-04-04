@@ -158,11 +158,10 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *ext_field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:           Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
   printf(fh, "  // field:       q/m*EM fields.~%"),
-  printf(fh, "  // ext_field:   external q/m*EM fields (unused).~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
   printf(fh, "  // out:         Output distribution function in skin cell ~%"),

@@ -27,12 +27,12 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid mom_vlasov_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid mom_vlasov_pkpm_diag_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid mom_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid mom_pkpm_diag_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~%")  
 )$
 
-fh : openw("~/max-out/gkyl_mom_vlasov_pkpm_kernels.h")$
+fh : openw("~/max-out/gkyl_mom_pkpm_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$

@@ -10,7 +10,7 @@ fpprec : 24$
 makelistNoZeros(vals, name) := makelist(if vals[i] # 0 then name[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPKPMLBODiffSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,pDim,bType,h_e,nuVtSq_e,temp_diff_c,diff_incr_c],
+  [varsC,bC,varsP,bP,NP,NC,pDim,bType,h_e,nuVtSqSum_e,temp_diff_c,diff_incr_c],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -29,14 +29,20 @@ calcVlasovPKPMLBODiffSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   h_G_1_e : calcRecov1CellGen(bType, vx, varsP, polyOrder, 1, dg(makelist(G_1l[i-1],i,1,NP)), dg(makelist(G_1c[i-1],i,1,NP)), dg(makelist(G_1r[i-1],i,1,NP))),
   /*............. RECOVERY DONE ..............................*/
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),    
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuVtSq, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:         cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:       cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuVtSqSum[~a]: Sum of thermal speeds squared time their respective collisionalities. ~%", NC),
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),    
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),
+  printf(fh, "  // nuSum:         Collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: Sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%"),
   printf(fh, "  // fl/fc/fr:      Input Distribution function [F_0, T_perp G = T_perp (F_1 - F_0)] in left/center/right cells ~%"),
-  printf(fh, "  // out:           Incremented distribution function in cell ~%"),
+  printf(fh, "  // out:           Incremented distribution functions in center cell. ~%"),
+
   printf(fh, "  double rdvSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", cdim, cdim),
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+  
   /* Access F_0 and T_perp G, first two Laguerre moments */
   printf(fh, "  const double *F_0l = &fl[~a]; ~%", 0),
   printf(fh, "  const double *G_1l = &fl[~a]; ~%", NP),  
@@ -54,7 +60,7 @@ calcVlasovPKPMLBODiffSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "~%"),
     
   /* Write out the second derivative of the recovered distribution. */
-  nuVtSq_e : doExpand1(nuVtSq,bC),
+  nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
 
   if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
     /* This simplification only works for p=1 because it is a tensor product of
@@ -76,8 +82,8 @@ calcVlasovPKPMLBODiffSurfUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
     G_1_xx_e : diff(h_G_1_e, vx, 2)
   ),
 
-  incr_F_0_c : calcInnerProdList(varsP, nuVtSq_e, bP, F_0_xx_e),
-  incr_G_1_c : calcInnerProdList(varsP, nuVtSq_e, bP, G_1_xx_e),
+  incr_F_0_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, F_0_xx_e),
+  incr_G_1_c : calcInnerProdList(varsP, nuVtSqSum_e, bP, G_1_xx_e),
   writeCExprs1(incr_F_0, incr_F_0_c),
   writeCExprs1(incr_G_1, incr_G_1_c),
   printf(fh, "~%"),

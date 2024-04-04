@@ -9,9 +9,7 @@ load(stringproc)$
 fpprec : 24$
 
 calcVlasovPKPMLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsP,bP,NP,NC,zr,nuVtSq_e,polyFact,facDiff_mid],
-
-  printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
+  [varsC,bC,varsP,bP,NP,NC,zr,nuVtSqSum_e,polyFact,facDiff_mid],
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -30,24 +28,28 @@ calcVlasovPKPMLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
      coordinates = 0. */
   zr : makelist(varsP[d]=0, d, 1, length(varsP)),
 
-  printf(fh, "#include <gkyl_lbo_vlasov_pkpm_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuVtSq, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[~a]:      Cell-center coordinates. ~%", cdim+vdim),
-  printf(fh, "  // dxv[~a]:    Cell spacing. ~%", cdim+vdim),
-  printf(fh, "  // nuVtSq:    Thermal speed squared times collisionality. ~%"),
-  printf(fh, "  // f:         Input distribution function.~%"),
-  printf(fh, "  // out:       Incremented output ~%"),
+  printf(fh, "#include <gkyl_lbo_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:       Cell-center coordinates. ~%"),
+  printf(fh, "  // dxv[NDIM]:     Cell spacing. ~%"),
+  printf(fh, "  // nuSum:         Collisionalities added (self and cross species collisionalities). ~%"),
+  printf(fh, "  // nuPrimMomsSum: Sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%"),
+  printf(fh, "  // f:             Input distribution functions [F_0, T_perp/m G_1 = T_perp/m (F_0 - F_1)].~%"),
+  printf(fh, "  // out:           Incremented output distribution functions. ~%"),
 
   printf(fh, "  const double rdvparSq4 = 4.0/(dxv[~a]*dxv[~a]); ~%", cdim, cdim),
   printf(fh, "~%"),
-
+  /* Create a pointer to nuVtSqSum. */
+  printf(fh, "  const double *nuVtSqSum = &nuPrimMomsSum[~a];~%", vdim*NC),
+  printf(fh, "~%"),
+  
   /* Expand (nu*vtSq) in configuration basis. */
-  nuVtSq_e : doExpand1(nuVtSq, bC),
+  nuVtSqSum_e : doExpand1(nuVtSqSum, bC),
 
   /* Evaluate facDiff at zr to approximate max(abs(facDiff))/(dv_i/(2*(p+1)))^2 */
   polyFact : (pOrderV+1)^2,
 
-  facDiff_mid : rdvparSq4*gcfac(float(expand(subst(zr,polyFact*nuVtSq_e)))),
+  facDiff_mid : rdvparSq4*gcfac(float(expand(subst(zr,polyFact*nuVtSqSum_e)))),
 
   printf(fh, "  return fabs(~a); ~%", facDiff_mid),
 
