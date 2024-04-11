@@ -6,13 +6,17 @@ load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
 load("utilities")$
 
-/* TODO: NEEDS GENERALIZING */
-PB(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
+varsV : [vx, vy, vz]$
+varsC : [x, y, z]$
+
+PB_vec(f, g, x_vec, y_vec) := 
+  sum(
+    diff(f, x_vec[i]) * diff(g, y_vec[i]) - diff(g, x_vec[i]) * diff(f, y_vec[i]),
+    i, 1, length(x_vec)
+  )$
 
 calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,rdx2V,rdv2V,hamil,sideStr) := block(
-  [varsP, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, alpha, Apar, dApardt, 
-  alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, alphaCvar, alphaNoZero_c, alphaSurf, 
-  alphaUpSurf],
+  [], /* TODO: NEED TO FILL */
   /* Calculate phase space velocity alpha in direction of surfVar. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
   /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
@@ -28,15 +32,12 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,rdx2V,rdv2V,hamil,side
   surfVar     : varsP[surfDir],         /* Surface variable. */
   surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
 
-  /* TODO: (Applying the canonical assumption: alpha^i = Pi^{ij}*dH/dx^j) */
   /* TODO: NEED to relabel prior names to match: z, q, p */
+  z : varsP,
+  q : varsC, /*FIX*/
+  p : varsV, /*FIX*/
   alpha : PB(z,hamil,q,p),
-
   alphaUp : alpha,
-  if surfVar = vpar then (
-    alpha   : alpha,
-    alphaUp : alpha
-  ),
 
   bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),

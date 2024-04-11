@@ -1,12 +1,55 @@
-load("canonical_pb/canonical-vol")$
-load(stringproc)$
+/*
+  Generate the volume kernels for electromagnetic (with Apar)
+  canonical_pbs with general geometry.
 
-pmax : 2$
-for c : 1 thru 2 do (
-   v : c,
-   fname : sconcat("~/max-out/canonical_pb_vol_ser", c, "x", v, "v", ".c"),
-   fh : openw(fname),
-   funcName : sconcat("canonical_pb_vol", c, "x", v, "v", "ser"),
-   calcCanonicalPBVolUpdater(fh, funcName, c, v, "ser", pmax),
-   close(fh)
-);
+  The functions called in this file are in canonicalFuncs-vol.mac.
+*/
+load("canonical_pb/canonical-vol")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 2$ /* Start with 2, was 3 */
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser"]$
+minPolyOrder : [minPolyOrder_Ser]$
+maxPolyOrder : [maxPolyOrder_Ser]$
+minCdim      : [minCdim_Ser]$
+maxCdim      : [maxCdim_Ser]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
+
+/* ...... END OF USER INPUTS........ */
+
+/* Generate kernels of selected types. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    v : c,
+
+   maxPolyOrderB : maxPolyOrder[bInd],
+   if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+   for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+      fname : sconcat("~/max-out/canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,"Creating volume file: ~a",fname)),
+
+      fh : openw(fname),
+      printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+
+      funcName : sconcat("canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+      calcCanonicalPBVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+   )
+  )
+)$

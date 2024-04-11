@@ -1,56 +1,109 @@
-load("modal-basis");
-load("out-scripts");
+/*
+   Create kernels for the volume term of the canonical_pb equation.
+*/
+
+load("modal-basis")$
+load("out-scripts")$
 load(stringproc)$
-load("canonical_pb/canonicalUtils.mac")$
+load("scifac")$
+load("canonical_pb/canonicalUtil")$
+load("utilities")$
 fpprec : 24$
 
-varsV : [vx, vy, vz]$
-varsC : [x, y, z]$
-dxv : [dxv0, dxv1, dxv2, dxv3, dxv4, dxv5]$
-dxdvInv : [dxdvInv0, dxdvInv1, dxdvInv2]$
-dxInv : [dxInv0, dxInv1, dxInv2]$
-dvInv : [dvInv0, dvInv1, dvInv2]$
+buildCanonicalVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [], /* NEED TO FILL IN */
 
-cidx(cdim) := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+  kill(varsC,varsP,bC,bP),
 
-calcCanonicalPBVolUpdater(fh, funcNm, cdim, vdim, basisFun, pmax) := block([],
-kill(varsC, varsP, basisC, basisP),
-modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-load(modNm),
-/* printf(fh, "#include <cmath> ~%"),
-printf(fh, "#include <CanonicalModDecl.h> ~%"), */
-for i : 1 thru pmax do (
-  bP : basisP[i],
-  bC : basisC[i],
-  numC : length(bC),
-  printf(fh, "double ~aP~a(const double *w, const double *dxv, const double *H, const double *f, double *out) ~%{ ~%", funcNm, i),
-  printf(fh, "// w[NDIM]: Cell-center coordinates. dxv[NDIM]: Cell spacing. H/f: Input Hamiltonian/distribution function. out: Incremented output ~%"),
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
-  for dir : 1 thru cdim do (
-    pbfac[dir] : 4*dxdvInv[dir]
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP    : basisP[polyOrder],
+  bC    : basisC[polyOrder],
+  varsC : slcn(varsP, cdim),
+  numC  : length(bC),
+  numP  : length(bP),
+  pDim  : length(varsP),
+
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+
+  print("Working on ", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *H, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // m_: species mass.~%"),
+  printf(fh, "  // H: hamiltonian.~%"),
+  printf(fh, "  // fin: Distribution function.~%"),
+  printf(fh, "  // out: output increment.~%"),
+  printf(fh, "~%"),
+
+  /* Declare cell-center variables and variables multiplying gradients. */
+  for d : 1 thru pDim do (
+    printf(fh, "  double w~a = w[~a];~%", varLabel[d], d-1),
+    printf(fh, "  double rd~a2 = 2.0/dxv[~a];~%", varLabel[d], d-1)
   ),
-  volfac : 1,
-  /*for d : 1 thru cdim+vdim do (
-    volfac : volfac * dxv[d]/2
-  ),*/
-  for dir : 1 thru cdim do (
-    printf(fh, "  double dxdvInv~a = 1.0/(dxv[~a]*dxv[~a]); ~%", dir-1, cid[dir], vid[dir])
+  printf(fh, "~%"),
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+  /* Declare variables with squared of cell centers and rdx2 variables (only need vpar^2). */
+  printf(fh, "  double wvparSq = wvpar*wvpar;~%"),
+  printf(fh, "  double rdvpar2Sq = rdvpar2*rdvpar2;~%"),
+  printf(fh, "~%"),
+
+  /* Create pointers to the components of b_i. */
+  allVarLabelsC : ["x","y","z"],
+  for d : 1 thru 3 do (
+    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1))
   ),
-  for dir : 1 thru cdim do (
-    printf(fh, "  double dxInv~a = 1.0/dxv[~a]; ~%", dir-1, cid[dir])
+  printf(fh, "~%"),
+
+  /* Compute electrostatic Hamiltonian and write it out. */
+  hamil : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
+
+  alphaSum_e : 0,
+  /* Note: no contribution from mu. */
+  if vdim = 0 then (vd : 0) else (vd : 1),
+  for dir : 1 thru cdim+vd do (
+
+    dirLabel : varLabel[dir],
+
+    wDir      : eval_string(sconcat("w",dirLabel)),
+    rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  
+    dirVar    : varsP[dir],         /* Variable in current direction. */
+
+    /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
+    alpha_e : poissonBracket(wDir+dirVar/rdDirVar2,hamil,m_,q_,rdx2vec,rdv2vec,pbAuxFlds,no_by),
+
+    /* Project alpha on basis and write to array. */
+    printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
+    alpha_c    : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)*rdDirVar2),
+    alphaLabel : eval_string(sconcat(alpha, dirLabel)),
+    clst : [rdx2vec, rdv2vec, m_, q_, wvpar],
+    writeCExprsCollect1(alphaLabel, alpha_c, clst),
+    printf(fh, "~%"),
+    flush_output(fh),
+    alphaNoZero_c : doMakeExprLst(alpha_c, alphaLabel),
+    alpha_e       : doExpand(alphaNoZero_c, bP),
+
+    /* Note: factor of 2/dxv already included in alpha_e. */
+    alphaDotGradBasis_e : alpha_e*diff(bP, dirVar),
+
+    /* Accumulate alpha.grad(w) in this direction to the direction-summed alpha.grad(w). */
+    alphaSum_e : alphaSum_e + alphaDotGradBasis_e
   ),
-  for dir : 1 thru vdim do (
-    printf(fh, "  double dvInv~a = 1.0/dxv[~a]; ~%", dir-1, vid[dir])
-  ),
-  fl : doExpand1(f, bP),
-  Hl : doExpand1(H, bP),
-  pb : (pb : 0, for dir : 1 thru cdim do (
-     pbBasis : pbfac[dir]*(PB(bP,Hl,varsC[dir],varsV[dir])),
-     pb : pb + fullratsimp(volfac*calcInnerProdList(varsP, 1, pbBasis, fl))
-     ),
-  pb),
-  printf(fh, "  return 0.0; ~%"),
-  printf(fh, "} ~%")
-));
+
+  /* Expand distribution function on basis. */
+  f_e : doExpand1(fin,bP),
+
+  volTerm_c : fullratsimp(innerProd(varsP, 1, f_e, alphaSum_e)),
+  writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
+  flush_output(fh),
+  printf(fh, "~%"),
+
+  /* Evaluate CFL frequency in surface kernels. */
+  printf(fh, "  return 0.; ~%"),
+  printf(fh, "} ~%"),
+  flush_output(fh)
+)$
