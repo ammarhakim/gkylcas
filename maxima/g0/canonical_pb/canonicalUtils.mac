@@ -1,0 +1,62 @@
+/*
+  Utility functions for canonical poisson bracket Maxima scripts.
+*/
+load("vect")$
+load("nodal_operations/nodal_functions")$
+load("nodal_operations/quadrature_functions")$
+load("utilities")$
+
+/* TODO: NEEDS GENERALIZING */
+PB(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
+
+calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,rdx2V,rdv2V,hamil,sideStr) := block(
+  [varsP, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, alpha, Apar, dApardt, 
+  alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, alphaCvar, alphaNoZero_c, alphaSurf, 
+  alphaUpSurf],
+  /* Calculate phase space velocity alpha in direction of surfVar. */
+  /* We assume alpha.n is continuous across boundary, although H may not be. */
+  /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
+     determine upwind direction. */
+
+  varsP    : listofvars(bP),
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  wSurf      : eval_string(sconcat("w",dirLabel)),
+  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+
+  surfVar     : varsP[surfDir],         /* Surface variable. */
+  surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+
+  /* TODO: (Applying the canonical assumption: alpha^i = Pi^{ij}*dH/dx^j) */
+  /* TODO: NEED to relabel prior names to match: z, q, p */
+  alpha : PB(z,hamil,q,p),
+
+  alphaUp : alpha,
+  if surfVar = vpar then (
+    alpha   : alpha,
+    alphaUp : alpha
+  ),
+
+  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
+  numSurf : length(bSurf),
+
+  if sideStr="L" then (evPoint : -1)
+  elseif sideStr="R" then (evPoint : 1),
+
+  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq], /* ? */
+  /* Project full alpha expression evaluated at interior surface
+     onto surface basis and print to C variable alpha. */
+  alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha)),
+  printf(fh, "  double alpha~a[~a] = {0.}; ~%", sideStr, numSurf),
+  alphaCvar : eval_string(sconcat("alpha",sideStr)),
+  writeCExprsNoExpand1(alphaCvar, subst(replaceList,alpha_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaSurf   : doExpand(alphaNoZero_c, bSurf),
+
+  alphaUpSurf : alphaSurf,
+
+  return([alphaUp,alphaSurf,alphaUpSurf])
+)$

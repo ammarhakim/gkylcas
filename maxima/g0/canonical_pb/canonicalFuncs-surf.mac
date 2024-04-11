@@ -1,0 +1,273 @@
+/* 
+   Create kernels for the surface term of the gyrokinetic equation.
+*/
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+load("surf_funcs/surfUtil")$
+load("canonical_pb/canonicalUtils.mac")$
+fpprec : 24$
+
+calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+  [], /* TODO: REFILL BLOCK */
+
+  kill(varsC,varsP,bC,bP),
+  pDim : cdim+vdim,
+
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP    : basisP[polyOrder],
+  bC    : basisC[polyOrder],
+  varsC : slcn(varsP, cdim),
+  numC  : length(bC),
+  numP  : length(bP),
+  pDim  : length(varsP),
+
+  surfVar : varsP[surfDir],         /* Surface variable. */
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  surfIntVars : delete(surfVar,varsP), 
+  surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
+  surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
+
+  surfNodes : gaussOrd(polyOrder+1, pDim-1),
+  bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder),
+  basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder),
+
+  NSurf : length(bSurf),
+  numNodes  : length(surfNodes),
+  NSurfIndexing : NSurf,
+  numNodesIndexing : numNodes,
+
+  print("Working on ", funcNm),
+  printf(fh, "CanonicalPBYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *alpha_surf_l, const double *alpha_surf_r, 
+  const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
+  const int *const_sgn_alpha_l, const int *const_sgn_alpha_r, 
+  const double *fl, const double *fc, const double *fr, double* CanonicalPBYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // alpha_surf_l: Surface expansion of phase space flux on the left.~%"),
+  printf(fh, "  // alpha_surf_r: Surface expansion of phase space flux on the right.~%"),
+  printf(fh, "  // sgn_alpha_surf_l: sign(alpha_surf_l) at quadrature points.~%"),
+  printf(fh, "  // sgn_alpha_surf_r: sign(alpha_surf_r) at quadrature points.~%"),
+  printf(fh, "  // const_sgn_alpha_l: Boolean array true if sign(alpha_surf_l) is only one sign, either +1 or -1.~%"),
+  printf(fh, "  // const_sgn_alpha_r: Boolean array true if sign(alpha_surf_r) is only one sign, either +1 or -1.~%"),
+  printf(fh, "  // fl,fc,fr: distribution function in left, center and right cells.~%"),
+  printf(fh, "  // out: output increment in center cell.~%"),
+  printf(fh, "~%"),
+
+  /* Declare cell spacing for evaluating surface integrals. */
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  double ~a = 2.0/dxv[~a];~%", rdSurfVar2, surfDir-1),
+  printf(fh, "~%"),
+
+  /* Compute Hamiltonian and write it out. */
+  hamil : calcAndWrite_Hamil(fh,m_,rdv2vec,bP,""),
+
+  /* Compute the surface alpha but do *not* write it out; we already computed it
+     We just need to re-compute it here in Maxima to get the right sparsity pattern */
+  alphaSurfL_e : calc_alpha_no_write(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil,BstardBmag_e,"L",no_by,false),
+  alphaSurfR_e : calc_alpha_no_write(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil,BstardBmag_e,"R",no_by,false),
+
+  printf(fh, "  const double *alphaL = &alpha_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *alphaR = &alpha_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_l[~a];~%", (surfDir-1)*numNodesIndexing),
+  printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_r[~a];~%", (surfDir-1)*numNodesIndexing),
+  printf(fh, "  const int *const_sgn_alphaL = &const_sgn_alpha_l[~a];~%", surfDir-1),
+  printf(fh, "  const int *const_sgn_alphaR = &const_sgn_alpha_r[~a];~%", surfDir-1),
+  printf(fh, "~%"),
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fc_e,basisStr,"L",no_by),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fc_e,fr_e,basisStr,"R",no_by),
+
+  fUpL_e : doExpand1(fUpL, bSurf), 
+  fUpR_e : doExpand1(fUpR, bSurf), 
+  printf(fh, "  double GhatL[~a] = {0.};~%", NSurf),
+  printf(fh, "  double GhatR[~a] = {0.};~%", NSurf), 
+  GhatL_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfL_e*fUpL_e), 
+  GhatR_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfR_e*fUpR_e), 
+  writeCExprsNoExpand1(GhatL, gcfac(float(expand(GhatL_c)))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  writeCExprsNoExpand1(GhatR, gcfac(float(expand(GhatR_c)))),  
+  printf(fh, "~%"),
+  flush_output(fh),
+  GhatL_e : doExpand1(GhatL, bSurf), 
+  GhatR_e : doExpand1(GhatR, bSurf), 
+
+  incrL_c : calcInnerProdList(surfIntVars, 1.0, subst(surfVar=-1, bP), GhatL_e),
+  incrR_c : calcInnerProdList(surfIntVars, -1.0, subst(surfVar=1, bP), GhatR_e),
+
+  /* Write the actual increments to the left and right cells, which are
+     built with incr, dxv factors and some sign changes. */
+  writeCIncrExprsNoExpand1(out, rdSurfVar2*(incrL_c+incrR_c)),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean CanonicalPBhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  /* Extra 1/2 factor is because we are multiplying by 2/dx and we only need 1/dx 
+     Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
+     expansion to cell average (so we take the surface averaged alpha as our estimate of the
+     maximum velocity to compute the largest frequency) */
+  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
+  printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%"),
+  flush_output(fh)
+
+)$
+
+calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+  [],  /* TODO: REFILL BLOCK */
+
+  kill(varsC,varsP,bC,bP),
+  pDim : cdim+vdim,
+
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP    : basisP[polyOrder],
+  bC    : basisC[polyOrder],
+  varsC : slcn(varsP, cdim),
+  numC  : length(bC),
+  numP  : length(bP),
+  pDim  : length(varsP),
+  
+  surfVar : varsP[surfDir],         /* Surface variable. */
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  surfIntVars : delete(surfVar,varsP), 
+  surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
+  surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
+  NSurfIndexing : NSurf,
+  numNodesIndexing : numNodes,
+
+  print("Working on ", funcNm),
+  printf(fh, "CanonicalPBYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *alpha_surf_edge, const double *alpha_surf_skin, 
+  const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
+  const int *const_sgn_alpha_edge, const int *const_sgn_alpha_skin, 
+  const int edge, const double *fedge, const double *fskin, double* CanonicalPBYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // alpha_surf_edge: Surface expansion of phase space flux on the lower edges of the edge cell.~%"),
+  printf(fh, "  // alpha_surf_skin: Surface expansion of phase space flux on the lower edges of the skin cell.~%"),
+  printf(fh, "  // sgn_alpha_surf_edge: sign(alpha_surf_edge) at quadrature points.~%"),
+  printf(fh, "  // sgn_alpha_surf_skin: sign(alpha_surf_skin) at quadrature points.~%"),
+  printf(fh, "  // const_sgn_alpha_edge: Boolean array true if sign(alpha_surf_edge) is only one sign, either +1 or -1.~%"),
+  printf(fh, "  // const_sgn_alpha_skin: Boolean array true if sign(alpha_surf_skin) is only one sign, either +1 or -1.~%"),
+  printf(fh, "  // edge: determines if the update is for the left edge (-1) or right edge (+1).~%"),
+  printf(fh, "  // fskin,fedge: distribution function in skin cell/last edge cell.~%"),
+  printf(fh, "  // out: output increment in center cell.~%"),
+  printf(fh, "~%"),
+
+  /* Declare cell spacing for evaluating surface integrals. */
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+  printf(fh, "  double ~a = 2.0/dxv[~a];~%", rdSurfVar2, surfDir-1),
+  printf(fh, "~%"),
+
+  /* Compute Hamiltonian and write it out. */
+  hamil : calcAndWrite_Hamil(fh,m_,rdv2vec,bP,""),
+
+  /* Compute the surface alpha but do *not* write it out; we already computed it
+     We just need to re-compute it here in Maxima to get the right sparsity pattern 
+     Further, for boundary surface kernels we will only use one of the surface alphas
+     for computing the update (but pre-compute both for convenience here). */
+  alphaSurfL_e : calc_alpha_no_write(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil,BstardBmag_e,"L",no_by,false),
+  alphaSurfR_e :  calc_alpha_no_write(fh,surfDir,bP,polyOrder,basisFun,
+    m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil,BstardBmag_e,"R",no_by,false),
+
+  /* When we need the surface alpha at +1, we use alpha_edge 
+     (which stores the next interior edge surface alpha at -1 and alpha is continuous)
+     When we need the surface alpha at -1, we use alpha_skin 
+     (which stores the skin cell surface alpha at -1 and alpha is continuous) */
+  printf(fh, "  const double *alphaL = &alpha_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *alphaR = &alpha_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_skin[~a];~%", (surfDir-1)*numNodesIndexing),
+  printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_edge[~a];~%", (surfDir-1)*numNodesIndexing),
+  printf(fh, "  const int *const_sgn_alphaL = &const_sgn_alpha_skin[~a];~%", surfDir-1),
+  printf(fh, "  const int *const_sgn_alphaR = &const_sgn_alpha_edge[~a];~%", surfDir-1),
+  printf(fh, "~%"),
+  fEdge_e : doExpand1(fedge, bP),
+  fSkin_e : doExpand1(fskin, bP),
+
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fSkin_e,fEdge_e,basisStr,"R",no_by),
+  fUpR_e : doExpand1(fUpR, bSurf), 
+  printf(fh, "  double GhatR[~a] = {0.};~%", NSurf), 
+  GhatR_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfR_e*fUpR_e), 
+  writeCExprsNoExpand1(GhatR, gcfac(float(expand(GhatR_c)))),  
+  printf(fh, "~%"),
+  flush_output(fh), 
+  GhatR_e : doExpand1(GhatR, bSurf), 
+
+  incrR_c : calcInnerProdList(surfIntVars, -1.0, subst(surfVar=1, bP), GhatR_e),
+
+  /* Write the actual increments to the cell, which are
+     built with incr, dxv factors and some sign changes. */
+  writeCIncrExprsNoExpand1(out, rdSurfVar2*incrR_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Otherwise, edge == 1, and we are doing the right edge boundary and the skin cell needs to be evaluated at -1 */
+  printf(fh, "  } else { ~%~%"), 
+
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fEdge_e,fSkin_e,basisStr,"L",no_by),
+  fUpL_e : doExpand1(fUpL, bSurf), 
+  printf(fh, "  double GhatL[~a] = {0.};~%", NSurf),
+  GhatL_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfL_e*fUpL_e), 
+  writeCExprsNoExpand1(GhatL, gcfac(float(expand(GhatL_c)))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  GhatL_e : doExpand1(GhatL, bSurf), 
+
+  incrL_c : calcInnerProdList(surfIntVars, 1.0, subst(surfVar=-1, bP), GhatL_e),
+
+  /* Write the actual increments to the left and right cells, which are
+     built with incr, dxv factors and some sign changes. */
+  writeCIncrExprsNoExpand1(out, rdSurfVar2*incrL_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+  printf(fh, "  } ~%~%"), 
+
+  /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+     mean CanonicalPBhybrid basis. */
+  pOrderCFL : polyOrder,
+  if polyOrder=1 and surfDir=cdim+1 then ( pOrderCFL : 2 ),
+
+  /* Extra 1/2 factor is because we are multiplying by 2/dx and we only need 1/dx 
+     Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
+     expansion to cell average (so we take the surface averaged alpha as our estimate of the
+     maximum velocity to compute the largest frequency) */
+  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
+  printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%"),
+  flush_output(fh)
+
+)$
+
