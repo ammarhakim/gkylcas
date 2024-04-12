@@ -141,6 +141,8 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
   surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
   surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
   NSurfIndexing : NSurf,
+  surfNodes : gaussOrd(polyOrder+1, pDim-1),
+  numNodes  : length(surfNodes),
   numNodesIndexing : numNodes,
 
   print("Working on ", funcNm),
