@@ -14,7 +14,7 @@ ratprint: false;
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$ /* Start with 1, was 3 */
+maxCdim_Ser : 3$ /* Start with 1, was 3 */
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -70,24 +70,26 @@ for bInd : 1 thru length(bName) do (
         close(fh)
       ),
       /* Advection in velocity space.*/
-      fname : sconcat("~/max-out/canonical_pb_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
-      disp(printf(false,"Creating surface file: ~a",fname)),
+      for v_sub_indx : 1 thru v do (
+        fname : sconcat("~/max-out/canonical_pb_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
+        disp(printf(false,"Creating surface file: ~a",fname)),
 
-      fh : openw(fname),
-      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v),
-      funcName : sconcat("canonical_pb_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      calcCanonicalPBSurfUpdateInDir(c+v, fh, funcName, c, v, bName[bInd], polyOrder),
-      close(fh),
+        fh : openw(fname),
+        includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v_sub_indx),
+        funcName : sconcat("canonical_pb_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcCanonicalPBSurfUpdateInDir(c+v_sub_indx, fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh),
 
-      /* Advection in velocity space in the skin cell along vpar (for zero-flux BCs).*/
-      fname : sconcat("~/max-out/canonical_pb_boundary_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
-      disp(printf(false,"Creating surface file: ~a",fname)),
+        /* Advection in velocity space in the skin cell along vpar (for zero-flux BCs).*/
+        fname : sconcat("~/max-out/canonical_pb_boundary_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
+        disp(printf(false,"Creating surface file: ~a",fname)),
 
-      fh : openw(fname),
-      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v),
-      funcName : sconcat("canonical_pb_boundary_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      calcCanonicalPBBoundarySurfUpdateInDir(c+v, fh, funcName, c, v, bName[bInd], polyOrder),
-      close(fh)
+        fh : openw(fname),
+        includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v_sub_indx),
+        funcName : sconcat("canonical_pb_boundary_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcCanonicalPBBoundarySurfUpdateInDir(c+v_sub_indx, fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 )$
