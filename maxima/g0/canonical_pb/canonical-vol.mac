@@ -6,33 +6,28 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("canonical_pb/canonicalUtil")$
+load("canonical_pb/canonicalUtils")$
 load("utilities")$
 fpprec : 24$
 
-buildCanonicalVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [], /* NEED TO FILL IN */
+buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, varsP, bC, bP, numC, numP, pDim, varsV, varLabel, rdx2vec, rdv2vec, 
+   alphaSum_e, vd, dir, dirLabel, wDir, rdDirVar2, dirVar, z, q, p, dq, dp, 
+   alpha, alphaUp, alpha_c, alphaLabel, clst, alphaNoZero_c, alphaDotGradBasis_e, hamil],
 
   kill(varsC,varsP,bC,bP),
 
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP    : basisP[polyOrder],
-  bC    : basisC[polyOrder],
-  varsC : slcn(varsP, cdim),
-  numC  : length(bC),
-  numP  : length(bP),
-  pDim  : length(varsP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), pDim  : length(varsP),
+  varsV : slcn_v(varsP,cdim),
 
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double m_, const double *H, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *hamil, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
-  printf(fh, "  // m_: species mass.~%"),
-  printf(fh, "  // H: hamiltonian.~%"),
+  printf(fh, "  // hamil: hamiltonian.~%"),
   printf(fh, "  // fin: Distribution function.~%"),
   printf(fh, "  // out: output increment.~%"),
   printf(fh, "~%"),
@@ -46,25 +41,20 @@ buildCanonicalVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
 
-  /* Declare variables with squared of cell centers and rdx2 variables (only need vpar^2). */
-  printf(fh, "  double wvparSq = wvpar*wvpar;~%"),
-  printf(fh, "  double rdvpar2Sq = rdvpar2*rdvpar2;~%"),
-  printf(fh, "~%"),
-
-  /* Create pointers to the components of b_i. */
-  allVarLabelsC : ["x","y","z"],
-  for d : 1 thru 3 do (
-    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1))
+    /* Declare variables with squared of cell centers and rdx2 variables. */
+  for d : 1 thru pDim do (
+    printf(fh, "  double w~aSq = w[~a]*w[~a];~%", varLabel[d], d-1, d-1),
+    printf(fh, "  double rd~a2Sq = rd~a2*rd~a2;~%", varLabel[d], varLabel[d], varLabel[d])
   ),
   printf(fh, "~%"),
 
-  /* Compute electrostatic Hamiltonian and write it out. */
-  hamil : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
+  /* Compute Hamiltonian and expand it on the phase basis. */
+  hamil : doExpand1(hamil,bP),
 
   alphaSum_e : 0,
   /* Note: no contribution from mu. */
-  if vdim = 0 then (vd : 0) else (vd : 1),
-  for dir : 1 thru cdim+vd do (
+  /* if vdim = 0 then (vd : 0) else (vd : 1), */
+  for dir : 1 thru cdim+vdim do (
 
     dirLabel : varLabel[dir],
 
@@ -74,21 +64,30 @@ buildCanonicalVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     dirVar    : varsP[dir],         /* Variable in current direction. */
 
     /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
-    alpha_e : poissonBracket(wDir+dirVar/rdDirVar2,hamil,m_,q_,rdx2vec,rdv2vec,pbAuxFlds,no_by),
+    z : varsP[dir],
+    q : varsC, 
+    p : varsV, 
+    dq : rdx2vec, /* Rename */
+    dp : rdv2vec,
+    alpha : PB(z,hamil,q,p,dq,dp),
+    alphaUp : alpha,
 
     /* Project alpha on basis and write to array. */
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
-    alpha_c    : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)*rdDirVar2),
-    alphaLabel : eval_string(sconcat(alpha, dirLabel)),
-    clst : [rdx2vec, rdv2vec, m_, q_, wvpar],
-    writeCExprsCollect1(alphaLabel, alpha_c, clst),
+    inner_prod_val : calcInnerProdList(varsP, 1, bP, alpha),
+    alpha_c    : fullratsimp(inner_prod_val*rdDirVar2),
+    alphaLabel : eval_string(sconcat("alpha", dirLabel)),
+    replaceList : [rdx2^2=rdx2Sq, rdy2^2=rdy2Sq , rdz2^2=rdz2Sq, rdvx2^2=rdvx2Sq, rdvy2^2=rdvy2Sq , rdvz2^2=rdvz2Sq],
+    writeCExprsNoExpand1(alphaLabel, gcfac(expand(facsum(subst(replaceList, alpha_c),append(rdx2vec,rdv2vec))))),
+    /* clst : [rdx2vec, rdv2vec],
+    writeCExprsCollect1(alphaLabel, alpha_c, clst), */
     printf(fh, "~%"),
     flush_output(fh),
     alphaNoZero_c : doMakeExprLst(alpha_c, alphaLabel),
-    alpha_e       : doExpand(alphaNoZero_c, bP),
+    alpha       : doExpand(alphaNoZero_c, bP),
 
-    /* Note: factor of 2/dxv already included in alpha_e. */
-    alphaDotGradBasis_e : alpha_e*diff(bP, dirVar),
+    /* Note: factor of 2/dxv already included in alpha. */
+    alphaDotGradBasis_e : alpha*diff(bP, dirVar),
 
     /* Accumulate alpha.grad(w) in this direction to the direction-summed alpha.grad(w). */
     alphaSum_e : alphaSum_e + alphaDotGradBasis_e
@@ -98,7 +97,8 @@ buildCanonicalVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   f_e : doExpand1(fin,bP),
 
   volTerm_c : fullratsimp(innerProd(varsP, 1, f_e, alphaSum_e)),
-  writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
+  writeCIncrExprsNoExpand(gcfac(float(subst(replaceList, facsum(volTerm_c,append(rdx2vec,rdv2vec)))))),
+  /* writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))), */
   flush_output(fh),
   printf(fh, "~%"),
 

@@ -6,6 +6,7 @@
   The functions called in this file are in canonicalFuncs-surf.mac.
 */
 load("canonical_pb/canonicalFuncs-surf")$
+ratprint: false;
 
 /* ...... USER INPUTS........ */
 
@@ -13,7 +14,7 @@ load("canonical_pb/canonicalFuncs-surf")$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$ /* Start with 2, was 3 */
+maxCdim_Ser : 1$ /* Start with 1, was 3 */
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -37,6 +38,7 @@ includeSurfHeaders(fhIn, bname, c, v, porder, dir) := block([],
   printf(fhIn, "#include <gkyl_canonical_pb_kernels.h>~%"),
   printf(fhIn, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bname, c+v, porder)
 )$
+printf(fh, "~%"),
 
 /* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
@@ -54,7 +56,7 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
         funcName : sconcat("canonical_pb_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcCanonicalSurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, false),
+        calcCanonicalPBSurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh),
 
         /* Advection in configuration space in the skin cell (for boundary flux operations) .*/
@@ -64,27 +66,28 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
         funcName : sconcat("canonical_pb_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcCanonicalBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, false),
+        calcCanonicalPBBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       ),
       /* Advection in velocity space.*/
-      fname : sconcat("~/max-out/canonical_pb_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
+      print("RIGHT HERE:"),
+      fname : sconcat("~/max-out/canonical_pb_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
       disp(printf(false,"Creating surface file: ~a",fname)),
 
       fh : openw(fname),
-      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+1),
-      funcName : sconcat("canonical_pb_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      calcCanonicalSurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, false),
+      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v),
+      funcName : sconcat("canonical_pb_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+      calcCanonicalPBSurfUpdateInDir(c+v, fh, funcName, c, v, bName[bInd], polyOrder),
       close(fh),
 
       /* Advection in velocity space in the skin cell along vpar (for zero-flux BCs).*/
-      fname : sconcat("~/max-out/canonical_pb_boundary_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
+      fname : sconcat("~/max-out/canonical_pb_boundary_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
       disp(printf(false,"Creating surface file: ~a",fname)),
 
       fh : openw(fname),
-      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+1),
-      funcName : sconcat("canonical_pb_boundary_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      calcCanonicalBoundarySurfUpdateInDir(c+1, fh, funcName, c, v, bName[bInd], polyOrder, false),
+      includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, c+v),
+      funcName : sconcat("canonical_pb_boundary_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+      calcCanonicalPBBoundarySurfUpdateInDir(c+v, fh, funcName, c, v, bName[bInd], polyOrder),
       close(fh)
     )
   )

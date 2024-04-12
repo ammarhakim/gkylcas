@@ -4,6 +4,7 @@
   The functions called in this file are in canonical-alpha-surf.mac.
 */
 load("canonical_pb/canonical-alpha-surf")$
+ratprint: false;
 
 /* ...... USER INPUTS........ */
 
@@ -11,7 +12,7 @@ load("canonical_pb/canonical-alpha-surf")$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$ /* Start with 2, was 3 */
+maxCdim_Ser : 2$ /* Start with 1, was 3 */
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -48,7 +49,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
         funcName : sconcat("canonical_pb_alpha_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        buildCanonicalPbAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, false),
+        buildCanonicalPBAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, false),
         close(fh),
 
         fname : sconcat("~/max-out/canonical_pb_alpha_edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
@@ -58,19 +59,19 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
         funcName : sconcat("canonical_pb_alpha_edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        buildCanonicalPbAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, true),
+        buildCanonicalPBAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, true),
         close(fh)
       ),
 
-      /* Surface alpha in vparallel direction.*/
-      fname : sconcat("~/max-out/canonical_pb_alpha_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      /* Surface alpha in v direction.*/
+      fname : sconcat("~/max-out/canonical_pb_alpha_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
       disp(printf(false,"Creating alpha surfvx file: ~a",fname)),
 
       fh : openw(fname),
       printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
-      funcName : sconcat("canonical_pb_alpha_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      buildCanonicalPbAlphaKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, false),
+      funcName : sconcat("canonical_pb_alpha_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+      buildCanonicalPBAlphaKernel(c+v, fh, funcName, c, v, bName[bInd], polyOrder, false),
       close(fh)
     )
   )

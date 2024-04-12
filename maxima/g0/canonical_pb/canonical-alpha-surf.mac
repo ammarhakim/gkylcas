@@ -23,22 +23,15 @@ load("canonical_pb/canonicalUtils.mac")$
 /*load("nodal_operations/nodal_functions")$*/
 fpprec : 24$
 
-buildCanonicalPbAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, edge) := block(
+buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, edge) := block(
   [modNm, bP, bC, varsC, numC, numP, pDim, surfVar, varLabel, dirLabel, surfIntVars, surf_cvars, 
   surf_vvars, surfNodes, nodeVars, bSurf, basisStr, NSurf, numNodes, NSurfIndexing, numNodesIndexing, 
   rdx2vec, rdv2vec, hamil, alphaSurf],
 
   kill(varsC,varsP,bC,bP),
 
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP    : basisP[polyOrder],
-  bC    : basisC[polyOrder],
-  varsC : slcn(varsP, cdim),
-  numC  : length(bC),
-  numP  : length(bP),
-  pDim  : length(varsP),
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), pDim  : length(varsP),
 
   surfVar : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -60,10 +53,11 @@ buildCanonicalPbAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   numNodesIndexing : numNodes,
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double m_, const double *H,
+  printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double *hamil,
    double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // hamil: hamiltonian.~%"),
   printf(fh, "  // alpha_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
   printf(fh, "  //             Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "  // sgn_alpha_surf: output sign(alpha_surf) in each direction at quadrature points (cdim + 1 components).~%"),
@@ -80,13 +74,8 @@ buildCanonicalPbAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
 
-  /* Declare variables with squared of cell centers and rdx2 variables (only need vpar^2). */
-  printf(fh, "  double wvparSq = wvpar*wvpar;~%"),
-  printf(fh, "  double rdvpar2Sq = rdvpar2*rdvpar2;~%"),
-  printf(fh, "~%"),
-
-  /* Compute Hamiltonian and write it out. */
-  hamil : calcAndWrite_Hamil(fh,m_,rdv2vec,bP,""),
+  /* Compute Hamiltonian and expand it on the phase basis. */
+  hamil : doExpand1(hamil,bP),
 
   /* Calculate and write phase space velocity alpha in direction surfDir. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
@@ -97,15 +86,13 @@ buildCanonicalPbAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
        quantities such as geometry in the ghost cells where they are not defined */
     printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
-    alphaSurf : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
-      m_,rdx2vec,rdv2vec,hamil,"R"),
+    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,polyOrder,basisFun,rdx2vec,rdv2vec,hamil,"R"),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"R")
   )
   else (
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
-    alphaSurf : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
-      m_,rdx2vec,rdv2vec,hamil,"L"),
+    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,polyOrder,basisFun,rdx2vec,rdv2vec,hamil,"L"),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"L")
   ),
   printf(fh, "  return const_sgn_alpha_surf; ~%"),

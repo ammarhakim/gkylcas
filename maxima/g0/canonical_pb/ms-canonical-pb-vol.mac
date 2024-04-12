@@ -5,6 +5,7 @@
   The functions called in this file are in canonicalFuncs-vol.mac.
 */
 load("canonical_pb/canonical-vol")$
+ratprint: false;
 
 /* ...... USER INPUTS........ */
 
@@ -12,7 +13,7 @@ load("canonical_pb/canonical-vol")$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 2$ /* Start with 2, was 3 */
+maxCdim_Ser : 3$ /* Start with 1, was 3 */
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -49,7 +50,7 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
       funcName : sconcat("canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      calcCanonicalPBVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+      buildCanonicalPBVolKernel(fh, funcName, c, v, bName[bInd], polyOrder)
    )
   )
 )$
