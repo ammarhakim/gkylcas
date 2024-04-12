@@ -25,7 +25,7 @@ fpprec : 24$
 
 buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, edge) := block(
   [modNm, bP, bC, varsC, numC, numP, pDim, surfVar, varLabel, dirLabel, surfIntVars, surf_cvars, 
-  surf_vvars, surfNodes, nodeVars, bSurf, basisStr, NSurf, numNodes, NSurfIndexing, numNodesIndexing, 
+  surf_vvars, surfNodes, nodeVars, bSurf,  NSurf, numNodes, NSurfIndexing, numNodesIndexing, 
   rdx2vec, rdv2vec, hamil, alphaSurf],
 
   kill(varsC,varsP,bC,bP),
@@ -44,7 +44,6 @@ buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   surfNodes : gaussOrd(polyOrder+1, pDim-1),
   nodeVars : surfIntVars,
   bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),
-  basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder),
 
   NSurf : length(bSurf),
   numNodes  : length(surfNodes),

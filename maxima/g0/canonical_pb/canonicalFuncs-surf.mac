@@ -126,7 +126,7 @@ calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOr
 calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, varsP, bC, bP, numC, numP, pDim, surfVar, varLabel, dirLabel, surfIntVars, surf_cvars, surf_vvars, 
    NSurfIndexing, numNodesIndexing, rdSurfVar2, rdx2vec, rdv2vec, hamil, alphaSurfL_e, alphaSurfR_e, 
-   fEdge_e, fSkin_e, fUpR_e, GhatR_c, GhatR_e, incrR_c, fUpL_e, GhatL_c, GhatL_e, incrL_c, pOrderCFL],
+   fEdge_e, fSkin_e, fUpR_e, GhatR_c, GhatR_e, incrR_c, fUpL_e, GhatL_c, GhatL_e, incrL_c, pOrderCFL, basisStr],
 
   kill(varsC,varsP,bC,bP),
 
@@ -202,6 +202,7 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
 
   bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),
   NSurf : length(bSurf),
+  basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder),
 
   calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fSkin_e,fEdge_e,basisStr,"R"),
   fUpR_e : doExpand1(fUpR, bSurf), 
