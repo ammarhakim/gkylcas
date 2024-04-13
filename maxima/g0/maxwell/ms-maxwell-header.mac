@@ -4,7 +4,7 @@
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -35,7 +35,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~%")
 )$
 
-printEmVarsPrototype(deco, ci, vi, bStr, pi) := block([si],
+printEmVarsPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid em_calc_BB_~ax_~a_p~a(const double *em, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_calc_num_ExB_~ax_~a_p~a(const double *em, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~aint em_set_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *BB); ~%", deco, ci, bStr, pi),
@@ -70,13 +70,14 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-
+    if (c=3 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       printPrototype(decorator, c, v, bName[bInd], polyOrder)
     ),
-    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+
+    if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printEmVarsPrototype(decorator, c, v, bName[bInd], polyOrder)
+      printEmVarsPrototype(decorator, c, bName[bInd], polyOrder)
     )    
   )
 );

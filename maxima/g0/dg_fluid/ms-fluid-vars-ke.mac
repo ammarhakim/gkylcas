@@ -1,11 +1,7 @@
-load("dg_fluid/fluid-vars-source")$
+load("dg_fluid/fluid-vars-ke")$
 load(stringproc)$
-/* This script calls the functions which generate the kernels for the source terms in the
-   fluid equations of different fluid models: isothermal Euler, Euler/5 moment, and 10 moment
-   For all three, momentum source is: q/m*(rho*E + rho*u x B)
-   For Euler/5 moment also have energy source: q/m*(rhou*E)
-   For 10 moment also have pressure source: P x B + (P x B)_sym */
-
+/* This script calls the functions which generate the kernels for calculating the
+   kinetic enery via weak multiplication. */
 
 /* ...... USER INPUTS........ */
 
@@ -38,11 +34,11 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating fluid vars source funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/fluid_vars_source_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating fluid vars kinetic energy funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/fluid_vars_ke_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
-      funcName : sconcat("fluid_vars_source_",  d, "x_", bName[bInd], "_p", polyOrder),
-      calcEulerSource(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("fluid_vars_ke_",  d, "x_", bName[bInd], "_p", polyOrder),
+      calcFluidKE(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )
