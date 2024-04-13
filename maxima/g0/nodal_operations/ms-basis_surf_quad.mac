@@ -14,21 +14,19 @@ minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
-maxCdim_hyb : 3$
+maxCdim_hyb : 0$
 vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$
-maxCdim_gkhyb : 3$
+maxCdim_gkhyb : 0$
 vDims_gkhyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
 
 /* ...... END OF USER INPUTS........ */
@@ -140,7 +138,7 @@ for bInd : 1 thru length(bName) do (
       disp(printf(false,sconcat("Creating configuration space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c,polyOrder)),
       genSurfQuadEvKernel(c, bName[bInd], polyOrder),
 
-      if not (c+3=6 and bName[bInd]="tensor" and polyOrder=2) then (  /* Don't do 3x3v p2 tensor. */
+      if not (c+3=6 and polyOrder=2) then (  /* Don't do 3x3v p2. */
         disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax3v_p~a"),c,polyOrder)),
         genSurfQuadEvKernel(c+3, bName[bInd], polyOrder)
       )

@@ -44,7 +44,38 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [numBasisP,cid,vid,cv,vv,surfVars,bSurf,fSkin_e,fEdge_e,incr],
 
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  pOrderV : polyOrder,
+  /* Load basis of dimensionality requested. */
+  if (basisFun="tensor") then (
+    /* If we are using the tensor basis, just use the simple load command */
+    [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+    [varsP,bP] : loadBasis(basisFun, cdim+vdim, polyOrder), 
+    /* Do a variable substitution for the lower dimensional tensor basis functions
+       to construct the correct set of variables for the subsequent operations */
+    if (cdim+vdim = 2) then (
+      varsSub : [y=vx],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim+vdim = 3) then (
+      varsSub : [y=vx, z=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim = 2 and vdim = 2) then (
+      varsSub : [vx=y, vy=vx, vz=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+  )
+  else (
+    /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+    [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+    /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+       mean hybrid basis. */
+    if polyOrder=1 then ( pOrderV : 2 )
+  ),
 
   numBasisP : length(bP),
 
@@ -152,7 +183,38 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
    alphaV_c,alphaNoZero,alpha_e,surfNodes,numNodes,exprAtNodes,alphaOrd_n,
    rcoFac,fHatSurf_e,Ghat_c,GhatNoZero,Ghat_e,incr,varsC,varsP,basisC,basisP],
 
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  pOrderV : polyOrder,
+  /* Load basis of dimensionality requested. */
+  if (basisFun="tensor") then (
+    /* If we are using the tensor basis, just use the simple load command */
+    [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+    [varsP,bP] : loadBasis(basisFun, cdim+vdim, polyOrder), 
+    /* Do a variable substitution for the lower dimensional tensor basis functions
+       to construct the correct set of variables for the subsequent operations */
+    if (cdim+vdim = 2) then (
+      varsSub : [y=vx],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim+vdim = 3) then (
+      varsSub : [y=vx, z=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim = 2 and vdim = 2) then (
+      varsSub : [vx=y, vy=vx, vz=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+  )
+  else (
+    /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+    [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+    /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+       mean hybrid basis. */
+    if polyOrder=1 then ( pOrderV : 2 )
+  ),
 
   numC  : length(bC),
   numP  : length(bP),
@@ -199,7 +261,7 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
   /* Also generate necessary basis strings and surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
     bSurf : basisFromVars("hyb",surfVars,polyOrder),
 
     surf_cdim : cdim,  surf_vdim : vdim-1,
@@ -263,10 +325,12 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then  /* Force p=1 to use hybrid basis. */
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
     printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
-  else
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  )
+  else (
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder)
+  ),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */
@@ -297,10 +361,12 @@ calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, poly
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  if polyOrder=1 then  /* Force p=1 to use hybrid basis. */
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
     printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
-  else
-    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  )
+  else (
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder)
+  ),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */

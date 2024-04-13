@@ -18,13 +18,36 @@ wTrans  : [wx1, wx2, wx3]$
 dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 
 volExpr(totDim) := prod(dxv[i-1], i, 1, totDim)$
-calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,varsSub,f_e,m0,m1,m2,M],
   /* Computes the integral of M0, M1i and M2 at the same time. */
-  kill(varsC, varsP, basisC, basisP),
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  /* Load basis of dimensionality requested. */
+  if (basisFun="tensor") then (
+    /* If we are using the tensor basis, just use the simple load command */
+    [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+    [varsP,bP] : loadBasis(basisFun, cdim+vdim, polyOrder), 
+    /* Do a variable substitution for the lower dimensional tensor basis functions
+       to construct the correct set of variables for the subsequent operations */
+    if (cdim+vdim = 2) then (
+      varsSub : [y=vx],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim+vdim = 3) then (
+      varsSub : [y=vx, z=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim = 2 and vdim = 2) then (
+      varsSub : [vx=y, vy=vx, vz=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+  )
+  else (
+    /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+    [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder)
+  ),
     
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a*~a; ~%", volExpr(cdim+vdim), float(1/(2^(cdim+vdim))) ),
