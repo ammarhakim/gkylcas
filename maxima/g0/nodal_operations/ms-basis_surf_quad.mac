@@ -21,12 +21,12 @@ maxCdim_Tensor : 3$
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
-maxCdim_hyb : 0$
+maxCdim_hyb : 3$
 vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$
-maxCdim_gkhyb : 0$
+maxCdim_gkhyb : 3$
 vDims_gkhyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
 
 /* ...... END OF USER INPUTS........ */
