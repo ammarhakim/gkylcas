@@ -40,7 +40,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
   /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
-  z : varsP[surfDir],
+  z : wSurf+surfVar/rdSurfVar2,
   q : varsC, 
   p : varsV, 
   dq : rdx2vec, /* Rename */
@@ -96,7 +96,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
   /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
-  z : varsP[surfDir],
+  z : wSurf+surfVar/rdSurfVar2,
   q : varsC, 
   p : varsV, 
   dq : rdx2vec, /* Rename */

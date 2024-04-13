@@ -57,14 +57,12 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   for dir : 1 thru cdim+vdim do (
 
     dirLabel : varLabel[dir],
-
+      
+    /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
     wDir      : eval_string(sconcat("w",dirLabel)),
     rdDirVar2 : eval_string(sconcat("rd",dirLabel,"2")),
-  
     dirVar    : varsP[dir],         /* Variable in current direction. */
-
-    /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
-    z : varsP[dir],
+    z : wDir+dirVar/rdDirVar2,
     q : varsC, 
     p : varsV, 
     dq : rdx2vec, /* Rename */

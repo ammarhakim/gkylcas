@@ -42,7 +42,7 @@ printPrototypes() := block([],
 
           printf(fh, "GKYL_CU_DH int canonical_pb_alpha_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil, 
             double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder),
-          if (surfDir < c+1) then (
+          if (surfDir < cdim+1) then (
             printf(fh, "GKYL_CU_DH int canonical_pb_alpha_edge_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,
               double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder)
           ),

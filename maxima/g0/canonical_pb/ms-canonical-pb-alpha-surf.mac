@@ -64,15 +64,17 @@ for bInd : 1 thru length(bName) do (
       ),
 
       /* Surface alpha in v direction.*/
-      fname : sconcat("~/max-out/canonical_pb_alpha_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-      disp(printf(false,"Creating alpha surfvx file: ~a",fname)),
+      for v_sub_indx : 1 thru v do (
+        fname : sconcat("~/max-out/canonical_pb_alpha_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,"Creating alpha surfvx file: ~a",fname)),
 
-      fh : openw(fname),
-      printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
-      funcName : sconcat("canonical_pb_alpha_surf",vlabels[v],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      buildCanonicalPBAlphaKernel(c+v, fh, funcName, c, v, bName[bInd], polyOrder, false),
-      close(fh)
+        funcName : sconcat("canonical_pb_alpha_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        buildCanonicalPBAlphaKernel(c+v_sub_indx, fh, funcName, c, v, bName[bInd], polyOrder, false),
+        close(fh)
+      )
     )
   )
 )$
