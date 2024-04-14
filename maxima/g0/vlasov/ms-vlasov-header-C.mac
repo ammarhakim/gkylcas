@@ -36,12 +36,33 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_poisson_extem_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~adouble vlasov_stream_gen_geo_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  if (ci = 3) then (
+    printf(fh, "~adouble vlasov_stream_gen_geo_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
+  ),
   printf(fh, "~adouble vlasov_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~adouble vlasov_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_gen_geo_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+      const double *alpha_surf_l, const double *alpha_surf_r, 
+      const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
+      const int *const_sgn_alpha_l, const int *const_sgn_alpha_r, 
+      const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+      const double *alpha_surf_edge, const double *alpha_surf_skin, 
+      const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
+      const int *const_sgn_alpha_edge, const int *const_sgn_alpha_skin, 
+      const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    if (ci = 3) then (
+      printf(fh, "~adouble vlasov_gen_geo_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *alpha_surf_l, const double *alpha_surf_r, 
+        const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
+        const int *const_sgn_alpha_l, const int *const_sgn_alpha_r, 
+        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_boundary_gen_geo_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *alpha_surf_edge, const double *alpha_surf_skin, 
+        const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
+        const int *const_sgn_alpha_edge, const int *const_sgn_alpha_skin, 
+        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    ),
     printf(fh, "~adouble vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   for si : 1 thru vi do (
