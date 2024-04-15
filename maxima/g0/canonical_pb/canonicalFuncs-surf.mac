@@ -1,5 +1,8 @@
 /* 
-   Create kernels for the surface term of the gyrokinetic equation.
+   Create kernels for the surface term of the specified 
+   hamiltonian in canonical coordinates.
+
+   *hamil* is assumed to be written in canonical coordinates
 */
 load("modal-basis")$
 load("out-scripts")$

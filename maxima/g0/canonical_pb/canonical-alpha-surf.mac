@@ -12,6 +12,8 @@
    we require it to be (if we create lower order intermediate variables or pre-project
    alpha in the volume and then evaluate it at surfaces, we may destroy the continuity
    of the surface alpha).
+
+   *hamil* is assumed to be written in canonical coordinates
 */
 
 load("modal-basis")$

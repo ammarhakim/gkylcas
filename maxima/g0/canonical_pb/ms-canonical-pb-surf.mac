@@ -14,13 +14,7 @@ ratprint: false;
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$ /* Start with 1, was 3 */
-
-/* Tensor order basis. No need to generate p=1. */
-minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
+maxCdim_Ser : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -43,7 +37,7 @@ printf(fh, "~%"),
 /* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    v : c,
+    v : c, /* Canonical PB only supports equal cdim and vdim */
 
     maxPolyOrderB : maxPolyOrder[bInd],
     if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
@@ -69,7 +63,7 @@ for bInd : 1 thru length(bName) do (
         calcCanonicalPBBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       ),
-      /* Advection in velocity space.*/
+      /* Index over advection in velocity space.*/
       for v_sub_indx : 1 thru v do (
         fname : sconcat("~/max-out/canonical_pb_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
         disp(printf(false,"Creating surface file: ~a",fname)),

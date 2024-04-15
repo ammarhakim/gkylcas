@@ -1,5 +1,7 @@
 /*
-   Create kernels for the volume term of the canonical_pb equation.
+   Create kernels for the volume term of canonical poisson bracket.
+  
+   *hamil* is assumed to be written in canonical coordinates
 */
 
 load("modal-basis")$
@@ -22,18 +24,14 @@ PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
 
 buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, varsP, basisC, basisP, modNm, i, bP, bC, numC, cid, vid, dir, 
-    pbfac, volfac, d, fl, Hl, pb, pbBasis],
-
-  kill(varsC,varsP,basisC,basisP),
+    pbfac, volfac, fl, Hl, pb, pbBasis],
 
   kill(varsC, varsP, basisC, basisP),
   modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
   load(modNm),
 
-
   bP : basisP[polyOrder],
   bC : basisC[polyOrder],
-  /* print("basisC",basisC), */
   numC : length(bC),
   printf(fh, "double ~a(const double *w, const double *dxv, const double *hamil, const double *f, double *out) ~%{ ~%", funcNm),
   printf(fh, "// w[NDIM]: Cell-center coordinates. dxv[NDIM]: Cell spacing. H/f: Input Hamiltonian/distribution function. out: Incremented output ~%"),
@@ -43,9 +41,6 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     pbfac[dir] : 4*dxdvInv[dir]
   ),
   volfac : 1,
-  /*for d : 1 thru cdim+vdim do (
-    volfac : volfac * dxv[d]/2
-  ),*/
   for dir : 1 thru cdim do (
     printf(fh, "  double dxdvInv~a = 1.0/(dxv[~a]*dxv[~a]); ~%", dir-1, cid[dir], vid[dir])
   ),
@@ -59,13 +54,12 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   Hl : doExpand1(hamil, bP),
   pb : (pb : 0, for dir : 1 thru cdim do (
      pbBasis : pbfac[dir]*(PB_vol(bP,Hl,varsC[dir],varsV[dir])),
-     /* print("varsP: ", varsP, "pbBasis: ",pbBasis, "fl: ",fl), */
      pb : pb + fullratsimp(volfac*calcInnerProdList(varsP, 1, pbBasis, fl))
      ),
   pb),
   writeCIncrExprsNoExpand(facsum(fullratsimp(pb),dxv)),
   
-  /* Evaluate CFL frequency in surface kernels. */
+  /*  No CFL contribution, returns 0. */
   printf(fh, "  return 0.; ~%"),
   printf(fh, "} ~%"),
   flush_output(fh)

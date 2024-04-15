@@ -1,5 +1,7 @@
 /*
   Utility functions for canonical poisson bracket Maxima scripts.
+
+  *hamil* is assumed to be written in canonical coordinates
 */
 load("out-scripts")$
 load("vect")$

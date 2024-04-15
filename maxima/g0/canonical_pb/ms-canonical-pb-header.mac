@@ -8,12 +8,6 @@ maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
-/* Tensor order basis. No need to generate p=1. */
-minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
-
 /* ...... END OF USER INPUTS........ */
 
 /* To generate other bases, just add corresponding column to arrays below. */
@@ -29,20 +23,19 @@ vlabels : ["vx","vy","vz"]$
 printPrototypes() := block([],
   for bInd : 1 thru length(bName) do (
     for c : minCdim[bInd] thru maxCdim[bInd] do (
-      v : c,
+      v : c, /* Canonical PB only supports equal cdim and vdim */
 
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c=3) then maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x3v */
       for polyOrder : 1 thru maxPolyOrderB do (
+        printf(fh, "GKYL_CU_DH double canonical_pb_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,  
+          const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
 
-        printf(fh, "GKYL_CU_DH double canonical_pb_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,  const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
-      
-        for surfDir : 1 thru c*2 do (
+        for surfDir : 1 thru c+v do ( /* Iterate over each phase space coordinate */
           if surfDir<=c then (dirlabel : clabels[surfDir]) else (dirlabel : vlabels[surfDir-c]),
-
           printf(fh, "GKYL_CU_DH int canonical_pb_alpha_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil, 
             double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder),
-          if (surfDir < c+1) then (
+          if (surfDir < c+1) then ( /* Only for configuration space */
             printf(fh, "GKYL_CU_DH int canonical_pb_alpha_edge_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,
               double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder)
           ),
