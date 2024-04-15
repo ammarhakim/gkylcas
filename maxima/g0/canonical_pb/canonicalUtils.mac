@@ -46,7 +46,6 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
   dq : rdx2vec, /* Rename */
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
-  alphaUp : alpha,
 
   bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
@@ -102,7 +101,6 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
   dq : rdx2vec, /* Rename */
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
-  alphaUp : alpha,
 
   bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
@@ -112,7 +110,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
 
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */
-  alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha_e)),
+  alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha)),
   alphaCvar : eval_string(sconcat("alpha",sideStr)),
   alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),

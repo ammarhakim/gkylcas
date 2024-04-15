@@ -13,7 +13,7 @@ ratprint: false;
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$ /* Start with 1, was 3 */
+maxCdim_Ser : 2$ /* Start with 1, was 3 */
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
