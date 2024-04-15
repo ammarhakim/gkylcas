@@ -7,12 +7,12 @@ load(stringproc)$
 fpprec : 24$
 
 genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
-  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_e,pcpNodes,numNodes,f_n,i,nodToMod,f_c],
+  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,pcpNodes,numNodes,f_n,i,nodToMod,fnew_c],
 
-  printf(fh, "GKYL_CU_DH double ~a(double ffloor, const double *fIn, const double *fOut) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH bool ~a(double ffloor, double *distf, double *Deltaf) ~%{ ~%", funcName),
   printf(fh, "  // ffloor: Distribution function floor to shift to when f<0.~%"),
-  printf(fh, "  // fin: input distribution function.~%"),
-  printf(fh, "  // fout: output distribution function.~%"),
+  printf(fh, "  // distf: distribution function.~%"),
+  printf(fh, "  // Deltaf: Change in the distribution function.~%"),
   printf(fh, "~%"),
 
   kill(varsC,varsP,bC,bP),
@@ -22,7 +22,15 @@ genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
   numC : length(bC),  numP : length(bP),
   varsV : makelist(varsP[i+cdim],i,1,vdim),
 
-  f_e : doExpand1(fIn, bP),
+  printf(fh, "  bool shifted = false;~%"),
+  printf(fh, "~%"),
+
+  /* Copy -f into Deltaf. We'll later add the new f to obtain the change in f. */
+  f_c : makelist(distf[k-1],k,1,numP),
+  writeCExprs1(Deltaf, -f_c),
+  printf(fh, "~%"),
+
+  f_e : doExpand(f_c, bP),
 
   /* Construct a set of nodes that are PCPs + 0 in vpar, and PCPs in other
      dimensions. */ 
@@ -38,17 +46,28 @@ genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
   /* Loop over the nodes, and if f at that node is <0, set it to the minimum f. */
   printf(fh, "  // If f < 0. at positivity control points, set it to ffloor.~%"),
   for i : 1 thru numNodes do (
-    printf(fh, "  if (fnod[~a] < 0.) fnod[~a] = ffloor;~%", i-1, i-1)
+    printf(fh, "  if (fnod[~a] < 0.) {~%", i-1),
+    printf(fh, "    fnod[~a] = ffloor;~%", i-1),
+    printf(fh, "    shifted = true;~%"),
+    printf(fh, "  }~%")
   ),
   printf(fh, "~%"),
 
   f_n : makelist(fnod[i-1],i,1,numNodes),
   nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, pcpNodes),
 
-  f_c : nodToMod . f_n,
-  f_c : makelist(fullratsimp(f_c[i][1]),i,1,numP),
+  fnew_c : nodToMod . f_n,
+  fnew_c : makelist(fullratsimp(fnew_c[i][1]),i,1,numP),
 
-  writeCExprs1(fout, f_c),
+  writeCExprs1(distf, fnew_c),
+  printf(fh, "~%"),
+
+  printf(fh, "  if (shifted) {~%"),
+  writeCIncrExprs1(Deltaf, f_c),
+  printf(fh, "  }~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  return shifted;~%"),
   printf(fh, "~%"),
 
   printf(fh, "}~%")

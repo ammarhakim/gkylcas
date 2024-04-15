@@ -2,7 +2,7 @@
   Generate kernels for the updater which shifts the distribution
   to make it positive at positivity control points.
 */
-load("positivity_shift/pos_shift.mac")$
+load("positivity_shift_gk/pos_shift_gk.mac")$
 
 /* ...... USER INPUTS........ */
 
@@ -39,14 +39,14 @@ for bInd : 1 thru length(bName) do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        fname : sconcat("~/max-out/positivity_shift_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/positivity_shift_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         disp(printf(false,"Creating volume file: ~a",fname)),
   
         fh : openw(fname),
-        printf(fh, "#include <gkyl_positivity_shift_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_positivity_shift_gyrokinetic_kernels.h> ~%"),
         printf(fh, "~%"),
 
-        funcName : sconcat("positivity_shift_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        funcName : sconcat("positivity_shift_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         genPosShiftGKkernel(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
