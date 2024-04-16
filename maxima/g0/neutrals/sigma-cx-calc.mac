@@ -14,8 +14,8 @@ declareWriteCExprsC(lhs, rhs) := block([expr],
   if expr # 0.0 then (
     ep : string(expr),
     for i : 0 thru 60 do (
-    	ep : ssubst(string(pow(uIon[i],2)),string(uIon[i]^2),ep),
-    	ep : ssubst(string(pow(uNeut[i],2)),string(uNeut[i]^2),ep)	
+    	ep : ssubst(string(pow(u_ion[i],2.)),string(u_ion[i]^2),ep),
+    	ep : ssubst(string(pow(u_neut[i],2.)),string(u_neut[i]^2),ep)	
     ),
     printf(fh, "  double ~a = ~a; ~%", lhs, ep)
   )
@@ -53,7 +53,7 @@ calcSigmaCXcellAv(fh, funcNm, cdim, vdim, basisFun, pMax) := block([],
 
     printf(fh, " ~%"),
     printf(fh, "GKYL_CU_DH static inline ~%"),
-    printf(fh, "double ~a_p~a(const double *a, const double *b, const double *m0, const double *prim_vars_ion, const double *prim_vars_neut, const double *vt_sq_ion_min, const double *vt_sq_neut_min, double GKYL_RESTRICT *v_sigma_cx) ~%{ ~%", funcNm, p),
+    printf(fh, "double ~a_p~a(const double a, const double b, double vt_sq_ion_min, double vt_sq_neut_min, const double *m0, const double *prim_vars_ion, const double *prim_vars_neut, double* GKYL_RESTRICT v_sigma_cx) ~%{ ~%", funcNm, p),
     printf(fh, "  // a               constant in fitting function. ~%"),
     printf(fh, "  // b               constant in fitting function. ~%"),
     printf(fh, "  // m0[~a]:         neutral particle density. ~%", NC),
@@ -124,8 +124,8 @@ maxPolyOrder : [maxPolyOrder_Ser]$
 for bInd : 1 thru length(bName) do (
   for c : 1 thru 3 do (
       for v : c thru 3 do (
-      	  disp(printf(false,sconcat("Creating v_sigma_cx ", bName[bInd]_," ~ax~av"),c,v)),
-    	  fname : sconcat("~/max-out/sigma_cx_cell_av_", bName[bInd], c, "x", v, "v", ".c"),
+      	  disp(printf(false,sconcat("Creating v_sigma_cx ", bName[bInd]," ~ax~av"),c,v)),
+    	  fname : sconcat("~/max-out/sigma_cx_cell_av_", bName[bInd], "_", c, "x", v, "v", ".c"),
     	  fh : openw(fname),
 
     	  printf(fh, "#include <ChargeExchangeModDecl.h> ~%"),
