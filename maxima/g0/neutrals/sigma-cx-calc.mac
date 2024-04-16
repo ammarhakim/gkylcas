@@ -53,7 +53,7 @@ calcSigmaCXcellAv(fh, funcNm, cdim, vdim, basisFun, pMax) := block([],
 
     printf(fh, " ~%"),
     printf(fh, "GKYL_CU_DH static inline ~%"),
-    printf(fh, "double ~a_p~a(const double a, const double b, const double *m0, const double *prim_vars_ion, const double *prim_vars_neut, const double *vt_sq_ion_min, const double *vt_sq_neut_min, double GKYL_RESTRICT *v_sigma_cx) ~%{ ~%", funcNm, p),
+    printf(fh, "double ~a_p~a(const double *a, const double *b, const double *m0, const double *prim_vars_ion, const double *prim_vars_neut, const double *vt_sq_ion_min, const double *vt_sq_neut_min, double GKYL_RESTRICT *v_sigma_cx) ~%{ ~%", funcNm, p),
     printf(fh, "  // a               constant in fitting function. ~%"),
     printf(fh, "  // b               constant in fitting function. ~%"),
     printf(fh, "  // m0[~a]:         neutral particle density. ~%", NC),
