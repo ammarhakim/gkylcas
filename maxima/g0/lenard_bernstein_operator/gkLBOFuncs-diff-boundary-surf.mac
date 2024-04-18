@@ -24,6 +24,15 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    bC    : subst(varsSub, bC),  
+    varsC : subst(varsSub, varsC),
+    bP    : subst(varsSub, bP),  
+    varsP : subst(varsSub, varsP)
+  ),
+
   pDim    : cdim+vdim,
   vidx1   : vIndex1(cdim,vdim),
   surfVar : varsVAll[dir],

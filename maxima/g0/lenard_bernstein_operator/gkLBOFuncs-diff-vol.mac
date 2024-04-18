@@ -24,6 +24,15 @@ calcGkLBODiffVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),  NP : length(bP),
 
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    bC      : subst(varsSub, bC),
+    varsC   : subst(varsSub, varsC),
+    bP      : subst(varsSub, bP), 
+    varsP   : subst(varsSub, varsP)
+  ),
+
   /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
      mean hybrid basis. */
   pOrderVpar : polyOrder,
