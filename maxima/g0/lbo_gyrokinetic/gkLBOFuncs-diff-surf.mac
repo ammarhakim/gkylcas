@@ -10,12 +10,12 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator
    in the gyrokinetic equation. */
 
-calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismapped) := block(
   [varsC,bC,varsP,bP,vSub,NC,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
-   surfIntVars,bSurf,numBSurf,vmapl_e,vmapc_e,vmapr_e,bmagBasis,bType,dxvRecl,dxvRecc,dxvRecr,
-   hl_e,hr_e,nuVtSqSum_e,BmagInv_e,confFac_e,dfVfac,fVfac,confFac_c,vpSqSub,
-   dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e,dfRecFacl_c,dfRecFacr_c,fRecFacl_c,fRecFacr_c,
-   bPp,incrl_c,incrr_c],
+   surfIntVars,bSurf,numBSurf,vmapl_e,vmapc_e,vmapr_e,jacobvell_e,jacobvelc_e,jacobvelr_e,
+   bmagBasis,bType,dxvRecl,dxvRecc,dxvRecr,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,confFac_e,dfVfac,
+   fVfac,confFac_c,vpSqSub,dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e,dfRecFacl_c,
+   dfRecFacr_c,fRecFacl_c,fRecFacr_c,bPp,incrl_c,incrr_c],
   
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmapl, const double *vmapc, const double *vmapr, const double *vmap_prime, const double *jacobvell, const double *jacobvelc, const double *jacobvelr, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv: cell spacing. ~%"),
@@ -35,9 +35,6 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   NC : length(bC),  NP : length(bP),
   varsV : makelist(varsP[i+cdim],i,1,vdim),
 
-  /* Expand velocity mapping fields. */
-  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
-
   pDim        : cdim+vdim,
   vidx1       : makelist(i,i,cdim,cdim+vdim-1),
   surfVar     : varsV[dir],
@@ -52,38 +49,65 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   ),
   numBSurf : length(bSurf),
 
-  vmapl_e : subst(vmap=vmapl, copylist(vmap_e)),
-  vmapc_e : subst(vmap=vmapc, copylist(vmap_e)),
-  vmapr_e : subst(vmap=vmapr, copylist(vmap_e)),
-
   /* Axisymmetric basis (independent of y). */
   bmagBasis : getAxisymmetricConfBasis(bC),
 
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+  
+  vmapl_e : subst(vmap=vmapl, copylist(vmap_e)),
+  vmapc_e : subst(vmap=vmapc, copylist(vmap_e)),
+  vmapr_e : subst(vmap=vmapr, copylist(vmap_e)),
+  
   /* Construct the recovery polynomials */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
     bType : "gkhyb"
   else
     bType : basisFun,
 
-  /* Scale the distribution by the velocity space jacobian. */
-  printf(fh, "  double fl_over_jacv[~a], fc_over_jacv[~a], fr_over_jacv[~a];~%", NP, NP, NP),
-  writeCExprs1(fl_over_jacv, makelist(fl[i-1]/jacobvell[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fc_over_jacv, makelist(fc[i-1]/jacobvelc[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fr_over_jacv, makelist(fr[i-1]/jacobvelr[0],i,1,NP)),  printf(fh, "~%"),
+  if (ismapped) then (
+    /* Use mapped velocity space, and nonuniform recovery. */
+    jacobvell_e : jacobvell[0],
+    jacobvelc_e : jacobvelc[0],
+    jacobvelr_e : jacobvelr[0],
 
-  printf(fh, "  double dvl = ~a;~%", float(expand( subst(surfVar=1, vmapl_e[dir]) - subst(surfVar=-1, vmapl_e[dir]) ))),
-  printf(fh, "  double dvc = ~a;~%", float(expand( subst(surfVar=1, vmapc_e[dir]) - subst(surfVar=-1, vmapc_e[dir]) ))),
-  printf(fh, "  double dvr = ~a;~%", float(expand( subst(surfVar=1, vmapr_e[dir]) - subst(surfVar=-1, vmapr_e[dir]) ))),
-  printf(fh, "~%"),
+    printf(fh, "  double vmap_primeSq = pow(~a,2);~%", vmap_prime_e[dir]),
+    printf(fh, "~%"),
 
-  dxvRecl : makelist(2, i, 1, pDim),  dxvRecl[cdim+dir] : dvl,
-  dxvRecc : makelist(2, i, 1, pDim),  dxvRecc[cdim+dir] : dvc,
-  dxvRecr : makelist(2, i, 1, pDim),  dxvRecr[cdim+dir] : dvr,
+    /* Scale the distribution by the velocity space jacobian. */
+    printf(fh, "  double fl_over_jacv[~a], fc_over_jacv[~a], fr_over_jacv[~a];~%", NP, NP, NP),
+    writeCExprs1(fl_over_jacv, makelist(fl[i-1]/jacobvell_e,i,1,NP)),  printf(fh, "~%"),
+    writeCExprs1(fc_over_jacv, makelist(fc[i-1]/jacobvelc_e,i,1,NP)),  printf(fh, "~%"),
+    writeCExprs1(fr_over_jacv, makelist(fr[i-1]/jacobvelr_e,i,1,NP)),  printf(fh, "~%"),
+  
+    printf(fh, "  double dvl = ~a;~%", float(expand( subst(surfVar=1, vmapl_e[dir]) - subst(surfVar=-1, vmapl_e[dir]) ))),
+    printf(fh, "  double dvc = ~a;~%", float(expand( subst(surfVar=1, vmapc_e[dir]) - subst(surfVar=-1, vmapc_e[dir]) ))),
+    printf(fh, "  double dvr = ~a;~%", float(expand( subst(surfVar=1, vmapr_e[dir]) - subst(surfVar=-1, vmapr_e[dir]) ))),
+    printf(fh, "~%"),
+  
+    dxvRecl : makelist(2, i, 1, pDim),  dxvRecl[cdim+dir] : dvl,
+    dxvRecc : makelist(2, i, 1, pDim),  dxvRecc[cdim+dir] : dvc,
+    dxvRecr : makelist(2, i, 1, pDim),  dxvRecr[cdim+dir] : dvr,
+  
+    hl_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecl, dxvRecc,
+      dg(makelist(fl_over_jacv[i-1],i,1,NP)), dg(makelist(fc_over_jacv[i-1],i,1,NP))),
+    hr_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecc, dxvRecr,
+      dg(makelist(fc_over_jacv[i-1],i,1,NP)), dg(makelist(fr_over_jacv[i-1],i,1,NP)))
+  )
+  else (
+    /* Set rates of change to 1 for simplicity. */
+    vmap_prime_e : [1, 1],
+    jacobvell_e : 1,
+    jacobvelc_e : 1,
+    jacobvelr_e : 1,
 
-  hl_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecl, dxvRecc,
-    dg(makelist(fl_over_jacv[i-1],i,1,NP)), dg(makelist(fc_over_jacv[i-1],i,1,NP))),
-  hr_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecc, dxvRecr,
-    dg(makelist(fc_over_jacv[i-1],i,1,NP)), dg(makelist(fr_over_jacv[i-1],i,1,NP))),
+    /* Use uniform recovery in non-mapped kernels, since nonuniform recovery
+       can produce very large stencils. */
+    hl_e : calcRecov2CellGen(bType, surfVar, varsP, polyOrder,
+      dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP))),
+    hr_e : calcRecov2CellGen(bType, surfVar, varsP, polyOrder,
+      dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP)))
+  ),
 
   /*............. RECOVERY DONE ..............................*/
     
@@ -105,7 +129,7 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   if dir=1 then (
     confFac_e : nuVtSqSum_e,
     dfVfac    : vmap_prime_e[2],
-    fVfac     : jacobvelc[0]/(vmap_prime_e[dir])^2
+    fVfac     : jacobvelc_e/(vmap_prime_e[dir])^2
   ) elseif dir=2 then (
     confFac_c : calcInnerProdList(varsC,1,bC,2*m_*BmagInv_e*nuVtSqSum_e),
     printf(fh, "  double confFac[~a] = {0.}; ~%", NC),
@@ -115,11 +139,8 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
     confFac_e : doExpand(confFac_c, bC),
     dfVfac    : vmap_prime_e[1] * vmapc_e[dir],
-    fVfac     : jacobvelc[0]/(vmap_prime_e[dir])^2 * vmapc_e[dir]
+    fVfac     : jacobvelc_e/(vmap_prime_e[dir])^2 * vmapc_e[dir]
   ),
-
-  printf(fh, "  double vmap_primeSq = pow(vmap_prime[~a],2);~%", dir-1),
-  printf(fh, "~%"),
 
   vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq,i,1,vdim),
   printf(fh, "  double dfVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,dfVfac)))),
@@ -187,5 +208,5 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
   printf(fh, "~%"),
 
-  printf(fh, "} ~%")
+  printf(fh, "} ")
 );

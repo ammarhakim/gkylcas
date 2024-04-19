@@ -11,7 +11,7 @@ load("gyrokinetic/gkFuncs-alpha-surf")$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -19,10 +19,10 @@ maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 0$
 
+/* ...... END OF USER INPUTS........ */
+
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
-
-/* ...... END OF USER INPUTS........ */
 
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$

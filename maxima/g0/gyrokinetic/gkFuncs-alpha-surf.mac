@@ -22,8 +22,8 @@ load("gyrokinetic/gkUtil")$
 fpprec : 24$
 
 buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,varsSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,basisStr,NSurf,numNodes,
+  [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
+   surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
@@ -34,15 +34,6 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
-
-  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
-  if (cdim = 2) then (
-    varsSub : [y=z],
-    bC      : subst(varsSub, copylist(bC)),  
-    varsC   : subst(varsSub, copylist(varsC)),
-    bP      : subst(varsSub, copylist(bP)),  
-    varsP   : subst(varsSub, copylist(varsP))
-  ),
 
   surfVar  : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -65,13 +56,11 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
       surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
       nodeVars  : surfIntVars
     ),
-    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
-    basisStr  : sconcat("gkhyb_", cdim, "x", vdim, "v", "_p", polyOrder)
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
     nodeVars  : surfIntVars,
-    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder),
-    basisStr  : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder) 
+    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
   ),
   NSurf    : length(bSurf),
   numNodes : length(surfNodes),
@@ -127,15 +116,8 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   ),
   printf(fh, "~%"),
 
-  /* Load a basis that only has the variables B depends on, but has the right
-     normalization and dimensionality for the dimensionality of interest. */
-  bmagBasis  : copylist(bC),
-  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
-  for i : 1 thru numC do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bC[i]) then (
-        bmagBasis[i] : 0
-  ))),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
 
   inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
 

@@ -10,10 +10,11 @@ fpprec : 24$
    diffusion contribution from Lenard Bernstein operator for the
    gyrokinetic equation. */
 
-calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismapped) := block(
   [varsC,bC,varsP,bP,vSub,NC,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,surfIntVars,
-   bPp,vmap_edge_e,vmap_skin_e,bmagBasis,bType,fskin_over_jacv_e,dxvRec_edge,dxvRec_skin,hl_e,hr_e,nuVtSqSum_e,
-   BmagInv_e,bSurf,numBSurf,confFac_e,dfVfac,fVfac,confFac_c,vpSqSub,dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e],
+   bPp,vmap_edge_e,vmap_skin_e,jacobvel_edge_e,jacobvel_skin_e,bmagBasis,bType,fskin_over_jacv_e,
+   dxvRec_edge,dxvRec_skin,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,bSurf,numBSurf,confFac_e,dfVfac,fVfac,
+   confFac_c,vpSqSub,dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e],
 
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *vmap_edge, const double *vmap_skin, const double *vmap_prime, const double *jacobvel_edge, const double *jacobvel_skin, const double m_, const double *bmag_inv, const double *nuSum, const double *nuPrimMomsSum, const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // dxv: Cell spacing. ~%"),
@@ -33,9 +34,6 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   NC : length(bC),  NP : length(bP),
   varsV : makelist(varsP[cdim+i],i,1,vdim),
 
-  /* Expand velocity mapping fields. */
-  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
-
   pDim    : cdim+vdim,
   vidx1   : makelist(i,i,cdim,cdim+vdim-1),
   surfVar : varsV[dir],
@@ -43,11 +41,21 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
   bPp : diff(bP,surfVar),  /* Basis derivative. */
 
-  vmap_edge_e : subst(vmap=vmap_edge, copylist(vmap_e)),
-  vmap_skin_e : subst(vmap=vmap_skin, copylist(vmap_e)),
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder)
+  ),
+  numBSurf : length(bSurf),
 
   /* Axisymmetric basis (independent of y). */
   bmagBasis : getAxisymmetricConfBasis(bC),
+
+  /* Expand velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
+  vmap_edge_e : subst(vmap=vmap_edge, copylist(vmap_e)),
+  vmap_skin_e : subst(vmap=vmap_skin, copylist(vmap_e)),
 
   /* Construct the recovery polynomial */
   if polyOrder=1 then /* Force p=1 to mean hybrid. */
@@ -55,24 +63,47 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   else
     bType : basisFun,
 
-  /* Scale the distribution by the velocity space jacobian. */
-  printf(fh, "  double fedge_over_jacv[~a], fskin_over_jacv[~a];~%", NP, NP),
-  writeCExprs1(fedge_over_jacv, makelist(fedge[i-1]/jacobvel_edge[0],i,1,NP)),  printf(fh, "~%"),
-  writeCExprs1(fskin_over_jacv, makelist(fskin[i-1]/jacobvel_skin[0],i,1,NP)),  printf(fh, "~%"),
+  if (ismapped) then (
+    /* Use mapped velocity space, and nonuniform recovery. */
+    jacobvel_edge_e : jacobvel_edge[0],
+    jacobvel_skin_e : jacobvel_skin[0],
 
-  fskin_over_jacv_e : doExpand1(fskin_over_jacv, bP),
+    printf(fh, "  double vmap_primeSq = pow(vmap_prime[~a],2);~%", dir-1),
+    printf(fh, "~%"),
 
-  printf(fh, "  double dv_edge = ~a;~%", float(expand( subst(surfVar=1, vmap_edge_e[dir]) - subst(surfVar=-1, vmap_edge_e[dir]) ))),
-  printf(fh, "  double dv_skin = ~a;~%", float(expand( subst(surfVar=1, vmap_skin_e[dir]) - subst(surfVar=-1, vmap_skin_e[dir]) ))),
-  printf(fh, "~%"),
+    /* Scale the distribution by the velocity space jacobian. */
+    printf(fh, "  double fedge_over_jacv[~a], fskin_over_jacv[~a];~%", NP, NP),
+    writeCExprs1(fedge_over_jacv, makelist(fedge[i-1]/jacobvel_edge_e,i,1,NP)),  printf(fh, "~%"),
+    writeCExprs1(fskin_over_jacv, makelist(fskin[i-1]/jacobvel_skin_e,i,1,NP)),  printf(fh, "~%"),
 
-  dxvRec_edge : makelist(2, i, 1, pDim),  dxvRec_edge[cdim+dir] : dv_edge,
-  dxvRec_skin : makelist(2, i, 1, pDim),  dxvRec_skin[cdim+dir] : dv_skin,
+    fskin_over_jacv_e : doExpand1(fskin_over_jacv, bP),
 
-  hl_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_edge,dxvRec_skin,
-    dg(makelist(fedge_over_jacv[i-1],i,1,NP)), dg(makelist(fskin_over_jacv[i-1],i,1,NP))),
-  hr_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_skin,dxvRec_edge,
-    dg(makelist(fskin_over_jacv[i-1],i,1,NP)), dg(makelist(fedge_over_jacv[i-1],i,1,NP))),
+    printf(fh, "  double dv_edge = ~a;~%", float(expand( subst(surfVar=1, vmap_edge_e[dir]) - subst(surfVar=-1, vmap_edge_e[dir]) ))),
+    printf(fh, "  double dv_skin = ~a;~%", float(expand( subst(surfVar=1, vmap_skin_e[dir]) - subst(surfVar=-1, vmap_skin_e[dir]) ))),
+    printf(fh, "~%"),
+
+    dxvRec_edge : makelist(2, i, 1, pDim),  dxvRec_edge[cdim+dir] : dv_edge,
+    dxvRec_skin : makelist(2, i, 1, pDim),  dxvRec_skin[cdim+dir] : dv_skin,
+
+    hl_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_edge,dxvRec_skin,
+      dg(makelist(fedge_over_jacv[i-1],i,1,NP)), dg(makelist(fskin_over_jacv[i-1],i,1,NP))),
+    hr_e : calcRecov2CellGenNonuniform(bType,surfVar,varsP,polyOrder,dxvRec_skin,dxvRec_edge,
+      dg(makelist(fskin_over_jacv[i-1],i,1,NP)), dg(makelist(fedge_over_jacv[i-1],i,1,NP)))
+  )
+  else (
+    /* Set rates of change to 1 for simplicity. */
+    vmap_prime_e : [1, 1],
+    jacobvel_edge_e : 1,
+    jacobvel_skin_e : 1,
+    fskin_over_jacv_e : doExpand1(fskin, bP),
+
+    /* Use uniform recovery in non-mapped kernels, since nonuniform recovery
+       can produce very large stencils. */
+    hl_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,
+      dg(makelist(fedge[i-1],i,1,NP)), dg(makelist(fskin[i-1],i,1,NP))),
+    hr_e : calcRecov2CellGen(bType,surfVar,varsP,polyOrder,
+      dg(makelist(fskin[i-1],i,1,NP)), dg(makelist(fedge[i-1],i,1,NP)))
+  ),
 
   /*............. RECOVERY DONE ..............................*/
         
@@ -87,13 +118,6 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   nuVtSqSum_e : doExpand1(nuVtSqSum,bC),
   BmagInv_e   : doExpand1(bmag_inv, bmagBasis),
 
-  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
-  ) else (
-    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder)
-  ),
-  numBSurf : length(bSurf),
-
   /* diffFac_c = < psi, nuVtSqSum*mu' > for vpar term,
                  < psi, (2*m/B)*nuVtSqSum*vpar' > for mu term.
      dfRecFac : phase-space dependent factor from 1st IBP.
@@ -101,7 +125,7 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   if dir=1 then (
     confFac_e : nuVtSqSum_e,
     dfVfac    : vmap_prime_e[2],
-    fVfac     : jacobvel_skin[0]/(vmap_prime_e[dir])^2
+    fVfac     : jacobvel_skin_e/(vmap_prime_e[dir])^2
   ) elseif dir=2 then (
     confFac_c : calcInnerProdList(varsC, 1, bC, 2*m_*BmagInv_e*nuVtSqSum_e),
     printf(fh, "  double confFac[~a]; ~%", NC),
@@ -111,11 +135,8 @@ calcGkLBOBoundaryDiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
     confFac_e : doExpand(confFac_c, bC),
     dfVfac    : vmap_prime_e[1] * vmap_skin_e[dir],
-    fVfac     : jacobvel_skin[0]/(vmap_prime_e[dir])^2 * vmap_skin_e[dir]
+    fVfac     : jacobvel_skin_e/(vmap_prime_e[dir])^2 * vmap_skin_e[dir]
   ),
-
-  printf(fh, "  double vmap_primeSq = pow(vmap_prime[~a],2);~%", dir-1),
-  printf(fh, "~%"),
 
   vpSqSub : makelist(vmap_prime[i-1]^2=vmap_primeSq,i,1,vdim),
   printf(fh, "  double dfVfac_l = ~a; ~%", float(subst(vpSqSub,subst(surfVar=-1,dfVfac)))),

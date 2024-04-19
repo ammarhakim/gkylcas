@@ -11,7 +11,7 @@ load("utilities")$
 fpprec : 24$
 
 buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varsSub,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
    dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c],
@@ -21,15 +21,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
-
-  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
-  if (cdim = 2) then (
-    varsSub : [y=z],
-    bC      : subst(varsSub, copylist(bC)),  
-    varsC   : subst(varsSub, copylist(varsC)),
-    bP      : subst(varsSub, copylist(bP)),  
-    varsP   : subst(varsSub, copylist(varsP))
-  ),
 
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
@@ -77,15 +68,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   ),
   printf(fh, "~%"),
 
-  /* Load a basis that only has the variables B depends on, but has the right
-     normalization and dimensionality for the dimensionality of interest. */
-  bmagBasis  : copylist(bC),
-  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
-  for i : 1 thru numC do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bC[i]) then (
-        bmagBasis[i] : 0
-  ))),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
 
   inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
 

@@ -6,6 +6,18 @@ load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
 load("utilities")$
 
+getAxisymmetricConfBasis(confBasis) := block(
+  /* Load a basis that only has the variables B depends on (we assume it
+     doesn't depend on y in 3x (axi- or azimuthal- symmetry). */
+  [numBasisC,i],
+  numBasisC : length(confBasis),
+  axisymmBasis : copylist(confBasis),
+  for i : 1 thru numBasisC do (
+    if not freeof(y,confBasis[i]) then ( axisymmBasis[i] : 0 )
+  ),
+  return(axisymmBasis)
+)$
+
 expandVmapFields(varsP) := block(
   [pDim,vdim,cdim,jnk,vmapBasis,vmapSqBasis,vmapBnum,vmapSqBnum,vmap_e,vmapSq_e,vmap_prim_e,d,vmap_c,vmapSq_c],
 

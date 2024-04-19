@@ -400,6 +400,15 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
     bP : bC,  varsP : varsC
   ),
 
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z. */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    varsC   : subst(varsSub, varsC),
+    bC      : subst(varsSub, bC),
+    varsP   : subst(varsSub, varsP),
+    bP      : subst(varsSub, bP)
+  ),
+
   return([varsC,bC,varsP,bP,vSub])
 )$
 
@@ -451,12 +460,14 @@ loadGkHybBasisFromVars(varsIn) := block(
       )
     )
   ),
+  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
+  basis : psubst(replaceList,basis),
 
   /* Restore varsC and varsP. */
   if listp(oldVarsC) then (varsC : copylist(oldVarsC)),
   if listp(oldVarsP) then (varsP : copylist(oldVarsP)),
 
-  return([vars,basis])
+  return([varsIn,basis])
 )$
 
 /* Load a basis of type 'basisType' and polynomial order 'pOrder'

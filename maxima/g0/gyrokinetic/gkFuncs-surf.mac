@@ -23,15 +23,6 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
 
-  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
-  if (cdim = 2) then (
-    varsSub : [y=z],
-    bC      : subst(varsSub, copylist(bC)),  
-    varsC   : subst(varsSub, copylist(varsC)),
-    bP      : subst(varsSub, copylist(bP)),  
-    varsP   : subst(varsSub, copylist(varsP))
-  ),
-
   surfVar  : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
@@ -91,15 +82,8 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   printf(fh, "  double ~a = 2.0/dxv[~a];~%", rdSurfVar2, surfDir-1),
   printf(fh, "~%"),
 
-  /* Load a basis that only has the variables B depends on, but has the right
-     normalization and dimensionality for the dimensionality of interest. */
-  bmagBasis  : copylist(bC),
-  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
-  for i : 1 thru numC do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bC[i]) then (
-        bmagBasis[i] : 0
-  ))),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
 
   inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
 
@@ -204,15 +188,6 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
 
-  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
-  if (cdim = 2) then (
-    varsSub : [y=z],
-    bC      : subst(varsSub, copylist(bC)),  
-    varsC   : subst(varsSub, copylist(varsC)),
-    bP      : subst(varsSub, copylist(bP)),  
-    varsP   : subst(varsSub, copylist(varsP))
-  ),
-
   surfVar  : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
@@ -274,15 +249,8 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "  double ~a = 2.0/dxv[~a];~%", rdSurfVar2, surfDir-1),
   printf(fh, "~%"),
 
-  /* Load a basis that only has the variables B depends on, but has the right
-     normalization and dimensionality for the dimensionality of interest. */
-  bmagBasis  : copylist(bC),
-  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
-  for i : 1 thru numC do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bC[i]) then (
-        bmagBasis[i] : 0
-  ))),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
 
   inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
 
