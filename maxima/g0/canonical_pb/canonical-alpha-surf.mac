@@ -20,7 +20,6 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("surf_funcs/surfUtil")$
 load("canonical_pb/canonicalUtils.mac")$
 /*load("nodal_operations/nodal_functions")$*/
 fpprec : 24$
@@ -88,13 +87,13 @@ buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,polyOrder,basisFun,rdx2vec,rdv2vec,hamil,"R"),
-    calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"R")
+    calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"R")
   )
   else (
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,polyOrder,basisFun,rdx2vec,rdv2vec,hamil,"L"),
-    calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"L")
+    calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"L")
   ),
   printf(fh, "  return const_sgn_alpha_surf; ~%"),
   printf(fh, "~%"),

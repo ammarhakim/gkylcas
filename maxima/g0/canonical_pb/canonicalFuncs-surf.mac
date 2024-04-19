@@ -8,7 +8,6 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("surf_funcs/surfUtil")$ 
 load("canonical_pb/canonicalUtils.mac")$
 fpprec : 24$
 

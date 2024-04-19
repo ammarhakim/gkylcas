@@ -182,3 +182,36 @@ calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NS
 
     printf(file_handle, "  } ~%")
 )$
+
+/* Determine the upwinded distribution function in gyrokinetics */
+calcAndWrite_sgn_CanonicalPB_alpha(file_handle,surfIntVars,surfNodes,numNodes,alphaSurf_e,sideStr) := block(
+  [alphaOrd_n],
+  /* Determine sign(alpha_surf) for upwinding at each surface quadrature node. */
+
+  /* Evaluate alpha at ordinates.
+     Note: alphaSurf_e is already a surface expansion. */
+  alphaOrd_n : gcfac(float(evAtNodes(alphaSurf_e,surfNodes,surfIntVars))),
+  
+  printf(file_handle, "  int const_sgn_alpha_surf = 1;  ~%"),
+  printf(file_handle, "  ~%"),
+  /* Write out first quadrature point 
+     We are going to compare the signs of the quadrature points to see if the sign is constant */
+  printf(file_handle, "  if (~a > 0.) ~%", gcfac(float(expand(fullratsimp(alphaOrd_n[1]))))),
+  printf(file_handle, "    sgn_alpha_surf~a[0] = 1.0; ~%", sideStr),
+  printf(file_handle, "  else  ~%"),
+  printf(file_handle, "    sgn_alpha_surf~a[0] = -1.0; ~%", sideStr),
+  printf(file_handle, "  ~%"),
+  /* Write out the other quadrature point evaluations and compare the signs point by point */
+  for i : 2 thru numNodes do (
+    printf(file_handle, "  if (~a > 0.) ~%", gcfac(float(expand(fullratsimp(alphaOrd_n[i]))))),
+    printf(file_handle, "    sgn_alpha_surf~a[~a] = 1.0; ~%", sideStr, i-1),
+    printf(file_handle, "  else  ~%"),
+    printf(file_handle, "    sgn_alpha_surf~a[~a] = -1.0; ~%", sideStr, i-1),
+    printf(file_handle, "  ~%"),
+    printf(file_handle, "  if (sgn_alpha_surf~a[~a] == sgn_alpha_surf~a[~a]) ~%", sideStr, i-1, sideStr, i-2),
+    printf(file_handle, "    const_sgn_alpha_surf = const_sgn_alpha_surf ? 1 : 0; ~%"),
+    printf(file_handle, "  else  ~%"),
+    printf(file_handle, "    const_sgn_alpha_surf = 0; ~%"),
+    printf(file_handle, "  ~%")
+  )
+)$
