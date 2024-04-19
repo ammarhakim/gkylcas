@@ -13,7 +13,7 @@ fpprec : 24$
 calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismapped) := block(
   [varsC,bC,varsP,bP,vSub,NC,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,pDim,vidx1,surfVar,
    surfIntVars,bSurf,numBSurf,vmapl_e,vmapc_e,vmapr_e,jacobvell_e,jacobvelc_e,jacobvelr_e,
-   bmagBasis,bType,dxvRecl,dxvRecc,dxvRecr,hl_e,hr_e,nuVtSqSum_e,BmagInv_e,confFac_e,dfVfac,
+   bmagBasis,bType,dxvRecl,dxvRecc,dxvRecr,hl_e,hr_e,rdv2hFac,nuVtSqSum_e,BmagInv_e,confFac_e,dfVfac,
    fVfac,confFac_c,vpSqSub,dfRecFacl_e,dfRecFacr_e,fRecFacl_e,fRecFacr_e,dfRecFacl_c,
    dfRecFacr_c,fRecFacl_c,fRecFacr_c,bPp,incrl_c,incrr_c],
   
@@ -92,7 +92,9 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismap
     hl_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecl, dxvRecc,
       dg(makelist(fl_over_jacv[i-1],i,1,NP)), dg(makelist(fc_over_jacv[i-1],i,1,NP))),
     hr_e : calcRecov2CellGenNonuniform(bType, surfVar, varsP, polyOrder, dxvRecc, dxvRecr,
-      dg(makelist(fc_over_jacv[i-1],i,1,NP)), dg(makelist(fr_over_jacv[i-1],i,1,NP)))
+      dg(makelist(fc_over_jacv[i-1],i,1,NP)), dg(makelist(fr_over_jacv[i-1],i,1,NP))),
+
+    rdv2hFac : rdv2
   )
   else (
     /* Set rates of change to 1 for simplicity. */
@@ -106,7 +108,9 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismap
     hl_e : calcRecov2CellGen(bType, surfVar, varsP, polyOrder,
       dg(makelist(fl[i-1],i,1,NP)), dg(makelist(fc[i-1],i,1,NP))),
     hr_e : calcRecov2CellGen(bType, surfVar, varsP, polyOrder,
-      dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP)))
+      dg(makelist(fc[i-1],i,1,NP)), dg(makelist(fr[i-1],i,1,NP))),
+
+    rdv2hFac : rdv2Sq
   ),
 
   /*............. RECOVERY DONE ..............................*/
@@ -163,11 +167,11 @@ calcGkLBODiffUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, ismap
   fRecFacl_c : calcInnerProdList(surfIntVars, 1, bSurf, fRecFacl_e),
   fRecFacr_c : calcInnerProdList(surfIntVars, 1, bSurf, fRecFacr_e),
 
-  phaseFacl_c : rdv2  *calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bP ), dfRecFacl_e)
-               -rdv2Sq*calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bPp), fRecFacl_e),
+  phaseFacl_c : rdv2hFac*calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bP ), dfRecFacl_e)
+               -rdv2Sq  *calcInnerProdList(surfIntVars, 1, subst(surfVar=-1,bPp), fRecFacl_e),
 
-  phaseFacr_c : rdv2  *calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP ), dfRecFacr_e)
-               -rdv2Sq*calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bPp), fRecFacr_e),
+  phaseFacr_c : rdv2hFac*calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP ), dfRecFacr_e)
+               -rdv2Sq  *calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bPp), fRecFacr_e),
 
   if (polyOrder=1 or sdowncase(basisFun)="tensor") then (
     /* This simplification only works for p=1 because it is a tensor product of
