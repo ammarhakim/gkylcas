@@ -1,0 +1,41 @@
+/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+load(stringproc)$
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Ser : 2$
+maxCdim_Ser : 2$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["Ser","Tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+
+fName : "~/max-out/gkyl_calc_cart_bmag_kernels.h"$
+fh : openw(fName)$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+for bInd : 1 thru 2 do (
+  for cD : minCdim[bInd] thru maxCdim[bInd] do (
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+          disp(printf(false,sconcat("Creating header entry for cart_bmag_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+          printf(fh, "GKYL_CU_DH void cart_bmag_~ax_~a_p~a( const double **psibyr, const double *psibyr2, double *bmag_out, double *br_out, double *bz_out, double scale_factorR, double scale_factorZ); ~%", cD, bName[bInd], polyOrder)
+      )
+  )
+);
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
