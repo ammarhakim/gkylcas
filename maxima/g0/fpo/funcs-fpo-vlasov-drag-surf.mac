@@ -4,19 +4,17 @@
 
 */
 
+load("fpo/fpo-utils")$
 load("modal-basis")$
 load("nodal_operations/nodal_functions")$
 load("out-scripts")$
 load("recovery")$
 load("utilities")$
 
-generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
-  [vdim, pdim, varsC, bC, varsP, bP, NC, dirNums, pvdir, surfVars, bSurf, numSurf, fh, 
-  aL_e, aC_e, aR_e, fL_e, fC_e, fR_e, aL_lst, aC_lst, aR_lst, a_rec_lo_p, a_rec_up_p,
-  fL_R, fC_L, fC_R, fR_L, a_rec_lo, a_rec_up, avg_L, avg_R, jump_L, jump_R, surfNodes,
-  numNodes, aMax_L_e, aMax_R_e, Ghat_L_c, Ghat_R_c, GhatNoZero_L, Ghat_L_e, GhatNoZero_R,
-  drag_incr_up, drag_incr_lo],
+fpprec : 24$
 
+generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
+  [],
   /* FPO is always 3V */
   vdim : 3,
   pdim : cdim+vdim,
@@ -25,7 +23,7 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bP),
 
-  dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
+  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
   pvdir : assoc(pv,dirNums),
 
   /* Phase space variable for direction */
@@ -33,138 +31,82 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
   numSurf : length(bSurf),
 
+
+  surfNodes : gaussOrd(polyOrder+1, pdim-1),
+  numNodes : length(surfNodes),
+
   disp(printf(false, "creating ~a", fname)),
   fh : openw(fname),
   printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], pdim, polyOrder, pvdir),
-  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%~%", bName[bInd], pdim, polyOrder),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%",
+    basisFun, pdim, polyOrder),
+  printf(fh, "~%~%"),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double* dxv, const double *dragCoeffL, const double *dragCoeffC, const double *dragCoeffR, const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out) { ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double* dxv, 
+  const double *alpha_surf_L, const double *alpha_surf_R,
+  const double *sgn_alpha_surf_L, const double *sgn_alpha_surf_R,
+  const int *const_sgn_alpha_L, const int *const_sgn_alpha_R,
+  const double *fL, const double *fC, const double *fR, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
 
   printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
-  printf(fh, "  // drag_coeff: Drag coefficient. ~%"),
-  printf(fh, "  // f: Distribution function. ~%"),
+  printf(fh, "  // alpha_surf_L,R: Surface expansion of drag coefficient on left,right boundary of center cell. ~%"),
+  printf(fh, "  // sgn_alpha_L,R: sign(alpha_surf_l,r) at quadrature points. ~%"),
+  printf(fh, "  // const_sgn_alpha_L,R: Boolean array true if sign(alpha_surf_l,r) is only one sign. ~%"),
+  printf(fh, "  // fL, fC, fR: Distribution function in left, center, and right cells. ~%"),
   printf(fh, "  // out: Incremented output. ~%~%"),
   printf(fh, "~%"),
-  printf(fh, "  const double* aL = &dragCoeffL[~a]; ~%", (pvdir-1-cdim)*NC),
-  printf(fh, "  const double* aC = &dragCoeffC[~a]; ~%", (pvdir-1-cdim)*NC),
-  printf(fh, "  const double* aR = &dragCoeffR[~a]; ~%", (pvdir-1-cdim)*NC),
-
+  printf(fh, "  // Index into drag coefficient surface expansion arrays ~%"),
+  printf(fh, "  const double *drag_coeff_surf_L = &alpha_surf_L[~a]; ~%", (pvdir-1)*numSurf),
+  printf(fh, "  const double *drag_coeff_surf_R = &alpha_surf_R[~a]; ~%", (pvdir-1)*numSurf),
+  printf(fh, "  const double *sgn_drag_coeff_surf_L = &sgn_alpha_surf_L[~a]; ~%", (pvdir-1)*numNodes),
+  printf(fh, "  const double *sgn_drag_coeff_surf_R = &sgn_alpha_surf_R[~a]; ~%", (pvdir-1)*numNodes),
+  printf(fh, "  const int *const_sgn_drag_coeff_L = &const_sgn_alpha_L[~a]; ~%", pvdir-1),
+  printf(fh, "  const int *const_sgn_drag_coeff_R = &const_sgn_alpha_R[~a]; ~%", pvdir-1),
   printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%~%", pvdir-1),
   printf(fh, "~%"),
 
-  /* Expansions of drag coefficient and f in Left/Center/Right cells */ 
-  aL_e : doExpand1(aL, bP),
-  aC_e : doExpand1(aC, bP),
-  aR_e : doExpand1(aR, bP),
+  drag_coeff_surf_L_e : doExpand1(drag_coeff_surf_L, bSurf),
+  drag_coeff_surf_R_e : doExpand1(drag_coeff_surf_R, bSurf),
 
   fL_e : doExpand1(fL, bP),
   fC_e : doExpand1(fC, bP),
   fR_e : doExpand1(fR, bP),
 
-  aL_lst : makelist(aL[i], i, 0, NC-1),
-  aC_lst : makelist(aC[i], i, 0, NC-1),
-  aR_lst : makelist(aR[i], i, 0, NC-1),
+  /* 
+    Calculate and write out upwinded distribution function 
+  */
+  calcAndWrite_fUpwind(fh, pv, pdim, polyOrder, surfVars, bSurf, fL_e, fC_e, basisFun, "L"),
+  calcAndWrite_fUpwind(fh, pv, pdim, polyOrder, surfVars, bSurf, fC_e, fR_e, basisFun, "R"),
 
-  /* Recover continuous drag coefficient across cell boundaries */
-  a_rec_lo_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(aL_lst), dg(aC_lst)),
-  a_rec_up_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(aC_lst), dg(aR_lst)),
+  fUp_L_e : doExpand1(fUp_L, bSurf),
+  fUp_R_e : doExpand1(fUp_R, bSurf),
 
-  /* Evaluate f expansions in Left/Center/Right at boundaries of Center cell */
-  fL_R : subst(pv=1, fL_e),
+  printf(fh, "  double GhatL[~a] = {0.0}; ~%", numSurf),
+  printf(fh, "  double GhatR[~a] = {0.0}; ~%", numSurf),
 
-  fC_L : subst(pv=-1, fC_e),
-  fC_R : subst(pv=1, fC_e),
-
-  fR_L : subst(pv=-1, fR_e),
-
-  /* Evaluate recoveries at Left/Right boundaries */
-  a_rec_lo : subst(pv=0, a_rec_lo_p),
-  a_rec_up : subst(pv=0, a_rec_up_p),
-
-  /* Ghat = 1/2 * (alpha_l*f_l + alpha_r*f_r) - 1/2 * |max(alpha_l, alpha_r)| (f_r - f_l) */
-  avg_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_lo*(fL_R + fC_L)),
-  avg_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_up*(fC_R + fR_L)),
-  jump_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fC_L - fL_R)),
-  jump_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fR_L - fC_R)),
-
-  /* Write out avg and jump quantities */
-  printf(fh, "  double avg_L[~a] = {0.0};~%", NC),
-  printf(fh, "  double avg_R[~a] = {0.0};~%", NC),
-  printf(fh, "  double jump_L[~a] = {0.0};~%", NC),
-  printf(fh, "  double jump_R[~a] = {0.0};~%", NC),
-
-  writeCExprs1(avg_L, avg_L_c),
-  writeCExprs1(avg_R, avg_R_c),
-  writeCExprs1(jump_L, jump_L_c),
-  writeCExprs1(jump_R, jump_R_c),
-  flush_output(fh),
-
-  avg_L_e : doExpand1(avg_L, bSurf),
-  avg_R_e : doExpand1(avg_R, bSurf),
-  jump_L_e : doExpand1(jump_L, bSurf),
-  jump_R_e : doExpand1(jump_R, bSurf),
-
-  /* Initialize Gauss=Legendre quadrature for upwinding */
-  surfNodes : gaussOrd(polyOrder+1, pdim-1),
-  numNodes : length(surfNodes),
-
-  printf(fh, "  double aQuad_L[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double aQuad_R[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double aMax_L[~a] = {0.0}; ~%", numSurf),
-  printf(fh, "  double aMax_R[~a] = {0.0}; ~%", numSurf),
-  printf(fh, "  double Ghat_L[~a] = {0.0}; ~%", numSurf),
-  printf(fh, "  double Ghat_R[~a] = {0.0}; ~%", numSurf),
-
-  printf(fh, "  double aL_R_node = 0.0; ~%"),
-  printf(fh, "  double aC_L_node = 0.0; ~%"),
-  printf(fh, "  double aC_R_node = 0.0; ~%"),
-  printf(fh, "  double aR_L_node = 0.0; ~%"),
+  GhatL_c : calcInnerProdList(surfVars, 1, bSurf, drag_coeff_surf_L_e*fUp_L_e),
+  GhatR_c : calcInnerProdList(surfVars, 1, bSurf, drag_coeff_surf_R_e*fUp_R_e),
+  writeCExprsNoExpand1(GhatL, gcfac(float(expand(GhatL_c)))),
   printf(fh, "~%"),
-  for i : 1 thru numNodes do (
-    printf(fh, "  aL_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aL); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aC_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aC); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aC_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aC); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aR_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aR); ~%", basisFun, pdim, polyOrder, dir, i-1),
-
-    printf(fh, "  aQuad_L[~a] = fmax(fabs(aL_R_node), fabs(aC_L_node)); ~%", i-1),
-    printf(fh, "  aQuad_R[~a] = fmax(fabs(aC_R_node), fabs(aR_L_node)); ~%", i-1),
-    flush_output(fh)
-  ),
-
-  printf(fh, "~%"),
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(aQuad_L, aMax_L); ~%", basisFun, pdim, polyOrder),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(aQuad_R, aMax_R); ~%", basisFun, pdim, polyOrder),
-
-  /* Expansions of aMax evaluated at left and right boundary surface basis */
-  aMax_L_e : doExpand1(aMax_L, bSurf),
-  aMax_R_e : doExpand1(aMax_R, bSurf),
-  
-  /* Write out Ghat on left and right cell boundaries */
-  Ghat_L_c : calcInnerProdList(surfVars, 1, bSurf, avg_L_e - aMax_L_e*jump_L_e),
-  writeCExprs1(Ghat_L, Ghat_L_c),
+  writeCExprsNoExpand1(GhatR, gcfac(float(expand(GhatR_c)))),
   printf(fh, "~%"),
   flush_output(fh),
+  GhatL_e : doExpand1(GhatL, bSurf),
+  GhatR_e : doExpand1(GhatR, bSurf),
 
-  Ghat_R_c : calcInnerProdList(surfVars, 1, bSurf, avg_R_e - aMax_R_e*jump_R_e),
-  writeCExprs1(Ghat_R, Ghat_R_c),
+  incrL_c : calcInnerProdList(surfVars, 1.0, subst(pv=-1.0, bP), GhatL_e),
+  incrR_c : calcInnerProdList(surfVars, -1.0, subst(pv=1.0, bP), GhatR_e),
+
+  writeCIncrExprsCollect1(out, dv1*(incrL_c+incrR_c), [dv1]),
+
+  /* Write out CFL frequency */
+  printf(fh, "  double cflFreq = fmax(fabs(drag_coeff_surf_L[0]), fabs(drag_coeff_surf_R[0])); ~%"),
   printf(fh, "~%"),
+  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*polyOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
+
+
+  printf(fh, "}~%"),
   flush_output(fh),
-
-  glst1_L : doMakeExprLst(Ghat_L_c, Ghat_L),
-  Ghat_L_e : doExpand(glst1_L, bSurf),
-  glst1_R : doMakeExprLst(Ghat_R_c, Ghat_R),
-  Ghat_R_e : doExpand(glst1_R, bSurf),
-
-  /* Compute total surface contributions */
-  drag_incr_up : calcInnerProdList(surfVars, -1, subst(pv=1, bP), Ghat_R_e),
-  drag_incr_lo : calcInnerProdList(surfVars, 1, subst(pv=-1, bP), Ghat_L_e),
-
-  writeCIncrExprs1(out, 0.5*dv1*drag_incr_up + 0.5*dv1*drag_incr_lo), 
-
-  /* Return CFL in volume kernel */
-  printf(fh, "  return 0.0;"),
-  printf(fh, "~%}~%"),
   close(fh)
 )$
+

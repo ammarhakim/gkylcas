@@ -7,6 +7,8 @@
 load("modal-basis")$
 load("out-scripts")$
 
+fpprec : 24$
+
 dirs : [vx, vy, vz]$
 
 generateFpoVlasovDragVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
@@ -69,28 +71,14 @@ generateFpoVlasovDragVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  // ~a contribution ~%", dir),
 
     /* Write out increment for direction */
-    writeCIncrExprs1(out, kernel),
+    writeCIncrExprsCollect1(out, kernel, [dv1]),
     printf(fh, "~%") 
   ),
 
   printf(fh, "~%~%"),
 
-  zr : makelist(varsP[d]=0, d, 1, length(varsP)),
-  polyFact : (2*polyOrder+1),
-  facDrag_mid : makelist(0, i, 1, vdim),
-
-  /* 
-    Calculate CFL frequency.
-    Assuming that CFL Freq is determined like eq 78 from
-    Francisquez et al. Nucl. Fusion 2020
-  */
-  for d : 1 thru vdim do (
-    facDrag_e : a_comps[d],
-    facDrag_mid[d] : 0.5*dv1_comps[d]*gcfac(float(expand(subst(zr,polyFact*facDrag_e))))
-  ),
-
-  printf(fh, "  return fabs(~a) + fabs(~a) + fabs(~a); ~%", facDrag_mid[1], facDrag_mid[2], facDrag_mid[3]),
-
+  /* Return CFL in surface kernels */
+  printf(fh, "  return 0.0; ~%"),
   printf(fh, "~%}~%"),
   close(fh)
 )$

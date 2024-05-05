@@ -1,204 +1,147 @@
 /*
   Generate kernels for the surface term for the drag 
   contribution for the Rosenbluth/Fokker-Planck Operator
-  at a domain boundary.
+  at a domain boundary, assuming zero-flux BCs.
 */
 
+load("fpo/fpo-utils");
 load("modal-basis");
 load("nodal_operations/nodal_functions")$
 load("out-scripts");
 load("recovery");
 
+fpprec : 24$
+
+
 generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
-  [vdim, pdim, dim, dirNums, pvdir, varsC, bC, varsP, bP, NC, numSurf, fh, aSkin_lst, aEdge_lst, fSkin_e,
-  fEdge_e, aSkin_e, aEdge_e, a_rec_lo_p, a_rec_up_p, fEdge_R, fEdge_L, fSkin_R, fSkin_L, a_rec_lo,
-  a_rec_up, avg_L_c, avg_R_c, jump_L_c, jump_R_c, surfNodes, numNodes, avg_L_e, jump_L_e, avg_R_e, jump_R_e,
-  aMax_e, Ghat_L_c, Ghat_R_c, glst1_L, Ghat_L_e, glst1_R, Ghat_R_e, drag_incr_up, drag_incr_lo],
-  /* FPO is only defined in 3V */
+  [],
+  /* FPO is always 3V */
   vdim : 3,
   pdim : cdim+vdim,
-  /* Diagonal stencils are always 1D */
-  dim : 1,
 
-  dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bP),
 
+  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
   pvdir : assoc(pv,dirNums),
 
-  kill(varsC, basisC, varsP, basisP),
-
-  /* 
-    Load basis, create surface basis, perform recoveries 
-    that will be used in most cases 
-  */
-  [varsC, bC, varsP, bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
-
+  /* Phase space variable for direction */
   surfVars : delete(pv, varsP),
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
-
-  NC : length(bP),
   numSurf : length(bSurf),
 
-  disp(printf(false, "Creating ~a", fname)),
-  fh : openw(fname), 
-  printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], pdim, polyOrder, pvdir),
-  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%~%", bName[bInd], pdim, polyOrder),
-
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *dragCoeffEdge, const double *dragCoeffSkin, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) { ~%", funcNm),
-
-  printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
-  printf(fh, "  // diffCoeffSkin/Edge: Drag coefficient in skin/edge cell. ~%"),
-  printf(fh, "  // fSkin/Edge: Distribution function in skin/edge cell. ~%"), 
-  printf(fh, "  // out: Incremented output. ~%~%"),
-  printf(fh, "~%"),
-
-  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
-  printf(fh, " ~%"),
-
-  printf(fh, "  const double* aSkin = &dragCoeffSkin[~a]; ~%", (pvdir-1-cdim)*NC),
-  printf(fh, "  const double* aEdge = &dragCoeffEdge[~a]; ~%", (pvdir-1-cdim)*NC),
-
-  /* Expansions of drag coefficient and f in Skin/Edge cells */ 
-  aSkin_lst : makelist(aSkin[i], i, 0, NC-1),
-  aEdge_lst : makelist(aEdge[i], i, 0, NC-1),
-  
-  fSkin_e : doExpand1(fSkin, bP),
-  fEdge_e : doExpand1(fEdge, bP),
-  
-  aSkin_e : doExpand1(aSkin, bP),
-  aEdge_e : doExpand1(aEdge, bP),
-
-  /* Recover continuous drag coefficient across cell boundaries */
-  a_rec_lo_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
-    dg(aSkin_lst), dg(aEdge_lst)),
-  a_rec_up_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder,
-    dg(aEdge_lst), dg(aSkin_lst)),
-
-  /* Evaluate f expansions at Left/Right cell boundaries */
-  fEdge_R : subst(pv=1, fEdge_e),
-  fEdge_L : subst(pv=-1, fEdge_e),
-
-  fSkin_R : subst(pv=1, fSkin_e),
-  fSkin_L : subst(pv=-1, fSkin_e),
-
-  /* Evaluate recoveries at Left/Right cell boundaries */
-  a_rec_lo : subst(pv=0, a_rec_lo_p), 
-  a_rec_up : subst(pv=0, a_rec_up_p),
-
-  /* Ghat = 1/2 * (alpha_l*f_l + alpha_r*f_r) - 1/2 * |max(alpha_l, alpha_r)| (f_r - f_l) */
-  avg_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_lo*(fEdge_R + fSkin_L)),
-  avg_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*a_rec_lo*(fSkin_R + fEdge_L)),
-  jump_L_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fSkin_L - fEdge_R)),
-  jump_R_c : calcInnerProdList(surfVars, 1, bSurf, 0.5*(fEdge_L - fSkin_R)),
-
-  /* Initialize Gauss=Legendre quadrature for upwinding */
   surfNodes : gaussOrd(polyOrder+1, pdim-1),
   numNodes : length(surfNodes),
 
-  printf(fh, "  double aQuad[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double aMax[~a] = {0.0}; ~%", numSurf),
-  printf(fh, "  double Ghat[~a] = {0.0}; ~%", numSurf),
+  disp(printf(false, "creating ~a", fname)),
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%",
+    basisFun, pdim, polyOrder),
+  printf(fh, "~%~%"),
 
-  printf(fh, "  double aEdge_R_node = 0.0; ~%"),
-  printf(fh, "  double aSkin_L_node = 0.0; ~%"),
-  printf(fh, "  double aSkin_R_node = 0.0; ~%"),
-  printf(fh, "  double aEdge_L_node = 0.0; ~%~%"),
-  printf(fh, "  double avg_R[~a] = {0.0};~%", NC),
-  printf(fh, "  double jump_R[~a] = {0.0};~%", NC),
-  printf(fh, "  double avg_L[~a] = {0.0};~%", NC),
-  printf(fh, "  double jump_L[~a] = {0.0};~%", NC),
+  printf(fh, "GKYL_CU_DH double ~a(const double* dxv,
+  const double *alpha_surf_Edge, const double *alpha_surf_Skin,
+  const double *sgn_alpha_surf_Edge, const double *sgn_alpha_surf_Skin,
+  const int *const_sgn_alpha_Edge, const int *const_sgn_alpha_Skin,
+  const int edge, const double *fEdge, const double *fSkin,
+  double* GKYL_RESTRICT out) { ~%", funcNm),
 
+  printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
+  printf(fh, "  // alpha_surf_Edge,Skin: Surface expansion of drag coefficient on lower boundary of Skin/Edge cell. ~%"),
+  printf(fh, "  // sgn_alpha_Edge,Skin: sign(alpha_surf_l,r) at quadrature points. ~%"),
+  printf(fh, "  // const_sgn_alpha_Edge,Skin: Boolean array true if sign(alpha_surf_l,r) is only one sign. ~%"),
+  printf(fh, "  // fEdge, fSkin: Distribution function in left, center, and right cells. ~%"),
+  printf(fh, "  // out: Incremented output. ~%~%"),
+  printf(fh, "~%"),
+  printf(fh, "  // Index into drag coefficient surface expansion arrays ~%"),
+  printf(fh, "  const double *drag_coeff_surf_Edge = &alpha_surf_Edge[~a]; ~%", (pvdir-1)*numSurf),
+  printf(fh, "  const double *drag_coeff_surf_Skin = &alpha_surf_Skin[~a]; ~%", (pvdir-1)*numSurf),
+  printf(fh, "  const double *sgn_drag_coeff_surf_Edge = &sgn_alpha_surf_Edge[~a]; ~%", (pvdir-1)*numNodes),
+  printf(fh, "  const double *sgn_drag_coeff_surf_Skin = &sgn_alpha_surf_Skin[~a]; ~%", (pvdir-1)*numNodes),
+  printf(fh, "  const int *const_sgn_drag_coeff_Edge = &const_sgn_alpha_Edge[~a]; ~%", pvdir-1),
+  printf(fh, "  const int *const_sgn_drag_coeff_Skin = &const_sgn_alpha_Skin[~a]; ~%", pvdir-1),
+  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1),
+  printf(fh, "~%"),
+  printf(fh, "  double cflFreq = 0.0; ~%"),
+  printf(fh, "~%"),
 
+  drag_coeff_surf_Edge_e : doExpand1(drag_coeff_surf_Edge, bSurf),
+  drag_coeff_surf_Skin_e : doExpand1(drag_coeff_surf_Skin, bSurf),
+
+  fEdge_e : doExpand1(fEdge, bP), 
+  fSkin_e : doExpand1(fSkin, bP), 
 
   /* 
     If edge == -1, we are doing the left edge boundary and the skin cell needs to be 
     evaluated at +1 
-
+  */
+  printf(fh, "  if (edge == -1) { ~%"),
+  /*
     +------+------+------+
     | ++++ | Skin | Edge |
     +------+------+------+
   */
-  printf(fh, "  if (edge == -1) { ~%~%"),
+  printf(fh, "  const double *drag_coeff_surf_R = drag_coeff_surf_Edge; ~%"),
+  printf(fh, "  const double *sgn_drag_coeff_surf_R = sgn_drag_coeff_surf_Edge; ~%"),
+  printf(fh, "  const int *const_sgn_drag_coeff_R = const_sgn_drag_coeff_Edge; ~%"),
+  calcAndWrite_fUpwind(fh, pv, pdim, polyOrder, surfVars, bSurf, fSkin_e, fEdge_e, basisFun, "R"),
+  
+  fUp_R_e : doExpand1(fUp_R, bSurf),
 
-  writeCExprs1(avg_R, avg_R_c),
-  writeCExprs1(jump_R, jump_R_c),
+  printf(fh, "  double GhatR[~a] = {0.0}; ~%", numSurf),
+  GhatR_c : calcInnerProdList(surfVars, 1, bSurf, drag_coeff_surf_Edge_e*fUp_R_e),
+  writeCExprsNoExpand1(GhatR, gcfac(float(expand(GhatR_c)))),
+  printf(fh, "~%"),
   flush_output(fh),
 
-  avg_L_e : doExpand1(avg_L, bSurf),
-  jump_L_e : doExpand1(jump_L, bSurf),
-  
-  for i : 1 thru numNodes do (
-    printf(fh, "  aSkin_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aSkin); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aEdge_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aEdge); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aQuad[~a] = fmax(fabs(aSkin_R_node), fabs(aEdge_L_node)); ~%", i-1)
-  ),
+  GhatR_e : doExpand1(GhatR, bSurf),
 
+  incrR_c : calcInnerProdList(surfVars, -1.0, subst(pv=1.0, bP), GhatR_e),
+
+  writeCIncrExprsCollect1(out, dv1*incrR_c, [dv1]),
+  printf(fh, "  cflFreq = fabs(drag_coeff_surf_Edge[0]);"),
+  printf(fh, "~%"),
 
   /* 
     Otherwise edge == +1, we are doing the right edge boundary and the skin cell needs 
     to be evauluated at -1 
+  */
+  printf(fh, "~%  } else { ~%"),
 
+  /*
     +------+------+------+
     | Edge | Skin | ++++ |
     +------+------+------+
-  */
-  printf(fh, "~%  } else { ~%~%"),
+  */  
+  printf(fh, "  const double *drag_coeff_surf_L = drag_coeff_surf_Skin; ~%"),
+  printf(fh, "  const double *sgn_drag_coeff_surf_L = sgn_drag_coeff_surf_Skin; ~%"),
+  printf(fh, "  const int *const_sgn_drag_coeff_L = const_sgn_drag_coeff_Skin; ~%"),
+  calcAndWrite_fUpwind(fh, pv, pdim, polyOrder, surfVars, bSurf, fEdge_e, fSkin_e, basisFun, "L"),
 
-  writeCExprs1(avg_L, avg_L_c),
-  writeCExprs1(jump_L, jump_L_c),
-  flush_output(fh),
+  fUp_L_e : doExpand1(fUp_L, bSurf),
 
-  avg_R_e : doExpand1(avg_R, bSurf),
-  jump_R_e : doExpand1(jump_R, bSurf),
-
-  for i : 1 thru numNodes do (
-    printf(fh, "  aEdge_R_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(aEdge); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aSkin_L_node = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(aSkin); ~%", basisFun, pdim, polyOrder, pvdir, i-1),
-    printf(fh, "  aQuad[~a] = fmax(fabs(aEdge_R_node), fabs(aSkin_L_node)); ~%", i-1)
-  ),
-  printf(fh, "  } ~%"),
- 
-  printf(fh, "~%"),
-  printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(aQuad, aMax); ~%", basisFun, pdim, polyOrder),
-
-  /* Expansion of aMax in surface basis */
-  aMax_e : doExpand1(aMax, bSurf),
-
-  /* Ghat = 1/2 * (alpha_l*f_l + alpha_r*f_r) - 1/2 * |max(alpha_l, alpha_r)| (f_r - f_l) */
-  Ghat_L_c : calcInnerProdList(surfVars, 1, bSurf, avg_L_e - aMax_e*jump_L_e),
-  Ghat_R_c : calcInnerProdList(surfVars, 1, bSurf, avg_R_e - aMax_e*jump_R_e),
-  glst1_L : doMakeExprLst(Ghat_L_c, Ghat),
-  Ghat_L_e : doExpand(glst1_L, bSurf),
-  glst1_R : doMakeExprLst(Ghat_R_c, Ghat),
-  Ghat_R_e : doExpand(glst1_R, bSurf),
-
-  /* Compute total surface contributions */
-  drag_incr_up : calcInnerProdList(surfVars, -1, subst(pv=1, bP), Ghat_R_e),
-  drag_incr_lo : calcInnerProdList(surfVars, 1, subst(pv=-1, bP), Ghat_L_e),
-
-  /* Write out Ghat at cell boundary */
-  printf(fh, "  if (edge == -1) { ~%~%"),
-  writeCExprs1(Ghat, Ghat_R_c),
+  printf(fh, "  double GhatL[~a] = {0.0}; ~%", numSurf),
+  GhatL_c : calcInnerProdList(surfVars, 1, bSurf, drag_coeff_surf_Skin_e*fUp_L_e),
+  writeCExprsNoExpand1(GhatL, gcfac(float(expand(GhatL_c)))),
   printf(fh, "~%"),
   flush_output(fh),
+  GhatL_e : doExpand1(GhatL, bSurf),
 
-  writeCIncrExprs1(out, 0.5*dv1*drag_incr_lo),
-
-  printf(fh, "~%  } else { ~%~%"),
-
-  writeCExprs1(Ghat, Ghat_L_c),
+  incrL_c : calcInnerProdList(surfVars, 1.0, subst(pv=-1.0, bP), GhatL_e),
+  writeCIncrExprsCollect1(out, dv1*incrL_c, [dv1]),
+  printf(fh, "  cflFreq = fabs(drag_coeff_surf_Skin[0]);"),
   printf(fh, "~%"),
-  flush_output(fh),
+  printf(fh, "~%"),
 
-  writeCIncrExprs1(out, 0.5*dv1*drag_incr_up),
+  printf(fh, "  } ~%~%"),
 
-  printf(fh, "  } ~%"),
+  /* Write out CFL frequency */
+  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*polyOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
 
-  printf(fh, "  return 0.0;"),
-  printf(fh, "} ~%"),
+  printf(fh, "}~%"),
   flush_output(fh),
   close(fh)
+
 )$
-
-
