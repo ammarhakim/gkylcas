@@ -1,9 +1,9 @@
 /* Functions (called by moment-calc.mac) that compute the
    moments of the distribution function in gyrokinetic model. */
 
-load("modal-basis");
-load("out-scripts");
-load("moments/gkMoms_util")$
+load("modal-basis")$
+load("out-scripts")$
+load("utilities_gyrokinetic")$
 load(stringproc)$
 fpprec : 24$
 

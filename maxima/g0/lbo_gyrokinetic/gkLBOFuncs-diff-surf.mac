@@ -1,8 +1,7 @@
 load("modal-basis")$
 load("out-scripts");
 load("recovery")$
-load("utilities")$
-load("lbo_gyrokinetic/gkLBO_util")$
+load("utilities_gyrokinetic")$
 load(stringproc)$
 fpprec : 24$
 

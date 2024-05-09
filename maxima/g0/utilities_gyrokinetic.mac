@@ -1,7 +1,8 @@
 /*
-    Functions used by the GK LBO.
+  Auxiliary functions for gyrokinetics.
 */
-load("modal-basis");
+load("modal-basis")$
+load("utilities")$
 
 getAxisymmetricConfBasis(confBasis) := block(
   /* Load a basis that only has the variables B depends on (we assume it
@@ -16,7 +17,7 @@ getAxisymmetricConfBasis(confBasis) := block(
 )$
 
 expandVmapFields(varsP) := block(
-  /* Expand the fields used for the velocity mapping. */
+  /* Expand velocity map fields. */
   [pDim,vdim,cdim,jnk,vmapBasis,vmapSqBasis,vmapBnum,vmapSqBnum,
    vmap_e,vmapSq_e,vmap_prim_e,d,vmap_c,vmapSq_c],
 
