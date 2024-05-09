@@ -1,0 +1,86 @@
+/* Compute the volume term for the streaming (v . grad(f)) term
+   in the Vlasov neutral eqn with general geometry. 
+   Uses pre-computed cotangent vectors e^i = g^ij e_j 
+   to construct v^i = v . e^i */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+fpprec : 24$
+
+cidx(cdim)      := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
+
+calcVlasovBmagCart(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC,bC,NC,varsC_p1,bC_p1,cid,vid,
+   e1_x_e,e1_y_e,e1_z_e,
+   e2_x_e,e2_y_e,e2_z_e,
+   e3_x_e,e3_y_e,e3_z_e,
+   b_x_e, b_y_e, b_z_e,clst],
+
+  printf(fh, "~%"),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+  NC : length(bC),
+
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *cot_vec, const double *b_i, double* GKYL_RESTRICT b_cart_i) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // cot_vec:   cotangent vectors.~%"),
+  printf(fh, "  // b_i:       unit bmag vector.~%"),
+  printf(fh, "  // b_cart_i:  unit bmag Cartesian components.~%"),
+
+  cid : cidx(cdim),
+
+  printf(fh, "  const double *e1_x = &cot_vec[~a]; ~%", NC*0),
+  printf(fh, "  const double *e1_y = &cot_vec[~a]; ~%", NC*1),
+  printf(fh, "  const double *e1_z = &cot_vec[~a]; ~%", NC*2),
+  printf(fh, "  const double *e2_x = &cot_vec[~a]; ~%", NC*3),
+  printf(fh, "  const double *e2_y = &cot_vec[~a]; ~%", NC*4),
+  printf(fh, "  const double *e2_z = &cot_vec[~a]; ~%", NC*5),
+  printf(fh, "  const double *e3_x = &cot_vec[~a]; ~%", NC*6),
+  printf(fh, "  const double *e3_y = &cot_vec[~a]; ~%", NC*7),
+  printf(fh, "  const double *e3_z = &cot_vec[~a]; ~%", NC*8),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *b_x = &b_i[~a]; ~%", NC*0),
+  printf(fh, "  const double *b_y = &b_i[~a]; ~%", NC*1),
+  printf(fh, "  const double *b_z = &b_i[~a]; ~%", NC*2),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *b_1 = &b_cart_i[~a]; ~%", NC*0),
+  printf(fh, "  double *b_2 = &b_cart_i[~a]; ~%", NC*1),
+  printf(fh, "  double *b_3 = &b_cart_i[~a]; ~%", NC*2),
+  printf(fh, "~%"),
+
+  /* Expand the cotangent vectors in configuration space */
+  e1_x_e : doExpand1(e1_x, bC),
+  e1_y_e : doExpand1(e1_y, bC),
+  e1_z_e : doExpand1(e1_z, bC),
+  e2_x_e : doExpand1(e2_x, bC),
+  e2_y_e : doExpand1(e2_y, bC),
+  e2_z_e : doExpand1(e2_z, bC),
+  e3_x_e : doExpand1(e3_x, bC),
+  e3_y_e : doExpand1(e3_y, bC),
+  e3_z_e : doExpand1(e3_z, bC),
+
+  /* Expand the unit bmag vector in configuration space */
+  b_x_e : doExpand1(b_x, bC),
+  b_y_e : doExpand1(b_y, bC),
+  b_z_e : doExpand1(b_z, bC),
+
+  b_1_c : calcInnerProdList(varsC, 1, bC, b_x_e*e1_x_e + b_y_e*e1_y_e + b_z_e*e1_z_e), 
+  b_2_c : calcInnerProdList(varsC, 1, bC, b_x_e*e2_x_e + b_y_e*e2_y_e + b_z_e*e2_z_e), 
+  b_3_c : calcInnerProdList(varsC, 1, bC, b_x_e*e3_x_e + b_y_e*e3_y_e + b_z_e*e3_z_e),  
+
+  writeCExprsNoExpand1(b_1, gcfac(float(expand(b_1_c)))),
+  printf(fh, "~%"),
+  writeCExprsNoExpand1(b_2, gcfac(float(expand(b_2_c)))),
+  printf(fh, "~%"),
+  writeCExprsNoExpand1(b_3, gcfac(float(expand(b_3_c)))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
