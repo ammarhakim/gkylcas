@@ -1,4 +1,4 @@
-load("vlasov/vlasovPoissonFuncs-vol-C")$
+load("vlasov_poisson/vlasovPoissonFuncs-vol")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term contributions in the
@@ -50,7 +50,7 @@ for bInd : 1 thru length(bName) do (
 
         fname : sconcat("~/max-out/vlasov_poisson_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
         printf(fh, "~%"),
         funcName : sconcat("vlasov_poisson_vol_", c, "x", v, "v_", bName[bInd]),
         calcVlasovPoissonVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
@@ -58,10 +58,10 @@ for bInd : 1 thru length(bName) do (
 
         fname : sconcat("~/max-out/vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+        printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
         printf(fh, "~%"),
         funcName : sconcat("vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd]),
-        calcVlasovPoissonExtEmVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        calcVlasovPoissonExtEMVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

@@ -1,5 +1,5 @@
 /* Compute the volume term for ONLY the streaming (v . grad(f)) term
-   in the Vlasov-Poisson and Vlasov-Maxwell equations. */
+   in Vlasov-Maxwell equations. */
 
 load("modal-basis");
 load("out-scripts");
