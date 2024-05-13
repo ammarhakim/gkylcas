@@ -220,8 +220,10 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   kernel : calcInnerProdList(surfVarspvx, 1, subst(pvx=1, bP), surft1_up_e) +
     calcInnerProdList(surfVarspvx, -1, subst(pvx=-1, bP), surft1_lo_e) +
     calcInnerProdList(surfVarspvy, 1, subst(pvy=1, diff(bP, pvy)), surft2_up_e) +
-    calcInnerProdList(surfVarspvy, -1, subst(pvy=-1, diff(bP, pvy)), surft2_up_e) +
+    calcInnerProdList(surfVarspvy, -1, subst(pvy=-1, diff(bP, pvy)), surft2_lo_e) +
     vol_lst,
+
+  writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
 
   /* No CFL contribution from cross terms? */
   printf(fh, "~%"),
