@@ -8,8 +8,7 @@ load("out-scripts")$
 load("recovery")$
 load("utilities")$
 
-
-/*   calcAndWrite_fUpwind(fh, pv, surfVars, bSurf, numSurf, fC_e, fR_e, basisFun, "R") */
+/* Calculate upwinded distribution function from the sign of drag flux */
 calcAndWrite_fUpwind(fh, pv, pdim, polyOrder, surfVars, bSurf, fL_e, fR_e, basisFun, sideStr) := block(
   [],
   numSurf : length(bSurf),
@@ -108,4 +107,52 @@ calcAndWrite_sgn_drag_coeff(fh,surfVars,surfNodes,alphaSurf_e) := block(
   )
 )$
 
+getStencilCellsList(loc) := block(
+  [],
+  if (loc = [-1, 0]) then (
+    stencilCells_f : [BC, CC, TC, BR, CR, TR],
+    stencilCells_D : [CC, CR]
+  )
+  elseif (loc = [1, 0]) then (
+    stencilCells_f : [BL, CL, TL, BC, CC, TC],
+    stencilCells_D : [CL, CC]
+  )
+  elseif (loc = [0, 1]) then (
+   stencilCells_f : [BL, CL, BC, CC, BR, CR],
+   stencilCells_D : [CL, CC, CR]
+  )
+  elseif (loc = [0, -1]) then (
+   stencilCells_f : [CL, TL, CC, TC, CR, TR],
+   stencilCells_D : [CL, CC, CR]
+  )
+  elseif (loc = [-1, -1]) then (
+   stencilCells_f : [CC, TC, CR, TR],
+   stencilCells_D : [CC, CR]
+  )
+  elseif (loc = [-1, 1]) then (
+   stencilCells_f : [BC, CC, BR, CR],
+   stencilCells_D : [CC, CR]
+  )
+  elseif (loc = [1, -1]) then (
+   stencilCells_f : [CL, TL, CC, TC],
+   stencilCells_D : [CL, CC]
+  )
+  elseif (loc = [1, 1]) then (
+   stencilCells_f : [BL, CL, BC, CC],
+   stencilCells_D : [CL, CC]
+  ),
+  return([stencilCells_f, stencilCells_D])
+)$
 
+getStencilCellsList1D(loc) := block(
+  [],
+  if (loc = [-1]) then (
+    return([C, R])
+  )
+  elseif (loc = [0]) then (
+    return([L, C, R])
+  )
+  else (
+    return([L, C])
+  )
+)$

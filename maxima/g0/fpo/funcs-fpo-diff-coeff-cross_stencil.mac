@@ -19,6 +19,7 @@ load("modal-basis");
 load("out-scripts");
 load("recovery");
 load("bvp_utilities/bvp-util");
+fpprec : 24$
 
 generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
   [vdim, dim, pv1, pv2, dirNums, coordVarS, stencilLoc, stencilStr, pvdir1, pvdir2, fnameStencil, fh,
@@ -39,7 +40,7 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
   pv1 : dirCombo[1],
   pv2 : dirCombo[2],
 
-  dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
+  dirNums : [[vx, 1], [vy, 2], [vz,3]],
 
   kill(varsC, basisC, varsP, basisP),
 
@@ -81,9 +82,9 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "  // Use cell-average value for gamma. ~%"),
     printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
-    printf(fh, "  double dv1_pv1 = 2.0/dxv[~a]; ~%", pvdir1-1),
-    printf(fh, "  double dv1_pv2 = 2.0/dxv[~a]; ~%", pvdir2-1),
-    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1-1, pvdir2-1),
+    printf(fh, "  double dv1_pv1 = 2.0/dxv[~a]; ~%", pvdir1+cdim-1),
+    printf(fh, "  double dv1_pv2 = 2.0/dxv[~a]; ~%", pvdir2+cdim-1),
+    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1+cdim-1, pvdir2+cdim-1),
     printf(fh, " ~%"),
 
     [varsC, bC, varsP, bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -466,21 +467,21 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
       printf(fh, "  const double* g_surf_~a = fpo_g_surf_stencil[~a]; ~%",
         stencilCells[surf_idx[i]], surf_idx[i]-1),
       printf(fh, "  const double* g_surf_~a_pv2 = &g_surf_~a[~a]; ~%", 
-        stencilCells[surf_idx[i]], stencilCells[surf_idx[i]], (pvdir2-cdim-1)*numSurf)
+        stencilCells[surf_idx[i]], stencilCells[surf_idx[i]], (pvdir2-1)*numSurf)
     ),
     printf(fh, "  ~%"),
 
     /* Index into surface expansion to get pv1/pv2 boundaries */
-    printf(fh, "  const double* g_surf_CC_pv1 = &g_surf_CC[~a]; ~%", (pvdir1-cdim-1)*numSurf),
-    dgdpv1_idx : 3*(pvdir2-cdim-1) + (pvdir1-cdim-1),
+    printf(fh, "  const double* g_surf_CC_pv1 = &g_surf_CC[~a]; ~%", (pvdir1-1)*numSurf),
+    dgdpv1_idx : 3*(pvdir2-1) + (pvdir1-1),
     printf(fh, "  const double* dgdpv1_surf_CC_pv2 = &fpo_dgdv_surf[~a]; ~%",
       (dgdpv1_idx)*numSurf),
 
-    dgdpv2_idx : 3*(pvdir1-cdim-1) + (pvdir2-cdim-1),
+    dgdpv2_idx : 3*(pvdir1-1) + (pvdir2-1),
     printf(fh, "  const double* dgdpv2_surf_CC_pv1 = &fpo_dgdv_surf[~a]; ~%",
       (dgdpv2_idx)*numSurf),
     printf(fh, "  const double* dgdpv1_surf_CC_pv1 = &fpo_dgdv_surf[~a]; ~%", 
-      (4*(pvdir1-cdim-1))*numSurf),
+      (4*(pvdir1-1))*numSurf),
 
     printf(fh, "  ~%"),
     printf(fh, "  double surft1_upper[~a], surft1_lower[~a]; ~%", numSurf, numSurf),
@@ -488,14 +489,8 @@ generate_fpo_diff_coeff_cross_stencil(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "  ~%"),
 
     /* Off-diagonal components of diffusion tensor in row major order */
-    printf(fh, "  double *diff_coeff_vxvy = &diff_coeff[~a]; ~%", 1*NC),
-    printf(fh, "  double *diff_coeff_vxvz = &diff_coeff[~a]; ~%", 2*NC),
-    printf(fh, "  double *diff_coeff_vyvx = &diff_coeff[~a]; ~%", 3*NC),
-    printf(fh, "  double *diff_coeff_vyvz = &diff_coeff[~a]; ~%", 5*NC),
-    printf(fh, "  double *diff_coeff_vzvx = &diff_coeff[~a]; ~%", 6*NC),
-    printf(fh, "  double *diff_coeff_vzvy = &diff_coeff[~a]; ~%", 7*NC),
-    printf(fh, "  ~%"),
-    printf(fh, "  double *out = diff_coeff_~a~a; ~%", dirCombo[1], dirCombo[2]),
+    diff_coeff_index : 3*(pvdir1-1) + (pvdir2-1),
+    printf(fh, "  diff_coeff_out = &diff_coeff[~a]; ~%", diff_coeff_index*NC),
     printf(fh, "  ~%"),
 
     surft1 : calcInnerProdList(surft1_surfVars, 1, subst(surft1_pv=1.0,bP), surft1_upper_e) +

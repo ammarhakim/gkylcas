@@ -24,7 +24,7 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
   /* Diagonal term stencils are always 1D */
   dim : 1,
 
-  dirNums : [[vx, cdim+1], [vy, cdim+2], [vz,cdim+3]],
+  dirNums : [[vx, 1], [vy, 2], [vz,3]],
 
   kill(varsC, basisC, varsP, basisP),
 
@@ -57,7 +57,7 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     printf(fh, "  // Use cell-average value for gamma. ~%"),
     printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
-    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir-1, pvdir-1),
+    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir+cdim-1, pvdir+cdim-1),
     printf(fh, "~%"),
 
     [varsC, bC, varsP, bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -121,11 +121,8 @@ generate_fpo_diff_coeff_diag_stencil(fname, funcNm, cdim, basisFun, polyOrder, p
     printf(fh, "  const double* d2G_surf_C = fpo_d2g_surf_C_~a~a; ~%", pv,pv),
 
     printf(fh, "  ~%"),
-    printf(fh, "  double *diff_coeff_vxvx = &diff_coeff[~a]; ~%", 0*NC),
-    printf(fh, "  double *diff_coeff_vyvy = &diff_coeff[~a]; ~%", 4*NC),
-    printf(fh, "  double *diff_coeff_vzvz = &diff_coeff[~a]; ~%", 8*NC),
-    printf(fh, "  ~%"),
-    printf(fh, "  double *out = diff_coeff_~a~a; ~%", pv, pv),
+    diff_coeff_index : 4*(pvdir-1),
+    printf(fh, "  diff_coeff_out = &diff_coeff[~a]; ~%", diff_coeff_index*NC),
     printf(fh, "  ~%"),
 
     diff_coeff_out : calcInnerProdList(varsP, 1, bP, diff(G_rec, pv, 2)),

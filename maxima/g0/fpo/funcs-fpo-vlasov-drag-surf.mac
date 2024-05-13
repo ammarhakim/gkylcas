@@ -31,6 +31,11 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
   numSurf : length(bSurf),
 
+  /*
+    +---+---+---+
+    | L | C | R |
+    +---+---+---+
+  */
 
   surfNodes : gaussOrd(polyOrder+1, pdim-1),
   numNodes : length(surfNodes),
@@ -62,7 +67,7 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   printf(fh, "  const double *sgn_drag_coeff_surf_R = &sgn_alpha_surf_R[~a]; ~%", (pvdir-1)*numNodes),
   printf(fh, "  const int *const_sgn_drag_coeff_L = &const_sgn_alpha_L[~a]; ~%", pvdir-1),
   printf(fh, "  const int *const_sgn_drag_coeff_R = &const_sgn_alpha_R[~a]; ~%", pvdir-1),
-  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%~%", pvdir-1),
+  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%~%", pvdir-1+cdim),
   printf(fh, "~%"),
 
   drag_coeff_surf_L_e : doExpand1(drag_coeff_surf_L, bSurf),
@@ -97,7 +102,7 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   incrL_c : calcInnerProdList(surfVars, 1.0, subst(pv=-1.0, bP), GhatL_e),
   incrR_c : calcInnerProdList(surfVars, -1.0, subst(pv=1.0, bP), GhatR_e),
 
-  writeCIncrExprsCollect1(out, dv1*(incrL_c+incrR_c), [dv1]),
+  writeCIncrExprsCollect1(out, 0.5*dv1*(incrL_c+incrR_c), [dv1]),
 
   /* Write out CFL frequency */
   printf(fh, "  double cflFreq = fmax(fabs(drag_coeff_surf_L[0]), fabs(drag_coeff_surf_R[0])); ~%"),

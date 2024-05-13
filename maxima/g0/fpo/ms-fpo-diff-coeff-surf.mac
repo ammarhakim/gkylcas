@@ -1,10 +1,12 @@
 /*
-  Generate kernels for the updates from the surface term
-  contributions from the diffusion portion of the 
-  Rosenbluth/Fokker-Planck Operator
+  Generate kernels for the diagonal terms of the
+  diffusion tensor for the Rosenbluth/Fokker-Planck Operator
+  D_ii = d^2 G / dv_i^2 
 */
 
-load("fpo/funcs-fpo-vlasov-diff-surf")$
+load(stringproc);
+load("fpo/funcs-fpo-diff-coeff-surf");
+
 
 /* ...... USER INPUTS........ */
 
@@ -37,25 +39,18 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 dirs : [vx, vy, vz]$
-dirCombos : listify(cartesian_product(setify(dirs), setify(dirs)))$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for vidx : 1 thru length(dirCombos) do (
+    for vidx : 1 thru length(dirs) do (
+      dir : dirs[vidx],
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-        pv1 : dirCombos[vidx][1],
-        pv2 : dirCombos[vidx][2],
-        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_diff_surf",pv1,pv2,"_",
-          c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
-        funcNm : sconcat("fpo_vlasov_diff_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-
-        if (pv1 = pv2) then (
-          generateFpoVlasovDiffSurfDiag(fname, funcNm, c, bName[bInd], polyOrder, pv1)
-        )
-        else (
-          generateFpoVlasovDiffSurfCross(fname, funcNm, c, bName[bInd], polyOrder, pv1, pv2)
-        )
+        fname : sconcat("~/max-out/fpo_diff_coeff_surf_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir,".c"),
+        funcNm : sconcat("fpo_diff_coeff_diag_",c,"x3v_",dir, "_", bName[bInd],"_p",polyOrder),
+        generateFpoDiffCoeffSurf(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )
   )
 )$
+
+

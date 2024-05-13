@@ -1,0 +1,64 @@
+/* 
+  Generate kernels to calculate the surface projection of the recovered
+  diffusion tensor at the lower boundary. At a given boundary there are 3
+  directions calculated (normal and 2 parallel directions).
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("recovery");
+
+fpprec : 24$
+
+dirs : [vx, vy, vz]$
+
+generateFpoCiffCoeffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1) := block(
+  [],
+  /* FPO is only defined in 3V */
+  vdim : 3,
+  pdim : vdim+cdim,
+
+  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
+  pvdir1 : assoc(pv1,dirNums),
+ 
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bP),
+
+  surfVars : delete(pv1, varsP),
+  bSurf : basisFromVars(basisFun, surfVars, polyOrder),
+  numSurf : length(bSurf),
+
+  disp(printf(false, "creating ~a", fname)),
+
+  fh : openw(fname),
+  printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *diff_coeff_L, const double *diff_coeff_R, double *diff_coeff_surf_R) {~%", funcNm),
+  printf(fh, "  // diff_coeff_L,R: Diffusion tensor in left and right along pv1 direction. ~%"),
+  printf(fh, "  // diff_coeff_surf_R: Output array for surface projection of recovered diffusion tensor at lower edge of right cell. ~%"),
+  printf(fh, "  const double *D_L = 0; ~%"),
+  printf(fh, "  const double *D_R = 0; ~%"),
+  printf(fh, "  double *D_surf_out = 0; ~%"),
+
+  /* Iterate over secondary directions */
+  for i : 1 thru vdim do (
+    pv2 : dirs[i],
+    pvdir2 : assoc(pv2,dirNums),
+    diff_coeff_index : 3*(pvdir1-1) + (pvdir2-1),
+     printf(fh, "~%~%"),
+    printf(fh, "  D_L = &diff_coeff_L[~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  D_R = &diff_coeff_R[~a]; ~%", diff_coeff_index*NC),
+    printf(fh, "  D_surf_out = &diff_coeff_surf_R[~a]; ~%", diff_coeff_index*numSurf),
+    printf(fh, "~%"),
+
+    /* 2-cell recovery in pv1-direction */
+    D_L_lst : makelist(D_L[i], i, 0, NC-1),
+    D_R_lst : makelist(D_R[i], i, 0, NC-1),
+    D_rec_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(D_L_lst), dg(D_R_lst)),
+
+    D_rec_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv1=0.0, D_rec_p)),
+    writeCExprs1(D_surf_out, D_rec_c)
+  ),
+  printf(fh, "~%}~%"),
+  close(fh)
+)$

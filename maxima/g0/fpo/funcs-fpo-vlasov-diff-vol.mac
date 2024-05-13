@@ -1,7 +1,7 @@
-/* 
-  Generate kernels for the volume term 
-  diffusion contribution for the Rosenbluth/Fokker-Planck Operator
-
+/*
+  FPO diffusion volume term calculation is included in surface and 
+  boundary surface kernels because some use one integration by parts
+  while others use two integrations, yielding different volume terms.
 */
 
 load("modal-basis")$
@@ -24,107 +24,12 @@ generateFpoVlasovDiffVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
 
   fh : openw(fname),
   printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double* dxv, const double* diff_coeff, const double* f, double* GKYL_RESTRICT out) { ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double* dxv, const double *diff_coeff, const double* f, double* GKYL_RESTRICT out) { ~%", funcNm),
 
   printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
-  printf(fh, "  // diff_coeff: Diffusion coefficient. ~%"),
   printf(fh, "  // f: Distribution function. ~%"),
   printf(fh, "  // out: Incremented output. ~%~%"),
-
-  printf(fh, "  // dv1_sq for each combination of directions. ~%"),
-  for d1 : 1 thru vdim do (
-    for d2 : 1 thru vdim do (
-      printf(fh, "  double dv1_sq_~a~a = 4.0/dxv[~a]/dxv[~a]; ~%", 
-        dirs[d1], dirs[d2], cdim+d1-1, cdim+d2-1)
-    )
-  ),
-
-  printf(fh, "  ~%"),
-  printf(fh, "  // Index into diffusion tensor ~%"),
-  printf(fh, "  const double* Dxx = &diff_coeff[~a]; ~%", 0*NC),
-  printf(fh, "  const double* Dxy = &diff_coeff[~a]; ~%", 1*NC),
-  printf(fh, "  const double* Dxz = &diff_coeff[~a]; ~%", 2*NC),
-  printf(fh, "  const double* Dyx = &diff_coeff[~a]; ~%", 3*NC),
-  printf(fh, "  const double* Dyy = &diff_coeff[~a]; ~%", 4*NC),
-  printf(fh, "  const double* Dyz = &diff_coeff[~a]; ~%", 5*NC),
-  printf(fh, "  const double* Dzx = &diff_coeff[~a]; ~%", 6*NC),
-  printf(fh, "  const double* Dzy = &diff_coeff[~a]; ~%", 7*NC),
-  printf(fh, "  const double* Dzz = &diff_coeff[~a]; ~%", 8*NC),
-  printf(fh, "  ~%"),
-
-  f_lst : makelist(f[i], i, 0, NC-1),
-  f_e : doExpand1(f, bP),
-
-  /* Components of D */
-  D_xx_e : doExpand1(Dxx, bP),
-  D_xy_e : doExpand1(Dxy, bP),
-  D_xz_e : doExpand1(Dxz, bP),
-  D_yx_e : doExpand1(Dyx, bP),
-  D_yy_e : doExpand1(Dyy, bP),
-  D_yz_e : doExpand1(Dyz, bP),
-  D_zx_e : doExpand1(Dzx, bP),
-  D_zy_e : doExpand1(Dzy, bP),
-  D_zz_e : doExpand1(Dzz, bP),
-  D_comps : [[D_xx_e, D_xy_e, D_xz_e], 
-    [D_yx_e, D_yy_e, D_yz_e], 
-    [D_zx_e, D_zy_e, D_zz_e]],
-
-  dv1_sq_comps : [[dv1_sq_vxvx, dv1_sq_vxvy, dv1_sq_vxvz], 
-    [dv1_sq_vyvx, dv1_sq_vyvy, dv1_sq_vyvz], 
-    [dv1_sq_vzvx, dv1_sq_vzvy, dv1_sq_vzvz]],
-
-  /* 
-    Iterating over directions and writing out 
-    vol term contribution for each combo separately.
-    Is this the best way to do it? Does it matter?
-  */ 
-  for d1 : 1 thru vdim do (
-    for d2 : 1 thru vdim do (
-      D_e : D_comps[d1][d2],
-      dv1_sq : dv1_sq_comps[d1][d2],
-      dir1 : dirs[d1],
-      dir2 : dirs[d2],
-      
-      /* Vol = 1/2 * < d/dvj (Dij * d/dvi(psi) ) * f > */
-      kernel : 0.5*dv1_sq*calcInnerProdList(varsP, 1, 
-        diff(D_e * diff(bP, dir1), dir2), f_e),
-      
-      printf(fh, "  // ~a~a contribution ~%", dir1, dir2),
-
-      /* Write out increment for direction combo */
-      writeCIncrExprsCollect1lhsc(out, kernel),
-      printf(fh, "~%") 
-    )
-  ),
-  printf(fh, "~%~%"),
-
-  zr : makelist(varsP[d]=0, d, 1, cdim+vdim),
-  polyFact : (polyOrder+1)^2,
-  facDiff_mid : makelist([0,0,0], i, 1, vdim),
-
-  /* 
-    Calculate CFL frequency.
-    Assuming that CFL Freq is determined like eq 79 from
-    Francisquez et al. Nucl. Fusion 2020
-  */
-  for d1 : 1 thru vdim do (
-    for d2 : 1 thru vdim do (
-      facDiff_e : D_comps[d1][d2],
-      facDiff_mid[d1][d2] : 0.25*dv1_sq_comps[d1][d2]*gcfac(
-        float(expand(subst(zr,polyFact*facDiff_e))))
-    )
-  ),
-
-  printf(fh, "  return fabs(~a)", facDiff_mid[1][1]),
-  for d1 : 2 thru vdim do (
-    for d2 : 1 thru vdim do (
-      printf(fh," + fabs(~a)", facDiff_mid[d1][d2])
-    )
-  ),
-  printf(fh, "; ~%"),
-/*
-  printf(fh, "  return fabs(~a) + fabs(~a) + fabs(~a); ~%", facDiff_mid[1][1], facDiff_mid[2][2], facDiff_mid[3][3]),
-  */
+  printf(fh, "  return 0.0; ~%"),
   printf(fh, "} ~%"),
   close(fh)
 )$
