@@ -1,0 +1,39 @@
+load("canonical_pb/canonical-pressure-vars")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for calculating the
+   scalar pressure (times dimension, d, and volume element, Jv)  
+   d*P*Jv = h^{ij}*M2_{ij} - n*h^{ij}*u_i*u_j.
+
+*/
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser"]$
+minPolyOrder : [minPolyOrder_Ser]$
+maxPolyOrder : [maxPolyOrder_Ser]$
+minCdim      : [minCdim_Ser]$
+maxCdim      : [maxCdim_Ser]$
+
+for bInd : 1 thru length(bName) do (
+  for d : minCdim[bInd] thru maxCdim[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (d>2 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+      fname : sconcat("~/max-out/canonical_pb_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("canonical_pb_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
+      calcCanonicalPbPressure(fh, funcName, d, bName[bInd], polyOrder),
+      close(fh)
+    )
+  )
+);
