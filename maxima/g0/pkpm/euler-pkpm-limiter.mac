@@ -210,44 +210,15 @@ calcEulerPKPMLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double mm[15] = {0.0}; ~%"),
   printf(fh, "  double slope[3] = {0.0}; ~%"), 
 
-  printf(fh, "  mm[0] = minmod(waves_slope_c[1], waves_slope_l[1], waves_slope_r[1]); ~%"), 
-  printf(fh, "  mm[1] = minmod(waves_slope_c[2], waves_slope_l[2], waves_slope_r[2]); ~%"), 
-  printf(fh, "  mm[2] = minmod(waves_slope_c[3], waves_slope_l[3], waves_slope_r[3]); ~%"), 
-  printf(fh, "  slope[0] += mm[0]; ~%"), 
-  printf(fh, "  slope[1] += mm[1]; ~%"), 
-  printf(fh, "  slope[2] += mm[2]; ~%"), 
-  printf(fh, "~%"),
+  printf(fh, "  for (int i = 0; i < 5; ++i) { ~%"),
 
-  printf(fh, "  mm[3] = minmod(waves_slope_c[11], waves_slope_l[11], waves_slope_r[11]); ~%"), 
-  printf(fh, "  mm[4] = minmod(waves_slope_c[12], waves_slope_l[12], waves_slope_r[12]); ~%"), 
-  printf(fh, "  mm[5] = minmod(waves_slope_c[13], waves_slope_l[13], waves_slope_r[13]); ~%"), 
-  printf(fh, "  slope[0] += mm[3]; ~%"), 
-  printf(fh, "  slope[1] += mm[4]; ~%"), 
-  printf(fh, "  slope[2] += mm[5]; ~%"), 
-  printf(fh, "~%"),
-
-  printf(fh, "  mm[6] = minmod(waves_slope_c[21], waves_slope_l[21], waves_slope_r[21]); ~%"), 
-  printf(fh, "  mm[7] = minmod(waves_slope_c[22], waves_slope_l[22], waves_slope_r[22]); ~%"), 
-  printf(fh, "  mm[8] = minmod(waves_slope_c[23], waves_slope_l[23], waves_slope_r[23]); ~%"), 
-  printf(fh, "  slope[0] += mm[6]; ~%"), 
-  printf(fh, "  slope[1] += mm[7]; ~%"), 
-  printf(fh, "  slope[2] += mm[8]; ~%"), 
-  printf(fh, "~%"),
-
-  printf(fh, "  mm[9] = minmod(waves_slope_c[31], waves_slope_l[31], waves_slope_r[31]); ~%"), 
-  printf(fh, "  mm[10] = minmod(waves_slope_c[32], waves_slope_l[32], waves_slope_r[32]); ~%"), 
-  printf(fh, "  mm[11] = minmod(waves_slope_c[33], waves_slope_l[33], waves_slope_r[33]); ~%"), 
-  printf(fh, "  slope[0] += mm[9]; ~%"), 
-  printf(fh, "  slope[1] += mm[10]; ~%"), 
-  printf(fh, "  slope[2] += mm[11]; ~%"), 
-  printf(fh, "~%"),
-
-  printf(fh, "  mm[12] = minmod(waves_slope_c[41], waves_slope_l[41], waves_slope_r[41]); ~%"), 
-  printf(fh, "  mm[13] = minmod(waves_slope_c[42], waves_slope_l[42], waves_slope_r[42]); ~%"), 
-  printf(fh, "  mm[14] = minmod(waves_slope_c[43], waves_slope_l[43], waves_slope_r[43]); ~%"), 
-  printf(fh, "  slope[0] += mm[12]; ~%"), 
-  printf(fh, "  slope[1] += mm[13]; ~%"), 
-  printf(fh, "  slope[2] += mm[14]; ~%"), 
+  printf(fh, "    mm[3*i] = gkyl_minmod(waves_slope_c[10*i+1], waves_slope_l[10*i+1], waves_slope_r[10*i+1]); ~%"), 
+  printf(fh, "    mm[3*i+1] = gkyl_minmod(waves_slope_c[10*i+2], waves_slope_l[10*i+2], waves_slope_r[10*i+2]); ~%"), 
+  printf(fh, "    mm[3*i+2] = gkyl_minmod(waves_slope_c[10*i+3], waves_slope_l[10*i+3], waves_slope_r[10*i+3]); ~%"),
+  printf(fh, "    slope[0] += mm[3*i]; ~%"), 
+  printf(fh, "    slope[1] += mm[3*i+1]; ~%"), 
+  printf(fh, "    slope[2] += mm[3*i+2]; ~%"), 
+  printf(fh, "  } ~%"),
   printf(fh, "~%"),
 
   printf(fh, "  // Rotate limited slope back to global coordinates ~%"), 
@@ -269,7 +240,7 @@ calcEulerPKPMLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "    } ~%"), 
     printf(fh, "    if (mm[3*i+2] != waves_slope_c[10*i+3]) { ~%"), 
     for j : 1 thru (NC-1-cdim) do (
-      printf(fh, "      rhoux_c[~a] = 0.0; ~%", j+cdim)
+      printf(fh, "      rhouz_c[~a] = 0.0; ~%", j+cdim)
     ),
     printf(fh, "    } ~%"), 
     printf(fh, "  } ~%")

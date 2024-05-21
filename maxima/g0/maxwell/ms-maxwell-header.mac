@@ -48,7 +48,7 @@ printEmVarsPrototype(deco, ci, bStr, pi) := block([si],
     printf(fh, "~avoid em_div_b_~a_~ax_~a_p~a(const double *dxv, 
       const double *bvar_surf_l, const double *bvar_surf_c, const double *bvar_surf_r, 
       const double *bvar_c, double* GKYL_RESTRICT max_b, double* GKYL_RESTRICT div_b); ~%", deco, cvars[si], ci, bStr, pi), 
-    printf(fh, "~avoid em_vars_limiter~a_~ax_~a_p~a(double limiter_fac, const struct gkyl_wv_eqn *wv_eqn, double *ql, double *qc, double *qr); ~%", deco, cvars[si], ci, bStr, pi)
+    printf(fh, "~avoid em_vars_limiter~a_~ax_~a_p~a(double limiter_fac, const struct gkyl_wv_eqn *wv_eqn, const struct gkyl_wave_cell_geom *geom, double *em_l, double *em_c, double *em_r); ~%", deco, cvars[si], ci, bStr, pi)
   ),
   printf(fh, "~%")
 )$
@@ -59,6 +59,7 @@ fh : openw("~/max-out/gkyl_maxwell_kernels.h")$
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_wave_geom.h> ~%")$
 printf(fh, "#include <gkyl_wv_eqn.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
