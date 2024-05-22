@@ -76,7 +76,8 @@ gen_pol_den_kernel(fh, funcNm, dim, basisFun, polyOrder) := block(
   pol_den_c : makelist(0,k,1,numB),
   for i : 1 thru dimPerp do (
     for j : 1 thru dimPerp do (
-      pol_den_c : pol_den_c+rdx_ij[i][j]*calcInnerProdList(vars,1,basis,diff(eps_e[i][j]*diff(phi_e,vars[j]),vars[i]))
+      pol_den_e : -diff(eps_e[i][j]*diff(phi_e,vars[j]),vars[i]),
+      pol_den_c : pol_den_c+rdx_ij[i][j]*calcInnerProdList(vars,1,basis,pol_den_e)
     )
   ),
 
