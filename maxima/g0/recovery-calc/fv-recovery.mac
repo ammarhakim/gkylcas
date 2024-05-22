@@ -51,3 +51,22 @@ fv_calc_disp(fv_stencil, nl, nr, dord) := block([fexp,slist],
   slist : makelist(u(i+j) = _m_index_fd(fexp,i), i, -nl,nr),
   return ( expand(1/%i*dx^dord*subst(slist, fv_stencil)) )
   )$
+
+/** Cell-average of f*g */
+nl : 1 $
+nr : 1 $
+fx : fv_rec_poly(f, nl, nr)$
+gx : fv_rec_poly(g, nl, nr)$
+hx : fx*gx $
+hstencil : integrate(hx, x, -dx/2, dx/2)/dx, expand $
+
+/** Compute error */
+
+texp_f : sum(ft[k]*x^k/factorial(k),k,0,2*(nl+nr)+2) $
+slist_f : makelist(f(i+j) = _m_index_fv(texp_f,i), i, -nl,nr) $
+
+texp_g : sum(gt[k]*x^k/factorial(k),k,0,2*(nl+nr)+2) $
+slist_g : makelist(g(i+j) = _m_index_fv(texp_g,i), i, -nl,nr) $
+
+dtexp_h : subst( append(slist_f, slist_g), hstencil )$
+err_h : fullratsimp( dtexp_h - mom_fv( texp_f*texp_g, -dx/2, dx/2) )$
