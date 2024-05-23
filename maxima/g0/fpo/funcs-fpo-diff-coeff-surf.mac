@@ -12,7 +12,7 @@ fpprec : 24$
 
 dirs : [vx, vy, vz]$
 
-generateFpoCiffCoeffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1) := block(
+generateFpoDiffCoeffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1) := block(
   [],
   /* FPO is only defined in 3V */
   vdim : 3,
@@ -45,7 +45,7 @@ generateFpoCiffCoeffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1) := block
     pv2 : dirs[i],
     pvdir2 : assoc(pv2,dirNums),
     diff_coeff_index : 3*(pvdir1-1) + (pvdir2-1),
-     printf(fh, "~%~%"),
+    printf(fh, "~%~%"),
     printf(fh, "  D_L = &diff_coeff_L[~a]; ~%", diff_coeff_index*NC),
     printf(fh, "  D_R = &diff_coeff_R[~a]; ~%", diff_coeff_index*NC),
     printf(fh, "  D_surf_out = &diff_coeff_surf_R[~a]; ~%", diff_coeff_index*numSurf),

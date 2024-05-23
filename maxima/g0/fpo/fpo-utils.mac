@@ -110,38 +110,30 @@ calcAndWrite_sgn_drag_coeff(fh,surfVars,surfNodes,alphaSurf_e) := block(
 getStencilCellsList(loc) := block(
   [],
   if (loc = [-1, 0]) then (
-    stencilCells_f : [BC, CC, TC, BR, CR, TR],
-    stencilCells_D : [CC, CR]
+    stencilCells_f : [BC, CC, TC, BR, CR, TR]
   )
   elseif (loc = [1, 0]) then (
-    stencilCells_f : [BL, CL, TL, BC, CC, TC],
-    stencilCells_D : [CL, CC]
+    stencilCells_f : [BL, CL, TL, BC, CC, TC]
   )
   elseif (loc = [0, 1]) then (
-   stencilCells_f : [BL, CL, BC, CC, BR, CR],
-   stencilCells_D : [CL, CC, CR]
+   stencilCells_f : [BL, CL, BC, CC, BR, CR]
   )
   elseif (loc = [0, -1]) then (
-   stencilCells_f : [CL, TL, CC, TC, CR, TR],
-   stencilCells_D : [CL, CC, CR]
+   stencilCells_f : [CL, TL, CC, TC, CR, TR]
   )
   elseif (loc = [-1, -1]) then (
-   stencilCells_f : [CC, TC, CR, TR],
-   stencilCells_D : [CC, CR]
+   stencilCells_f : [CC, TC, CR, TR]
   )
   elseif (loc = [-1, 1]) then (
-   stencilCells_f : [BC, CC, BR, CR],
-   stencilCells_D : [CC, CR]
+   stencilCells_f : [BC, CC, BR, CR]
   )
   elseif (loc = [1, -1]) then (
-   stencilCells_f : [CL, TL, CC, TC],
-   stencilCells_D : [CL, CC]
+   stencilCells_f : [CL, TL, CC, TC]
   )
   elseif (loc = [1, 1]) then (
-   stencilCells_f : [BL, CL, BC, CC],
-   stencilCells_D : [CL, CC]
+   stencilCells_f : [BL, CL, BC, CC]
   ),
-  return([stencilCells_f, stencilCells_D])
+  return(stencilCells_f) 
 )$
 
 getStencilCellsList1D(loc) := block(

@@ -19,7 +19,7 @@ maxVdim_Ser : 3$
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 minVdim_Tensor : 3$
@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
         pv1 : dirCombos[vidx][1],
         pv2 : dirCombos[vidx][2],
-        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_diff_surf",pv1,pv2,"_",
+        fname : sconcat("~/max-out/fpo_vlasov_diff_surf",pv1,pv2,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
         funcNm : sconcat("fpo_vlasov_diff_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
 

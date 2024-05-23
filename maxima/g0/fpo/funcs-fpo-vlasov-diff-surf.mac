@@ -1,6 +1,6 @@
 /* 
-  Generate kernels for the surface and volume terms 
-  for the diffusion term of the Rosenbluth/Fokker-Planck Operator.
+Generate kernels for the surface and volume terms 
+for the diffusion term of the Rosenbluth/Fokker-Planck Operator.
 */
 
 load("modal-basis")$
@@ -8,6 +8,8 @@ load("out-scripts")$
 load("recovery")$
 
 fpprec : 24$
+
+
 
 /* Off-diagonal term */
 generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv2) := block(
@@ -93,6 +95,7 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   ),
   printf(fh, "~%"),
 
+
   /* 
     Determine wether we're in an upper or lower off-diagonal term
     and set generic stencil variables.
@@ -101,6 +104,8 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
     /* Upper diagonal (vxvy, vxvz, vyvz) */
     pvx : pv1,
     pvy : pv2,
+    pvdirx : pvdir1,
+    pvdiry : pvdir2,
     surfVarspvx : surfVars1,
     bSurfpvx : bSurf1,
     surfVarspvy : surfVars2,
@@ -110,6 +115,8 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
     /* Lower diagonal (vyvx, vzvx, vzvy) */
     pvx : pv2,
     pvy : pv1,
+    pvdirx : pvdir2,
+    pvdiry : pvdir1,
     surfVarspvx : surfVars2,
     bSurfpvx : bSurf2,
     surfVarspvy : surfVars1,
@@ -117,17 +124,14 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   ),
 
   /* Index into diffusion coefficient stencil, uses original pv1/pv2 for correct indexing */
-  diff_coeff_index_xy : 3*(pvdir1-1) + (pvdir2-1), 
-  diff_coeff_index_yx : 3*(pvdir2-1) + (pvdir1-1),
-  printf(fh, "  const double* DCC = &diff_coeff_C[~a]; ~%", diff_coeff_index_xy*NC),
+  diff_coeff_index_xy : 3*(pvdirx-1) + (pvdiry-1), 
+  diff_coeff_index_yx : 3*(pvdiry-1) + (pvdirx-1),
+  diff_coeff_index1 : 3*(pvdir1-1) + (pvdir2-1),
+  printf(fh, "  const double* DCC = &diff_coeff_C[~a]; ~%", diff_coeff_index1*NC),
   printf(fh, "  const double* D_surf_CC_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
     pvx, 4, diff_coeff_index_xy*numSurf),
   printf(fh, "  const double* D_surf_CC_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
     pvy, 4, diff_coeff_index_yx*numSurf),
-  printf(fh, "  const double* D_surf_TC_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
-    pvy, 5, diff_coeff_index_yx*numSurf),
-  printf(fh, "  const double* D_surf_CR_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
-    pvx, 8, diff_coeff_index_xy*numSurf),
 
   /* Components of f */
   fTL_lst : makelist(fTL[i], i, 0, NC-1),
@@ -144,28 +148,115 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   DCC_e : doExpand1(DCC, bP),
   fCC_e : doExpand1(fCC, bP),
 
+  printf(fh, "  const double* D_surf_TC_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
+    pvy, 5, diff_coeff_index_yx*numSurf),
+  printf(fh, "  const double* D_surf_CR_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
+    pvx, 7, diff_coeff_index_xy*numSurf),
+
   D_surf_CC_pvx_e : doExpand1(eval_string(sconcat("D_surf_CC_", pvx)), bSurfpvx), 
   D_surf_CC_pvy_e : doExpand1(eval_string(sconcat("D_surf_CC_", pvy)), bSurfpvy), 
   D_surf_TC_pvy_e : doExpand1(eval_string(sconcat("D_surf_TC_", pvy)), bSurfpvy),
   D_surf_CR_pvx_e : doExpand1(eval_string(sconcat("D_surf_CR_", pvx)), bSurfpvx),
 
   /* 2- and 6-cell recoveries of f */
-  f_rec2_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, dg(fBC_lst), dg(fCC_lst)),
-  f_rec2_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, dg(fCC_lst), dg(fCR_lst)),
+  if (pvdir1 < pvdir2) then (
+    f_rec2_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, dg(fBC_lst), dg(fCC_lst)),
+    f_rec2_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, dg(fCC_lst), dg(fTC_lst)),
 
-  f_rec6_lo_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 0,
-    dg(dg(fBL_lst), dg(fBC_lst)), dg(dg(fCL_lst), dg(fCC_lst)), dg(dg(fTL_lst), dg(fTC_lst))),
-  f_rec6_up_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 0,
-    dg(dg(fBC_lst), dg(fBR_lst)), dg(dg(fCC_lst), dg(fCR_lst)), dg(dg(fTC_lst), dg(fTR_lst))),
+    f_rec6_lo_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 0,
+      dg(dg(fBL_lst), dg(fBC_lst)), dg(dg(fCL_lst), dg(fCC_lst)), dg(dg(fTL_lst), dg(fTC_lst))),
+    f_rec6_up_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 0,
+      dg(dg(fBC_lst), dg(fBR_lst)), dg(dg(fCC_lst), dg(fCR_lst)), dg(dg(fTC_lst), dg(fTR_lst))),
 
-  /* Write out recovered quantities */
-  f_rec_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, f_rec2_lo_p)),
-  f_rec_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, f_rec2_up_p)),
+    /* Write out recovered quatities */
+    f_rec_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, f_rec2_lo_p)),
+    f_rec_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, f_rec2_up_p)),
 
-  df_rec_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
-    subst(pvx=0.0, diff(f_rec6_lo_p, pvy))),
-  df_rec_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
-    subst(pvx=0.0, diff(f_rec6_up_p, pvy))),
+    df_rec_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
+      subst(pvx=0.0, diff(f_rec6_lo_p, pvy))),
+    df_rec_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
+      subst(pvx=0.0, diff(f_rec6_up_p, pvy))),
+
+    f_rec_lo_e : doExpand1(f_rec_lo, bSurfpvy),
+    f_rec_up_e : doExpand1(f_rec_up, bSurfpvy),
+   
+    df_rec_lo_e : doExpand1(df_rec_lo, bSurfpvx),
+    df_rec_up_e : doExpand1(df_rec_up, bSurfpvx),
+
+    /* surft1 = 1/2 * < psi- * Dij * d/dvj(f_rec) > */
+    surft1_lo_c : calcInnerProdList(surfVarspvx, D_surf_CC_pvx_e, bSurfpvx, df_rec_lo_e),
+    surft1_up_c : calcInnerProdList(surfVarspvx, D_surf_CR_pvx_e, bSurfpvx, df_rec_up_e),
+  
+    /* surft2 = -1/2 * < d/dpvy (psi-) * Dij * f_rec > */
+    surft2_lo_c : calcInnerProdList(surfVarspvy, D_surf_CC_pvy_e, bSurfpvy, f_rec_lo_e),
+    surft2_up_c : calcInnerProdList(surfVarspvy, D_surf_TC_pvy_e, bSurfpvy, f_rec_up_e),
+  
+    /* vol = 1/2 * < d/dvj (Dij * d/dvi(psi)) * f > */
+    vol_c : calcInnerProdList(varsP, 1, diff(DCC_e * diff(bP, pvy), pvx), fCC_e),
+
+    surft1_lo_e : doExpand1(surft1_lo, bSurfpvx),
+    surft1_up_e : doExpand1(surft1_up, bSurfpvx),
+  
+    surft2_lo_e : doExpand1(surft2_lo, bSurfpvy),
+    surft2_up_e : doExpand1(surft2_up, bSurfpvy),
+
+    vol_lst : makelist(vol[i], i, 0, NC-1),
+
+    kernel : calcInnerProdList(surfVarspvx, 1, subst(pvx=1, bP), surft1_up_e) +
+      calcInnerProdList(surfVarspvx, -1, subst(pvx=-1, bP), surft1_lo_e) +
+      calcInnerProdList(surfVarspvy, -1, subst(pvy=1, diff(bP, pvx)), surft2_up_e) +
+      calcInnerProdList(surfVarspvy, 1, subst(pvy=-1, diff(bP, pvx)), surft2_lo_e) +
+      vol_lst
+  )
+  else (
+    f_rec2_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, dg(fCL_lst), dg(fCC_lst)),
+    f_rec2_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, dg(fCC_lst), dg(fCR_lst)),
+
+    f_rec6_lo_p : calcRecovFaceGen(basisFun, [pvy, pvx], varsP, 0, 0, polyOrder, 0,
+      dg(dg(fBL_lst), dg(fCL_lst)), dg(dg(fBC_lst), dg(fCC_lst)), dg(dg(fBR_lst), dg(fCR_lst))),
+    f_rec6_up_p : calcRecovFaceGen(basisFun, [pvy, pvx], varsP, 0, 0, polyOrder, 0,
+      dg(dg(fCL_lst), dg(fTL_lst)), dg(dg(fCC_lst), dg(fTC_lst)), dg(dg(fCR_lst), dg(fTR_lst))),
+
+    /* Write out recovered quatities */
+    f_rec_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, f_rec2_lo_p)),
+    f_rec_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, f_rec2_up_p)),
+
+    df_rec_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
+      subst(pvy=0.0, diff(f_rec6_lo_p, pvx))),
+    df_rec_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
+      subst(pvy=0.0, diff(f_rec6_up_p, pvx))),
+
+    f_rec_lo_e : doExpand1(f_rec_lo, bSurfpvx),
+    f_rec_up_e : doExpand1(f_rec_up, bSurfpvx),
+   
+    df_rec_lo_e : doExpand1(df_rec_lo, bSurfpvy),
+    df_rec_up_e : doExpand1(df_rec_up, bSurfpvy),
+
+    /* surft1 = 1/2 * < psi- * Dij * d/dvj(f_rec) > */
+    surft1_lo_c : calcInnerProdList(surfVarspvy, D_surf_CC_pvy_e, bSurfpvy, df_rec_lo_e),
+    surft1_up_c : calcInnerProdList(surfVarspvy, D_surf_TC_pvy_e, bSurfpvy, df_rec_up_e),
+
+    /* surft2 = -1/2 * < d/dpvy (psi-) * Dij * f_rec > */
+    surft2_lo_c : calcInnerProdList(surfVarspvx, D_surf_CC_pvx_e, bSurfpvx, f_rec_lo_e),
+    surft2_up_c : calcInnerProdList(surfVarspvx, D_surf_CR_pvx_e, bSurfpvx, f_rec_up_e),
+
+    /* vol = 1/2 * < d/dvj (Dij * d/dvi(psi)) * f > */
+    vol_c : calcInnerProdList(varsP, 1, diff(DCC_e * diff(bP, pvx), pvy), fCC_e),
+
+    surft1_lo_e : doExpand1(surft1_lo, bSurfpvy),
+    surft1_up_e : doExpand1(surft1_up, bSurfpvy),
+  
+    surft2_lo_e : doExpand1(surft2_lo, bSurfpvx),
+    surft2_up_e : doExpand1(surft2_up, bSurfpvx),
+
+    vol_lst : makelist(vol[i], i, 0, NC-1),
+
+    kernel : calcInnerProdList(surfVarspvy, 1, subst(pvy=1, bP), surft1_up_e) +
+      calcInnerProdList(surfVarspvy, -1, subst(pvy=-1, bP), surft1_lo_e) +
+      calcInnerProdList(surfVarspvx, -1, subst(pvx=1, diff(bP, pvy)), surft2_up_e) +
+      calcInnerProdList(surfVarspvx, 1, subst(pvx=-1, diff(bP, pvy)), surft2_lo_e) +
+      vol_lst
+  ),
 
   writeCExprs1(f_rec_lo, f_rec_lo_c),
   writeCExprs1(f_rec_up, f_rec_up_c),
@@ -176,23 +267,6 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   writeCExprs1(df_rec_up, df_rec_up_c),
   printf(fh, "~%"),
   flush_output(fh),
-
-  f_rec_lo_e : doExpand1(f_rec_lo, bSurfpvy),
-  f_rec_up_e : doExpand1(f_rec_up, bSurfpvy),
-
-  df_rec_lo_e : doExpand1(df_rec_lo, bSurfpvx),
-  df_rec_up_e : doExpand1(df_rec_up, bSurfpvx),
-
-  /* surft1 = 1/2 * < psi- * Dij * d/dvj(f_rec) > */
-  surft1_lo_c : calcInnerProdList(surfVarspvx, D_surf_CC_pvx_e, bSurfpvx, df_rec_lo_e),
-  surft1_up_c : calcInnerProdList(surfVarspvx, D_surf_CR_pvx_e, bSurfpvx, df_rec_up_e),
-
-  /* surft2 = -1/2 * < d/dpv2 (psi-) * Dij * f_rec > */
-  surft2_lo_c : calcInnerProdList(surfVarspvy, D_surf_CC_pvy_e, bSurfpvy, f_rec_lo_e),
-  surft2_up_c : calcInnerProdList(surfVarspvy, D_surf_TC_pvy_e, bSurfpvy, f_rec_up_e),
-
-  /* vol = 1/2 * < d/dvj (Dij * d/dvi(psi)) * f > */
-  vol_c : calcInnerProdList(varsP, 1, diff(DCC_e * diff(bP, pvx), pvy), fCC_e),
 
   /* Write out individual surface term expansions */
   writeCExprs1(surft1_lo, surft1_lo_c),
@@ -209,20 +283,6 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   printf(fh, "~%"),
   flush_output(fh),
 
-  surft1_lo_e : doExpand1(surft1_lo, bSurfpvx),
-  surft1_up_e : doExpand1(surft1_up, bSurfpvx),
-
-  surft2_lo_e : doExpand1(surft2_lo, bSurfpvy),
-  surft2_up_e : doExpand1(surft2_up, bSurfpvy),
-
-  vol_lst : makelist(vol[i], i, 0, NC-1),
-
-  kernel : calcInnerProdList(surfVarspvx, 1, subst(pvx=1, bP), surft1_up_e) +
-    calcInnerProdList(surfVarspvx, -1, subst(pvx=-1, bP), surft1_lo_e) +
-    calcInnerProdList(surfVarspvy, 1, subst(pvy=1, diff(bP, pvy)), surft2_up_e) +
-    calcInnerProdList(surfVarspvy, -1, subst(pvy=-1, diff(bP, pvy)), surft2_lo_e) +
-    vol_lst,
-
   writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
 
   /* No CFL contribution from cross terms? */
@@ -231,7 +291,6 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   printf(fh, "} ~%"),
   close(fh)
 )$
-
 
 /* Diagonal term */
 generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
@@ -313,8 +372,8 @@ generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := b
   f_rec2_lo_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(fL_lst), dg(fC_lst)),
   f_rec2_up_p : calcRecov2CellGen(basisFun, pv, varsP, polyOrder, dg(fC_lst), dg(fR_lst)),
 
-  df_rec_lo_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(f_rec2_lo_p, pv2))),
-  df_rec_up_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(f_rec2_up_p, pv2))),
+  df_rec_lo_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(f_rec2_lo_p, pv))),
+  df_rec_up_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, diff(f_rec2_up_p, pv))),
 
   /* Write out recovered quatities */
   f_rec_lo_c : calcInnerProdList(surfVars, 1, bSurf, subst(pv=0, f_rec2_lo_p)),
