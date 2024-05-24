@@ -6,8 +6,8 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
-genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
-  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,pcpNodes,numNodes,f_n,i,nodToMod,fnew_c],
+genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) := block(
+  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,nodes,cvars,vvars,numNodes,f_n,i,nodToMod,fnew_c],
 
   printf(fh, "GKYL_CU_DH bool ~a(double ffloor, double *distf, double *Deltaf) ~%{ ~%", funcName),
   printf(fh, "  // ffloor: Distribution function floor to shift to when f<0.~%"),
@@ -31,14 +31,24 @@ genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
   printf(fh, "~%"),
 
   f_e : doExpand(f_c, bP),
-
-  /* Construct a set of nodes that are PCPs + 0 in vpar, and PCPs in other
-     dimensions. */ 
-  pcpNodes : (1/3) * getNodesGkHyb(cdim, vdim),
-  numNodes : length(pcpNodes),
+ 
+  if nodeType = "positivity" then (
+    /* Construct a set of nodes that are PCPs + 0 in vpar, and PCPs in other
+       dimensions. */ 
+    nodes : (1/3) * getNodesGkHyb(cdim, vdim)
+  ) elseif nodeType = "gauss_legendre" then (
+    if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+      cvars : makelist(varsP[i],i,1,cdim),
+      vvars : makelist(varsP[cdim+i],i,1,vdim),
+      nodes : gaussOrdGkHyb(polyOrder+1, cvars, vvars)
+    ) else (
+      nodes : gaussOrd(polyOrder+1, pdim-1)
+    )
+  ),
+  numNodes : length(nodes),
 
   /* Evaluate f at PCPs. */
-  f_n : evAtNodes(f_e, pcpNodes, varsP),
+  f_n : evAtNodes(f_e, nodes, varsP),
   printf(fh, "  double fnod[~a];~%",numNodes),
   writeCExprs1(fnod, f_n),
   printf(fh, "~%"),
@@ -54,7 +64,7 @@ genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder) := block(
   printf(fh, "~%"),
 
   f_n : makelist(fnod[i-1],i,1,numNodes),
-  nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, pcpNodes),
+  nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, nodes),
 
   fnew_c : nodToMod . f_n,
   fnew_c : makelist(fullratsimp(fnew_c[i][1]),i,1,numP),

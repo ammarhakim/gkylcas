@@ -21,6 +21,13 @@ maxCdim_Tensor : 0$
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
 
+/*
+Chose the nodes to enforce positivity at, options:
+  - positivity
+  - gauss_legendre
+*/
+nodeType : "gauss_legendre"$
+
 /* ...... END OF USER INPUTS........ */
 
 /* To generate other bases, just add corresponding column to arrays below. */
@@ -47,7 +54,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, "~%"),
 
         funcName : sconcat("positivity_shift_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        genPosShiftGKkernel(fh, funcName, c, v, bName[bInd], polyOrder),
+        genPosShiftGKkernel(fh, funcName, c, v, bName[bInd], polyOrder, nodeType),
         close(fh)
       )
     )
