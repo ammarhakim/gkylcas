@@ -129,19 +129,19 @@ calc_pkpm_euler_vol(fh, funcNm, cdim, polyOrder) := block(
   /* Note we express P =  pperp*I + (ppar - pperp)bb as P_ij */
   t2 : (t2 : 0, for dir : 1 thru cdim do (
      if (dir = 1) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*ux_e + Pxx_e)),
-     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uy_e + Pxy_e)),
-     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uz_e + Pxz_e))
+     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*ux_e + Pxy_e)),
+     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*ux_e + Pxz_e))
      ),
   t2),
   t3 : (t3 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*ux_e + Pxy_e)),
+     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uy_e + Pxy_e)),
      if (dir = 2) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uy_e + Pyy_e)),
-     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uz_e + Pyz_e))
+     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uy_e + Pyz_e))
      ),
   t3),
   t4 : (t4 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*ux_e + Pxz_e)),
-     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uy_e + Pyz_e)),
+     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uz_e + Pxz_e)),
+     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uz_e + Pyz_e)),
      if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uz_e + Pzz_e))
      ),
   t4),

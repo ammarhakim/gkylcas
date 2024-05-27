@@ -194,14 +194,14 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   /* if cdim = 1, then the surface evaluations are just numbers, not expansions */
   if (cdim = 1) then (
     /* Surface component of gradient expansion of u */
-    surf_ux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(ux_surf_cl[0] + ux_surf_lr[0])),
-    surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(ux_surf_rl[0] + ux_surf_cr[0])),
+    surf_ux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(ux_surf_cl[0] + ux_surf_lr[0])),
+    surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(ux_surf_rl[0] + ux_surf_cr[0])),
 
-    surf_uy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(uy_surf_cl[0] + uy_surf_lr[0])),
-    surf_uy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(uy_surf_rl[0] + uy_surf_cr[0])),
+    surf_uy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(uy_surf_cl[0] + uy_surf_lr[0])),
+    surf_uy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(uy_surf_rl[0] + uy_surf_cr[0])),
 
-    surf_uz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(uz_surf_cl[0] + uz_surf_lr[0])),
-    surf_uz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(uz_surf_rl[0] + uz_surf_cr[0])),
+    surf_uz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(uz_surf_cl[0] + uz_surf_lr[0])),
+    surf_uz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(uz_surf_rl[0] + uz_surf_cr[0])),
 
     printf(fh, "  double max_u_l = fmax(fabs(ux_surf_lr[0]), fabs(ux_surf_cl[0])); ~%"),
     printf(fh, "  double max_u_r = fmax(fabs(ux_surf_cr[0]), fabs(ux_surf_rl[0])); ~%"),
@@ -233,14 +233,14 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
     uz_surf_rl_e : doExpand1(uz_surf_rl, bSurf),
 
     /* Surface component of gradient expansion of u */
-    surf_ux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(ux_surf_cl_e + ux_surf_lr_e)),
-    surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(ux_surf_rl_e + ux_surf_cr_e)),
+    surf_ux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(ux_surf_cl_e + ux_surf_lr_e)),
+    surf_ux_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(ux_surf_rl_e + ux_surf_cr_e)),
 
-    surf_uy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(uy_surf_cl_e + uy_surf_lr_e)),
-    surf_uy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(uy_surf_rl_e + uy_surf_cr_e)),
+    surf_uy_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(uy_surf_cl_e + uy_surf_lr_e)),
+    surf_uy_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(uy_surf_rl_e + uy_surf_cr_e)),
 
-    surf_uz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), 0.5*(uz_surf_cl_e + uz_surf_lr_e)),
-    surf_uz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), 0.5*(uz_surf_rl_e + uz_surf_cr_e)),
+    surf_uz_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), 0.5*(uz_surf_cl_e + uz_surf_lr_e)),
+    surf_uz_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), 0.5*(uz_surf_rl_e + uz_surf_cr_e)),
 
     /* Compute surface expansion of pkpm Lax penalization by evaluating u_i, T_ii
        at quadrature points and finding max(|u_i_l|, |u_i_r|) + max(sqrt(T_ii_l, T_ii_r)) */
@@ -308,22 +308,22 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   uyc_e : doExpand1(uy_c, bC),
   uzc_e : doExpand1(uz_c, bC),
 
-  uxc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), subst(cv=-1, uxc_e)),
-  uyc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), subst(cv=-1, uyc_e)),
-  uzc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), subst(cv=-1, uzc_e)),
+  uxc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), subst(cv=-1, uxc_e)),
+  uyc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), subst(cv=-1, uyc_e)),
+  uzc_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC_2p), subst(cv=-1, uzc_e)),
 
-  uxc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), subst(cv=1, uxc_e)),
-  uyc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), subst(cv=1, uyc_e)),
-  uzc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC), subst(cv=1, uzc_e)),
+  uxc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), subst(cv=1, uxc_e)),
+  uyc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), subst(cv=1, uyc_e)),
+  uzc_r : calcInnerProdList(surfVars, 1, subst(cv=1, bC_2p), subst(cv=1, uzc_e)),
 
-  vol_ux_c : calcInnerProdList(varsC, 1, bC, diff(uxc_e, cv)),
-  vol_uy_c : calcInnerProdList(varsC, 1, bC, diff(uyc_e, cv)),
-  vol_uz_c : calcInnerProdList(varsC, 1, bC, diff(uzc_e, cv)),
+  vol_ux_c : calcInnerProdList(varsC, 1, bC_2p, diff(uxc_e, cv)),
+  vol_uy_c : calcInnerProdList(varsC, 1, bC_2p, diff(uyc_e, cv)),
+  vol_uz_c : calcInnerProdList(varsC, 1, bC_2p, diff(uzc_e, cv)),
 
   /* Need bb : grad(u), write out grad(u) for each component of u */
-  printf(fh, "  double grad_u_x[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double grad_u_x[~a] = {0.0}; ~%", NC_2p),
+  printf(fh, "  double grad_u_y[~a] = {0.0}; ~%", NC_2p),
+  printf(fh, "  double grad_u_z[~a] = {0.0}; ~%", NC_2p),
 
   /* Use collect write expression to factor the dx and reduce number of multiplications 
      Note minus sign on surface terms from left interface due to direction of normal vector */
@@ -344,9 +344,15 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   bybz_e : doExpand1(bybz, bC_2p),
   bzbz_e : doExpand1(bzbz, bC_2p),
 
-  grad_u_x_e : doExpand1(grad_u_x, bC),
-  grad_u_y_e : doExpand1(grad_u_y, bC),
-  grad_u_z_e : doExpand1(grad_u_z, bC),
+  /* Zero out components of grad(u) which are empty. */
+  grad_u_x_NoZero : doMakeExprLst(vol_ux_c - (surf_ux_l - uxc_l) + (surf_ux_r - uxc_r), grad_u_x),
+  grad_u_x_e : doExpand(grad_u_x_NoZero, bC_2p),
+
+  grad_u_y_NoZero : doMakeExprLst(vol_uy_c - (surf_uy_l - uyc_l) + (surf_uy_r - uyc_r), grad_u_y),
+  grad_u_y_e : doExpand(grad_u_y_NoZero, bC_2p),
+
+  grad_u_z_NoZero : doMakeExprLst(vol_uz_c - (surf_uz_l - uzc_l) + (surf_uz_r - uzc_r), grad_u_z),
+  grad_u_z_e : doExpand(grad_u_z_NoZero, bC_2p),
 
   printf(fh, "  double bb_grad_u_comp[~a] = {0.0}; ~%", NC_2p),
   if (dir = 1) then (  
