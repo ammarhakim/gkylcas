@@ -1,0 +1,27 @@
+load("pkpm-new/euler-pkpm-explicit-source")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for an explicit update of
+   the source terms in the fluid equations of the PKPM system. 
+   For fluid equation, momentum sources are rho*E + rho*u x B 
+   Note E and B are the total EM fields and E includes external acceleration components if present. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating euler pkpm vars explicit source funcs ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/euler_pkpm_explicit_source_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("euler_pkpm_explicit_source_",  d, "x_", "tensor_p", polyOrder),
+    calc_pkpm_explicit_em_source(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

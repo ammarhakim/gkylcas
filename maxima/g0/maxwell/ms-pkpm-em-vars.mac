@@ -1,0 +1,60 @@
+load("maxwell/pkpm-em-vars")$
+load(stringproc)$
+/* This script calls the functions which calculate the various 
+   derived quantities from the electromagnetic fields including:
+   1. bvar = [b_i (3 components), b_i b_j (6 components)],
+   the magnetic field unit vector and unit tensor, b_i = B_i/|B|
+   for use in the PKPM system. In this case we project quadratic 
+   quantities onto a 2*p basis so these quadratic quantities are *exactly* represented.
+
+   Separate the operations into three functions:
+   1. Compute the weak multiplications required: B_i B_j 
+   2. Set the matrices to be inverted by the weak division process to compute B_i B_j/|B|^2. 
+   3. Copy the solution and perform remaining operations. Note for computing b from bb, we use: 
+   basis_sqrt_with_sign (obtain expansion of sqrt(A^2) for a DG field A, keeping the sign of A) */
+
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Note: flow velocity is only p=1, while kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    fname : sconcat("~/max-out/em_calc_BB_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("em_calc_BB_",  d, "x_", "tensor_p", polyOrder),
+    calcBB(fh, funcName, d, polyOrder),
+    close(fh),
+    
+    fname : sconcat("~/max-out/em_set_bvar_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("em_set_bvar_",  d, "x_", "tensor_p", polyOrder),
+    setbvar(fh, funcName, d, polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/em_copy_bvar_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("em_copy_bvar_",  d, "x_", "tensor_p", polyOrder),
+    copybvar(fh, funcName, d, polyOrder),
+    close(fh), 
+
+    fname : sconcat("~/max-out/em_set_diag_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("em_set_diag_",  d, "x_", "tensor_p", polyOrder),
+    setdiag(fh, funcName, d, polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/em_copy_diag_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("em_copy_diag_",  d, "x_", "tensor_p", polyOrder),
+    copydiag(fh, funcName, d, polyOrder),
+    close(fh)    
+  )
+);

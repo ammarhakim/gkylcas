@@ -1,0 +1,40 @@
+/* Generate the header file for the PKPM moments and integrated moment kernels. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+printPKPMPrototype(deco, ci, bStr, pi) := block([si],
+  printf(fh, "~avoid mom_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid mom_pkpm_diag_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~%"), 
+  printf(fh, "~avoid mom_bcorr_lbo_pkpm_~ax1v_~a_p~a(const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, double mass, const double *fIn, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  printf(fh, "~%"),
+  printf(fh, "~avoid pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
+  printf(fh, "~%")  
+)$
+
+fh : openw("~/max-out/gkyl_mom_pkpm_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_eqn_type.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    printPKPMPrototype(decorator, d, "tensor", polyOrder)
+  )
+);
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
+/* ............ Finished writing out the C header file ............ */

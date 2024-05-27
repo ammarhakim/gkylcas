@@ -1,0 +1,27 @@
+/* Generate kernels that compute the moments of the distribution function. */
+
+load("pkpm-new/moments-vlasov-pkpm")$
+load(stringproc)$
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating Vlasov PKPM Moments ~ax~av"),d,1)),
+    fname : sconcat("~/max-out/mom_pkpm_", d, "x1v_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("mom_pkpm"),
+
+    calc_pkpm_moments(fh, funcName, d, 1, polyOrder),
+    close(fh)
+  )
+);

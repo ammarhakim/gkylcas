@@ -1,0 +1,284 @@
+/* This script generates the kernels for calculating the flow velocity u
+   using weak division required to update the PKPM system.
+   Note: the mass density rho is order 2*p, 
+   but the momentum rhou and flow velocity are *only* order p. */
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+set_pkpm_u_i(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, bC_2p, NC, NC_2p, 
+   rho_e, nodesCorners, rhoCorners, 
+   rho_temp_e, 
+   expr_ux, expr_uy, expr_uz, 
+   ue, un, eq_rho, E_rho],
+
+  kill(varsC, bC),
+  kill(varsC, bC_2p),
+
+  /* Load basis of dimensionality requested. Loads a basis of order p and p/2*/
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+  [varsC,bC_2p] : loadBasis("Tensor", cdim, 2*polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NC_2p : length(bC_2p),
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH int ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *vlasov_pkpm_moms, const double *euler_pkpm) ~%{ ~%", funcNm),
+  printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // A:                preallocated LHS matrix. ~%"),
+  printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
+  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // euler_pkpm:       [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  struct gkyl_mat A_ux = gkyl_nmat_get(A, count); ~%"),
+  printf(fh, "  struct gkyl_mat A_uy = gkyl_nmat_get(A, count+1); ~%"),
+  printf(fh, "  struct gkyl_mat A_uz = gkyl_nmat_get(A, count+2); ~%"),
+
+  printf(fh, "  struct gkyl_mat rhs_ux = gkyl_nmat_get(rhs, count); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_uy = gkyl_nmat_get(rhs, count+1); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_uz = gkyl_nmat_get(rhs, count+2); ~%"),
+
+  printf(fh, "  // Clear matrix and rhs for each component of primitive variables being solved for ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_ux, 0.0); gkyl_mat_clear(&rhs_ux, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_uy, 0.0); gkyl_mat_clear(&rhs_uy, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_uz, 0.0); gkyl_mat_clear(&rhs_uz, 0.0); ~%"),
+
+  printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC),
+
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC_2p),
+
+  /* Expand rho and check for positivity */
+  rho_e : doExpand1(rho, bC_2p),
+
+  printf(fh, "  int cell_avg = 0;~%"),
+  /* For p = 2, we use the positivity control points (-1, 0, 1) */
+  nodesCorners : getNodes("Tensor", cdim, polyOrder),
+  printf(fh, "  // Check if rho < 0 at control points for diagnostic purposes. ~%"),
+  rhoCorners : expand(float(evAtNodes(rho_e,nodesCorners,varsC))),
+  for i : 1 thru length(nodesCorners) do (
+    printf(fh, "  if (~a < 0.0) cell_avg = 1; ~%", rhoCorners[i])
+  ),
+  printf(fh, " ~%"),
+  expr_ux : float(expand(makelist(rhoux[i],i,0,NC-1))),
+  expr_uy : float(expand(makelist(rhouy[i],i,0,NC-1))),
+  expr_uz : float(expand(makelist(rhouz[i],i,0,NC-1))),
+
+  for i : 1 thru length(expr_ux) do (
+    printf(fh,"  gkyl_mat_set(&rhs_ux,~a,0,~a); ~%", i-1, expr_ux[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_uy,~a,0,~a); ~%", i-1, expr_uy[i]),
+    printf(fh,"  gkyl_mat_set(&rhs_uz,~a,0,~a); ~%", i-1, expr_uz[i])
+  ),
+  printf(fh, " ~%"),
+
+  /* Generate matrix of unknown coefficients */
+  ue : doExpand1(u,bC),
+  un : makelist(u[i],i,0,NC-1),
+  eq_rho : calcInnerProdList(varsC,ue,bC,rho_e),
+  E_rho : fullratsimp(coefmatrix(eq_rho,un)),
+
+  /* declare temp_rho since matrix entries in A are the same for all operations */
+  printf(fh, "  double temp_rho = 0.0; ~%"),
+  /* Matrix is dense so just do a simple write routine */
+  for i : 1 thru NC do (
+    for j : 1 thru NC do (
+      printf(fh,"  temp_rho = ~a; ~%", float(expand(E_rho[i,j]))),
+      printf(fh,"  gkyl_mat_set(&A_ux,~a,~a,~a); ~%", i-1, j-1, temp_rho),
+      printf(fh,"  gkyl_mat_set(&A_uy,~a,~a,~a); ~%", i-1, j-1, temp_rho),
+      printf(fh,"  gkyl_mat_set(&A_uz,~a,~a,~a); ~%", i-1, j-1, temp_rho),
+      printf(fh, " ~%")
+    )
+  ),
+  printf(fh, "  return cell_avg;~%"),
+  printf(fh, "} ~%")
+)$
+
+copy_pkpm_u_i(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, NC],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. Flow velocity is only order p/2 */
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, 
+    double* GKYL_RESTRICT pkpm_u) ~%{ ~%", funcNm),
+  printf(fh, "  // count:   integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // x:       Input solution vector. ~%"),
+  printf(fh, "  // pkpm_u:  Output volume expansion of [ux, uy, uz]. ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  struct gkyl_mat x_ux = gkyl_nmat_get(x, count); ~%"),
+  printf(fh, "  struct gkyl_mat x_uy = gkyl_nmat_get(x, count+1); ~%"),
+  printf(fh, "  struct gkyl_mat x_uz = gkyl_nmat_get(x, count+2); ~%"),
+
+  printf(fh, "  double *ux = &pkpm_u[~a]; ~%", 0*NC),
+  printf(fh, "  double *uy = &pkpm_u[~a]; ~%", 1*NC),
+  printf(fh, "  double *uz = &pkpm_u[~a]; ~%", 2*NC),
+
+  /* Fetch volume expansion solution from linear solve */
+  for i : 1 thru NC do (
+    printf(fh,"  ux[~a] = gkyl_mat_get(&x_ux,~a,0); ~%", i-1, i-1),
+    printf(fh,"  uy[~a] = gkyl_mat_get(&x_uy,~a,0); ~%", i-1, i-1),
+    printf(fh,"  uz[~a] = gkyl_mat_get(&x_uz,~a,0); ~%", i-1, i-1)
+  ),
+  printf(fh, "~%"),
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$
+
+pkpm_u_surf(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, NC],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars("Tensor",surfVarsx,polyOrder),
+  if (cdim > 1) then (
+    surfVarsy : delete(y,varsC),
+    bSurfy : basisFromVars("Tensor",surfVarsy,polyOrder)
+  ),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars("Tensor",surfVarsz,polyOrder)
+  ),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  if (cdim = 1) then (
+    NSurf : 1
+  )
+  else (
+    NSurf : length(bSurfx)
+  ),
+
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *pkpm_u, double* GKYL_RESTRICT pkpm_u_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // pkpm_u:  Input volume expansion of [ux, uy, uz]. ~%"),
+  printf(fh, "  // pkpm_u_surf: Output surface expansion of flow velocity. ~%"),
+  printf(fh, "  //              [ux_xl, ux_xr, uy_xl, uy_xr, uz_xl, uz_xr, ~%"),
+  printf(fh, "  //               ux_yl, ux_yr, uy_yl, uy_yr, uz_yl, uz_yr, ~%"),
+  printf(fh, "  //               ux_zl, ux_zr, uy_zl, uy_zr, uz_zl, uz_zr]  ~%"),
+  printf(fh, " ~%"),
+
+  printf(fh, "  const double *ux = &pkpm_u[~a]; ~%", 0*NC),
+  printf(fh, "  const double *uy = &pkpm_u[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uz = &pkpm_u[~a]; ~%", 2*NC),
+
+  /* Now compute needed surface expansions */
+  ux_e : doExpand1(ux, bC),
+  uy_e : doExpand1(uy, bC),
+  uz_e : doExpand1(uz, bC),
+
+  printf(fh, "  double *ux_xl = &pkpm_u_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  double *ux_xr = &pkpm_u_surf[~a]; ~%", 1*NSurf),
+  printf(fh, "  double *uy_xl = &pkpm_u_surf[~a]; ~%", 2*NSurf),
+  printf(fh, "  double *uy_xr = &pkpm_u_surf[~a]; ~%", 3*NSurf),
+  printf(fh, "  double *uz_xl = &pkpm_u_surf[~a]; ~%", 4*NSurf),
+  printf(fh, "  double *uz_xr = &pkpm_u_surf[~a]; ~%", 5*NSurf),
+  printf(fh, " ~%"), 
+  if (cdim = 1) then (
+    printf(fh, "  ux_xl[0] = ~a; ~%", float(expand(subst(x=-1, ux_e)))),
+    printf(fh, "  ux_xr[0] = ~a; ~%", float(expand(subst(x=1, ux_e)))),
+    printf(fh, "  uy_xl[0] = ~a; ~%", float(expand(subst(x=-1, uy_e)))),
+    printf(fh, "  uy_xr[0] = ~a; ~%", float(expand(subst(x=1, uy_e)))),
+    printf(fh, "  uz_xl[0] = ~a; ~%", float(expand(subst(x=-1, uz_e)))),
+    printf(fh, "  uz_xr[0] = ~a; ~%", float(expand(subst(x=1, uz_e)))),
+    printf(fh, " ~%")
+  )
+  else (
+    ux_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, ux_e)),
+    uy_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, uy_e)),
+    uz_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, uz_e)),
+
+    writeCExprs1(ux_xl, ux_xl_c), 
+    writeCExprs1(uy_xl, uy_xl_c), 
+    writeCExprs1(uz_xl, uz_xl_c), 
+    printf(fh, " ~%"), 
+
+    ux_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, ux_e)),
+    uy_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, uy_e)),
+    uz_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, uz_e)),
+
+    writeCExprs1(ux_xr, ux_xr_c), 
+    writeCExprs1(uy_xr, uy_xr_c), 
+    writeCExprs1(uz_xr, uz_xr_c), 
+    printf(fh, " ~%")
+  ),
+  if (cdim > 1) then (
+    printf(fh, "  double *ux_yl = &pkpm_u_surf[~a]; ~%", 6*NSurf),
+    printf(fh, "  double *ux_yr = &pkpm_u_surf[~a]; ~%", 7*NSurf),
+    printf(fh, "  double *uy_yl = &pkpm_u_surf[~a]; ~%", 8*NSurf),
+    printf(fh, "  double *uy_yr = &pkpm_u_surf[~a]; ~%", 9*NSurf),
+    printf(fh, "  double *uz_yl = &pkpm_u_surf[~a]; ~%", 10*NSurf),
+    printf(fh, "  double *uz_yr = &pkpm_u_surf[~a]; ~%", 11*NSurf),
+    printf(fh, " ~%"), 
+
+    ux_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, ux_e)),
+    uy_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, uy_e)),
+    uz_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, uz_e)),
+
+    writeCExprs1(ux_yl, ux_yl_c), 
+    writeCExprs1(uy_yl, uy_yl_c), 
+    writeCExprs1(uz_yl, uz_yl_c), 
+    printf(fh, " ~%"), 
+
+    ux_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, ux_e)),
+    uy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, uy_e)),
+    uz_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, uz_e)),
+
+    writeCExprs1(ux_yr, ux_yr_c), 
+    writeCExprs1(uy_yr, uy_yr_c), 
+    writeCExprs1(uz_yr, uz_yr_c), 
+    printf(fh, " ~%")
+  ),
+  if (cdim = 3) then (
+    printf(fh, "  double *ux_zl = &pkpm_u_surf[~a]; ~%", 12*NSurf),
+    printf(fh, "  double *ux_zr = &pkpm_u_surf[~a]; ~%", 13*NSurf),
+    printf(fh, "  double *uy_zl = &pkpm_u_surf[~a]; ~%", 14*NSurf),
+    printf(fh, "  double *uy_zr = &pkpm_u_surf[~a]; ~%", 15*NSurf),
+    printf(fh, "  double *uz_zl = &pkpm_u_surf[~a]; ~%", 16*NSurf),
+    printf(fh, "  double *uz_zr = &pkpm_u_surf[~a]; ~%", 17*NSurf),
+    printf(fh, " ~%"), 
+
+    ux_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, ux_e)),
+    uy_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, uy_e)),
+    uz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, uz_e)),
+
+    writeCExprs1(ux_zl, ux_zl_c), 
+    writeCExprs1(uy_zl, uy_zl_c), 
+    writeCExprs1(uz_zl, uz_zl_c), 
+    printf(fh, " ~%"), 
+
+    ux_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, ux_e)),
+    uy_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, uy_e)),
+    uz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, uz_e)),
+
+    writeCExprs1(ux_zr, ux_zr_c), 
+    writeCExprs1(uy_zr, uy_zr_c), 
+    writeCExprs1(uz_zr, uz_zr_c), 
+    printf(fh, " ~%")
+  ),  
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$

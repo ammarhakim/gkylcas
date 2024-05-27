@@ -1,0 +1,167 @@
+/* This script generated the kernels which construct the output fluid arrays for PKPM, 
+   including the conserved fluid variables: 
+   [rho, rho ux, rho uy, rho uz, Pxx + rho ux^2, Pxy + rho ux uy, Pxz + rho ux uz, Pyy + rho uy^2, Pyz + rho uy uz, Pzz + rho uz^2]  
+   and the output primitive and acceleration variables 
+   [T_perp/m, m/T_perp, 1/rho div(p_par b), T_perp/m div(b), bb : grad(u)] */
+
+load("modal-basis")$
+load("out-scripts")$
+fpprec : 24$
+
+calc_pkpm_vars_io(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, bC_2p, NC, NC_2p, 
+   rho_e, p_par_e, p_perp_e, 
+   ux_e, uy_e, uz_e, 
+   rhoux_c, rhouy_c, rhouz_c, rhoux_e, rhouy_e, rhouz_e, 
+   rhouxux_c, rhouxuy_c, rhouxuz_c, rhouyuy_c, rhouyuz_c, rhouzuz_c],
+
+  kill(varsC, bC),
+  kill(varsC, bC_2p),
+
+  /* Load basis of dimensionality requested. Loads a basis of order p and p/2*/
+  [varsC,bC] : loadBasis("Tensor", cdim, 1),
+  [varsC,bC_2p] : loadBasis("Tensor", cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NC_2p : length(bC_2p),
+
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *vlasov_pkpm_moms, 
+  const double* pkpm_u, const double* p_ij, const double* pkpm_prim, const double* pkpm_accel, 
+  double* GKYL_RESTRICT fluid_io, double* GKYL_RESTRICT pkpm_vars_io) ~%{ ~%", funcNm),
+  printf(fh, "  // vlasov_pkpm_moms: Input [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model. ~%"),
+  printf(fh, "  // pkpm_u:           Input [ux, uy, uz]. ~%"),
+  printf(fh, "  // p_ij:             Input p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij. ~%"),
+  printf(fh, "  // pkpm_prim:        Input [1/rho div(p_par b), T_perp/m, m/T_perp, 3*Txx/m, 3*Tyy/m, 3*Tzz/m]. ~%"),
+  printf(fh, "  // pkpm_accel:       Input volume expansion of pkpm acceleration variables [T_perp/m*div(b), bb:grad(u), p_force, p_perp_source]. ~%"),
+  printf(fh, "  // fluid_io:         Output fluid conserved variables. ~%"),
+  printf(fh, "  // pkpm_vars_io:     Output pkpm variables (primitive and acceleration). ~%"),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *ux = &pkpm_u[~a]; ~%", 0*NC),
+  printf(fh, "  const double *uy = &pkpm_u[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uz = &pkpm_u[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *Pxy = &p_ij[~a]; ~%", 1*NC_2p),
+  printf(fh, "  const double *Pxz = &p_ij[~a]; ~%", 2*NC_2p),
+  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC_2p),
+  printf(fh, "  const double *Pyz = &p_ij[~a]; ~%", 4*NC_2p),
+  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *pkpm_div_ppar = &pkpm_prim[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *T_perp_over_m = &pkpm_prim[~a]; ~%", 1*NC_2p),
+  printf(fh, "  const double *T_perp_over_m_inv = &pkpm_prim[~a]; ~%", 2*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *p_perp_div_b = &pkpm_accel[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *bb_grad_u = &pkpm_accel[~a]; ~%", 1*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *fluid_io_rho = &fluid_io[~a]; ~%", 0*NC_2p),
+  printf(fh, "  double *fluid_io_rhoux = &fluid_io[~a]; ~%", 1*NC_2p),
+  printf(fh, "  double *fluid_io_rhouy = &fluid_io[~a]; ~%", 2*NC_2p),
+  printf(fh, "  double *fluid_io_rhouz = &fluid_io[~a]; ~%", 3*NC_2p),
+  printf(fh, "  double *fluid_io_Sxx = &fluid_io[~a]; ~%", 4*NC_2p),
+  printf(fh, "  double *fluid_io_Sxy = &fluid_io[~a]; ~%", 5*NC_2p),
+  printf(fh, "  double *fluid_io_Sxz = &fluid_io[~a]; ~%", 6*NC_2p),
+  printf(fh, "  double *fluid_io_Syy = &fluid_io[~a]; ~%", 7*NC_2p),
+  printf(fh, "  double *fluid_io_Syz = &fluid_io[~a]; ~%", 8*NC_2p),
+  printf(fh, "  double *fluid_io_Szz = &fluid_io[~a]; ~%", 9*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *pkpm_vars_io_T_perp_over_m = &pkpm_vars_io[~a]; ~%", 0*NC_2p),
+  printf(fh, "  double *pkpm_vars_io_T_perp_over_m_inv = &pkpm_vars_io[~a]; ~%", 1*NC_2p),
+  printf(fh, "  double *pkpm_vars_io_pkpm_div_ppar = &pkpm_vars_io[~a]; ~%", 2*NC_2p),
+  printf(fh, "  double *pkpm_vars_io_p_perp_div_b = &pkpm_vars_io[~a]; ~%", 3*NC_2p),
+  printf(fh, "  double *pkpm_vars_io_bb_grad_u = &pkpm_vars_io[~a]; ~%", 4*NC_2p),
+  printf(fh, "~%"),
+
+  /* Expansion of mass, parallel pressure, perpendicular pressure, and flow velocity */
+  rho_e : doExpand1(rho, bC_2p),
+  p_par_e : doExpand1(p_parallel, bC_2p),
+  p_perp_e : doExpand1(p_perp, bC_2p),
+  ux_e : doExpand1(ux, bC),
+  uy_e : doExpand1(uy, bC),
+  uz_e : doExpand1(uz, bC),
+
+  /* Project rho*u for computing rhou and rhou^2 
+     Note: we use the full 2*p basis that the kinetic equation is expanded in, 
+     even though the flow velocity u is only expanded in a p basis. */
+  printf(fh, "  double rhoux[~a] = {0.0}; ~%", NC_2p),
+  rhoux_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*ux_e), 
+  writeCExprs1(rhoux, rhoux_c),  
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouy[~a] = {0.0}; ~%", NC_2p),  
+  rhouy_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*uy_e), 
+  writeCExprs1(rhouy, rhouy_c),  
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouz[~a] = {0.0}; ~%", NC_2p),  
+  rhouz_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*uz_e),
+  writeCExprs1(rhouz, rhouz_c),
+  printf(fh, "~%"),
+
+  rhoux_e : doExpand1(rhoux, bC_2p),
+  rhouy_e : doExpand1(rhouy, bC_2p),
+  rhouz_e : doExpand1(rhouz, bC_2p),   
+
+  printf(fh, "  double rhouxux[~a] = {0.0}; ~%", NC_2p),
+  rhouxux_c : calcInnerProdList(varsC, 1, bC_2p, rhoux_e*ux_e), 
+  writeCExprs1(rhouxux, rhouxux_c), 
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouxuy[~a] = {0.0}; ~%", NC_2p),
+  rhouxuy_c : calcInnerProdList(varsC, 1, bC_2p, rhoux_e*uy_e), 
+  writeCExprs1(rhouxuy, rhouxuy_c), 
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouxuz[~a] = {0.0}; ~%", NC_2p),
+  rhouxuz_c : calcInnerProdList(varsC, 1, bC_2p, rhoux_e*uz_e), 
+  writeCExprs1(rhouxuz, rhouxuz_c), 
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouyuy[~a] = {0.0}; ~%", NC_2p),
+  rhouyuy_c : calcInnerProdList(varsC, 1, bC_2p, rhouy_e*uy_e), 
+  writeCExprs1(rhouyuy, rhouyuy_c), 
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouyuz[~a] = {0.0}; ~%", NC_2p),
+  rhouyuz_c : calcInnerProdList(varsC, 1, bC_2p, rhouy_e*uz_e), 
+  writeCExprs1(rhouyuz, rhouyuz_c), 
+  printf(fh, " ~%"),
+
+  printf(fh, "  double rhouzuz[~a] = {0.0}; ~%", NC_2p),
+  rhouzuz_c : calcInnerProdList(varsC, 1, bC_2p, rhouz_e*uz_e), 
+  writeCExprs1(rhouzuz, rhouzuz_c), 
+  printf(fh, " ~%"),
+
+  for i : 1 thru NC_2p do (
+    printf(fh, "  fluid_io_rho[~a] = rho[~a]; ~%", i-1, i-1),
+    printf(fh, "  fluid_io_rhoux[~a] = rhoux[~a]; ~%", i-1, i-1),
+    printf(fh, "  fluid_io_rhouy[~a] = rhouy[~a]; ~%", i-1, i-1),
+    printf(fh, "  fluid_io_rhouz[~a] = rhouz[~a]; ~%", i-1, i-1),
+    printf(fh, "  fluid_io_Sxx[~a] = Pxx[~a] + rhouxux[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, "  fluid_io_Sxy[~a] = Pxy[~a] + rhouxuy[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, "  fluid_io_Sxz[~a] = Pxz[~a] + rhouxuz[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, "  fluid_io_Syy[~a] = Pyy[~a] + rhouyuy[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, "  fluid_io_Syz[~a] = Pyz[~a] + rhouyuz[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, "  fluid_io_Szz[~a] = Pzz[~a] + rhouzuz[~a]; ~%", i-1, i-1, i-1),
+    printf(fh, " ~%"),
+    printf(fh, "  pkpm_vars_io_T_perp_over_m[~a] = T_perp_over_m[~a]; ~%", i-1, i-1),
+    printf(fh, "  pkpm_vars_io_T_perp_over_m_inv[~a] = T_perp_over_m_inv[~a]; ~%", i-1, i-1),
+    printf(fh, "  pkpm_vars_io_pkpm_div_ppar[~a] = pkpm_div_ppar[~a]; ~%", i-1, i-1),
+    printf(fh, "  pkpm_vars_io_p_perp_div_b[~a] = p_perp_div_b[~a]; ~%", i-1, i-1),
+    printf(fh, "  pkpm_vars_io_bb_grad_u[~a] = bb_grad_u[~a]; ~%", i-1, i-1),
+    printf(fh, " ~%")
+  ), 
+
+  printf(fh, "} ~%")
+)$

@@ -1,0 +1,26 @@
+load("basis-calc/basis-expSqFuncs-2p")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   DG expansion of A^2 where A is a DG field onto a basis
+   of order 2*p so that A^2 is *exactly* represented. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    fname : sconcat("~/max-out/gkyl_basis_tensor_", d, "x_2p_exp_sq.h"),
+    fh : openw(fname),
+    funcName : sconcat("tensor_", d, "x_2p_exp_sq"),
+    calcDGExpSq_2p(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

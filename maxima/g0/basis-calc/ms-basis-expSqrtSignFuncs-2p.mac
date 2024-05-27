@@ -1,0 +1,31 @@
+load("basis-calc/basis-expSqrtSignFuncs-2p")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   DG expansion of sqrt(A) where A is a DG field
+   by projecting A onto quadrature points, taking the sqrt,
+   and then projecting back onto the modal basis. 
+   The sign of A is utilized to find out the correct sign of sqrt(A), 
+   i.e., if A < 0 at a quadrature point, we use -sqrt(A) at that quadrature point.  
+   Note that A is projected onto a basis of order 2*p 
+   whereas the sign of A is only of order p. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    fname : sconcat("~/max-out/gkyl_basis_tensor_", d, "x_2p_sqrt_with_sign.h"),
+    fh : openw(fname),
+    funcName : sconcat("tensor_", d, "x_2p_sqrt_with_sign"),
+    calcDGExpSqrtSign_2p(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

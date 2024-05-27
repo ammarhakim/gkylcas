@@ -1,0 +1,29 @@
+load("pkpm-new/vlasov-pkpm-boundary-surf")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   updates from the surface term contributions in the Vlasov 
+   kinetic equation for parallel-kinetic-perpendicular-moment (pkpm) model. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating boundary surface Vlasov PKPM ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/vlasov_pkpm_boundary_surfvpar_", d, "x1v_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("vlasov_pkpm_boundary_surfvpar_", d, "x1v_tensor_p", polyOrder),
+    printf(fh, "#include <gkyl_vlasov_pkpm_kernels.h> ~%"),
+    printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_surfx~a_eval_quad.h> ~%", d+1, polyOrder, d+1),
+    printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_upwind_quad_to_modal.h> ~%", d+1, polyOrder),
+    calc_pkpm_vlasov_boundary_surf_accel(fh, funcName, d, 1, polyOrder), 
+    close(fh)
+  )
+);

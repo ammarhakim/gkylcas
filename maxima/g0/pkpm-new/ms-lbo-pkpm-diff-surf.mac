@@ -1,0 +1,28 @@
+/* This script calls the functions which calculate the
+   updates from the diff portion of the surface contributions
+   using 1 cell recovery. */
+load("pkpm-new/lbo-pkpm-diff-surf")$
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating lbo_pkpm_diff_surfvpar_~ax1v_p~a"),d,polyOrder)),
+    funcName : sconcat("lbo_pkpm_diff_surfvpar_", d, "x1v_tensor_p",polyOrder),
+    fname : sconcat("~/max-out/",funcName, ".c"),
+    fh : openw(fname),
+    calcVlasovPKPMLBODiffSurfUpdater(fh, funcName, d, 1, polyOrder),
+    close(fh) 
+  )
+);
+
+

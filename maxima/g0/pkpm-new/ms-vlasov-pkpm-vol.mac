@@ -1,0 +1,26 @@
+load("pkpm-new/vlasov-pkpm-vol")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   updates from the volume term contributions in the Vlasov 
+   kinetic equation for parallel-kinetic-perpendicular-moment (pkpm) model. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating volume Vlasov PKPM ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/vlasov_pkpm_vol_",  d, "x1v_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("vlasov_pkpm_vol_", d, "x1v_tensor_p", polyOrder),
+    calc_pkpm_vlasov_vol(fh, funcName, d, 1, polyOrder),
+    close(fh)
+  )
+);

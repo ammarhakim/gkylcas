@@ -1,0 +1,28 @@
+load("pkpm-new/euler-pkpm-limiter")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for 
+   limiting the slopes of the fluid variables in the PKPM system. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+clabels : ["x","y","z"]$
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating pkpm limiter funcs ~axp~a"),d,polyOrder)),
+
+    for dir : 1 thru d do ( 
+      fname : sconcat("~/max-out/euler_pkpm_limiter_", clabels[dir], "_", d, "x_", "tensor_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("euler_pkpm_limiter_",clabels[dir],"_", d, "x_", "tensor_p", polyOrder),
+      calc_pkpm_euler_limiter(dir, fh, funcName, d, polyOrder),
+      close(fh)
+    )
+  )
+);

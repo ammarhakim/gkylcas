@@ -6,13 +6,13 @@ load("modal-basis")$
 load("out-scripts")$
 fpprec : 24$
 
-calcMaxwellLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+calcMaxwellLimiter(dir, fh, funcNm, cdim, polyOrder) := block(
   [varsC, bC, NC],
 
   kill(varsC, bC),
 
   /* Load basis of dimensionality requested. */
-  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
 
   /* Number of basis monomials. */
   NC : length(bC),

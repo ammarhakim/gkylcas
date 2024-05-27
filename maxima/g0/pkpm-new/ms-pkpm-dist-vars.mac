@@ -1,0 +1,45 @@
+load("pkpm-new/pkpm-dist-vars")$
+load(stringproc)$
+/* This script calls the functions which calculate the pkpm distribution function variables including:
+   1. Compute div(p_par b) from the streaming term div(v_par b F_0) for a consistent pressure force which
+   prevents the development of spurious flows: integral(v_par F_0)
+   2. In the mirror force for the T_perp/m*G = T_perp/m*(F_0 - F_1) kinetic equation, compute the distribution function 
+   source along with the vperp characteristics which are a pure source term in the first Laguerre moment update.
+   g_dist_source = [2.0*T_perp/m*(2.0*T_perp/m G + T_perp/m (F_2 - F_0)), 
+                    (-vpar div(b) + bb:grad(u) - div(u) - 2 nu) T_perp/m G + 2 nu vth^2 F_0 ]
+   First output is mirror force source *distribution*, second output is *total* vperp characteristics source.
+                    
+   Note that T_perp/m*G is the evolved quantity for the first Laguerre moment. 
+   Also outputs F_1 from T_perp/m*G for the evolution of F_2 if F_2 is present. 
+   To simplify internal Gkeyll logic, kernels assume F_2 is present and outputs F_1 even if F_2 = 0.0. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+clabels : ["x","y","z"]$
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating PKPM distribution function variables ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/pkpm_dist_mirror_force_", d, "x1v_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_dist_mirror_force_", d, "x1v_tensor_p", polyOrder),
+    calc_pkpm_dist_mirror(fh, funcName, d, 1, polyOrder),
+    close(fh),
+
+    for dir : 1 thru d do ( 
+      fname : sconcat("~/max-out/pkpm_dist_div_ppar_", clabels[dir], "_", d, "x1v_tensor_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("pkpm_dist_div_ppar_", clabels[dir], "_", d, "x1v_tensor_p", polyOrder),
+      printf(fh, "#include <gkyl_vlasov_pkpm_kernels.h> ~%"),
+      calc_pkpm_div_ppar(dir, fh, funcName, d, 1, polyOrder), 
+      close(fh)
+    )
+  )
+);

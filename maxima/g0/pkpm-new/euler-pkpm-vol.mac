@@ -1,0 +1,159 @@
+load("modal-basis")$
+load("out-scripts")$
+fpprec : 24$
+
+euler_pkpm : [rhoux, rhouy, rhouz]$
+dx1  : [dx10, dx11, dx12]$
+lhs : [outrhoux, outrhouy, outrhouz]$
+
+cvars : [x, y, z]$
+
+calc_pkpm_euler_vol(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, bC_2p, NC, NC_2p, cflPt, cid,
+  rhoux_e, rhouy_e, rhouz_e,
+  ux_e, uy_e, uz_e, u_e,
+  Pxx_e, Pxy_e, Pxz_e, Pyy_e, Pyz_e, Pzz_e, 
+  umid, t2, t3, t4, volTerms, vol, expr],
+
+  kill(varsC, bC),
+  kill(varsC, bC_2p),
+
+  /* Load basis of dimensionality requested. Loads a basis of order p and p/2*/
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+  [varsC,bC_2p] : loadBasis("Tensor", cdim, 2*polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NC_2p : length(bC_2p),
+
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+
+  /* specify a point to evaluate maximum speed at for use in computing CFL */
+  cflPt : makelist(varsC[d]=0, d, 1, length(varsC)),
+
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *vlasov_pkpm_moms, const double *pkpm_u, const double *p_ij, 
+  const double *euler_pkpm, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:    Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:  Cell spacing.~%"),
+  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // pkpm_u:     Input flow velocity [ux, uy, uz].~%"),
+  printf(fh, "  // p_ij:       Input pressure tensor.~%"),
+  printf(fh, "  // euler_pkpm: [rho ux, rho uy, rho uz], Fluid input state vector.~%"),
+  printf(fh, "  // out:        Incremented output.~%"),
+  printf(fh, "~%"),
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dx1~a = 2./dxv[~a]; ~%", dir-1, dir-1)
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC),
+  printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC),
+  printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  /* access mass density, flow, and pressure tensor data */
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0),
+  printf(fh, "~%"),
+  printf(fh, "  const double *ux = &pkpm_u[~a]; ~%", 0*NC),
+  printf(fh, "  const double *uy = &pkpm_u[~a]; ~%", 1*NC),
+  printf(fh, "  const double *uz = &pkpm_u[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *Pxy = &p_ij[~a]; ~%", 1*NC_2p),
+  printf(fh, "  const double *Pxz = &p_ij[~a]; ~%", 2*NC_2p),
+  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC_2p),
+  printf(fh, "  const double *Pyz = &p_ij[~a]; ~%", 4*NC_2p),
+  printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC_2p),
+  printf(fh, "~%"),
+
+  printf(fh, "  double *outrhoux = &out[~a]; ~%", 0*NC),
+  printf(fh, "  double *outrhouy = &out[~a]; ~%", 1*NC),
+  printf(fh, "  double *outrhouz = &out[~a]; ~%", 2*NC),
+  printf(fh, "~%"),
+
+  /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
+  printf(fh, "  double cflFreq_mid = 0.0; ~%"),
+
+  rhoux_e : doExpand1(euler_pkpm[1], bC),
+  rhouy_e : doExpand1(euler_pkpm[2], bC),
+  rhouz_e : doExpand1(euler_pkpm[3], bC),
+
+  /* Expand mass density, flow, and pressure tensor, in configuration space basis 
+     Note: mass density and pressure tensor are order 2*p because kinetic equation is higher order. */
+  rho_e : doExpand1(rho, bC_2p), 
+
+  ux_e : doExpand1(ux, bC),
+  uy_e : doExpand1(uy, bC),
+  uz_e : doExpand1(uz, bC),
+  u_e : [ux_e, uy_e, uz_e],
+
+  Pxx_e : doExpand1(Pxx, bC_2p),
+  Pxy_e : doExpand1(Pxy, bC_2p),
+  Pxz_e : doExpand1(Pxz, bC_2p),
+  Pyy_e : doExpand1(Pyy, bC_2p),
+  Pyz_e : doExpand1(Pyz, bC_2p),
+  Pzz_e : doExpand1(Pzz, bC_2p),
+
+  /* compute stable time step, max speed = |u| */
+  for dir : 1 thru cdim do (
+    /* evaluate velocity at center of cell */
+    umid : gcfac(float(expand(subst(cflPt, u_e[dir])))),
+    printf(fh, "  cflFreq_mid += 0.5*~a*(fabs(~a)); ~%", float(2*polyOrder+1)*dx1[dir], umid)
+  ),
+  printf(fh, "~%"),
+
+  /* expand rho*u in a quadratic basis, as this is equivalent to the volume update in the kinetic equation
+     We then have an equivalent update form for the rho*u component of the volume */
+  printf(fh, "  double rhoux_2p[~a] = {0.0}; ~%", NC_2p), 
+  printf(fh, "  double rhouy_2p[~a] = {0.0}; ~%", NC_2p), 
+  printf(fh, "  double rhouz_2p[~a] = {0.0}; ~%", NC_2p), 
+  rhoux_2p_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*ux_e), 
+  rhouy_2p_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*uy_e), 
+  rhouz_2p_c : calcInnerProdList(varsC, 1, bC_2p, rho_e*uz_e),
+
+  writeCExprs1(rhoux_2p, rhoux_2p_c),  
+  printf(fh, "~%"),
+  
+  writeCExprs1(rhouy_2p, rhouy_2p_c),  
+  printf(fh, "~%"),
+
+  writeCExprs1(rhouz_2p, rhouz_2p_c),  
+  printf(fh, "~%"),
+
+  rhoux_2p_e : doExpand1(rhoux_2p, bC_2p), 
+  rhouy_2p_e : doExpand1(rhouy_2p, bC_2p), 
+  rhouz_2p_e : doExpand1(rhouz_2p, bC_2p), 
+
+  /* Momentum update, flux = rho*u*u + pperp*I + (ppar - pperp)bb, where I is the identity matrix */
+  /* Note we express P =  pperp*I + (ppar - pperp)bb as P_ij */
+  t2 : (t2 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*ux_e + Pxx_e)),
+     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uy_e + Pxy_e)),
+     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uz_e + Pxz_e))
+     ),
+  t2),
+  t3 : (t3 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*ux_e + Pxy_e)),
+     if (dir = 2) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uy_e + Pyy_e)),
+     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uz_e + Pyz_e))
+     ),
+  t3),
+  t4 : (t4 : 0, for dir : 1 thru cdim do (
+     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*ux_e + Pxz_e)),
+     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uy_e + Pyz_e)),
+     if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uz_e + Pzz_e))
+     ),
+  t4),
+
+  volTerms : [t2,t3,t4],
+  for m : 1 thru 3 do (
+    vol : volTerms[m],
+    writeCIncrExprs1(lhs[m], vol),
+    printf(fh, "~%")
+  ),
+
+  printf(fh, "  return cflFreq_mid; ~%"),
+  printf(fh, "} ~%")
+
+)$

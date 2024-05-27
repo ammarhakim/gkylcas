@@ -1,0 +1,38 @@
+load("pkpm-new/pkpm-vars-prim")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for calculating the primitive
+   variables using weak division required to update the PKPM system. Primitive variables include:
+   1. div(p_par b)/rho
+   2. T_perp_over_m (T_perp/m)
+   3. T_perp_over_m_inv (m/T_perp) 
+   4. 3*Txx/m, 3*Tyy/m, 3*Tzz/m */
+
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating pkpm primitive variable funcs "," ~axp~a"),d,polyOrder)),
+
+    fname : sconcat("~/max-out/pkpm_vars_set_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_set_",  d, "x_", "tensor_p", polyOrder),
+    set_pkpm_prim(fh, funcName, d, polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/pkpm_vars_copy_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_copy_",  d, "x_", "tensor_p", polyOrder),
+    copy_pkpm_prim(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

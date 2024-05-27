@@ -1,0 +1,68 @@
+/* Generate kernels for square root expansion of a DG field which retains the sign. */
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+calcDGExpSqrtSign_2p(fh, funcNm, cdim, polyOrder) := block(
+  [bC, NC, 
+   A_e, ASign_e, AOrd_n, ASignOrd_n, 
+   basisNodal, AOrdNodal_e, AOrdModProj_e],
+
+  kill(varsC, bC),
+  kill(varsC, bC_2p),
+
+  /* Load basis of dimensionality requested. Loads a basis of order p and p/2*/
+  [varsC,bC] : loadBasis("Tensor", cdim, 1),
+  [varsC,bC_2p] : loadBasis("Tensor", cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NC_2p : length(bC_2p),
+
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH static inline void ~%"),
+  printf(fh, "~a(const double *ASign, const double *A, double *ASqrt) ~%{ ~%", funcNm),
+  printf(fh, "  // ASign: Input DG field, used to get correct sign of Asqrt. ~%"),
+  printf(fh, "  // A:     Input DG field. ~%"),
+  printf(fh, "  // ASqrt: Output DG field (expansion of sqrt(A), with sign determined by Asign). ~%"),
+  printf(fh, " ~%"),
+
+  /* Nodes given by tensor product of Gauss-Legendre quadrature points */
+  nodes : gaussOrd(polyOrder+1, cdim),
+  numNodes : length(nodes),  
+  /* A is order 2*p, but ASign is only order p */
+  A_e : doExpand1(A, bC_2p),
+  ASign_e : doExpand1(ASign, bC),
+
+  AOrd_n : gcfac(float(evAtNodes(A_e,nodes,varsC))),
+  ASignOrd_n : gcfac(float(evAtNodes(ASign_e,nodes,varsC))),
+  printf(fh, "  double AOrd[~a] = {0.0}; ~%~%", numNodes),
+  printf(fh, "  double temp = 0.0; ~%"),
+  printf(fh, "  double temp_sign = 0.0; ~%"),
+  for i : 1 thru numNodes do (
+    printf(fh, "  temp = ~a; ~%", AOrd_n[i]),
+    printf(fh, "  temp_sign = ~a; ~%", ASignOrd_n[i]),
+    printf(fh, "  if (~a < 0.0) { ~%", temp_sign),
+    printf(fh, "  AOrd[~a] = -sqrt(~a); ~%", i-1, temp),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "  AOrd[~a] = sqrt(~a); ~%", i-1, temp),
+    printf(fh, "  } ~%")
+  ),
+  flush_output(fh),
+
+  /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
+  basisNodal  : getVarsNodalBasisWithNodes("Tensor", cdim, polyOrder, varsC, nodes),
+  AOrdNodal_e : doExpand1(AOrd,basisNodal),
+  /* Project nodal basis back onto modal basis */
+  AOrdModProj_e : fullratsimp(calcInnerProdList(varsC, 1, bC_2p, AOrdNodal_e)),
+
+  writeCExprs1(ASqrt, AOrdModProj_e),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$

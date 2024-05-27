@@ -1,0 +1,30 @@
+load("pkpm-new/pkpm-vars-io")$
+load(stringproc)$
+/* This script calls the functions which construct the output fluid arrays for PKPM, 
+   including the conserved fluid variables: 
+   [rho, rho ux, rho uy, rho uz, Pxx + rho ux^2, Pxy + rho ux uy, Pxz + rho ux uz, Pyy + rho uy^2, Pyz + rho uy uz, Pzz + rho uz^2]  
+   and the output primitive and acceleration variables 
+   [T_perp/m, m/T_perp, 1/rho div(p_par b), T_perp/m div(b), bb : grad(u)] */
+
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating pkpm io funcs "," ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/pkpm_vars_io_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_io_",  d, "x_", "tensor_p", polyOrder),
+    calc_pkpm_vars_io(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

@@ -1,0 +1,29 @@
+/* Generate kernels that compute the boundary correction moments of the distribution
+   function in Vlasov for the parallel-kinetic-perpendicular-moment model. */
+load("pkpm-new/boundary-corr-vlasov-pkpm")$
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    /* Create a separate file w/ boundary corrections. */
+    disp(printf(false,sconcat("Creating Vlasov PKPM LBO boundary corrections ~ax~av p~a"),d,1,polyOrder)),
+    fname : sconcat("~/max-out/mom_bcorr_lbo_pkpm_", d, "x1v_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    printf(fh, "#include <gkyl_mom_pkpm_kernels.h> ~%"),
+    funcName : sconcat("mom_bcorr_lbo_pkpm_", d, "x1v_tensor_p", polyOrder),
+    calc_pkpm_boundary_corr(fh, funcName, d, 1, polyOrder),
+    close(fh)
+  )
+);
+
+

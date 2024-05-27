@@ -1,0 +1,27 @@
+load("pkpm-new/pkpm-vars-integrated")$
+load(stringproc)$
+/* This script calls the functions which integrate the fluid variables for diagnostic purposed. 
+   Integrates rho, rho*ux, rho*uy, rho*uz, rho*ux^2, rho*uy^2, rho*uz^2 p_parallel, p_perp,  */
+
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating pkpm integrated funcs "," ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/pkpm_vars_integrated_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_integrated_",  d, "x_", "tensor_p", polyOrder),
+    calc_pkpm_vars_integrated(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

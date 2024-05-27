@@ -1,0 +1,33 @@
+load("pkpm-new/euler-pkpm-implicit-source")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for an implicit update of
+   the source terms in the fluid equations of the PKPM system. 
+   Following Wang et al. JCP 2020, we construct a linear system of (3*num_species + 3) 
+   for each of the species current densities and the three components of the electric field. */
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating euler pkpm vars source funcs ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/euler_pkpm_em_coupling_set_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("euler_pkpm_em_coupling_set_",  d, "x_", "tensor_p", polyOrder),
+    set_pkpm_em_source_solve(fh, funcName, d, polyOrder),
+    close(fh),
+
+    fname : sconcat("~/max-out/euler_pkpm_em_coupling_copy_", d, "x_", "tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("euler_pkpm_em_coupling_copy_",  d, "x_", "tensor_p", polyOrder),
+    copy_pkpm_em_source_solve(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

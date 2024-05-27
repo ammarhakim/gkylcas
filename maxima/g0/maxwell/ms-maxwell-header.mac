@@ -26,7 +26,7 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-printPrototype(deco, ci, vi, bStr, pi) := block([si],
+printPrototype(deco, ci, bStr, pi) := block([si],
 
   printf(fh, "~adouble maxwell_vol_~ax_~a_p~a(const gkyl_maxwell_inp *meq, const double *w, const double *dx, const double *q, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   for si : 1 thru ci do (
@@ -37,18 +37,20 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
 printEmVarsPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid em_calc_BB_~ax_~a_p~a(const double *em, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid em_calc_num_ExB_~ax_~a_p~a(const double *em, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  printf(fh, "~aint em_set_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *BB); ~%", deco, ci, bStr, pi),
-  printf(fh, "~aint em_set_ExB_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *num_ExB); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid em_copy_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, 
-    double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid em_copy_ExB_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_magB2, 
-    double* GKYL_RESTRICT ExB, double* GKYL_RESTRICT ExB_surf); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid em_set_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *BB); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid em_copy_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
+  double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf); ~%", deco, ci, bStr, pi),
+
+  printf(fh, "~avoid em_set_diag_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *em, const double *BB); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid em_copy_diag_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
+  double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+
   for si : 1 thru ci do (
     printf(fh, "~avoid em_div_b_~a_~ax_~a_p~a(const double *dxv, 
-      const double *bvar_surf_l, const double *bvar_surf_c, const double *bvar_surf_r, 
-      const double *bvar_c, double* GKYL_RESTRICT max_b, double* GKYL_RESTRICT div_b); ~%", deco, cvars[si], ci, bStr, pi), 
-    printf(fh, "~avoid em_vars_limiter~a_~ax_~a_p~a(double limiter_fac, const struct gkyl_wv_eqn *wv_eqn, const struct gkyl_wave_cell_geom *geom, double *em_l, double *em_c, double *em_r); ~%", deco, cvars[si], ci, bStr, pi)
+    const double *bvar_surf_l, const double *bvar_surf_c, const double *bvar_surf_r, 
+    const double *bvar_c, double* GKYL_RESTRICT max_b, double* GKYL_RESTRICT div_b); ~%", deco, cvars[si], ci, bStr, pi), 
+    printf(fh, "~avoid em_vars_limiter_~a_~ax_~a_p~a(double limiter_fac, const struct gkyl_wv_eqn *wv_eqn, const struct gkyl_wave_cell_geom *geom, double *em_l, double *em_c, double *em_r); ~%", deco, cvars[si], ci, bStr, pi/2)
   ),
   printf(fh, "~%")
 )$
@@ -73,14 +75,14 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
     if (c=3 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printPrototype(decorator, c, v, bName[bInd], polyOrder)
-    ),
-
-    if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printEmVarsPrototype(decorator, c, bName[bInd], polyOrder)
-    )    
+      printPrototype(decorator, c, bName[bInd], polyOrder)
+    )   
   )
+);
+/* EM variables are only generated for tensor p=2 so we can exactly project quadratic quantities
+   and limiter function is only generated for tensor p=1 */
+for c : 1 thru 3 do (
+  printEmVarsPrototype(decorator, c, "tensor", 2)
 );
 printf(fh, "EXTERN_C_END ~%")$
 close(fh)$
