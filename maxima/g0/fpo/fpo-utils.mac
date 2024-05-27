@@ -109,7 +109,10 @@ calcAndWrite_sgn_drag_coeff(fh,surfVars,surfNodes,alphaSurf_e) := block(
 
 getStencilCellsList(loc) := block(
   [],
-  if (loc = [-1, 0]) then (
+  if (loc = [0, 0]) then (
+    stencilCells_f : [BL, CL, TL, BC, CC, TC, BR, CR, TR]
+  )
+  elseif (loc = [-1, 0]) then (
     stencilCells_f : [BC, CC, TC, BR, CR, TR]
   )
   elseif (loc = [1, 0]) then (

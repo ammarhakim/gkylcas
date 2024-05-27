@@ -315,7 +315,6 @@ generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := b
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
   numSurf : length(bSurf),
 
-
   disp(printf(false, "Creating ~a", fname)),
 
   fh : openw(fname),
