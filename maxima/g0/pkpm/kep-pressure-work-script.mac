@@ -1,4 +1,4 @@
-cdim : 2$
+cdim : 1$
 
 load("modal-basis")$
 [varsC,bC] : loadBasis("Tensor", cdim, 1)$
@@ -52,3 +52,39 @@ test_u_p_vol_l : calcInnerProdList(varsC, 1, [1], ul_e*diff(pl_e, x))$
 div_pu_vol_l : calcInnerProdList(varsC, 1, [1], diff(pl_e*ul_e, x))$
 print(fullratsimp(test_p_u_vol_l + test_u_p_vol_l))$
 print(fullratsimp(div_pu_vol_l))$
+
+/* Test equivalence of strong and weak form when pressure is higher order */ 
+pc_e : doExpand1(p_c, bC_p2)$
+p_cr : subst(x=1, pc_e)$
+p_cl : subst(x=-1, pc_e)$
+
+div_p_surf_weak_form_l : calcInnerProdList(surfVars, 1, subst(x=-1, bC), 0.5*(p_lr + p_cl))$ 
+div_p_surf_weak_form_r : calcInnerProdList(surfVars, 1, subst(x=1, bC), 0.5*(p_cr + p_rl))$ 
+div_p_vol_weak_form : calcInnerProdList(varsC, 1, diff(bC, x), pc_e)$ 
+
+div_p_surf_strong_form_l : calcInnerProdList(surfVars, 1, subst(x=-1, bC), 0.5*(p_lr + p_cl) - p_cl)$ 
+div_p_surf_strong_form_r : calcInnerProdList(surfVars, 1, subst(x=1, bC), 0.5*(p_cr + p_rl) - p_cr)$ 
+div_p_vol_strong_form : calcInnerProdList(varsC, 1, bC, diff(pc_e, x))$ 
+
+print(fullratsimp(-div_p_surf_weak_form_l + div_p_surf_weak_form_r - div_p_vol_weak_form))$
+print(fullratsimp(-div_p_surf_strong_form_l + div_p_surf_strong_form_r + div_p_vol_strong_form))$
+
+print(fullratsimp(-div_p_surf_weak_form_l + div_p_surf_weak_form_r - div_p_vol_weak_form - (-div_p_surf_strong_form_l + div_p_surf_strong_form_r + div_p_vol_strong_form)))$
+
+/* Test equivalence of strong and weak form when flow is lower order */ 
+uc_e : doExpand1(u_c, bC)$
+u_cr : subst(x=1, uc_e)$
+u_cl : subst(x=-1, uc_e)$
+
+div_u_surf_weak_form_l : calcInnerProdList(surfVars, 1, subst(x=-1, bC_p2), 0.5*(u_lr + u_cl))$ 
+div_u_surf_weak_form_r : calcInnerProdList(surfVars, 1, subst(x=1, bC_p2), 0.5*(u_cr + u_rl))$ 
+div_u_vol_weak_form : calcInnerProdList(varsC, 1, diff(bC_p2, x), uc_e)$ 
+
+div_u_surf_strong_form_l : calcInnerProdList(surfVars, 1, subst(x=-1, bC_p2), 0.5*(u_lr + u_cl) - u_cl)$ 
+div_u_surf_strong_form_r : calcInnerProdList(surfVars, 1, subst(x=1, bC_p2), 0.5*(u_cr + u_rl) - u_cr)$ 
+div_u_vol_strong_form : calcInnerProdList(varsC, 1, bC_p2, diff(uc_e, x))$ 
+
+print(fullratsimp(-div_u_surf_weak_form_l + div_u_surf_weak_form_r - div_u_vol_weak_form))$
+print(fullratsimp(-div_u_surf_strong_form_l + div_u_surf_strong_form_r + div_u_vol_strong_form))$
+
+print(fullratsimp(-div_u_surf_weak_form_l + div_u_surf_weak_form_r - div_u_vol_weak_form - (-div_u_surf_strong_form_l + div_u_surf_strong_form_r + div_u_vol_strong_form)))$

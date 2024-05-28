@@ -25,6 +25,7 @@ calc_pkpm_vars_integrated(fh, funcNm, cdim, polyOrder) := block(
   NC_2p : length(bC_2p),
 
   printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_basis_tensor_~ax_2p_exp_sq.h> ~%", cdim),
   printf(fh, "GKYL_CU_DH void ~a(const double *vlasov_pkpm_moms, 
   const double* pkpm_u, double* GKYL_RESTRICT int_pkpm_vars) ~%{ ~%", funcNm),
   printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
@@ -50,33 +51,26 @@ calc_pkpm_vars_integrated(fh, funcNm, cdim, polyOrder) := block(
   uy_e : doExpand1(uy, bC),
   uz_e : doExpand1(uz, bC),
 
-  /* Project rho*u onto a p/2 basis for integrating rhou and rhou^2 
-     Only need a p/2 basis because u is on a p/2 basis and higher order
-     contributions do not affect the cell average. */
-  printf(fh, "  double rhoux[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double rhouy[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double rhouz[~a] = {0.0}; ~%", NC),
+  printf(fh, "  // Calculate u^2. ~%"),
+  printf(fh, "  double ux_sq[~a] = {0.0}; ~%", NC_2p),
+  printf(fh, "  double uy_sq[~a] = {0.0}; ~%", NC_2p),
+  printf(fh, "  double uz_sq[~a] = {0.0}; ~%", NC_2p),
+  printf(fh, "  tensor_~ax_2p_exp_sq(ux, ux_sq); ~%", cdim),
+  printf(fh, "  tensor_~ax_2p_exp_sq(uy, uy_sq); ~%", cdim),
+  printf(fh, "  tensor_~ax_2p_exp_sq(uz, uz_sq); ~%", cdim),
+  printf(fh, " ~%"),
 
-  rhoux_c : calcInnerProdList(varsC, 1, bC, rho_e*ux_e), 
-  rhouy_c : calcInnerProdList(varsC, 1, bC, rho_e*uy_e), 
-  rhouz_c : calcInnerProdList(varsC, 1, bC, rho_e*uz_e),
-
-  writeCExprs1(rhoux, rhoux_c),  
-  writeCExprs1(rhouy, rhouy_c),  
-  writeCExprs1(rhouz, rhouz_c),
-  printf(fh, "~%"),
-
-  rhoux_e : doExpand1(rhoux, bC),
-  rhouy_e : doExpand1(rhouy, bC),
-  rhouz_e : doExpand1(rhouz, bC),    
+  ux_sq_e : doExpand1(ux_sq, bC_2p),
+  uy_sq_e : doExpand1(uy_sq, bC_2p),
+  uz_sq_e : doExpand1(uz_sq, bC_2p),  
 
   int_rho_c : calcInnerProdList(varsC, 1, [1], rho_e), 
-  int_rhoux_c : calcInnerProdList(varsC, 1, [1], rhoux_e), 
-  int_rhouy_c : calcInnerProdList(varsC, 1, [1], rhouy_e), 
-  int_rhouz_c : calcInnerProdList(varsC, 1, [1], rhouz_e), 
-  int_rhouxSq_c : calcInnerProdList(varsC, 1, [1], rhoux_e*ux_e), 
-  int_rhouySq_c : calcInnerProdList(varsC, 1, [1], rhouy_e*uy_e), 
-  int_rhouzSq_c : calcInnerProdList(varsC, 1, [1], rhouz_e*uz_e), 
+  int_rhoux_c : calcInnerProdList(varsC, 1, [1], rho_e*ux_e), 
+  int_rhouy_c : calcInnerProdList(varsC, 1, [1], rho_e*uy_e), 
+  int_rhouz_c : calcInnerProdList(varsC, 1, [1], rho_e*uz_e), 
+  int_rhouxSq_c : calcInnerProdList(varsC, 1, [1], rho_e*ux_sq_e), 
+  int_rhouySq_c : calcInnerProdList(varsC, 1, [1], rho_e*uy_sq_e), 
+  int_rhouzSq_c : calcInnerProdList(varsC, 1, [1], rho_e*uz_sq_e), 
   int_p_par_c : calcInnerProdList(varsC, 1, [1], p_par_e), 
   int_p_perp_c : calcInnerProdList(varsC, 1, [1], p_perp_e), 
 
