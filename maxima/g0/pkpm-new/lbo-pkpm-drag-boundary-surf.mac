@@ -68,8 +68,10 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, polyOrder) := b
   /* Create pointer to M1_correction to upar. */
   printf(fh, "  const double *sumNuUPar = &nuPrimMomsSum[~a]; ~%", 0),
   printf(fh, "~%"),
+  /* Coordinate transformation for velocity space */
+  vTrans : vx*dvpar/2+wvpar,
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : nuSum_e*((1.0/2.0)*dvpar*vx+wvpar)-nuUSum_e,
+  alphaDr : nuSum_e*vTrans-nuUSum_e,
 
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
   F_0_Skin_e : doExpand1(F_0Skin, bP),
@@ -143,8 +145,8 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, polyOrder) := b
   Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
-  incr_F_0 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_F_0_e),
-  incr_G_1 : calcInnerProdList(surfVars, 1.0, subst(vx=1.0, bP), Ghat_G_1_e),
+  incr_F_0 : calcInnerProdList(surfVars, 1, subst(vx=1, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, 1, subst(vx=1, bP), Ghat_G_1_e),
   
   /* Write out contribution */
   writeCIncrExprs1(out_F_0, dv1par*incr_F_0),
@@ -192,8 +194,8 @@ calcVlasovPKPMLBODragBoundarySurfUpdater(fh, funcNm, cdim, vdim, polyOrder) := b
   Ghat_G_1_e       : doExpand1(Ghat_G_1, bSurf),
 
   /* Increments to the far right skin cell (some dimensional factors missing). */
-  incr_F_0 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_F_0_e),
-  incr_G_1 : calcInnerProdList(surfVars, -1.0, subst(vx=-1.0, bP), Ghat_G_1_e),
+  incr_F_0 : calcInnerProdList(surfVars, -1, subst(vx=-1, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, -1, subst(vx=-1, bP), Ghat_G_1_e),
   
   /* Write out contribution */
   writeCIncrExprs1(out_F_0, dv1par*incr_F_0),

@@ -48,7 +48,7 @@ calcPKPMUpdateMoments(fh, funcNm, cdim, vdim, polyOrder) := block(
   rho : calcInnerProdList(varsP, 1, bC, F_0_e),
   M1 : calcInnerProdList(varsP, vTrans, bC, F_0_e),
   ppar : calcInnerProdList(varsP, vTrans*vTrans, bC, F_0_e),
-  pperp : calcInnerProdList(varsP, 1.0, bC, G_1_e),
+  pperp : calcInnerProdList(varsP, 1, bC, G_1_e),
   
   ppar : map(letsimp, ppar),
 
@@ -91,7 +91,7 @@ calcPKPMDiagMoments(fh, funcNm, cdim, vdim, polyOrder) := block(
   rho : calcInnerProdList(varsP, 1, bC, F_0_e),
   M1 : calcInnerProdList(varsP, vTrans, bC, F_0_e),
   ppar : calcInnerProdList(varsP, vTrans*vTrans, bC, F_0_e),
-  pperp : calcInnerProdList(varsP, 1.0, bC, G_1_e),
+  pperp : calcInnerProdList(varsP, 1, bC, G_1_e),
   qpar : calcInnerProdList(varsP, vTrans*vTrans*vTrans, bC, F_0_e),
   qperp : calcInnerProdList(varsP, vTrans, bC, G_1_e),
   rparpar : calcInnerProdList(varsP, vTrans*vTrans*vTrans*vTrans, bC, F_0_e),

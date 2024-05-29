@@ -230,10 +230,10 @@ calc_pkpm_vlasov_boundary_surf_accel(fh, funcNm, cdim, vdim, polyOrder) := block
   Ghat_G_1_div_b_e : doExpand1(Ghat_G_1_div_b, bSurf),
 
   /* Increments to the far left skin cell (some dimensional factors missing). */
-  incr_F_0 : calcInnerProdList(surfVars, -1.0, subst(vx=1.0, bP), Ghat_F_0_e),
-  incr_G_1 : calcInnerProdList(surfVars, -1.0, subst(vx=1.0, bP), Ghat_G_1_e),
-  incr_F_0_div_b : calcInnerProdList(surfVars, -1.0, subst(vx=1.0, bP), Ghat_F_0_div_b_e),
-  incr_G_1_div_b : calcInnerProdList(surfVars, -1.0, subst(vx=1.0, bP), Ghat_G_1_div_b_e),
+  incr_F_0 : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_G_1_e),
+  incr_F_0_div_b : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_F_0_div_b_e),
+  incr_G_1_div_b : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_G_1_div_b_e),
 
   /* Write out contribution */
   writeCIncrExprs1(out_F_0, dv1par*incr_F_0 + dv1par*incr_F_0_div_b),
@@ -306,10 +306,10 @@ calc_pkpm_vlasov_boundary_surf_accel(fh, funcNm, cdim, vdim, polyOrder) := block
   Ghat_G_1_div_b_e : doExpand1(Ghat_G_1_div_b, bSurf),
 
   /* Increments to the far right edge skin cell (some dimensional factors missing). */
-  incr_F_0 : calcInnerProdList(surfVars, 1.0, subst(vx=-1.0, bP), Ghat_F_0_e),
-  incr_G_1 : calcInnerProdList(surfVars, 1.0, subst(vx=-1.0, bP), Ghat_G_1_e),
-  incr_F_0_div_b : calcInnerProdList(surfVars, 1.0, subst(vx=-1.0, bP), Ghat_F_0_div_b_e),
-  incr_G_1_div_b : calcInnerProdList(surfVars, 1.0, subst(vx=-1.0, bP), Ghat_G_1_div_b_e),
+  incr_F_0 : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_F_0_e),
+  incr_G_1 : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_G_1_e),
+  incr_F_0_div_b : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_F_0_div_b_e),
+  incr_G_1_div_b : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_G_1_div_b_e),
 
   /* Write out contribution */
   writeCIncrExprs1(out_F_0, dv1par*incr_F_0 + dv1par*incr_F_0_div_b),

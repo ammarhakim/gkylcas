@@ -113,10 +113,10 @@ calc_pkpm_div_ppar(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   F_0r_e : doExpand1(F_0r,bP),
 
   /* Project F_0 onto the surface basis on the left and right of the interfaces */
-  F_0_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0l_e)),
-  F_0_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0c_e)),
-  F_0_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0c_e)),
-  F_0_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0r_e)),
+  F_0_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, F_0l_e)),
+  F_0_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, F_0c_e)),
+  F_0_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, F_0c_e)),
+  F_0_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, F_0r_e)),
 
   printf(fh, "  double F_0_lr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double F_0_cl[~a] = {0.0}; ~%", NSurf),
@@ -273,8 +273,8 @@ calc_pkpm_div_ppar(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   Ghat_F_0_vpar_r_e : doExpand1(Ghat_F_0_vpar_r, bSurf),
 
   /* Compute surface and volume contributions for integral(vpar phi^- Ghat) and integral(vpar grad(phi) Ghat). */
-  incr_F_0_l : calcInnerProdList(surfVars, -vTrans, subst(cv=-1.0, bC), Ghat_F_0_vpar_l_e),
-  incr_F_0_r : calcInnerProdList(surfVars, vTrans, subst(cv=1.0, bC), Ghat_F_0_vpar_r_e),
+  incr_F_0_l : calcInnerProdList(surfVars, -vTrans, subst(cv=-1, bC), Ghat_F_0_vpar_l_e),
+  incr_F_0_r : calcInnerProdList(surfVars, vTrans, subst(cv=1, bC), Ghat_F_0_vpar_r_e),
   incr_F_0_vol : calcInnerProdList(varsP, vTrans, diff(bC,cv), alphaVol_e*F_0c_e),
   writeCIncrExprsCollect1lhsc(pkpm_div_ppar, volFact*dx1*(incr_F_0_l + incr_F_0_r - incr_F_0_vol)),  
   printf(fh, "~%"),

@@ -39,6 +39,8 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
    F_0r_lx_temp, F_0r_lx_temp_e, G_1r_lx_temp, G_1r_lx_temp_e, 
    out_F_0_c, out_G_1_c],
 
+  kill(varsC, bC, varsP, bP),
+
   [varsC,bC,varsP,bP] : loadPhaseBasis("Tensor", cdim, vdim, polyOrder),
 
   /* Number of basis monomials. */
@@ -79,8 +81,6 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   /* Load a p=1 basis for the surface expansion of the flow velocity */
   bSurfConf_p1 : basisFromVars("Tensor",surfConfVars,1),
 
-  basisStr : sconcat("tensor_", cdim+vdim, "x_p", polyOrder), 
-
   /* If cdim = 1, need to set the size of the surface basis because the surface basis is empty */
   if (cdim = 1) then (
     NSurfConf : 1,
@@ -120,15 +120,15 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   G_1r_e : doExpand1(G_1r,bP),
 
   /* Project F_0 and G_1 onto the surface basis on the left and right of the interfaces */
-  F_0_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0l_e)),
-  F_0_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0c_e)),
-  F_0_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, F_0c_e)),
-  F_0_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, F_0r_e)),
+  F_0_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, F_0l_e)),
+  F_0_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, F_0c_e)),
+  F_0_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, F_0c_e)),
+  F_0_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, F_0r_e)),
 
-  G_1_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, G_1l_e)),
-  G_1_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, G_1c_e)),
-  G_1_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1.0, G_1c_e)),
-  G_1_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1.0, G_1r_e)),
+  G_1_lr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, G_1l_e)),
+  G_1_cl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, G_1c_e)),
+  G_1_cr_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, G_1c_e)),
+  G_1_rl_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, G_1r_e)),
 
   printf(fh, "  double F_0_lr[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double F_0_cl[~a] = {0.0}; ~%", NSurf),
@@ -433,16 +433,16 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   Ghat_G_1_u_r_e : doExpand1(Ghat_G_1_u_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) for div(vpar b_hat F_0) and div(vpar b_hat G_1) on the left and right. */
-  incr_F_0_vpar_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_F_0_vpar_l_e),
-  incr_F_0_vpar_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_F_0_vpar_r_e),
-  incr_G_1_vpar_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_G_1_vpar_l_e),
-  incr_G_1_vpar_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_G_1_vpar_r_e),
+  incr_F_0_vpar_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bP), Ghat_F_0_vpar_l_e),
+  incr_F_0_vpar_r : calcInnerProdList(surfVars, -1, subst(cv=1, bP), Ghat_F_0_vpar_r_e),
+  incr_G_1_vpar_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bP), Ghat_G_1_vpar_l_e),
+  incr_G_1_vpar_r : calcInnerProdList(surfVars, -1, subst(cv=1, bP), Ghat_G_1_vpar_r_e),
 
   /* Compute surface contribution integral(phi^- Ghat) for div(u F_0) and div(u G_1) on the left and right. */
-  incr_F_0_u_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_F_0_u_l_e),
-  incr_F_0_u_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_F_0_u_r_e),
-  incr_G_1_u_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_G_1_u_l_e),
-  incr_G_1_u_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_G_1_u_r_e),
+  incr_F_0_u_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bP), Ghat_F_0_u_l_e),
+  incr_F_0_u_r : calcInnerProdList(surfVars, -1, subst(cv=1, bP), Ghat_F_0_u_r_e),
+  incr_G_1_u_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bP), Ghat_G_1_u_l_e),
+  incr_G_1_u_r : calcInnerProdList(surfVars, -1, subst(cv=1, bP), Ghat_G_1_u_r_e),
   writeCIncrExprsCollect1lhsc(out_F_0, dx1*incr_F_0_vpar_l + dx1*incr_F_0_vpar_r + dx1*incr_F_0_u_l + dx1*incr_F_0_u_r),  
   writeCIncrExprsCollect1lhsc(out_G_1, dx1*incr_G_1_vpar_l + dx1*incr_G_1_vpar_r + dx1*incr_G_1_u_l + dx1*incr_G_1_u_r),  
   printf(fh, "~%"),
@@ -735,15 +735,15 @@ calc_pkpm_vlasov_surf_accel(fh, funcNm, cdim, vdim, polyOrder) := block(
   Ghat_G_1_div_b_r_e : doExpand1(Ghat_G_1_div_b_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
-  incr_F_0_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_F_0_l_e),
-  incr_F_0_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_F_0_r_e),
-  incr_G_1_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_G_1_l_e),
-  incr_G_1_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_G_1_r_e),
+  incr_F_0_l : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_F_0_l_e),
+  incr_F_0_r : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_F_0_r_e),
+  incr_G_1_l : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_G_1_l_e),
+  incr_G_1_r : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_G_1_r_e),
 
-  incr_F_0_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_F_0_div_b_l_e),
-  incr_F_0_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_F_0_div_b_r_e),
-  incr_G_1_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1.0, bP), Ghat_G_1_div_b_l_e),
-  incr_G_1_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1.0, bP), Ghat_G_1_div_b_r_e),
+  incr_F_0_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_F_0_div_b_l_e),
+  incr_F_0_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_F_0_div_b_r_e),
+  incr_G_1_div_b_l : calcInnerProdList(surfVars, 1, subst(vx=-1, bP), Ghat_G_1_div_b_l_e),
+  incr_G_1_div_b_r : calcInnerProdList(surfVars, -1, subst(vx=1, bP), Ghat_G_1_div_b_r_e),
 
   writeCIncrExprsCollect1lhsc(out_F_0, dv1par*incr_F_0_l + dv1par*incr_F_0_r + dv1par*incr_F_0_div_b_l + dv1par*incr_F_0_div_b_r),  
   writeCIncrExprsCollect1lhsc(out_G_1, dv1par*incr_G_1_l + dv1par*incr_G_1_r + dv1par*incr_G_1_div_b_l + dv1par*incr_G_1_div_b_r),  

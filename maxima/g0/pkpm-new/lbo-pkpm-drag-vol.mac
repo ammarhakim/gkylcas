@@ -62,8 +62,10 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, polyOrder) := block(
   /* Create pointer to M1_correction to upar. */
   printf(fh, "  const double *sumNuUPar = &nuPrimMomsSum[~a]; ~%", 0),
   printf(fh, "~%"),
+  /* Coordinate transformation for velocity space */
+  vTrans : vx*dvpar/2+wvpar,
   /* Calculate the alpha-velocity due to drag. */
-  alphaDr : nuSum_e*((1.0/2.0)*dvpar*vx+wvpar)-nuUSum_e,
+  alphaDr : nuSum_e*vTrans-nuUSum_e,
 
   /* alphaDrag = rdvpar*< psi, -(nu*(v - M1_corr)) >. */
   printf(fh, "  double alphaDrag[~a]; ~%", NP),
