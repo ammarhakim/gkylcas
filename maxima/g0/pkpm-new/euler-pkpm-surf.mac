@@ -153,8 +153,8 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
      [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
       |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
       |uz_zl| + sqrt(Tzz_zl), |uz_zr| + sqrt(Tzz_zr)] */
-  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf_2p),
-  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf),
+  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf),
   printf(fh, "~%"),
 
   printf(fh, "  double *outrhou0 = &out[~a]; ~%", 0*NC),
@@ -549,10 +549,10 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
   bSurf_2p : basisFromVars("Tensor",surfVars,2*polyOrder),
   NSurf_2p : length(bSurf_2p),
 
-  basisStr : sconcat("tensor_", cdim, "x", "_p", 2*polyOrder),
+  basisStr : sconcat("tensor_", cdim, "x", "_p", polyOrder),
 
   /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  surfNodes : gaussOrd(2*polyOrder+1, cdim-1),
+  surfNodes : gaussOrd(polyOrder+1, cdim-1),
   numNodes : length(surfNodes),
 
   printf(fh, "  const double dx1 = 2.0/dxv[~a]; ~%", dir-1),
@@ -630,8 +630,8 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
      [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
       |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
       |uz_zl| + sqrt(Tzz_zl), |uz_zr| + sqrt(Tzz_zr)] */
-  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf_2p),
-  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf),
+  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf),
   printf(fh, "~%"),
 
   printf(fh, "  double *outrhou0 = &out[~a]; ~%", 0*NC),
@@ -667,8 +667,8 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
   uz_surf_cr_e : doExpand1(uz_surf_cr, bSurf),
   uz_surf_rl_e : doExpand1(uz_surf_rl, bSurf),
 
-  pkpm_lax_l_e : doExpand1(pkpm_lax_l, bSurf_2p),
-  pkpm_lax_r_e : doExpand1(pkpm_lax_r, bSurf_2p),
+  pkpm_lax_l_e : doExpand1(pkpm_lax_l, bSurf),
+  pkpm_lax_r_e : doExpand1(pkpm_lax_r, bSurf),
 
   /* Evaluate surface u_i at surface nodes for Roe solve */
   ux_surf_lr_n : gcfac(float(evAtNodes(ux_surf_lr_e,surfNodes,surfVars))),
@@ -853,21 +853,21 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
   avg_p_ij_z_l_e : doExpand1(avg_p_ij_z_l, bSurf_2p),
   avg_p_ij_z_r_e : doExpand1(avg_p_ij_z_r, bSurf_2p),
 
-  /* Evaluate fluctuations at quadrature points using order 2*p basis */
-  printf(fh, "  double amdq_rhoux_l[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhoux_l[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double amdq_rhouy_l[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhouy_l[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double amdq_rhouz_l[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhouz_l[~a] = {0.0}; ~%", NSurf_2p),
+  /* Evaluate fluctuations at quadrature points using order p basis */
+  printf(fh, "  double amdq_rhoux_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhoux_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double amdq_rhouy_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhouy_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double amdq_rhouz_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhouz_l[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
 
-  printf(fh, "  double amdq_rhoux_r[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhoux_r[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double amdq_rhouy_r[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhouy_r[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double amdq_rhouz_r[~a] = {0.0}; ~%", NSurf_2p),
-  printf(fh, "  double apdq_rhouz_r[~a] = {0.0}; ~%", NSurf_2p),
+  printf(fh, "  double amdq_rhoux_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhoux_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double amdq_rhouy_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhouy_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double amdq_rhouz_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double apdq_rhouz_r[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
 
   printf(fh, "  double amdq_rhoux_quad_l[~a] = {0.0}; ~%", numNodes),
@@ -1069,21 +1069,21 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "~%"),
 
   /* Expand fluctuations in the surface basis */
-  amdq_rhoux_l_e : doExpand1(amdq_rhoux_l, bSurf_2p),
-  amdq_rhouy_l_e : doExpand1(amdq_rhouy_l, bSurf_2p),
-  amdq_rhouz_l_e : doExpand1(amdq_rhouz_l, bSurf_2p),
+  amdq_rhoux_l_e : doExpand1(amdq_rhoux_l, bSurf),
+  amdq_rhouy_l_e : doExpand1(amdq_rhouy_l, bSurf),
+  amdq_rhouz_l_e : doExpand1(amdq_rhouz_l, bSurf),
 
-  apdq_rhoux_l_e : doExpand1(apdq_rhoux_l, bSurf_2p),
-  apdq_rhouy_l_e : doExpand1(apdq_rhouy_l, bSurf_2p),
-  apdq_rhouz_l_e : doExpand1(apdq_rhouz_l, bSurf_2p),
+  apdq_rhoux_l_e : doExpand1(apdq_rhoux_l, bSurf),
+  apdq_rhouy_l_e : doExpand1(apdq_rhouy_l, bSurf),
+  apdq_rhouz_l_e : doExpand1(apdq_rhouz_l, bSurf),
 
-  amdq_rhoux_r_e : doExpand1(amdq_rhoux_r, bSurf_2p),
-  amdq_rhouy_r_e : doExpand1(amdq_rhouy_r, bSurf_2p),
-  amdq_rhouz_r_e : doExpand1(amdq_rhouz_r, bSurf_2p),
+  amdq_rhoux_r_e : doExpand1(amdq_rhoux_r, bSurf),
+  amdq_rhouy_r_e : doExpand1(amdq_rhouy_r, bSurf),
+  amdq_rhouz_r_e : doExpand1(amdq_rhouz_r, bSurf),
 
-  apdq_rhoux_r_e : doExpand1(apdq_rhoux_r, bSurf_2p),
-  apdq_rhouy_r_e : doExpand1(apdq_rhouy_r, bSurf_2p),
-  apdq_rhouz_r_e : doExpand1(apdq_rhouz_r, bSurf_2p),
+  apdq_rhoux_r_e : doExpand1(apdq_rhoux_r, bSurf),
+  apdq_rhouy_r_e : doExpand1(apdq_rhouy_r, bSurf),
+  apdq_rhouz_r_e : doExpand1(apdq_rhouz_r, bSurf),
 
   /* Compute the increments on the left and right from Ghat expansions */
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), flux_rho_l_e*0.5*(ux_surf_cl_e + ux_surf_lr_e) + avg_p_ij_x_l_e - 0.5*(apdq_rhoux_l_e - amdq_rhoux_l_e)),

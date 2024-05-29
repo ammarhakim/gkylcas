@@ -19,54 +19,6 @@ load("nodal_operations/nodal_functions")$
 fpprec : 24$
 cvars : [x, y, z]$
 
-pkpm_p_force(fh, funcNm, cdim, polyOrder) := block(
-  [varsC, bC, bC_2p, NC, NC_2p, 
-   pkpm_div_ppar_e, p_perp_div_b_e, p_force_c],
-
-  kill(varsC, bC),
-  kill(varsC, bC_2p),
-
-  /* Load basis of dimensionality requested. Loads a basis of order p and p/2*/
-  [varsC,bC] : loadBasis("Tensor", cdim, 1),
-  [varsC,bC_2p] : loadBasis("Tensor", cdim, polyOrder),
-
-  /* Number of basis monomials. */
-  NC : length(bC),
-  NC_2p : length(bC_2p),
-
-  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *prim_c, const double *div_b, 
-  double* GKYL_RESTRICT pkpm_accel) ~%{ ~%", funcNm),
-  printf(fh, "  // prim_c:     Input volume expansion of primitive variables in center cell. ~%"),
-  printf(fh, "  //             [1/rho div(p_par b), T_perp/m, m/T_perp, 3*Txx/m, 3*Tyy/m, 3*Tzz/m]. ~%"),
-  printf(fh, "  // div_b:      Input volume expansion of div(b) in center cell. ~%"),
-  printf(fh, "  // pkpm_accel: Output volume expansion of pkpm acceleration variables. ~%"),
-  printf(fh, "~%"),
-
-  /* For computing p_force = 1/rho div(p_par b) - T_perp/m*div(b) */
-  printf(fh, "  const double *pkpm_div_ppar = &prim_c[~a]; ~%", 0*NC_2p),
-  printf(fh, "  const double *T_perp_over_m = &prim_c[~a]; ~%", 1*NC_2p),
-  printf(fh, "~%"),
-
-  printf(fh, "  double *p_perp_div_b = &pkpm_accel[~a]; ~%", 0*NC_2p),
-  printf(fh, "  double *p_force = &pkpm_accel[~a]; ~%", 2*NC_2p),
-  printf(fh, "~%"),
-
-  printf(fh, "  binop_mul_~ad_tensor_p~a(T_perp_over_m, div_b, p_perp_div_b); ~%", cdim, polyOrder),
-  printf(fh, "~%"),
-
-  pkpm_div_ppar_e : doExpand1(pkpm_div_ppar, bC_2p),
-  p_perp_div_b_e : doExpand1(p_perp_div_b, bC_2p),
-
-  /* 1/rho div(p_par b) already included in p_force from linear solve */
-  p_force_c : calcInnerProdList(varsC, 1, bC_2p, pkpm_div_ppar_e-p_perp_div_b_e),
-  writeCIncrExprsCollect1lhsc(p_force, p_force_c),   
-  printf(fh, "~%"),
-
-  printf(fh, "} ~%")
-)$
-
 pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   [varsC, bC, bC_2p, NC, NC_2p, cv, surfVars, bSurf, NSurf, surfConfNodes, numConfNodes, 
    ux_surf_lr_e, ux_surf_cl_e, ux_surf_cr_e, ux_surf_rl_e, 
@@ -107,28 +59,28 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
     NSurf : length(bSurf), 
     bSurf_2p : basisFromVars("Tensor", surfVars, polyOrder),
     NSurf_2p : length(bSurf_2p), 
-    surfConfNodes : gaussOrd(polyOrder+1, cdim-1),
+    /* Quadrature evaluation only utilizes a p=1 basis */
+    surfConfNodes : gaussOrd(2, cdim-1),
     numConfNodes : length(surfConfNodes)
   ), 
 
   printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_surfx~a_eval_quad.h> ~%", cdim, polyOrder, dir),
   if (cdim > 1) then (
-    printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_upwind_quad_to_modal.h> ~%", cdim, polyOrder)
+    printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_upwind_quad_to_modal.h> ~%", cdim, 1)
   ),
   printf(fh, "GKYL_CU_DH void ~a(const double *dxv, 
   const double *u_surf_l, const double *u_surf_c, const double *u_surf_r, 
-  const double *prim_l, const double *prim_c, const double *prim_r, 
-  const double *pkpm_u_c, const double *bvar_c, const double *nu_c, 
+  const double *prim_surf_l, const double *prim_surf_c, const double *prim_surf_r, 
+  const double *pkpm_u_c, const double *bb_c, const double *nu_c, 
   double* GKYL_RESTRICT pkpm_lax, double* GKYL_RESTRICT pkpm_accel) ~%{ ~%", funcNm),
   printf(fh, "  // dxv[NDIM]:       Cell spacing.~%"),
   printf(fh, "  // u_surf_l/c/r: Input surface flow velocity expansion in left/center/right cells in each direction.~%"),
   printf(fh, "  //               [ux_xl, ux_xr, uy_xl, uy_xr, uz_xl, uz_xr, ~%"),
   printf(fh, "  //                ux_yl, ux_yr, uy_yl, uy_yr, uz_yl, uz_yr, ~%"),
   printf(fh, "  //                ux_zl, ux_zr, uy_zl, uy_zr, uz_zl, uz_zr]  ~%"),
-  printf(fh, "  // prim_l/c/r:   Input volume expansion of primitive variables [1/rho div(p_par b), T_perp/m, m/T_perp, 3*Txx/m, 3*Tyy/m, 3*Tzz/m] in left/center/right cells.~%"),
+  printf(fh, "  // prim_surf_l/c/r: Input surface primitive variables [3*T_ii/m] in left/center/right cells in each direction.~%"),
   printf(fh, "  // pkpm_u_c:     Input volume expansion of flow velocity in center cell.~%"),
-  printf(fh, "  // bvar_c:       Input volume expansion of magnetic field unit vector and tensor in center cell.~%"),
+  printf(fh, "  // bb_c:         Input volume expansion of magnetic field unit tensor in center cell.~%"),
   printf(fh, "  // nu_c:         Input volume expansion of collisionality in center cell.~%"),
   printf(fh, "  // pkpm_lax:     Surface expansion of pkpm Lax penalization: lambda_i = |u_i| + sqrt(3.0*T_ii/m).~%"),
   printf(fh, "  // pkpm_accel:   Volume expansion of pkpm acceleration variables.~%"),
@@ -141,12 +93,12 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  const double *uy_c = &pkpm_u_c[~a]; ~%", 1*NC),
   printf(fh, "  const double *uz_c = &pkpm_u_c[~a]; ~%", 2*NC),
   printf(fh, "~%"),
-  printf(fh, "  const double *bxbx = &bvar_c[~a]; ~%", 3*NC_2p),
-  printf(fh, "  const double *bxby = &bvar_c[~a]; ~%", 4*NC_2p),
-  printf(fh, "  const double *bxbz = &bvar_c[~a]; ~%", 5*NC_2p),
-  printf(fh, "  const double *byby = &bvar_c[~a]; ~%", 6*NC_2p),
-  printf(fh, "  const double *bybz = &bvar_c[~a]; ~%", 7*NC_2p),
-  printf(fh, "  const double *bzbz = &bvar_c[~a]; ~%", 8*NC_2p),
+  printf(fh, "  const double *bxbx = &bb_c[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *bxby = &bb_c[~a]; ~%", 1*NC_2p),
+  printf(fh, "  const double *bxbz = &bb_c[~a]; ~%", 2*NC_2p),
+  printf(fh, "  const double *byby = &bb_c[~a]; ~%", 3*NC_2p),
+  printf(fh, "  const double *bybz = &bb_c[~a]; ~%", 4*NC_2p),
+  printf(fh, "  const double *bzbz = &bb_c[~a]; ~%", 5*NC_2p),
   printf(fh, "~%"),
 
   /* Surface flow velocity is organized as:
@@ -174,17 +126,18 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "~%"),
 
   /* Volume expansion of 3*Tii/m for Lax penalization */
-  printf(fh, "  const double *Tii_l = &prim_l[~a]; ~%", (3 + (dir-1))*NC_2p),
-  printf(fh, "  const double *Tii_c = &prim_c[~a]; ~%", (3 + (dir-1))*NC_2p),
-  printf(fh, "  const double *Tii_r = &prim_r[~a]; ~%", (3 + (dir-1))*NC_2p),
+  printf(fh, "  const double *Tii_surf_lr = &prim_surf_l[~a]; ~%", (1 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  const double *Tii_surf_cl = &prim_surf_c[~a]; ~%", (0 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  const double *Tii_surf_cr = &prim_surf_c[~a]; ~%", (1 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  const double *Tii_surf_rl = &prim_surf_r[~a]; ~%", (0 + (dir-1)*2)*NSurf_2p),
   printf(fh, "~%"),
 
   /* Surface Lax penalization organized as (note T_ii = 3*P_ii/rho, includes necessary factors) : 
      [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
       |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
       |uz_zl| + sqrt(Tzz_zl), |uz_zr| + sqrt(Tzz_zr)] */
-  printf(fh, "  double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf_2p),
-  printf(fh, "  double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf_2p),
+  printf(fh, "  double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurf),
+  printf(fh, "  double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurf),
   printf(fh, "~%"),
 
   printf(fh, "  double *bb_grad_u = &pkpm_accel[~a]; ~%", 1*NC_2p),
@@ -205,16 +158,10 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
 
     printf(fh, "  double max_u_l = fmax(fabs(ux_surf_lr[0]), fabs(ux_surf_cl[0])); ~%"),
     printf(fh, "  double max_u_r = fmax(fabs(ux_surf_cr[0]), fabs(ux_surf_rl[0])); ~%"),
-
-    printf(fh, "  double Tiil_r = tensor_1x_p~a_surfx1_eval_quad_node_0_r(Tii_l); ~%", polyOrder),
-    printf(fh, "  double Tiic_l = tensor_1x_p~a_surfx1_eval_quad_node_0_l(Tii_c); ~%", polyOrder),  
-    printf(fh, "  double Tiic_r = tensor_1x_p~a_surfx1_eval_quad_node_0_r(Tii_c); ~%", polyOrder),
-    printf(fh, "  double Tiir_l = tensor_1x_p~a_surfx1_eval_quad_node_0_l(Tii_r); ~%", polyOrder),  
-
-    printf(fh, "  double max_vth_l = fmax(sqrt(fabs(Tiil_r)), sqrt(fabs(Tiic_l))); ~%"),
-    printf(fh, "  double max_vth_r = fmax(sqrt(fabs(Tiic_r)), sqrt(fabs(Tiir_l))); ~%"),  
+    printf(fh, "  double max_vth_l = fmax(sqrt(fabs(Tii_surf_lr[0])), sqrt(fabs(Tii_surf_cl[0]))); ~%"),
+    printf(fh, "  double max_vth_r = fmax(sqrt(fabs(Tii_surf_cr[0])), sqrt(fabs(Tii_surf_rl[0]))); ~%"),  
     printf(fh, "  pkpm_lax_l[0] = max_u_l + max_vth_l; ~%"),
-    printf(fh, "  pkpm_lax_r[0] = max_u_r + max_vth_r; ~%")  
+    printf(fh, "  pkpm_lax_r[0] = max_u_r + max_vth_r; ~%") 
   )
   else (
     ux_surf_lr_e : doExpand1(ux_surf_lr, bSurf),
@@ -244,6 +191,15 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
 
     /* Compute surface expansion of pkpm Lax penalization by evaluating u_i, T_ii
        at quadrature points and finding max(|u_i_l|, |u_i_r|) + max(sqrt(T_ii_l, T_ii_r)) */
+    Tii_surf_lr_e : doExpand1(Tii_surf_lr, bSurf_2p),
+    Tii_surf_cl_e : doExpand1(Tii_surf_cl, bSurf_2p),
+    Tii_surf_cr_e : doExpand1(Tii_surf_cr, bSurf_2p),
+    Tii_surf_rl_e : doExpand1(Tii_surf_rl, bSurf_2p),
+
+    Tii_quad_surf_lr : expand(float(evAtNodes(Tii_surf_lr_e,surfConfNodes,surfVars))),
+    Tii_quad_surf_cl : expand(float(evAtNodes(Tii_surf_cl_e,surfConfNodes,surfVars))),
+    Tii_quad_surf_cr : expand(float(evAtNodes(Tii_surf_cr_e,surfConfNodes,surfVars))),
+    Tii_quad_surf_rl : expand(float(evAtNodes(Tii_surf_rl_e,surfConfNodes,surfVars))),
     if (dir = 1) then (
       u_quad_surf_lr : expand(float(evAtNodes(ux_surf_lr_e,surfConfNodes,surfVars))),
       u_quad_surf_cl : expand(float(evAtNodes(ux_surf_cl_e,surfConfNodes,surfVars))),
@@ -275,8 +231,8 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
     printf(fh, "  double Tiir_l = 0.0; ~%"),
     printf(fh, "  double TiiQuad_l = 0.0; ~%"),
     printf(fh, "  double TiiQuad_r = 0.0; ~%"),
-    printf(fh, "  double pkpm_lax_quad_l[~a] = {0.0}; ~%", NSurf_2p),
-    printf(fh, "  double pkpm_lax_quad_r[~a] = {0.0}; ~%", NSurf_2p),
+    printf(fh, "  double pkpm_lax_quad_l[~a] = {0.0}; ~%", NSurf),
+    printf(fh, "  double pkpm_lax_quad_r[~a] = {0.0}; ~%", NSurf),
     printf(fh, "~%"),
     for i : 1 thru numConfNodes do (
       printf(fh, "  ul_r = ~a; ~%", u_quad_surf_lr[i]),
@@ -286,10 +242,10 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
       printf(fh, "  uQuad_l = fmax(fabs(ul_r), fabs(uc_l)); ~%"),
       printf(fh, "  uQuad_r = fmax(fabs(uc_r), fabs(ur_l)); ~%"),
 
-      printf(fh, "  Tiil_r = tensor_~ax_p~a_surfx~a_eval_quad_node_~a_r(Tii_l); ~%", cdim, polyOrder, dir, i-1),
-      printf(fh, "  Tiic_l = tensor_~ax_p~a_surfx~a_eval_quad_node_~a_l(Tii_c); ~%", cdim, polyOrder, dir, i-1),
-      printf(fh, "  Tiic_r = tensor_~ax_p~a_surfx~a_eval_quad_node_~a_r(Tii_c); ~%", cdim, polyOrder, dir, i-1),
-      printf(fh, "  Tiir_l = tensor_~ax_p~a_surfx~a_eval_quad_node_~a_l(Tii_r); ~%", cdim, polyOrder, dir, i-1),      
+      printf(fh, "  Tiil_r = ~a; ~%", Tii_quad_surf_lr[i]),
+      printf(fh, "  Tiic_l = ~a; ~%", Tii_quad_surf_cl[i]),
+      printf(fh, "  Tiic_r = ~a; ~%", Tii_quad_surf_cr[i]),
+      printf(fh, "  Tiir_l = ~a; ~%", Tii_quad_surf_rl[i]),      
       printf(fh, "  TiiQuad_l = fmax(sqrt(fabs(Tiil_r)), sqrt(fabs(Tiic_l))); ~%"),
       printf(fh, "  TiiQuad_r = fmax(sqrt(fabs(Tiic_r)), sqrt(fabs(Tiir_l))); ~%"),
 
@@ -297,8 +253,8 @@ pkpm_accel_vars(dir, fh, funcNm, cdim, polyOrder) := block(
       printf(fh, "  pkpm_lax_quad_r[~a] = uQuad_r + TiiQuad_r; ~%", i-1),
       printf(fh, "~%")
     ),
-    printf(fh, "  tensor_~ax_p~a_upwind_quad_to_modal(pkpm_lax_quad_l, pkpm_lax_l); ~%", cdim, polyOrder),
-    printf(fh, "  tensor_~ax_p~a_upwind_quad_to_modal(pkpm_lax_quad_r, pkpm_lax_r); ~%", cdim, polyOrder)
+    printf(fh, "  tensor_~ax_p~a_upwind_quad_to_modal(pkpm_lax_quad_l, pkpm_lax_l); ~%", cdim, 1),
+    printf(fh, "  tensor_~ax_p~a_upwind_quad_to_modal(pkpm_lax_quad_r, pkpm_lax_r); ~%", cdim, 1)
   ),
   printf(fh, "~%"),
 

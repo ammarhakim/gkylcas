@@ -1,0 +1,384 @@
+/* This script generates the kernels for calculating the *surface* primitive 
+   variables required to update the PKPM system. Surface primitive variables include:
+   1. 3.0*Txx/m at left and right x surfaces
+   2. 3.0*Tyy/m at left and right y surfaces
+   3. 3.0*Tzz/m at left and right z surfaces 
+
+   In 1D, these surface expansions can be generated with simple division. 
+   In 2D/3D, these surface expansions require weak division. */
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+fpprec : 24$
+cvars : [x, y, z]$
+
+/* Special set of kernels which compute the surface primitive moments in 1D, which
+   can be done with simple division without the need for a linear solve */
+set_pkpm_prim_surf_1d(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, NC, 
+   Pxxc_e, rhoc_e, Pxxc_l, Pxxc_r, rhoc_l, rhoc_r],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *vlasov_pkpm_moms, const double *p_ij) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // A:                preallocated LHS matrix. ~%"),
+  printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
+  printf(fh, "  // vlasov_pkpm_moms: Input [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // p_ij:             p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "~%"),
+
+  /* Surface primitive variables are organized as:
+     [Txx_xl, Txx_xr, Tyy_yl, Tyy_yr, Tzz_zl, Tzz_zr] */
+
+  printf(fh, "  // For poly_order = 1, we can analytically invert the matrix and just store the solution ~%"),
+  printf(fh, "  struct gkyl_mat rhs_Txx_l = gkyl_nmat_get(rhs, count); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_Txx_r = gkyl_nmat_get(rhs, count+1); ~%"),
+
+  printf(fh, "  // Clear rhs for each component of primitive variables being solved for ~%"),
+  printf(fh, "  gkyl_mat_clear(&rhs_Txx_l, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&rhs_Txx_r, 0.0); ~%"),
+
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
+
+  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC),
+
+  Pxxc_e : doExpand1(Pxx, bC),
+  rhoc_e : doExpand1(rho, bC), 
+
+  Pxxc_l : subst(x=-1, Pxxc_e),
+  Pxxc_r : subst(x=1, Pxxc_e),
+  rhoc_l : subst(x=-1, rhoc_e),
+  rhoc_r : subst(x=1, rhoc_e),
+
+  /* Arrays for storing surface evaluation in 1D */
+  printf(fh, "  double Txx_l = 0.0; ~%"),
+  printf(fh, "  double Txx_r = 0.0; ~%"),
+
+  printf(fh, "  double rho_l = ~a; ~%", float(expand(rhoc_l))),
+  printf(fh, "  double rho_r = ~a; ~%", float(expand(rhoc_r))),
+  printf(fh, "  double Pxx_l = ~a; ~%", float(expand(Pxxc_l))),
+  printf(fh, "  double Pxx_r = ~a; ~%", float(expand(Pxxc_r))),
+
+  printf(fh, "  Txx_l = 3.0*Pxx_l/rho_l; ~%"),
+  printf(fh, "  Txx_r = 3.0*Pxx_r/rho_r; ~%"),
+
+  printf(fh, " ~%"),
+
+  printf(fh,"  gkyl_mat_set(&rhs_Txx_l,0,0,Txx_l); ~%"),
+  printf(fh,"  gkyl_mat_set(&rhs_Txx_r,0,0,Txx_r); ~%"),
+
+  printf(fh, "} ~%")
+)$
+
+/* Kernels for constructing the linear solve in cdim > 1 with p > 1 */
+set_pkpm_prim_surf(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, NC, surfVarsx, bSurfx, surfVarsy, bSurfy, surfVarsz, bSurfz, NSurf, 
+   Pxxc_e, Pyyc_e, Pzzc_e, rhoc_e, 
+   Pxx_xl_c, Pxx_xr_c, Pyy_yl_c, Pyy_yr_c, Pzz_zl_c, Pzz_zr_c, 
+   rho_xl_c, rho_xr_c, rho_yl_c, rho_yr_c, rho_zl_c, rho_zr_c, 
+   rho_xl_e, rho_xr_e, rho_yl_e, rho_yr_e, rho_zl_e, rho_zr_e, 
+   uxe, uxn, eq_rho_xl, E_rho_xl, eq_rho_xr, E_rho_xr, 
+   uye, uyn, eq_rho_yl, E_rho_yl, eq_rho_yr, E_rho_yr, 
+   uze, uzn, eq_rho_zl, E_rho_zl, eq_rho_zr, E_rho_zr],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars("Tensor",surfVarsx,polyOrder),
+  surfVarsy : delete(y,varsC),
+  bSurfy : basisFromVars("Tensor",surfVarsy,polyOrder),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars("Tensor",surfVarsz,polyOrder)
+  ),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  NSurf : length(bSurfx), 
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *vlasov_pkpm_moms, const double *p_ij) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // count:            integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // A:                preallocated LHS matrix. ~%"),
+  printf(fh, "  // rhs:              preallocated RHS vector. ~%"),
+  printf(fh, "  // vlasov_pkpm_moms: [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model.~%"),
+  printf(fh, "  // p_ij:             p_ij = (p_par - p_perp) b_i b_j + p_perp g_ij.~%"),
+  printf(fh, "~%"),
+
+  /* Surface primitive variables are organized as:
+     [Txx_xl, Txx_xr, Tyy_yl, Tyy_yr, Tzz_zl, Tzz_zr] */
+
+  printf(fh, "  struct gkyl_mat A_Txx_xl = gkyl_nmat_get(A, count); ~%"),
+  printf(fh, "  struct gkyl_mat A_Txx_xr = gkyl_nmat_get(A, count+1); ~%"),
+  printf(fh, "  struct gkyl_mat A_Tyy_yl = gkyl_nmat_get(A, count+2); ~%"),
+  printf(fh, "  struct gkyl_mat A_Tyy_yr = gkyl_nmat_get(A, count+3); ~%"),
+
+  printf(fh, "  struct gkyl_mat rhs_Txx_xl = gkyl_nmat_get(rhs, count); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_Txx_xr = gkyl_nmat_get(rhs, count+1); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_Tyy_yl = gkyl_nmat_get(rhs, count+2); ~%"),
+  printf(fh, "  struct gkyl_mat rhs_Tyy_yr = gkyl_nmat_get(rhs, count+3); ~%"),
+  if (cdim = 3) then (
+    printf(fh, "  struct gkyl_mat A_Tzz_zl = gkyl_nmat_get(A, count+4); ~%"),
+    printf(fh, "  struct gkyl_mat A_Tzz_zr = gkyl_nmat_get(A, count+5); ~%"),
+
+    printf(fh, "  struct gkyl_mat rhs_Tzz_zl = gkyl_nmat_get(rhs, count+4); ~%"),
+    printf(fh, "  struct gkyl_mat rhs_Tzz_zr = gkyl_nmat_get(rhs, count+5); ~%")
+  ),
+
+  printf(fh, "  // Clear A and rhs for each component of primitive variables being solved for ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_Txx_xl, 0.0); gkyl_mat_clear(&rhs_Txx_xl, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_Txx_xr, 0.0); gkyl_mat_clear(&rhs_Txx_xr, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_Tyy_yl, 0.0); gkyl_mat_clear(&rhs_Tyy_yl, 0.0); ~%"),
+  printf(fh, "  gkyl_mat_clear(&A_Tyy_yr, 0.0); gkyl_mat_clear(&rhs_Tyy_yr, 0.0); ~%"),
+  if (cdim = 3) then (
+    printf(fh, "  gkyl_mat_clear(&A_Tzz_zl, 0.0); gkyl_mat_clear(&rhs_Tzz_zl, 0.0); ~%"),
+    printf(fh, "  gkyl_mat_clear(&A_Tzz_zr, 0.0); gkyl_mat_clear(&rhs_Tzz_zr, 0.0); ~%")
+  ),
+
+  printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pxx = &p_ij[~a]; ~%", 0*NC),
+  printf(fh, "  const double *Pyy = &p_ij[~a]; ~%", 3*NC),
+
+  Pxxc_e : doExpand1(Pxx, bC),
+  Pyyc_e : doExpand1(Pyy, bC),
+  Pzzc_e : doExpand1(Pzz, bC),
+  rhoc_e : doExpand1(rho, bC), 
+
+  Pxx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, Pxxc_e)),
+  Pxx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, Pxxc_e)),
+  rho_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, rhoc_e)),
+  rho_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, rhoc_e)),
+
+  Pyy_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, Pyyc_e)),
+  Pyy_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, Pyyc_e)),
+  rho_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, rhoc_e)),
+  rho_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, rhoc_e)),
+
+  if (cdim = 3) then (
+    printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC),
+
+    Pzz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, Pzzc_e)),
+    Pzz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, Pzzc_e)),
+    rho_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, rhoc_e)),
+    rho_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, rhoc_e))
+  ),
+
+  /* Allocate and write out rho at interfaces for matrix construction */
+  printf(fh, "  double rho_xl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double rho_xr[~a] = {0.0}; ~%", NSurf),
+  writeCExprs1(rho_xl, rho_xl_c), 
+  writeCExprs1(rho_xr, rho_xr_c), 
+  rho_xl_e : doExpand1(rho_xl, bSurfx),
+  rho_xr_e : doExpand1(rho_xr, bSurfx),
+
+  printf(fh, "  double rho_yl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double rho_yr[~a] = {0.0}; ~%", NSurf),
+  writeCExprs1(rho_yl, rho_yl_c), 
+  writeCExprs1(rho_yr, rho_yr_c), 
+  rho_yl_e : doExpand1(rho_yl, bSurfy),
+  rho_yr_e : doExpand1(rho_yr, bSurfy),
+
+  if (cdim = 3) then (
+    printf(fh, "  double rho_zl[~a] = {0.0}; ~%", NSurf),
+    printf(fh, "  double rho_zr[~a] = {0.0}; ~%", NSurf),
+    writeCExprs1(rho_zl, rho_zl_c), 
+    writeCExprs1(rho_zr, rho_zr_c),
+    rho_zl_e : doExpand1(rho_zl, bSurfz),
+    rho_zr_e : doExpand1(rho_zr, bSurfz)
+  ),
+  
+  /* Temporary arrays for storing surface expansions of rho and P_ii at x surfaces */
+  printf(fh, "  double Pxx_xl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Pxx_xr[~a] = {0.0}; ~%", NSurf),
+  printf(fh, " ~%"),
+
+  writeCExprs1(Pxx_xl, 3.0*Pxx_xl_c), 
+  writeCExprs1(Pxx_xr, 3.0*Pxx_xr_c), 
+
+  /* Temporary arrays for storing surface expansions of rho and P_ii at y surfaces */
+  printf(fh, "  double Pyy_yl[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Pyy_yr[~a] = {0.0}; ~%", NSurf),
+  printf(fh, " ~%"),
+
+  writeCExprs1(Pyy_yl, 3.0*Pyy_yl_c), 
+  writeCExprs1(Pyy_yr, 3.0*Pyy_yr_c), 
+  printf(fh, " ~%"), 
+  if (cdim = 3) then (
+    /* Temporary arrays for storing surface expansions of rho and P_ii at z surfaces */
+    printf(fh, "  double Pzz_zl[~a] = {0.0}; ~%", NSurf),
+    printf(fh, "  double Pzz_zr[~a] = {0.0}; ~%", NSurf),
+    printf(fh, " ~%"),
+
+    writeCExprs1(Pzz_zl, 3.0*Pzz_zl_c), 
+    writeCExprs1(Pzz_zr, 3.0*Pzz_zr_c), 
+    printf(fh, " ~%")
+  ),
+
+  for i : 1 thru NSurf do (
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xl,~a,0,Pxx_xl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Txx_xr,~a,0,Pxx_xr[~a]); ~%", i-1, i-1),
+    printf(fh, " ~%"), 
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yl,~a,0,Pyy_yl[~a]); ~%", i-1, i-1),
+    printf(fh,"  gkyl_mat_set(&rhs_Tyy_yr,~a,0,Pyy_yr[~a]); ~%", i-1, i-1),
+    printf(fh, " ~%"), 
+    if (cdim = 3) then (
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zl,~a,0,Pzz_zl[~a]); ~%", i-1, i-1),
+      printf(fh,"  gkyl_mat_set(&rhs_Tzz_zr,~a,0,Pzz_zr[~a]); ~%", i-1, i-1),
+      printf(fh, " ~%")
+    )
+  ),
+
+  /* Generate matrix of unknown coefficients for x surfaces */
+  uxe : doExpand1(ux,bSurfx),
+  uxn : makelist(ux[i],i,0,NSurf-1),
+  eq_rho_xl : calcInnerProdList(surfVarsx,uxe,bSurfx,rho_xl_e),
+  E_rho_xl : fullratsimp(coefmatrix(eq_rho_xl,uxn)),
+  eq_rho_xr : calcInnerProdList(surfVarsx,uxe,bSurfx,rho_xr_e),
+  E_rho_xr : fullratsimp(coefmatrix(eq_rho_xr,uxn)),
+
+  /* Generate matrix of unknown coefficients for y surfaces */
+  uye : doExpand1(uy,bSurfy),
+  uyn : makelist(uy[i],i,0,NSurf-1),
+  eq_rho_yl : calcInnerProdList(surfVarsy,uye,bSurfy,rho_yl_e),
+  E_rho_yl : fullratsimp(coefmatrix(eq_rho_yl,uyn)),
+  eq_rho_yr : calcInnerProdList(surfVarsy,uye,bSurfy,rho_yr_e),
+  E_rho_yr : fullratsimp(coefmatrix(eq_rho_yr,uyn)),
+
+  /* declare temporary variables since multiple matrix entries in A are the same */
+  printf(fh, "  double temp_rho_xl = 0.0; ~%"),
+  printf(fh, "  double temp_rho_xr = 0.0; ~%"),
+  printf(fh, "  double temp_rho_yl = 0.0; ~%"),
+  printf(fh, "  double temp_rho_yr = 0.0; ~%"),
+
+  /* Generate matrix of unknown coefficients and temporary variables for z surfaces */
+  if (cdim = 3) then (
+    uze : doExpand1(uz,bSurfz),
+    uzn : makelist(uz[i],i,0,NSurf-1),
+    eq_rho_zl : calcInnerProdList(surfVarsz,uze,bSurfz,rho_zl_e),
+    E_rho_zl : fullratsimp(coefmatrix(eq_rho_zl,uzn)),
+    eq_rho_zr : calcInnerProdList(surfVarsz,uze,bSurfz,rho_zr_e),
+    E_rho_zr : fullratsimp(coefmatrix(eq_rho_zr,uzn)),
+    printf(fh, "  double temp_rho_zl = 0.0; ~%"),
+    printf(fh, "  double temp_rho_zr = 0.0; ~%")
+  ),
+  /* Matrix is dense so just do a simple write routine */
+  for i : 1 thru NSurf do (
+    for j : 1 thru NSurf do (
+      printf(fh,"  temp_rho_xl = ~a; ~%", float(expand(E_rho_xl[i,j]))),
+      printf(fh,"  gkyl_mat_set(&A_Txx_xl,~a,~a,~a); ~%", i-1, j-1, temp_rho_xl),
+      printf(fh, " ~%"),
+
+      printf(fh,"  temp_rho_xr = ~a; ~%", float(expand(E_rho_xr[i,j]))),
+      printf(fh,"  gkyl_mat_set(&A_Txx_xr,~a,~a,~a); ~%", i-1, j-1, temp_rho_xr),
+      printf(fh, " ~%"),
+
+      printf(fh,"  temp_rho_yl = ~a; ~%", float(expand(E_rho_yl[i,j]))),
+      printf(fh,"  gkyl_mat_set(&A_Tyy_yl,~a,~a,~a); ~%", i-1, j-1, temp_rho_yl),
+      printf(fh, " ~%"),
+
+      printf(fh,"  temp_rho_yr = ~a; ~%", float(expand(E_rho_yr[i,j]))),
+      printf(fh,"  gkyl_mat_set(&A_Tyy_yr,~a,~a,~a); ~%", i-1, j-1, temp_rho_yr),
+      printf(fh, " ~%"),
+      if (cdim = 3) then (
+        printf(fh,"  temp_rho_zl = ~a; ~%", float(expand(E_rho_zl[i,j]))),
+        printf(fh,"  gkyl_mat_set(&A_Tzz_zl,~a,~a,~a); ~%", i-1, j-1, temp_rho_zl),
+        printf(fh, " ~%"),
+
+        printf(fh,"  temp_rho_zr = ~a; ~%", float(expand(E_rho_zr[i,j]))),
+        printf(fh,"  gkyl_mat_set(&A_Tzz_zr,~a,~a,~a); ~%", i-1, j-1, temp_rho_zr),
+        printf(fh, " ~%")
+      )
+    )
+  ),  
+  printf(fh, "} ~%")
+)$
+
+copy_pkpm_prim_surf(fh, funcNm, cdim, polyOrder) := block(
+  [varsC, bC, NC, surfVarsx, bSurfx, NSurf],
+
+  kill(varsC, basisC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis("Tensor", cdim, polyOrder),
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars("Tensor",surfVarsx,polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+  if (cdim = 1) then (
+    NSurf : 1
+  )
+  else (
+    NSurf : length(bSurfx)
+  ),
+
+  printf(fh, "#include <gkyl_mat.h> ~%"),
+  printf(fh, "#include <gkyl_euler_pkpm_kernels.h> ~%"),
+  /* Function declaration with input/output variables. */
+  printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT prim_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // count: integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // x:     Input solution vector. ~%"),
+  printf(fh, "  // prim_surf: Primitive variables at surfaces.~%"),
+  printf(fh, " ~%"),
+
+  /* Surface primitive variables are organized as:
+     [Txx_xl, Txx_xr, Tyy_yl, Tyy_yr, Tzz_zl, Tzz_zr] */
+
+  printf(fh, "  struct gkyl_mat x_Txx_xl = gkyl_nmat_get(x, count); ~%"),
+  printf(fh, "  struct gkyl_mat x_Txx_xr = gkyl_nmat_get(x, count+1); ~%"),
+  printf(fh, " ~%"), 
+  printf(fh, "  double *Txx_xl = &prim_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  double *Txx_xr = &prim_surf[~a]; ~%", 1*NSurf),
+  printf(fh, " ~%"), 
+  if (cdim > 1) then (
+    printf(fh, "  struct gkyl_mat x_Tyy_yl = gkyl_nmat_get(x, count+2); ~%"),
+    printf(fh, "  struct gkyl_mat x_Tyy_yr = gkyl_nmat_get(x, count+3); ~%"),
+    printf(fh, " ~%"), 
+    printf(fh, "  double *Tyy_yl = &prim_surf[~a]; ~%", 2*NSurf),
+    printf(fh, "  double *Tyy_yr = &prim_surf[~a]; ~%", 3*NSurf),
+    printf(fh, " ~%")
+  ),
+  if (cdim = 3) then (
+    printf(fh, "  struct gkyl_mat x_Tzz_zl = gkyl_nmat_get(x, count+4); ~%"),
+    printf(fh, "  struct gkyl_mat x_Tzz_zr = gkyl_nmat_get(x, count+5); ~%"),
+    printf(fh, " ~%"), 
+    printf(fh, "  double *Tzz_zl = &prim_surf[~a]; ~%", 4*NSurf),
+    printf(fh, "  double *Tzz_zr = &prim_surf[~a]; ~%", 5*NSurf),
+    printf(fh, " ~%")
+  ),
+  for i : 1 thru NSurf do (
+    printf(fh,"  Txx_xl[~a] = gkyl_mat_get(&x_Txx_xl,~a,0); ~%", i-1, i-1),
+    printf(fh,"  Txx_xr[~a] = gkyl_mat_get(&x_Txx_xr,~a,0); ~%", i-1, i-1), 
+    printf(fh, " ~%"), 
+    if (cdim > 1) then (
+      printf(fh,"  Tyy_yl[~a] = gkyl_mat_get(&x_Tyy_yl,~a,0); ~%", i-1, i-1),
+      printf(fh,"  Tyy_yr[~a] = gkyl_mat_get(&x_Tyy_yr,~a,0); ~%", i-1, i-1), 
+      printf(fh, " ~%")
+    ), 
+    if (cdim = 3) then (
+      printf(fh,"  Tzz_zl[~a] = gkyl_mat_get(&x_Tzz_zl,~a,0); ~%", i-1, i-1),
+      printf(fh,"  Tzz_zr[~a] = gkyl_mat_get(&x_Tzz_zr,~a,0); ~%", i-1, i-1),
+      printf(fh, " ~%")
+    )
+  ),
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
+)$

@@ -30,8 +30,9 @@ calcDGExpSqrtSign_2p(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  // ASqrt: Output DG field (expansion of sqrt(A), with sign determined by Asign). ~%"),
   printf(fh, " ~%"),
 
-  /* Nodes given by tensor product of Gauss-Legendre quadrature points */
-  nodes : gaussOrd(polyOrder+1, cdim),
+  /* Nodes given by tensor product of Gauss-Legendre quadrature points 
+     Note that the nodal basis is only order p. */
+  nodes : gaussOrd(2, cdim),
   numNodes : length(nodes),  
   /* A is order 2*p, but ASign is only order p */
   A_e : doExpand1(A, bC_2p),
@@ -54,10 +55,10 @@ calcDGExpSqrtSign_2p(fh, funcNm, cdim, polyOrder) := block(
   flush_output(fh),
 
   /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
-  basisNodal  : getVarsNodalBasisWithNodes("Tensor", cdim, polyOrder, varsC, nodes),
+  basisNodal  : getVarsNodalBasisWithNodes("Tensor", cdim, 1, varsC, nodes),
   AOrdNodal_e : doExpand1(AOrd,basisNodal),
   /* Project nodal basis back onto modal basis */
-  AOrdModProj_e : fullratsimp(calcInnerProdList(varsC, 1, bC_2p, AOrdNodal_e)),
+  AOrdModProj_e : fullratsimp(calcInnerProdList(varsC, 1, bC, AOrdNodal_e)),
 
   writeCExprs1(ASqrt, AOrdModProj_e),
   printf(fh, "~%"),

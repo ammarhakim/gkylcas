@@ -203,15 +203,17 @@ copybvar(fh, funcNm, cdim, polyOrder) := block(
   NC : length(bC),
   NC_2p : length(bC_2p),
 
+  /* Surface basis for evaluating magnetic field unit vector
+     Only p=1 because magnetic field unit vector is lower order */
   surfVarsx : delete(x,varsC),
-  bSurfx : basisFromVars("Tensor",surfVarsx,polyOrder),
+  bSurfx : basisFromVars("Tensor",surfVarsx,1),
   if (cdim > 1) then (
     surfVarsy : delete(y,varsC),
-    bSurfy : basisFromVars("Tensor",surfVarsy,polyOrder)
+    bSurfy : basisFromVars("Tensor",surfVarsy,1)
   ),
   if (cdim = 3) then (
     surfVarsz : delete(z,varsC),
-    bSurfz : basisFromVars("Tensor",surfVarsz,polyOrder)
+    bSurfz : basisFromVars("Tensor",surfVarsz,1)
   ),
 
   /* Number of basis monomials. */
@@ -227,12 +229,13 @@ copybvar(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "#include <gkyl_basis_tensor_~ax_2p_sqrt_with_sign.h> ~%", cdim),
   /* Function declaration with input/output variables. */
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
-    double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
+    double* GKYL_RESTRICT bb, double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
   printf(fh, "  // count:       Integer to indicate which matrix being fetched. ~%"),
   printf(fh, "  // x:           Input solution vector. ~%"),
   printf(fh, "  // em:          Input electromagnetic fields. ~%"),
   printf(fh, "  // cell_avg_bb: Output flag for cell average if bb only used cell averages. ~%"),
-  printf(fh, "  // bvar:        Output volume expansion of b_i = B_i/|B| (first 3 components), b_i b_j = B_i B_j/|B|^2 (last 6 components). ~%"),
+  printf(fh, "  // bb:          Output volume expansion of b_i b_j = B_i B_j/|B|^2 (6 components). ~%"),
+  printf(fh, "  // bvar:        Output volume expansion of b_i = B_i/|B| (3 components). ~%"),
   printf(fh, "  // bvar_surf:   Output surface expansion of b_i = B_i/|B|. ~%"),
   printf(fh, "  //              [bx_xl, bx_xr, by_yl, by_yr, bz_zl, bz_zr]. ~%"),
   printf(fh, " ~%"),
@@ -244,15 +247,17 @@ copybvar(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  struct gkyl_mat x_bybz = gkyl_nmat_get(x, count+4); ~%"),
   printf(fh, "  struct gkyl_mat x_bzbz = gkyl_nmat_get(x, count+5); ~%"),
 
-  printf(fh, "  double *bx = &bvar[~a]; ~%", NC_2p*0),
-  printf(fh, "  double *by = &bvar[~a]; ~%", NC_2p*1),
-  printf(fh, "  double *bz = &bvar[~a]; ~%", NC_2p*2),
-  printf(fh, "  double *bxbx = &bvar[~a]; ~%", NC_2p*3),
-  printf(fh, "  double *bxby = &bvar[~a]; ~%", NC_2p*4),
-  printf(fh, "  double *bxbz = &bvar[~a]; ~%", NC_2p*5),
-  printf(fh, "  double *byby = &bvar[~a]; ~%", NC_2p*6),
-  printf(fh, "  double *bybz = &bvar[~a]; ~%", NC_2p*7),
-  printf(fh, "  double *bzbz = &bvar[~a]; ~%", NC_2p*8),
+  printf(fh, "  double *bx = &bvar[~a]; ~%", NC*0),
+  printf(fh, "  double *by = &bvar[~a]; ~%", NC*1),
+  printf(fh, "  double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double *bxbx = &bb[~a]; ~%", NC_2p*0),
+  printf(fh, "  double *bxby = &bb[~a]; ~%", NC_2p*1),
+  printf(fh, "  double *bxbz = &bb[~a]; ~%", NC_2p*2),
+  printf(fh, "  double *byby = &bb[~a]; ~%", NC_2p*3),
+  printf(fh, "  double *bybz = &bb[~a]; ~%", NC_2p*4),
+  printf(fh, "  double *bzbz = &bb[~a]; ~%", NC_2p*5),
   printf(fh, " ~%"),
 
   for i : 1 thru NC_2p do (
@@ -273,14 +278,16 @@ copybvar(fh, funcNm, cdim, polyOrder) := block(
      at the quadrature points we use to evaluate the sqrt. If any of these
      points are negative, we switch to just the cell average of b_i b_j */
   /* Expand b and bb */
-  bx_e : doExpand1(bx, bC_2p),
-  by_e : doExpand1(by, bC_2p),
-  bz_e : doExpand1(bz, bC_2p),
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
   bxbx_e : doExpand1(bxbx, bC_2p),
   byby_e : doExpand1(byby, bC_2p),
   bzbz_e : doExpand1(bzbz, bC_2p),
 
-  nodes : gaussOrd(polyOrder+1, cdim),
+  /* We only use a p=1 basis for the magnetic field unit vector b, 
+     so we only need two quadrature points */
+  nodes : gaussOrd(2, cdim),
   bxbxQuad : expand(float(evAtNodes(bxbx_e,nodes,varsC))),
   bybyQuad : expand(float(evAtNodes(byby_e,nodes,varsC))),
   bzbzQuad : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
@@ -311,7 +318,6 @@ copybvar(fh, funcNm, cdim, polyOrder) := block(
 
   printf(fh, "  // Calculate b_i = B_i/|B| by taking square root of B_i^2/|B|^2 at quadrature points. ~%"),
   printf(fh, "  // Uses the sign of B_i at quadrature points to get the correct sign of b_i. ~%"),
-  printf(fh, "  // Also checks if B_i^2/|B|^2 < 0.0 at quadrature points and zeros out the value there. ~%"),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_x, bxbx, bx); ~%", cdim),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_y, byby, by); ~%", cdim),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_z, bzbz, bz); ~%", cdim),
@@ -540,17 +546,41 @@ copydiag(fh, funcNm, cdim, polyOrder) := block(
   NC : length(bC),
   NC_2p : length(bC_2p),
 
+  /* Surface basis for evaluating magnetic field unit vector
+     Only p=1 because magnetic field unit vector is lower order */
+  surfVarsx : delete(x,varsC),
+  bSurfx : basisFromVars("Tensor",surfVarsx,1),
+  if (cdim > 1) then (
+    surfVarsy : delete(y,varsC),
+    bSurfy : basisFromVars("Tensor",surfVarsy,1)
+  ),
+  if (cdim = 3) then (
+    surfVarsz : delete(z,varsC),
+    bSurfz : basisFromVars("Tensor",surfVarsz,1)
+  ),
+
+  /* Number of basis monomials. */
+  if (cdim = 1) then (
+    NSurf : 1
+  )
+  else (
+    NSurf : length(bSurfx)
+  ),
+
   printf(fh, "#include <gkyl_mat.h> ~%"),
   printf(fh, "#include <gkyl_maxwell_kernels.h> ~%"),
   printf(fh, "#include <gkyl_basis_tensor_~ax_2p_sqrt_with_sign.h> ~%", cdim),
   /* Function declaration with input/output variables. */
   printf(fh, "GKYL_CU_DH void ~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
-    double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // count:       Integer to indicate which matrix being fetched. ~%"),
-  printf(fh, "  // x:           Input solution vector. ~%"),
-  printf(fh, "  // em:          Input electromagnetic fields. ~%"),
-  printf(fh, "  // cell_avg_bb: Output flag for cell average if bb only used cell averages. ~%"),
-  printf(fh, "  // out:         Output volume expansion of diagnostic EM variables. ~%"),
+    double* GKYL_RESTRICT em_vars_diag, double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // count:        Integer to indicate which matrix being fetched. ~%"),
+  printf(fh, "  // x:            Input solution vector. ~%"),
+  printf(fh, "  // em:           Input electromagnetic fields. ~%"),
+  printf(fh, "  // cell_avg_bb:  Output flag for cell average if bb only used cell averages. ~%"),
+  printf(fh, "  // em_vars_diag: Output volume expansion of diagnostic EM variables [bb, ExB/|B|^2]. ~%"),
+  printf(fh, "  // bvar:         Output volume expansion of b_i = B_i/|B| (3 components). ~%"),
+  printf(fh, "  // bvar_surf:    Output surface expansion of b_i = B_i/|B|. ~%"),
+  printf(fh, "  //               [bx_xl, bx_xr, by_yl, by_yr, bz_zl, bz_zr]. ~%"),
   printf(fh, " ~%"),
 
   printf(fh, "  struct gkyl_mat x_bxbx = gkyl_nmat_get(x, count); ~%"),
@@ -563,18 +593,20 @@ copydiag(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  struct gkyl_mat x_ExBy = gkyl_nmat_get(x, count+7); ~%"),
   printf(fh, "  struct gkyl_mat x_ExBz = gkyl_nmat_get(x, count+8); ~%"),
 
-  printf(fh, "  double *bx = &out[~a]; ~%", NC_2p*0),
-  printf(fh, "  double *by = &out[~a]; ~%", NC_2p*1),
-  printf(fh, "  double *bz = &out[~a]; ~%", NC_2p*2),
-  printf(fh, "  double *bxbx = &out[~a]; ~%", NC_2p*3),
-  printf(fh, "  double *bxby = &out[~a]; ~%", NC_2p*4),
-  printf(fh, "  double *bxbz = &out[~a]; ~%", NC_2p*5),
-  printf(fh, "  double *byby = &out[~a]; ~%", NC_2p*6),
-  printf(fh, "  double *bybz = &out[~a]; ~%", NC_2p*7),
-  printf(fh, "  double *bzbz = &out[~a]; ~%", NC_2p*8),
-  printf(fh, "  double *ExBx = &out[~a]; ~%", NC_2p*9),
-  printf(fh, "  double *ExBy = &out[~a]; ~%", NC_2p*10),
-  printf(fh, "  double *ExBz = &out[~a]; ~%", NC_2p*11),
+  printf(fh, "  double *bx = &bvar[~a]; ~%", NC*0),
+  printf(fh, "  double *by = &bvar[~a]; ~%", NC*1),
+  printf(fh, "  double *bz = &bvar[~a]; ~%", NC*2),
+  printf(fh, " ~%"),
+
+  printf(fh, "  double *bxbx = &em_vars_diag[~a]; ~%", NC_2p*0),
+  printf(fh, "  double *bxby = &em_vars_diag[~a]; ~%", NC_2p*1),
+  printf(fh, "  double *bxbz = &em_vars_diag[~a]; ~%", NC_2p*2),
+  printf(fh, "  double *byby = &em_vars_diag[~a]; ~%", NC_2p*3),
+  printf(fh, "  double *bybz = &em_vars_diag[~a]; ~%", NC_2p*4),
+  printf(fh, "  double *bzbz = &em_vars_diag[~a]; ~%", NC_2p*5),
+  printf(fh, "  double *ExBx = &em_vars_diag[~a]; ~%", NC_2p*6),
+  printf(fh, "  double *ExBy = &em_vars_diag[~a]; ~%", NC_2p*7),
+  printf(fh, "  double *ExBz = &em_vars_diag[~a]; ~%", NC_2p*8),
   printf(fh, " ~%"),
 
   for i : 1 thru NC_2p do (
@@ -598,14 +630,16 @@ copydiag(fh, funcNm, cdim, polyOrder) := block(
      at the quadrature points we use to evaluate the sqrt. If any of these
      points are negative, we switch to just the cell average of b_i b_j */
   /* Expand b and bb */
-  bx_e : doExpand1(bx, bC_2p),
-  by_e : doExpand1(by, bC_2p),
-  bz_e : doExpand1(bz, bC_2p),
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
   bxbx_e : doExpand1(bxbx, bC_2p),
   byby_e : doExpand1(byby, bC_2p),
   bzbz_e : doExpand1(bzbz, bC_2p),
 
-  nodes : gaussOrd(polyOrder+1, cdim),
+  /* We only use a p=1 basis for the magnetic field unit vector b, 
+     so we only need two quadrature points */
+  nodes : gaussOrd(2, cdim),
   bxbxQuad : expand(float(evAtNodes(bxbx_e,nodes,varsC))),
   bybyQuad : expand(float(evAtNodes(byby_e,nodes,varsC))),
   bzbzQuad : expand(float(evAtNodes(bzbz_e,nodes,varsC))),
@@ -636,11 +670,56 @@ copydiag(fh, funcNm, cdim, polyOrder) := block(
 
   printf(fh, "  // Calculate b_i = B_i/|B| by taking square root of B_i^2/|B|^2 at quadrature points. ~%"),
   printf(fh, "  // Uses the sign of B_i at quadrature points to get the correct sign of b_i. ~%"),
-  printf(fh, "  // Also checks if B_i^2/|B|^2 < 0.0 at quadrature points and zeros out the value there. ~%"),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_x, bxbx, bx); ~%", cdim),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_y, byby, by); ~%", cdim),
   printf(fh, "  tensor_~ax_2p_sqrt_with_sign(B_z, bzbz, bz); ~%", cdim),
   printf(fh, " ~%"),
 
-  printf(fh, "} ~%")
+  /* Now compute needed surface expansions */
+  printf(fh, "  double *bx_xl = &bvar_surf[~a]; ~%", 0*NSurf),
+  printf(fh, "  double *bx_xr = &bvar_surf[~a]; ~%", 1*NSurf),
+  printf(fh, " ~%"), 
+  if (cdim = 1) then (
+    printf(fh, "  bx_xl[0] = ~a; ~%", float(expand(subst(x=-1, bx_e)))),
+    printf(fh, "  bx_xr[0] = ~a; ~%", float(expand(subst(x=1, bx_e)))),
+    printf(fh, " ~%")
+  )
+  else (
+    bx_xl_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=-1, bx_e)),
+    writeCExprs1(bx_xl, bx_xl_c), 
+    printf(fh, " ~%"), 
+
+    bx_xr_c : calcInnerProdList(surfVarsx, 1, bSurfx, subst(x=1, bx_e)),
+    writeCExprs1(bx_xr, bx_xr_c),  
+    printf(fh, " ~%")
+  ),
+  if (cdim > 1) then (
+    printf(fh, "  double *by_yl = &bvar_surf[~a]; ~%", 2*NSurf),
+    printf(fh, "  double *by_yr = &bvar_surf[~a]; ~%", 3*NSurf),
+    printf(fh, " ~%"), 
+
+    by_yl_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=-1, by_e)),
+    writeCExprs1(by_yl, by_yl_c), 
+    printf(fh, " ~%"), 
+
+    by_yr_c : calcInnerProdList(surfVarsy, 1, bSurfy, subst(y=1, by_e)),
+    writeCExprs1(by_yr, by_yr_c), 
+    printf(fh, " ~%")
+  ),
+  if (cdim = 3) then (
+    printf(fh, "  double *bz_zl = &bvar_surf[~a]; ~%", 4*NSurf),
+    printf(fh, "  double *bz_zr = &bvar_surf[~a]; ~%", 5*NSurf),
+    printf(fh, " ~%"), 
+
+    bz_zl_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=-1, bz_e)),
+    writeCExprs1(bz_zl, bz_zl_c), 
+    printf(fh, " ~%"), 
+
+    bz_zr_c : calcInnerProdList(surfVarsz, 1, bSurfz, subst(z=1, bz_e)),
+    writeCExprs1(bz_zr, bz_zr_c),  
+    printf(fh, " ~%")
+  ),  
+
+  printf(fh, "} ~%"),
+  printf(fh, " ~%")
 )$

@@ -39,12 +39,12 @@ printEmVarsPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid em_calc_BB_~ax_~a_p~a(const double *em, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_set_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *BB); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_copy_bvar_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
-  double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf); ~%", deco, ci, bStr, pi),
+  double* GKYL_RESTRICT bb, double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf); ~%", deco, ci, bStr, pi),
 
   printf(fh, "~avoid em_set_diag_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
   const double *em, const double *BB); ~%", deco, ci, bStr, pi),
   printf(fh, "~avoid em_copy_diag_~ax_~a_p~a(int count, struct gkyl_nmat *x, const double *em, int* cell_avg_bb, 
-  double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+  double* GKYL_RESTRICT em_vars_diag, double* GKYL_RESTRICT bvar, double* GKYL_RESTRICT bvar_surf); ~%", deco, ci, bStr, pi),
 
   for si : 1 thru ci do (
     printf(fh, "~avoid em_div_b_~a_~ax_~a_p~a(const double *dxv, 

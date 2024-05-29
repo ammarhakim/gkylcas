@@ -13,14 +13,22 @@ clabels : ["x","y","z"]$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
 
-  printf(fh, "~avoid pkpm_vars_pressure_~ax_~a_p~a(const double *bvar, const double *vlasov_pkpm_moms, double* GKYL_RESTRICT p_ij); ~%", deco, ci, bStr, 2*pi),
-  printf(fh, "~avoid pkpm_vars_p_force_~ax_~a_p~a(const double *prim_c, const double *div_b, double* GKYL_RESTRICT pkpm_accel); ~%", deco, ci, bStr, 2*pi),
+  printf(fh, "~avoid pkpm_vars_pressure_~ax_~a_p~a(const double *bb, const double *vlasov_pkpm_moms, double* GKYL_RESTRICT p_ij); ~%", deco, ci, bStr, 2*pi),
 
   printf(fh, "~aint pkpm_vars_set_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
-  const double *vlasov_pkpm_moms, const double *p_ij, const double *pkpm_div_ppar); ~%", deco, ci, bStr, 2*pi),
-  printf(fh, "~avoid pkpm_vars_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT prim); ~%", deco, ci, bStr, 2*pi),
+  const double *vlasov_pkpm_moms, const double *p_ij, 
+  const double *pkpm_div_ppar, const double *div_b); ~%", deco, ci, bStr, 2*pi),
+
+  printf(fh, "~avoid pkpm_vars_surf_set_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  const double *vlasov_pkpm_moms, const double *p_ij); ~%", deco, ci, bStr, 2*pi), 
+
+  printf(fh, "~avoid pkpm_vars_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, 
+  double* GKYL_RESTRICT pkpm_prim, double* GKYL_RESTRICT pkpm_accel); ~%", deco, ci, bStr, 2*pi),
+
+  printf(fh, "~avoid pkpm_vars_surf_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT prim_surf); ~%", deco, ci, bStr, 2*pi),
 
   printf(fh, "~avoid pkpm_vars_integrated_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *pkpm_u, double* GKYL_RESTRICT pkpm_int_vars); ~%", deco, ci, bStr, 2*pi),
+
   printf(fh, "~avoid pkpm_vars_io_~ax_~a_p~a(const double *vlasov_pkpm_moms, const double *pkpm_u, 
   const double* p_ij, const double* prim, const double* pkpm_accel, 
   double* GKYL_RESTRICT fluid_io, double* GKYL_RESTRICT pkpm_vars_io); ~%", deco, ci, bStr, 2*pi),
@@ -29,7 +37,9 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
 
   printf(fh, "~aint pkpm_vars_u_set_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
   const double *vlasov_pkpm_moms, const double *euler_pkpm); ~%", deco, ci, bStr, pi),
+
   printf(fh, "~avoid pkpm_vars_u_copy_~ax_~a_p~a(int count, struct gkyl_nmat *x, double* GKYL_RESTRICT pkpm_u); ~%", deco, ci, bStr, pi),
+
   printf(fh, "~avoid pkpm_vars_u_surf_~ax_~a_p~a(const double* pkpm_u, double* GKYL_RESTRICT pkpm_u_surf); ~%", deco, ci, bStr, pi),
 
   printf(fh, "~avoid euler_pkpm_em_coupling_set_~ax_~a_p~a(int count, int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, bool pkpm_field_static, double dt, 
@@ -37,6 +47,7 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
   const double *app_accel[GKYL_MAX_SPECIES], const double *ext_em, const double *app_current, 
   const double *vlasov_pkpm_moms[GKYL_MAX_SPECIES], const double* pkpm_u[GKYL_MAX_SPECIES], 
   double* GKYL_RESTRICT em); ~%", deco, ci, bStr, pi),
+  
   printf(fh, "~avoid euler_pkpm_em_coupling_copy_~ax_~a_p~a(int count, int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, struct gkyl_nmat *x, 
   const double *vlasov_pkpm_moms[GKYL_MAX_SPECIES], const double* pkpm_u[GKYL_MAX_SPECIES], 
   double* GKYL_RESTRICT euler_pkpm[GKYL_MAX_SPECIES], double* GKYL_RESTRICT em) ; ~%", deco, ci, bStr, pi),
@@ -50,7 +61,7 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
     printf(fh, "~avoid pkpm_vars_accel_~a_~ax_~a_p~a(const double *dxv, 
     const double *u_surf_l, const double *u_surf_c, const double *u_surf_r, 
     const double *prim_l, const double *prim_c, const double *prim_r, 
-    const double *pkpm_u_c, const double *bvar_c, const double *nu_c, 
+    const double *pkpm_u_c, const double *bb_c, const double *nu_c, 
     double* GKYL_RESTRICT pkpm_lax, double* GKYL_RESTRICT pkpm_accel); ~%", deco, clabels[si], ci, bStr, 2*pi),  
 
     printf(fh, "~avoid euler_pkpm_limiter_~a_~ax_~a_p~a(double limiter_fac, const struct gkyl_wv_eqn *wv_eqn, 

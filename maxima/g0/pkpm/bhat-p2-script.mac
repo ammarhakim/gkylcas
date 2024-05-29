@@ -1,0 +1,86 @@
+cdim : 1$
+
+load("modal-basis")$
+load("scifac")$
+load("nodal_operations/nodal_functions")$
+[varsC,bC] : loadBasis("Tensor", cdim, 1)$
+[varsC,bC_p2] : loadBasis("Tensor", cdim, 2)$
+NC : length(bC)$
+NC_p2 : length(bC_p2)$
+
+/* magnetic field */
+Bx_e : doExpand1(Bx, bC)$
+By_e : doExpand1(By, bC)$
+Bz_e : doExpand1(Bz, bC)$
+
+BxSq_c : calcInnerProdList(varsC, 1, bC_p2, Bx_e*Bx_e)$
+BySq_c : calcInnerProdList(varsC, 1, bC_p2, By_e*By_e)$
+BzSq_c : calcInnerProdList(varsC, 1, bC_p2, Bz_e*Bz_e)$
+
+BxSq_e : BxSq_c[1]*bC_p2[1] + BxSq_c[2]*bC_p2[2] + BxSq_c[3]*bC_p2[3]$
+BySq_e : BySq_c[1]*bC_p2[1] + BySq_c[2]*bC_p2[2] + BySq_c[3]*bC_p2[3]$
+BzSq_e : BzSq_c[1]*bC_p2[1] + BzSq_c[2]*bC_p2[2] + BzSq_c[3]*bC_p2[3]$
+
+magB2_e : BxSq_e + BySq_e + BzSq_e$ 
+
+print(BxSq_c)$
+print(BxSq_e)$
+print(fullratsimp(subst(x=0, BxSq_e)))$
+print(fullratsimp(subst(x=-1, BxSq_e)))$
+print(fullratsimp(subst(x=1, BxSq_e)))$
+
+bxbx_e : doExpand1(BxSq, bC_p2)$
+
+/* Check positivity of bxbx */
+eq : calcInnerProdList(varsC,bxbx_e,bC_p2,magB2_e)$
+bxbx_c : makelist(BxSq[i],i,0,NC_p2-1)$
+E  : fullratsimp(coefmatrix(eq,bxbx_c))$
+det_E : determinant(E)$
+inv_E : invert(E)$
+
+bxbx_div_1 : inv_E[1,1]*BxSq_c[1] + inv_E[1,2]*BxSq_c[2] + inv_E[1,3]*BxSq_c[3]$
+bxbx_div_2 : inv_E[2,1]*BxSq_c[1] + inv_E[2,2]*BxSq_c[2] + inv_E[2,3]*BxSq_c[3]$
+bxbx_div_3 : inv_E[3,1]*BxSq_c[1] + inv_E[3,2]*BxSq_c[2] + inv_E[3,3]*BxSq_c[3]$
+
+bxbx_final_e : bxbx_div_1*bC_p2[1] + bxbx_div_2*bC_p2[2] + bxbx_div_3*bC_p2[3]$
+
+byby_div_1 : inv_E[1,1]*BySq_c[1] + inv_E[1,2]*BySq_c[2] + inv_E[1,3]*BySq_c[3]$
+byby_div_2 : inv_E[2,1]*BySq_c[1] + inv_E[2,2]*BySq_c[2] + inv_E[2,3]*BySq_c[3]$
+byby_div_3 : inv_E[3,1]*BySq_c[1] + inv_E[3,2]*BySq_c[2] + inv_E[3,3]*BySq_c[3]$
+
+byby_final_e : byby_div_1*bC_p2[1] + byby_div_2*bC_p2[2] + byby_div_3*bC_p2[3]$
+
+bzbz_div_1 : inv_E[1,1]*BzSq_c[1] + inv_E[1,2]*BzSq_c[2] + inv_E[1,3]*BzSq_c[3]$
+bzbz_div_2 : inv_E[2,1]*BzSq_c[1] + inv_E[2,2]*BzSq_c[2] + inv_E[2,3]*BzSq_c[3]$
+bzbz_div_3 : inv_E[3,1]*BzSq_c[1] + inv_E[3,2]*BzSq_c[2] + inv_E[3,3]*BzSq_c[3]$
+
+bzbz_final_e : bzbz_div_1*bC_p2[1] + bzbz_div_2*bC_p2[2] + bzbz_div_3*bC_p2[3]$
+
+/* Test b . b = 1 if we compute b_i using a linear nodal basis (since it involves square roots) */
+/* Nodes given by tensor product of Gauss-Legendre quadrature points */
+nodes_p1 : gaussOrd(2, cdim)$
+numNodes_p1 : length(nodes_p1)$  
+
+/* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
+basisNodal_p1 : getVarsNodalBasisWithNodes("Tensor", cdim, 1, varsC, nodes_p1)$
+
+bxbxOrd_p1_n : evAtNodes(bxbx_final_e,nodes_p1,varsC)$
+bybyOrd_p1_n : evAtNodes(byby_final_e,nodes_p1,varsC)$
+bzbzOrd_p1_n : evAtNodes(bzbz_final_e,nodes_p1,varsC)$
+
+bx_nodal_e_p1 : sqrt(bxbxOrd_p1_n[1])*basisNodal_p1[1] + sqrt(bxbxOrd_p1_n[2])*basisNodal_p1[2]$
+by_nodal_e_p1 : sqrt(bybyOrd_p1_n[1])*basisNodal_p1[1] + sqrt(bybyOrd_p1_n[2])*basisNodal_p1[2]$
+bz_nodal_e_p1 : sqrt(bzbzOrd_p1_n[1])*basisNodal_p1[1] + sqrt(bzbzOrd_p1_n[2])*basisNodal_p1[2]$
+
+
+bx_modal_c_p1 : calcInnerProdList(varsC, 1, bC, bx_nodal_e_p1)$
+bx_modal_e_p1 : bx_modal_c_p1[1]*bC[1] + bx_modal_c_p1[2]*bC[2]$
+by_modal_c_p1 : calcInnerProdList(varsC, 1, bC, by_nodal_e_p1)$
+by_modal_e_p1 : by_modal_c_p1[1]*bC[1] + by_modal_c_p1[2]*bC[2]$
+bz_modal_c_p1 : calcInnerProdList(varsC, 1, bC, bz_nodal_e_p1)$
+bz_modal_e_p1 : bz_modal_c_p1[1]*bC[1] + bz_modal_c_p1[2]*bC[2]$
+
+bdotb_p1_test : calcInnerProdList(varsC, 1, bC, bx_modal_e_p1*bx_modal_e_p1 + by_modal_e_p1*by_modal_e_p1 + bz_modal_e_p1*bz_modal_e_p1)$
+
+print(fullratsimp(bdotb_p1_test))$
+

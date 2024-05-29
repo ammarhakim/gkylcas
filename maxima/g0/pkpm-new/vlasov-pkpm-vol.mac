@@ -39,7 +39,7 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   NP : length(bP),
   NC : length(bC),
 
-  /* Load a p=1 basis for the flow velocity */
+  /* Load a p=1 basis for the magnetic field unit vector and flow velocity */
   [varsC,bC_p1] : loadBasis("Tensor", cdim, 1),
   NC_p1 : length(bC_p1),
 
@@ -53,7 +53,7 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]:         Cell-center coordinates. ~%"),
   printf(fh, "  // dxv[NDIM]:       Cell spacing. ~%"),
-  printf(fh, "  // bvar:            Input magnetic field unit vector and tensor (nine components; first three components, b_i, other six components, b_i b_j). ~%"),
+  printf(fh, "  // bvar:            Input magnetic field unit vector. ~%"),
   printf(fh, "  // pkpm_u:          Input flow velocity [ux, uy, uz]. ~%"),
   printf(fh, "  // div_b:           Input volume expansion of div(b). ~%"), 
   printf(fh, "  // pkpm_accel_vars: Input pkpm acceleration variables [T_perp/m*div(b), bb:grad(u), p_force, p_perp_source]. ~%"), 
@@ -79,9 +79,9 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   printf(fh, "  const double *uy = &pkpm_u[~a]; ~%", 1*NC_p1),
   printf(fh, "  const double *uz = &pkpm_u[~a]; ~%", 2*NC_p1),
 
-  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0*NC),
-  printf(fh, "  const double *by = &bvar[~a]; ~%", 1*NC),
-  printf(fh, "  const double *bz = &bvar[~a]; ~%", 2*NC),
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0*NC_p1),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", 1*NC_p1),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", 2*NC_p1),
   printf(fh, "~%"),
 
   /* Access F_0 and T_perp/m G, first two Laguerre moments */
@@ -140,15 +140,15 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   /* Expand u, b, p_force = 1/rho (div(p_parallel b_hat) - p_perp div(b)), 
      bb : grad(u), div(b), and p_perp_div_b = 2*p_perp/rho*div(b), 
      in configuration space basis 
-     Note: u is only a p=1 basis */
+     Note: u and b are only a p=1 basis */
   ux_e : doExpand1(ux, bC_p1),
   uy_e : doExpand1(uy, bC_p1),
   uz_e : doExpand1(uz, bC_p1),
   u_e : [ux_e, uy_e, uz_e],
 
-  bx_e : doExpand1(bx, bC),
-  by_e : doExpand1(by, bC),
-  bz_e : doExpand1(bz, bC),
+  bx_e : doExpand1(bx, bC_p1),
+  by_e : doExpand1(by, bC_p1),
+  bz_e : doExpand1(bz, bC_p1),
   b_e : [bx_e, by_e, bz_e],
 
   p_perp_div_b_e : doExpand1(p_perp_div_b, bC),

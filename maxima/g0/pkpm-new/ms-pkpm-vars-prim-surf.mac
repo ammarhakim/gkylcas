@@ -1,0 +1,44 @@
+load("pkpm-new/pkpm-vars-prim-surf")$
+load(stringproc)$
+/* This script calls the functions which generate the kernels for calculating the *surface* primitive 
+   variables required to update the PKPM system. Surface primitive variables include:
+   1. 3.0*Txx/m at left and right x surfaces
+   2. 3.0*Tyy/m at left and right y surfaces
+   3. 3.0*Tzz/m at left and right z surfaces 
+
+   In 1D, these surface expansions can be generated with simple division. 
+   In 2D/3D, these surface expansions require weak division. */
+
+
+/* ...... USER INPUTS........ */
+
+/* Tensor product basis. 
+   Kinetic variables are p=2 */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+for d : minCdim_Tensor thru maxCdim_Tensor do (
+  for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
+    disp(printf(false,sconcat("Creating pkpm surface vars funcs ~axp~a"),d,polyOrder)),
+    fname : sconcat("~/max-out/pkpm_vars_surf_set_", d, "x_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_surf_set_",  d, "x_tensor_p", polyOrder),
+    if (d = 1) then (
+      set_pkpm_prim_surf_1d(fh, funcName, d, polyOrder)
+    )
+    else (
+      set_pkpm_prim_surf(fh, funcName, d, polyOrder)
+    ),
+    close(fh),
+
+    fname : sconcat("~/max-out/pkpm_vars_surf_copy_", d, "x_tensor_p", polyOrder, ".c"),
+    fh : openw(fname),
+    funcName : sconcat("pkpm_vars_surf_copy_",  d, "x_tensor_p", polyOrder),
+    copy_pkpm_prim_surf(fh, funcName, d, polyOrder),
+    close(fh)
+  )
+);

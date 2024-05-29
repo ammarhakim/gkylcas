@@ -26,12 +26,6 @@ clabels : ["x","y","z"]$
 for d : minCdim_Tensor thru maxCdim_Tensor do (
   for polyOrder : minPolyOrder_Tensor thru maxPolyOrder_Tensor do (
     disp(printf(false,sconcat("Creating pkpm accel vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-    fname : sconcat("~/max-out/pkpm_vars_p_force_", d, "x_", "tensor_p", polyOrder, ".c"),
-    fh : openw(fname),
-    funcName : sconcat("pkpm_vars_p_force_",  d, "x_", "tensor_p", polyOrder),
-    pkpm_p_force(fh, funcName, d, polyOrder),
-    close(fh),
-
     for dir : 1 thru d do ( 
       fname : sconcat("~/max-out/pkpm_vars_accel_", clabels[dir], "_", d, "x_", "tensor_p", polyOrder, ".c"),
       fh : openw(fname),
