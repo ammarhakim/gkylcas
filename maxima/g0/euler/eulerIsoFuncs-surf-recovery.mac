@@ -15,11 +15,6 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 statevec : [rho, rhou0, rhou1, rhou2, energy]$
 lhs : [outrho, outrhou0, outrhou1, outrhou2, outenergy]$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 /* 1D Euler special since only involves evaluations */
 calcEulerIso1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,NC,cid,cv,surfVars,bSurf,NSurf,
@@ -568,7 +563,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  Ghat_rho_l_e : doExpandLst(doMakeExprLst(Ghat_rho_l_c, Ghat_rho_l), bSurf),
+  Ghat_rho_l_e : doExpand(makelistNoZeros1(Ghat_rho_l_c, Ghat_rho_l), bSurf),
 
   /* Print C exprs for Ghat for the density across surface boundary, (RIGHT BOUNDARY) */
   Ghat_rho_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, avg_rho_r - uMax_r_e*jump_rho_r)),
@@ -577,7 +572,7 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  Ghat_rho_r_e : doExpandLst(doMakeExprLst(Ghat_rho_r_c, Ghat_rho_r), bSurf),
+  Ghat_rho_r_e : doExpand(makelistNoZeros1(Ghat_rho_r_c, Ghat_rho_r), bSurf),
 
   /* Print C exprs for the recovery of u and p across surface boundary, (l = LEFT BOUNDARY, r = RIGHT BOUNDARY) */
   urec_0_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(cv=0, u_0_rec_l))),
@@ -623,15 +618,15 @@ calcEulerIsoUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of recovered functions which are empty and make new expansions. */
-  urec_0_l_e : doExpandLst(doMakeExprLst(urec_0_l_c, urec_0_l), bSurf),
-  urec_1_l_e : doExpandLst(doMakeExprLst(urec_1_l_c, urec_1_l), bSurf),
-  urec_2_l_e : doExpandLst(doMakeExprLst(urec_2_l_c, urec_2_l), bSurf),
-  rhorec_l_e : doExpandLst(doMakeExprLst(rhorec_l_c, rhorec_l), bSurf),
+  urec_0_l_e : doExpand(makelistNoZeros1(urec_0_l_c, urec_0_l), bSurf),
+  urec_1_l_e : doExpand(makelistNoZeros1(urec_1_l_c, urec_1_l), bSurf),
+  urec_2_l_e : doExpand(makelistNoZeros1(urec_2_l_c, urec_2_l), bSurf),
+  rhorec_l_e : doExpand(makelistNoZeros1(rhorec_l_c, rhorec_l), bSurf),
 
-  urec_0_r_e : doExpandLst(doMakeExprLst(urec_0_r_c, urec_0_r), bSurf),
-  urec_1_r_e : doExpandLst(doMakeExprLst(urec_1_r_c, urec_1_r), bSurf),
-  urec_2_r_e : doExpandLst(doMakeExprLst(urec_2_r_c, urec_2_r), bSurf),
-  rhorec_r_e : doExpandLst(doMakeExprLst(rhorec_r_c, rhorec_r), bSurf),
+  urec_0_r_e : doExpand(makelistNoZeros1(urec_0_r_c, urec_0_r), bSurf),
+  urec_1_r_e : doExpand(makelistNoZeros1(urec_1_r_c, urec_1_r), bSurf),
+  urec_2_r_e : doExpand(makelistNoZeros1(urec_2_r_c, urec_2_r), bSurf),
+  rhorec_r_e : doExpand(makelistNoZeros1(rhorec_r_c, rhorec_r), bSurf),
 
   incr_rho_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_rho_l_e),
   incr_rho_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_rho_r_e),

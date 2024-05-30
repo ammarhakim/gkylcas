@@ -1,0 +1,66 @@
+/*
+   Create kernels for the volume term of canonical poisson bracket.
+  
+   *hamil* is assumed to be written in canonical coordinates
+*/
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+load("canonical_pb/canonicalUtils")$
+load("utilities")$
+fpprec : 24$
+
+varsV : [vx, vy, vz]$
+dxv : [dxv0, dxv1, dxv2, dxv3, dxv4, dxv5]$
+dxdvInv : [dxdvInv0, dxdvInv1, dxdvInv2]$
+dxInv : [dxInv0, dxInv1, dxInv2]$
+dvInv : [dvInv0, dvInv1, dvInv2]$
+
+cidx(cdim) := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
+
+buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, varsP, basisC, basisP, modNm, i, bP, bC, numC, cid, vid, dir, 
+    pbfac, volfac, fl, Hl, pb, pbBasis],
+
+  kill(varsC, varsP, basisC, basisP),
+  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
+  load(modNm),
+
+  bP : basisP[polyOrder],
+  bC : basisC[polyOrder],
+  numC : length(bC),
+  printf(fh, "double ~a(const double *w, const double *dxv, const double *hamil, const double *f, double *out) ~%{ ~%", funcNm),
+  printf(fh, "// w[NDIM]: Cell-center coordinates. dxv[NDIM]: Cell spacing. H/f: Input Hamiltonian/distribution function. out: Incremented output ~%"),
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  for dir : 1 thru cdim do (
+    pbfac[dir] : 4*dxdvInv[dir]
+  ),
+  volfac : 1,
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dxdvInv~a = 1.0/(dxv[~a]*dxv[~a]); ~%", dir-1, cid[dir], vid[dir])
+  ),
+  for dir : 1 thru cdim do (
+    printf(fh, "  double dxInv~a = 1.0/dxv[~a]; ~%", dir-1, cid[dir])
+  ),
+  for dir : 1 thru vdim do (
+    printf(fh, "  double dvInv~a = 1.0/dxv[~a]; ~%", dir-1, vid[dir])
+  ),
+  fl : doExpand1(f, bP),
+  Hl : doExpand1(hamil, bP),
+  pb : (pb : 0, for dir : 1 thru cdim do (
+     pbBasis : pbfac[dir]*(PB_vol(bP,Hl,varsC[dir],varsV[dir])),
+     pb : pb + fullratsimp(volfac*calcInnerProdList(varsP, 1, pbBasis, fl))
+     ),
+  pb),
+  writeCIncrExprsNoExpand(facsum(fullratsimp(pb),dxv)),
+  
+  /*  No CFL contribution, returns 0. */
+  printf(fh, "  return 0.; ~%"),
+  printf(fh, "} ~%"),
+  flush_output(fh)
+);

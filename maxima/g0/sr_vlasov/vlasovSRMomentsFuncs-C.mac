@@ -3,6 +3,7 @@
 
 load("modal-basis");
 load("out-scripts");
+load("utilities")$
 load(stringproc)$
 fpprec : 24$
 
@@ -28,9 +29,6 @@ vTrans  : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
 wTrans  : [wx1, wx2, wx3]$
 dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 p_over_gamma_fld : [p0_over_gamma, p1_over_gamma, p2_over_gamma]$
-
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 /* Number density */
 /* M0 = < f > */
@@ -260,10 +258,10 @@ calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of p . V_drift which are empty. */
-  tempNoZero : doMakeExprLst(temp_c, temp),
+  tempNoZero : makelistNoZeros1(temp_c, temp),
   temp_e     : doExpand(tempNoZero, bP),
 
-  tempSqNoZero : doMakeExprLst(temp_sq_c, temp_sq),
+  tempSqNoZero : makelistNoZeros1(temp_sq_c, temp_sq),
   tempSq_e     : doExpand(tempSqNoZero, bP),
 
   p_fac_c : calcInnerProdList(varsP, 1, bP, gamma_e*GammaV2_e - 2*GammaV2_e*temp_e + gamma_inv_e*(tempSq_e - 1)),
@@ -272,7 +270,7 @@ calcSRPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of p . V_drift which are empty. */
-  p_facNoZero : doMakeExprLst(p_fac_c, p_fac),
+  p_facNoZero : makelistNoZeros1(p_fac_c, p_fac),
   p_fac_e     : doExpand(p_facNoZero, bP),
 
   fl : doExpand1(f, bP),

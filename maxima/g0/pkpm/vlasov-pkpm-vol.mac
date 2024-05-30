@@ -13,13 +13,6 @@ dx11 : [dx0, dx1, dx2]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse 
-   For example, alpha, the phase space flow only depends on a few phase space coordinates */
-/* List output is a vector with some offset off */
-doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
-/* List output is a scalar */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, pOrderV, NP, NC, cflPt, cid, vid, vTrans, 
    F_0_e, G_1_e, F_0_source_e, G_1_source_e, G_1_vperp_e,
@@ -162,7 +155,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
     
     /* zero out components of alpha which are empty */
-    alpha_cdim_NoZero   : doMakeExprLstOff(alpha_cdim_c, alpha_cdim, a0),
+    alpha_cdim_NoZero   : makelistNoZerosOff1(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
     /* Volume increment from configuration space. */
@@ -179,7 +172,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
 
   /* Zero out components of alpha_vdim for F_0 and G_1 which are empty. */
-  alpha_vdim_NoZero : doMakeExprLst(alpha_vdim_c, alpha_vdim),
+  alpha_vdim_NoZero : makelistNoZeros1(alpha_vdim_c, alpha_vdim),
   alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
   /* Volume increment from configuration space. */
@@ -196,7 +189,7 @@ calcVlasovPKPMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
 
   /* Zero out components of alpha_div_b which are empty. */
-  alpha_div_b_NoZero : doMakeExprLst(alpha_div_b_c, alpha_div_b),
+  alpha_div_b_NoZero : makelistNoZeros1(alpha_div_b_c, alpha_div_b),
   alpha_div_b_NoZero_e : doExpand(alpha_div_b_NoZero, bP),
 
   /* addition force on F_0 = d/dvpar (div(b) T_perp/m G) */

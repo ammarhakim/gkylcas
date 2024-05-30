@@ -48,13 +48,24 @@ calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyO
 
   numBasisP : length(bP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *alpha_geo, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  // w[NDIM]:     Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
-  printf(fh, "  // alpha_geo:   Fields used only for general geometry.~%"),
-  printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
-  printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
-  printf(fh, "  // out:         Incremented distribution function in center cell.~%"),
+  print("Working on ", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *alpha_surf_edge, const double *alpha_surf_skin, 
+  const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
+  const int *const_sgn_alpha_edge, const int *const_sgn_alpha_skin, 
+  const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // alpha_surf_edge: Surface expansion of phase space flux on the lower edges of the edge cell (used by general geometry version).~%"),
+  printf(fh, "  // alpha_surf_skin: Surface expansion of phase space flux on the lower edges of the skin cell (used by general geometry version).~%"),
+  printf(fh, "  // sgn_alpha_surf_edge: sign(alpha_surf_edge) at quadrature points (used by general geometry version).~%"),
+  printf(fh, "  // sgn_alpha_surf_skin: sign(alpha_surf_skin) at quadrature points (used by general geometry version).~%"),
+  printf(fh, "  // const_sgn_alpha_edge: Boolean array true if sign(alpha_surf_edge) is only one sign, either +1 or -1 (used by general geometry version).~%"),
+  printf(fh, "  // const_sgn_alpha_skin: Boolean array true if sign(alpha_surf_skin) is only one sign, either +1 or -1 (used by general geometry version).~%"),
+  printf(fh, "  // edge: determines if the update is for the left edge (-1) or right edge (+1).~%"),
+  printf(fh, "  // fskin,fedge: distribution function in skin cell/last edge cell.~%"),
+  printf(fh, "  // out: output increment in center cell.~%"),
+  printf(fh, "~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -76,8 +87,8 @@ calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyO
   ),
 
   /* Create expansions of f_skin, f_edge on volume basis. */
-  fSkin_e : doExpand1(fSkin, bP),
-  fEdge_e : doExpand1(fEdge, bP),
+  fSkin_e : doExpand1(fskin, bP),
+  fEdge_e : doExpand1(fedge, bP),
 
   printf(fh, "  const double dx1~a = 2/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "  const double dv = dxv[~a], wv = w[~a]; ~%", vid[dir], vid[dir]),

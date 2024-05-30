@@ -8,8 +8,8 @@ calcRecov2CellGenNonuniform(basisNm, recDir, dirs, polyOrder, dxlo, dxup, lo, up
     recDir : direction of the recovery (x, y, or z)
     dirs : direction names, e.g. [x, y]
     polyOrder : polynomial order of the inputs
-    dxlo :
-    dxup :
+    dxlo : list of cell lengths of lower cell, e.g. [2,2] for 2D uniform recovery.
+    dxup : equivalent of dxlo for upper cell.
     lo : can be one of the following
       * dg(A) : A is an array of expansion coefficients corresponding
         to logical space basis functions
