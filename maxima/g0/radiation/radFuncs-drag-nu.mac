@@ -25,55 +25,72 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    vars_bmag,bC_bmag,bmag_full_e,bmag_c,bmag_e,bmag_surf_n,bmag_vol_n,
    basis_vpar,vpar_c,vpar_e,vpar_vol_n,vpar_surf,vpar_surf_n,
    basis_mu,mu_c,mu_e,mu_vol_n,mu_surf,mu_surf_n,
-   vnu_surf_nodal_e,vnu_surf_ModProj_e,vnu_nodal_e,vnu_ModProj_e,
-   vsqnu_surf_nodal_e,vsqnu_surf_ModProj_e,vsqnu_nodal_e,vsqnu_ModProj_e],
+   vnu_surf_nodal_e,vnu_surf_ModProj_c,vnu_nodal_e,vnu_ModProj_c,
+   vsqnu_surf_nodal_e,vsqnu_surf_ModProj_c,vsqnu_nodal_e,vsqnu_ModProj_c],
 
   kill(varsC,varsP,bC,bP),
 
-  if (cdim = 3) then (
-    [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, 2, vdim, polyOrder),
-    pDim : 2+vdim,
-    varsV : makelist(varsP[i],i,cdim,2+vdim),
-    surfVar : varsP[dir-1],         /* Surface variable. */
-    surf_vvars : delete(surfVar, makelist(varsP[2+i],i,1,vdim))
-  )
-  else (
-    [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
-    pDim : cdim+vdim,
-    varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
-    surfVar : varsP[dir],         /* Surface variable. */
-    surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim))
+  cdim_eff : cdim,
+  /* Drag nu doesn't depend on y (axisymmetry) so we can use a 2x2v basis. */
+  if (cdim = 3) then ( cdim_eff : 2 ),
+
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim_eff, vdim, polyOrder),
+  pDim : cdim_eff+vdim,
+  varsV : makelist(varsP[cdim_eff+i],i,1,vdim),
+  surfVar : varsP[dir+(cdim_eff-cdim)],         /* Surface variable. */
+  surf_vvars  : delete(surfVar,varsV),
+
+  /* Radiation drag coefficient can only depend on (x,z,vpar,mu)
+     because we assume B = B(x,z) */
+  if (cdim > 1) then (
+    varsSub     : [y=z],
+    bC          : subst(varsSub, copylist(bC)),  
+    varsC       : subst(varsSub, copylist(varsC)),
+    bP          : subst(varsSub, copylist(bP)),  
+    varsP       : subst(varsSub, copylist(varsP))
   ),
 
   surfIntVars : delete(surfVar,varsP), 
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    volNodes : gaussOrdGkHyb(1+1, varsC, varsV),
-    surfNodes : gaussOrdGkHyb(1+1, varsC, surf_vvars),
+    volNodes : gaussOrdGkHyb(polyOrder+1, varsC, varsV),
+    surfNodes : gaussOrdGkHyb(polyOrder+1, varsC, surf_vvars),
     bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder),
-    if (cdim = 3) then (
-      basisVolNodal : getVarsNodalBasisWithNodesHyb("gkhyb", 2, 2, varsP, volNodes),
-      basisSurfNodal : getVarsNodalBasisWithNodesHyb("gkhyb", 2, 1, surfIntVars, surfNodes)
-    )
-    else (
-      basisVolNodal : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, 2, varsP, volNodes),
-      basisSurfNodal : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, 1, surfIntVars, surfNodes)
-    )
+    basisVolNodal : getVarsNodalBasisWithNodesHyb("gkhyb", cdim_eff, 2, varsP, volNodes),
+    basisSurfNodal : getVarsNodalBasisWithNodesHyb("gkhyb", cdim_eff, 1, surfIntVars, surfNodes),
+    /* Nodes/basis used to guarantee positivity/negativity at corner nodes. */
+    cornerNodesVol  : getNodesGkHyb(cdim_eff, vdim),
+    if (dir = cdim + 1) then (
+      cornerNodesSurf : getNodes("ser", cdim_eff+vdim-1, polyOrder)
+    ) else (
+      cornerNodesSurf : getNodesGkHyb(cdim_eff, vdim-1)
+    ),
+    cornerNodBasisVol : getVarsNodalBasisWithNodesHyb("gkhyb", cdim_eff, 2, varsP, cornerNodesVol),
+    cornerNodBasisSurf : getVarsNodalBasisWithNodesHyb("gkhyb", cdim_eff, 1, surfIntVars, cornerNodesSurf)
   ) else (
     volNodes : gaussOrd(polyOrder+1, pDim),
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
     bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),
     basisVolNodal : getVarsNodalBasisWithNodes("tensor", pDim, polyOrder, varsP, volNodes),
-    basisSurfNodal : getVarsNodalBasisWithNodes("tensor", pDim-1, polyOrder, surfIntVars, surfNodes)
+    basisSurfNodal : getVarsNodalBasisWithNodes("tensor", pDim-1, polyOrder, surfIntVars, surfNodes),
+    /* Nodes/basis used to guarantee positivity/negativity at corner nodes. */
+    cornerNodesVol  : getNodes("tensor", cdim+vdim, polyOrder),
+    cornerNodesSurf : getNodes("tensor", cdim+vdim-1, polyOrder),
+    cornerNodBasisVol : getVarsNodalBasisWithNodes("tensor", pDim, polyOrder, varsP, cornerNodesVol),
+    cornerNodBasisSurf : getVarsNodalBasisWithNodes("tensor", pDim-1, polyOrder, surfIntVars, cornerNodesSurf)
   ),
   numC : length(bC),  
   numVolNodes : length(volNodes),
   numSurfNodes : length(surfNodes),  
+  numNodesCornerVol  : length(cornerNodesVol),
+  numNodesCornerSurf : length(cornerNodesSurf),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(const double *vmap, const double *vmapSq, 
+  printf(fh, "GKYL_CU_DH void ~a(const double *dv_min, const double *vmap, const double *vmapSq, 
     double charge, double mass, double a, double alpha, double beta, double gamma, double v0, 
     const double *bmag, double* GKYL_RESTRICT drag_rad_nu_surf, double* GKYL_RESTRICT drag_rad_nu) ~%{ ~%", funcNm),
+  printf(fh, "  // vmap: velocity space mapping, from computational to physical.~%"),
+  printf(fh, "  // vmapSq: squared velocity space mapping.~%"),
   printf(fh, "  // charge: elementary charge.~%"),
   printf(fh, "  // mass: mass of electron.~%"),
   printf(fh, "  // a, alpha, beta, gamma, v0: Radiation fitting parameters.~%"),
@@ -110,6 +127,17 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   mu_vol_n      : gcfac(float(evAtNodes(mu_e,volNodes,varsP))), 
   vpar_sq_vol_n : gcfac(float(evAtNodes(vpar_sq_e,volNodes,varsP))), 
 
+  /* Evaluate bmag, vpar, mu at nodes used to enforce positivity/negativity. */
+  bmag_corner_vol_n    : gcfac(float(evAtNodes(bmag_e   ,cornerNodesVol,varsP))),
+  vpar_corner_vol_n    : gcfac(float(evAtNodes(vpar_e   ,cornerNodesVol,varsP))), 
+  vpar_sq_corner_vol_n : gcfac(float(evAtNodes(vpar_sq_e,cornerNodesVol,varsP))), 
+  mu_corner_vol_n      : gcfac(float(evAtNodes(mu_e     ,cornerNodesVol,varsP))), 
+
+  bmag_corner_surf_n    : gcfac(float(evAtNodes(bmag_e   ,cornerNodesSurf,surfIntVars))),
+  vpar_corner_surf_n    : gcfac(float(evAtNodes(vpar_e   ,cornerNodesSurf,surfIntVars))), 
+  vpar_sq_corner_surf_n : gcfac(float(evAtNodes(vpar_sq_e,cornerNodesSurf,surfIntVars))), 
+  mu_corner_surf_n      : gcfac(float(evAtNodes(mu_e     ,cornerNodesSurf,surfIntVars))), 
+
   /* Evaluate vmag = sqrt(vpar^2 + 2*mu*B/m) at the ordinates and then the radiation drag. 
      For the surface expansion, we first evaluate velocity variable at surface (either vpar or mu)
      and then construct vmag at that surface. */
@@ -125,10 +153,10 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "  vnu_surf_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, vpar_surf)
     ),
     printf(fh, "~%"),
-    vnu_surf_nodal_e : doExpand1(vnu_surf_nodal,basisSurfNodal),
 
-    vnu_surf_ModProj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vnu_surf_nodal_e)),
-    writeCExprs1(drag_rad_nu_surf, vnu_surf_ModProj_e),
+    vnu_surf_nodal_e : doExpand1(vnu_surf_nodal,basisSurfNodal),
+    vnu_surf_ModProj_c : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vnu_surf_nodal_e)),
+    writeCExprs1(drag_rad_nu_surf, vnu_surf_ModProj_c),
     printf(fh, "~%"),
 
     for i : 1 thru numVolNodes do (
@@ -136,12 +164,51 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "  vnu_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, vpar_vol_n[i])
     ),
     printf(fh, "~%"),
-    vnu_nodal_e : doExpand1(vnu_nodal,basisVolNodal),
 
-    vnu_ModProj_e : fullratsimp(calcInnerProdList(varsP, 1, bP, vnu_nodal_e)),
-    writeCExprs1(drag_rad_nu, vnu_ModProj_e),
+    vnu_nodal_e : doExpand1(vnu_nodal,basisVolNodal),
+    vnu_ModProj_c : fullratsimp(calcInnerProdList(varsP, 1, bP, vnu_nodal_e)),
+    writeCExprs1(drag_rad_nu, vnu_ModProj_c),
     printf(fh, "~%"),
-    flush_output(fh)
+    flush_output(fh),
+
+    /* Evaluate vnu at corner nodes to enforce positivity/negativity. */
+    vnu_corner_vol_n  : evAtNodes(doExpand(vnu_ModProj_c,bP), cornerNodesVol, varsP),
+    vnu_corner_surf_n : evAtNodes(doExpand(vnu_surf_ModProj_c,bSurf), cornerNodesSurf, surfIntVars),
+    printf(fh, "  double vnu_corner_vol_nod[~a];~%", numNodesCornerVol),
+    printf(fh, "  double vnu_corner_surf_nod[~a];~%",numNodesCornerSurf),
+    writeCExprs1(vnu_corner_vol_nod,  vnu_corner_vol_n),
+    writeCExprs1(vnu_corner_surf_nod, vnu_corner_surf_n),
+    printf(fh, "~%"),
+
+    /* Loop over the nodes, and if vnu at that node is <0 (vpar>0) or >0
+       (vpar<0), replace it with vnu evaluated at the corner node. */
+    printf(fh, "  // If vnu < 0 (vpar>0) or vnu > 0 (vpar<0) at corner nodes, revaluate it at this node.~%"),
+    for i : 1 thru numNodesCornerVol do (
+      printf(fh, "  if ((~a<0.0 && vnu_corner_vol_nod[~a]>0.0) || (~a>0.0 && vnu_corner_vol_nod[~a]<0.0)) {~%", vpar_corner_vol_n[i], i-1, vpar_corner_vol_n[i], i-1),
+      printf(fh, "    vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_corner_vol_n[i], mu_corner_vol_n[i]*bmag_corner_vol_n[i]),
+      printf(fh, "    vnu_corner_vol_nod[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, vpar_corner_vol_n[i]),
+      printf(fh, "  }~%")
+    ),
+    printf(fh, "~%"),
+    for i : 1 thru numNodesCornerSurf do (
+      printf(fh, "  if ((~a<0.0 && vnu_corner_surf_nod[~a]>0.0) || (~a>0.0 && vnu_corner_surf_nod[~a]<0.0)) {~%", vpar_surf, i-1, vpar_surf, i-1),
+      printf(fh, "    vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_surf, mu_corner_surf_n[i]*bmag_corner_surf_n[i]),
+      printf(fh, "    vnu_corner_surf_nod[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, vpar_surf),
+      printf(fh, "  }~%")
+    ),
+    printf(fh, "~%"),
+
+    vnu_nodal_e : doExpand1(vnu_corner_vol_nod,cornerNodBasisVol),
+    vnu_ModProj_c : fullratsimp(calcInnerProdList(varsP, 1, bP, vnu_nodal_e)),
+    writeCExprs1(drag_rad_nu, vnu_ModProj_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    vnu_surf_nodal_e : doExpand1(vnu_corner_surf_nod,cornerNodBasisSurf),
+    vnu_surf_ModProj_c : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vnu_surf_nodal_e)),
+    writeCExprs1(drag_rad_nu_surf, vnu_surf_ModProj_c),
+    printf(fh, "~%")
+
   )
   else (
     printf(fh, "  double vsqnu_surf_nodal[~a] = {0.0};~%", numSurfNodes),
@@ -154,10 +221,10 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "  vsqnu_surf_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, mu_surf)
     ),
     printf(fh, "~%"),
-    vsqnu_surf_nodal_e : doExpand1(vsqnu_surf_nodal,basisSurfNodal),
 
-    vsqnu_surf_ModProj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vsqnu_surf_nodal_e)),
-    writeCExprs1(drag_rad_nu_surf, vsqnu_surf_ModProj_e),
+    vsqnu_surf_nodal_e : doExpand1(vsqnu_surf_nodal,basisSurfNodal),
+    vsqnu_surf_ModProj_c : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vsqnu_surf_nodal_e)),
+    writeCExprs1(drag_rad_nu_surf, vsqnu_surf_ModProj_c),
     printf(fh, "~%"),
     flush_output(fh),
 
@@ -166,12 +233,51 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "  vsqnu_nodal[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, mu_vol_n[i])
     ),
     printf(fh, "~%"),
-    vsqnu_nodal_e : doExpand1(vsqnu_nodal,basisVolNodal),
 
-    vsqnu_ModProj_e : fullratsimp(calcInnerProdList(varsP, 1, bP, vsqnu_nodal_e)),
-    writeCExprs1(drag_rad_nu, vsqnu_ModProj_e),
+    vsqnu_nodal_e : doExpand1(vsqnu_nodal,basisVolNodal),
+    vsqnu_ModProj_c : fullratsimp(calcInnerProdList(varsP, 1, bP, vsqnu_nodal_e)),
+    writeCExprs1(drag_rad_nu, vsqnu_ModProj_c),
     printf(fh, "~%"),
-    flush_output(fh)
+    flush_output(fh),
+
+    /* Evaluate vsqnu at corner nodes to enforce positivity/negativity. */
+    vsqnu_corner_vol_n  : evAtNodes(doExpand(vsqnu_ModProj_c,bP), cornerNodesVol, varsP),
+    vsqnu_corner_surf_n : evAtNodes(doExpand(vsqnu_surf_ModProj_c,bSurf), cornerNodesSurf, surfIntVars),
+    printf(fh, "  double vsqnu_corner_vol_nod[~a];~%", numNodesCornerVol),
+    printf(fh, "  double vsqnu_corner_surf_nod[~a];~%",numNodesCornerSurf),
+    writeCExprs1(vsqnu_corner_vol_nod,  vsqnu_corner_vol_n),
+    writeCExprs1(vsqnu_corner_surf_nod, vsqnu_corner_surf_n),
+    printf(fh, "~%"),
+
+    /* Loop over the nodes, and if vsqnu at that node is <0,
+       replace it with vsqnu evaluated at the corner node. */
+    printf(fh, "  // If vsqnu < 0 at corner nodes, revaluate it at this node.~%"),
+    for i : 1 thru numNodesCornerVol do (
+      printf(fh, "  if (vsqnu_corner_vol_nod[~a] < 0.0) {~%", i-1),
+      printf(fh, "    vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_corner_vol_n[i], mu_corner_vol_n[i]*bmag_corner_vol_n[i]),
+      printf(fh, "    vsqnu_corner_vol_nod[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag,gamma))/(beta*pow(vmag/scaled_v0,-alpha)+alpha*pow(vmag/scaled_v0,beta)));~%", i-1, mu_corner_vol_n[i]),
+      printf(fh, "  }~%")
+    ),
+    printf(fh, "~%"),
+    for i : 1 thru numNodesCornerSurf do (
+      printf(fh, "  if (vsqnu_corner_surf_nod[~a] < 0.0) {~%", i-1),
+      printf(fh, "    vmag = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_corner_surf_n[i], mu_surf*bmag_corner_surf_n[i]),
+      printf(fh, "    vsqnu_corner_surf_nod[~a] = 2.0*(~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, mu_surf),
+      printf(fh, "  }~%")
+    ),
+    printf(fh, "~%"),
+
+    vsqnu_nodal_e : doExpand1(vsqnu_corner_vol_nod,cornerNodBasisVol),
+    vsqnu_ModProj_c : fullratsimp(calcInnerProdList(varsP, 1, bP, vsqnu_nodal_e)),
+    writeCExprs1(drag_rad_nu, vsqnu_ModProj_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    vsqnu_surf_nodal_e : doExpand1(vsqnu_corner_surf_nod,cornerNodBasisSurf),
+    vsqnu_surf_ModProj_c : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, vsqnu_surf_nodal_e)),
+    writeCExprs1(drag_rad_nu_surf, vsqnu_surf_ModProj_c),
+    printf(fh, "~%")
+
   ),
   printf(fh, "} ~%")
 )$

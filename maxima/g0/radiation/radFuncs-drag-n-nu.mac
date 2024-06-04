@@ -51,7 +51,7 @@ buildGKRadNiNuKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH void ~a(const double *vnu_surf, const double *vnu,
-    const double *vsqnu_surf, const double *vsqnu, const double *nI, 
+    const double *vsqnu_surf, const double *vsqnu, const double *nI,
     double* GKYL_RESTRICT nvnu_surf, double* GKYL_RESTRICT nvnu, 
     double* GKYL_RESTRICT nvsqnu_surf, double* GKYL_RESTRICT nvsqnu) ~%{ ~%", funcNm),
   printf(fh, "  // vnu_surf/vnu: Input radiation drag in vparallel direction, surface and volume expansions.~%"),

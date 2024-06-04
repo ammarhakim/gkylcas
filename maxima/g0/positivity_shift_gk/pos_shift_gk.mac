@@ -1,5 +1,6 @@
 /* Maxima function used to generate kernel which shifts the distribution
-   function to make it positivity control points (PCPs). */
+   function to make it a choice of positivity control points (PCPs) or
+   Gauss-Legendre nodes. */
 load("modal-basis")$
 load("out-scripts")$
 load("nodal_operations/nodal_functions")$
@@ -47,7 +48,7 @@ genPosShiftGKkernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) :=
   ),
   numNodes : length(nodes),
 
-  /* Evaluate f at PCPs. */
+  /* Evaluate f at nodes. */
   f_n : evAtNodes(f_e, nodes, varsP),
   printf(fh, "  double fnod[~a];~%",numNodes),
   writeCExprs1(fnod, f_n),
