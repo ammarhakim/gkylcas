@@ -289,9 +289,9 @@ copy_pkpm_em_source_solve(fh, funcNm, cdim, polyOrder) := block(
     printf(fh, "~%")
   ), 
   /* We solved for u_s^{n+1}, so we need to weak multiply solution by rho^n to convert back to momentum */
-  printf(fh, "    double *out_rhoux = &euler_pkpm[i][~a]; ~%", 0*NC),
-  printf(fh, "    double *out_rhouy = &euler_pkpm[i][~a]; ~%", 1*NC),
-  printf(fh, "    double *out_rhouz = &euler_pkpm[i][~a]; ~%", 2*NC),
+  printf(fh, "    double *out_rhoux = &euler_pkpm[i][~a]; ~%", 0*NC_2p),
+  printf(fh, "    double *out_rhouy = &euler_pkpm[i][~a]; ~%", 1*NC_2p),
+  printf(fh, "    double *out_rhouz = &euler_pkpm[i][~a]; ~%", 2*NC_2p),
   printf(fh, "~%"),
 
   rho_old_e : doExpand1(rho_old, bC_2p), 
@@ -299,9 +299,9 @@ copy_pkpm_em_source_solve(fh, funcNm, cdim, polyOrder) := block(
   uy_new_e : doExpand1(uy_new, bC), 
   uz_new_e : doExpand1(uz_new, bC),
   
-  out_rhoux_c : calcInnerProdList(varsC, 1, bC, rho_old_e*ux_new_e), 
-  out_rhouy_c : calcInnerProdList(varsC, 1, bC, rho_old_e*uy_new_e), 
-  out_rhouz_c : calcInnerProdList(varsC, 1, bC, rho_old_e*uz_new_e), 
+  out_rhoux_c : calcInnerProdList(varsC, 1, bC_2p, rho_old_e*ux_new_e), 
+  out_rhouy_c : calcInnerProdList(varsC, 1, bC_2p, rho_old_e*uy_new_e), 
+  out_rhouz_c : calcInnerProdList(varsC, 1, bC_2p, rho_old_e*uz_new_e), 
 
   writeCExprs1(out_rhoux, out_rhoux_c), 
   writeCExprs1(out_rhouy, out_rhouy_c), 

@@ -47,11 +47,6 @@ calc_pkpm_euler_vol(fh, funcNm, cdim, polyOrder) := block(
   ),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC),
-  printf(fh, "~%"),
-
   /* access mass density, flow, and pressure tensor data */
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0),
   printf(fh, "~%"),
@@ -67,17 +62,13 @@ calc_pkpm_euler_vol(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  const double *Pzz = &p_ij[~a]; ~%", 5*NC_2p),
   printf(fh, "~%"),
 
-  printf(fh, "  double *outrhoux = &out[~a]; ~%", 0*NC),
-  printf(fh, "  double *outrhouy = &out[~a]; ~%", 1*NC),
-  printf(fh, "  double *outrhouz = &out[~a]; ~%", 2*NC),
+  printf(fh, "  double *outrhoux = &out[~a]; ~%", 0*NC_2p),
+  printf(fh, "  double *outrhouy = &out[~a]; ~%", 1*NC_2p),
+  printf(fh, "  double *outrhouz = &out[~a]; ~%", 2*NC_2p),
   printf(fh, "~%"),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
-
-  rhoux_e : doExpand1(euler_pkpm[1], bC),
-  rhouy_e : doExpand1(euler_pkpm[2], bC),
-  rhouz_e : doExpand1(euler_pkpm[3], bC),
 
   /* Expand mass density, flow, and pressure tensor, in configuration space basis 
      Note: mass density and pressure tensor are order 2*p because kinetic equation is higher order. */
@@ -128,21 +119,21 @@ calc_pkpm_euler_vol(fh, funcNm, cdim, polyOrder) := block(
   /* Momentum update, flux = rho*u*u + pperp*I + (ppar - pperp)bb, where I is the identity matrix */
   /* Note we express P =  pperp*I + (ppar - pperp)bb as P_ij */
   t2 : (t2 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*ux_e + Pxx_e)),
-     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*ux_e + Pxy_e)),
-     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*ux_e + Pxz_e))
+     if (dir = 1) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhoux_2p_e*ux_e + Pxx_e)),
+     if (dir = 2) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouy_2p_e*ux_e + Pxy_e)),
+     if (dir = 3) then (t2 : t2 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouz_2p_e*ux_e + Pxz_e))
      ),
   t2),
   t3 : (t3 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uy_e + Pxy_e)),
-     if (dir = 2) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uy_e + Pyy_e)),
-     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uy_e + Pyz_e))
+     if (dir = 1) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhoux_2p_e*uy_e + Pxy_e)),
+     if (dir = 2) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouy_2p_e*uy_e + Pyy_e)),
+     if (dir = 3) then (t3 : t3 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouz_2p_e*uy_e + Pyz_e))
      ),
   t3),
   t4 : (t4 : 0, for dir : 1 thru cdim do (
-     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhoux_2p_e*uz_e + Pxz_e)),
-     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouy_2p_e*uz_e + Pyz_e)),
-     if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC, varsC[dir]), rhouz_2p_e*uz_e + Pzz_e))
+     if (dir = 1) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhoux_2p_e*uz_e + Pxz_e)),
+     if (dir = 2) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouy_2p_e*uz_e + Pyz_e)),
+     if (dir = 3) then (t4 : t4 + dx1[dir]*calcInnerProdList(varsC, 1, diff(bC_2p, varsC[dir]), rhouz_2p_e*uz_e + Pzz_e))
      ),
   t4),
 

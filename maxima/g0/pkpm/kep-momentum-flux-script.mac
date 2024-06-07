@@ -32,7 +32,27 @@ mass_flux_r_vol_e : rhor_e*ur_e$
 momentum_flux_1l_vol_e : mass_flux_l_vol_e*ul_e$
 momentum_flux_1l_vol_c : calcInnerProdList(varsC, 1, diff(bC, x), mass_flux_l_vol_e*ul_e)$
 
-print(momentum_flux_1l_vol_c)$
+/* Look at mass flux at different orders */
+mass_flux_p_c : calcInnerProdList(varsC, 1, bC, mass_flux_l_vol_e)$
+mass_flux_p2_c : calcInnerProdList(varsC, 1, bC_p2, mass_flux_l_vol_e)$
+print(mass_flux_p_c)$
+print(mass_flux_p2_c)$
+
+mass_flux_p_e : mass_flux_p_c[1]*bC[1] + mass_flux_p_c[2]*bC[2]$
+mass_flux_p2_e : mass_flux_p2_c[1]*bC_p2[1] + mass_flux_p2_c[2]*bC_p2[2] + mass_flux_p2_c[3]*bC_p2[3]$
+
+mass_flux_p_diff1_vol_c : calcInnerProdList(varsC, 1, diff(bC, x), mass_flux_p_e)$
+mass_flux_p_diff2_vol_c : calcInnerProdList(varsC, 1, diff(bC_p2, x), mass_flux_p_e)$
+mass_flux_p2_diff1_vol_c : calcInnerProdList(varsC, 1, diff(bC, x), mass_flux_p2_e)$
+mass_flux_p2_diff2_vol_c : calcInnerProdList(varsC, 1, diff(bC_p2, x), mass_flux_p2_e)$
+
+print(mass_flux_p_diff1_vol_c)$
+print(mass_flux_p_diff2_vol_c)$
+print(mass_flux_p2_diff1_vol_c)$
+print(mass_flux_p2_diff2_vol_c)$
+
+print(mass_flux_p2_diff1_vol_c - mass_flux_p_diff1_vol_c)$
+print(mass_flux_p2_diff2_vol_c - mass_flux_p_diff2_vol_c)$
 
 surfVars : delete(x, varsC)$
 strong_momentum_flux_1l_surf_c : calcInnerProdList(surfVars, 1, subst(x=1, bC), subst(x=1, mass_flux_l_vol_e*ul_e))$
@@ -71,3 +91,39 @@ ul_div_2 : inv_E[2,1]*rhoul_c[1] + inv_E[2,2]*rhoul_c[2]$
 
 print(fullratsimp(ul_div_1))$
 print(fullratsimp(ul_div_2))$
+
+/*
+cdim : 2$
+
+load("modal-basis")$
+[varsC,bC] : loadBasis("Tensor", cdim, 1)$
+[varsC,bC_p2] : loadBasis("Tensor", cdim, 2)$
+NC : length(bC)$
+NC_p2 : length(bC_p2)$
+
+/* mass density and flow on left and right */
+rhol_e : doExpand1(rho_l, bC_p2)$
+ul_e : doExpand1(u_l, bC)$
+
+rhor_e : doExpand1(rho_r, bC_p2)$
+ur_e : doExpand1(u_r, bC)$
+
+/* Check that rhou = rho*u (i.e., that the process is invertible) */
+rhoul_c : calcInnerProdList(varsC, 1, bC_p2, rhol_e*ul_e)$
+rhour_c : calcInnerProdList(varsC, 1, bC_p2, rhor_e*ur_e)$
+
+eq : calcInnerProdList(varsC,ul_e,bC,rhol_e)$
+ul_c : makelist(u_l[i],i,0,NC-1)$
+E  : fullratsimp(coefmatrix(eq,ul_c))$
+inv_E : invert(E)$
+
+ul_div_1 : inv_E[1,1]*rhoul_c[1] + inv_E[1,2]*rhoul_c[2] + inv_E[1,3]*rhoul_c[3] + inv_E[1,4]*rhoul_c[4]$
+ul_div_2 : inv_E[2,1]*rhoul_c[1] + inv_E[2,2]*rhoul_c[2] + inv_E[2,3]*rhoul_c[3] + inv_E[2,4]*rhoul_c[4]$
+ul_div_3 : inv_E[3,1]*rhoul_c[1] + inv_E[3,2]*rhoul_c[2] + inv_E[3,3]*rhoul_c[3] + inv_E[3,4]*rhoul_c[4]$
+ul_div_4 : inv_E[4,1]*rhoul_c[1] + inv_E[4,2]*rhoul_c[2] + inv_E[4,3]*rhoul_c[3] + inv_E[4,4]*rhoul_c[4]$
+
+print(fullratsimp(ul_div_1))$
+print(fullratsimp(ul_div_2))$
+print(fullratsimp(ul_div_3))$
+print(fullratsimp(ul_div_4))$
+*/

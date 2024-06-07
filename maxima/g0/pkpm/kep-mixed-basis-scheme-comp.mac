@@ -1,0 +1,71 @@
+cdim : 2$
+
+load("modal-basis")$
+[varsC,bC] : loadBasis("Tensor", cdim, 1)$
+[varsC,bC_p2] : loadBasis("Tensor", cdim, 2)$
+NC : length(bC)$
+NC_p2 : length(bC_p2)$
+
+[varsP,bP] : loadBasis("Tensor", cdim+1, 2)$
+
+/* distribution function and flow on left and right */
+fl_e : doExpand1(f_l, bP)$
+ul_e : doExpand1(u_l, bC)$
+
+fc_e : doExpand1(f_c, bP)$
+uc_e : doExpand1(u_c, bC)$
+
+fr_e : doExpand1(f_r, bP)$
+ur_e : doExpand1(u_r, bC)$
+
+rho_l_c : calcInnerProdList(varsP, 1, bC_p2, fl_e)$
+rho_c_c : calcInnerProdList(varsP, 1, bC_p2, fc_e)$
+rho_r_c : calcInnerProdList(varsP, 1, bC_p2, fr_e)$
+rhol_e : 0$
+rhoc_e : 0$
+rhor_e : 0$
+for i : 1 thru length(bC_p2) do (
+  rhol_e : rhol_e + rho_l_c[i]*bC_p2[i], 
+  rhoc_e : rhoc_e + rho_c_c[i]*bC_p2[i], 
+  rhor_e : rhor_e + rho_r_c[i]*bC_p2[i]
+)$
+
+avg_f_l : 0.5*(subst(x=1, fl_e) + subst(x=-1, fc_e))$
+avg_f_r : 0.5*(subst(x=1, fc_e) + subst(x=-1, fr_e))$
+
+avg_rho_l : 0.5*(subst(x=1, rhol_e) + subst(x=-1, rhoc_e))$
+avg_rho_r : 0.5*(subst(x=1, rhoc_e) + subst(x=-1, rhor_e))$
+avg_u_l : 0.5*(subst(x=1, ul_e) + subst(x=-1, uc_e))$
+avg_u_r : 0.5*(subst(x=1, uc_e) + subst(x=-1, ur_e))$
+jump_rho_l : 0.5*(subst(x=-1, rhoc_e) - subst(x=1, rhol_e))$
+jump_rho_r : 0.5*(subst(x=-1, rhor_e) - subst(x=1, rhoc_e))$
+
+surfVars : delete(x, varsC)$
+mass_flux_surf_e : calcInnerProdList(surfVars, 1, subst(x=1, bC_p2), avg_rho_l*avg_u_l)$
+
+surfVarsP : delete(x, varsP)$
+mass_flux_f_surf_e : calcInnerProdList(surfVarsP, 1, subst(x=1, bC_p2), avg_f_l*avg_u_l)$
+print(mass_flux_f_surf_e - mass_flux_surf_e)$
+
+/* Examine the difference between a pure p=2 update in 2D and a p=1 flow velocity update */
+
+vol_update_mass_c : calcInnerProdList(varsC, 1, diff(bC_p2, x), rhoc_e*uc_e)$
+surf_update_mass_l_c : calcInnerProdList(surfVars, 1, subst(x=-1, bC_p2), avg_rho_l*avg_u_l)$
+surf_update_mass_r_c : calcInnerProdList(surfVars, 1, subst(x=1, bC_p2), avg_rho_r*avg_u_r)$
+
+ul_p2_e : doExpand1(u_l, bC_p2)$
+uc_p2_e : doExpand1(u_c, bC_p2)$
+ur_p2_e : doExpand1(u_r, bC_p2)$
+
+avg_u_p2_l : 0.5*(subst(x=1, ul_p2_e) + subst(x=-1, uc_p2_e))$
+avg_u_p2_r : 0.5*(subst(x=1, uc_p2_e) + subst(x=-1, ur_p2_e))$
+
+vol_update_mass_p2_c : calcInnerProdList(varsC, 1, diff(bC_p2, x), rhoc_e*uc_p2_e)$
+surf_update_mass_p2_l_c : calcInnerProdList(surfVars, 1, subst(x=-1, bC_p2), avg_rho_l*avg_u_p2_l)$
+surf_update_mass_p2_r_c : calcInnerProdList(surfVars, 1, subst(x=1, bC_p2), avg_rho_r*avg_u_p2_r)$
+/*
+print(fullratsimp(vol_update_mass_p2_c[2] - vol_update_mass_c[2]))$
+print(fullratsimp(surf_update_mass_p2_l_c[2] - surf_update_mass_l_c[2]))$
+
+print(fullratsimp(vol_update_mass_p2_c[2] - vol_update_mass_c[2] - (surf_update_mass_p2_l_c[2] - surf_update_mass_l_c[2]) + surf_update_mass_p2_r_c[2] - surf_update_mass_r_c[2]))$
+*/

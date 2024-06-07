@@ -26,8 +26,8 @@ for d : minCdim_Tensor thru maxCdim_Tensor do (
         calcEulerPKPM1xUpdateInDir(dir, fh, funcName, d, polyOrder)
       )
       else (
-        printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_surfx~a_eval_quad.h> ~%", d, polyOrder, dir),
-        printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_upwind_quad_to_modal.h> ~%", d, polyOrder),
+        printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_surfx~a_eval_quad.h> ~%", d, 2*polyOrder, dir),
+        printf(fh, "#include <gkyl_basis_tensor_~ax_p~a_upwind_quad_to_modal.h> ~%", d, 2*polyOrder),
         calcEulerPKPMUpdateInDir(dir, fh, funcName, d, polyOrder)
       ),
       close(fh)

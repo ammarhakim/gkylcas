@@ -79,9 +79,9 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   printf(fh, "  const double *uy = &pkpm_u[~a]; ~%", 1*NC_p1),
   printf(fh, "  const double *uz = &pkpm_u[~a]; ~%", 2*NC_p1),
 
-  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0*NC_p1),
-  printf(fh, "  const double *by = &bvar[~a]; ~%", 1*NC_p1),
-  printf(fh, "  const double *bz = &bvar[~a]; ~%", 2*NC_p1),
+  printf(fh, "  const double *bx = &bvar[~a]; ~%", 0*NC),
+  printf(fh, "  const double *by = &bvar[~a]; ~%", 1*NC),
+  printf(fh, "  const double *bz = &bvar[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
   /* Access F_0 and T_perp/m G, first two Laguerre moments */
@@ -146,9 +146,9 @@ calc_pkpm_vlasov_vol(fh, funcNm, cdim, vdim, polyOrder) := block(
   uz_e : doExpand1(uz, bC_p1),
   u_e : [ux_e, uy_e, uz_e],
 
-  bx_e : doExpand1(bx, bC_p1),
-  by_e : doExpand1(by, bC_p1),
-  bz_e : doExpand1(bz, bC_p1),
+  bx_e : doExpand1(bx, bC),
+  by_e : doExpand1(by, bC),
+  bz_e : doExpand1(bz, bC),
   b_e : [bx_e, by_e, bz_e],
 
   p_perp_div_b_e : doExpand1(p_perp_div_b, bC),

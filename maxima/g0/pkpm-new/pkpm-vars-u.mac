@@ -52,9 +52,9 @@ set_pkpm_u_i(fh, funcNm, cdim, polyOrder) := block(
   printf(fh, "  gkyl_mat_clear(&A_uy, 0.0); gkyl_mat_clear(&rhs_uy, 0.0); ~%"),
   printf(fh, "  gkyl_mat_clear(&A_uz, 0.0); gkyl_mat_clear(&rhs_uz, 0.0); ~%"),
 
-  printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC),
-  printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC),
-  printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC),
+  printf(fh, "  const double *rhoux = &euler_pkpm[~a]; ~%", 0*NC_2p),
+  printf(fh, "  const double *rhouy = &euler_pkpm[~a]; ~%", 1*NC_2p),
+  printf(fh, "  const double *rhouz = &euler_pkpm[~a]; ~%", 2*NC_2p),
 
   printf(fh, "  const double *rho = &vlasov_pkpm_moms[~a]; ~%", 0*NC_2p),
 

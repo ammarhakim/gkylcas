@@ -193,10 +193,10 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   /* update divided between div(v_par b_hat F_0) and div(v_par b_hat G_1), and div(u F_0) and div(u G_1) */
   /* Surface magnetic field vector organized as:
      [bx_xl, bx_xr, by_yl, by_yr, bz_zl, bz_zr] */
-  printf(fh, "  const double *b_surf_lr = &bvar_surf_l[~a]; ~%", (1 + (dir-1)*2)*NSurfConf_p1),
-  printf(fh, "  const double *b_surf_cl = &bvar_surf_c[~a]; ~%", (0 + (dir-1)*2)*NSurfConf_p1),
-  printf(fh, "  const double *b_surf_cr = &bvar_surf_c[~a]; ~%", (1 + (dir-1)*2)*NSurfConf_p1),
-  printf(fh, "  const double *b_surf_rl = &bvar_surf_r[~a]; ~%", (0 + (dir-1)*2)*NSurfConf_p1),
+  printf(fh, "  const double *b_surf_lr = &bvar_surf_l[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *b_surf_cl = &bvar_surf_c[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *b_surf_cr = &bvar_surf_c[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *b_surf_rl = &bvar_surf_r[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
   printf(fh, "~%"),
   /* Surface primitive variables are organized as:
      [ux_xl, ux_xr, uy_xl, uy_xr, uz_xl, uz_xr, 
@@ -227,15 +227,15 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
      [|bx_xl|, |bx_xr|, 
       |by_yl|, |by_yr|,
       |bz_zl|, |bz_zr|] */
-  printf(fh, "  const double *pkpm_max_b_l = &pkpm_max_b[~a]; ~%", (0 + (dir-1)*2)*NSurfConf_p1),
-  printf(fh, "  const double *pkpm_max_b_r = &pkpm_max_b[~a]; ~%", (1 + (dir-1)*2)*NSurfConf_p1),
+  printf(fh, "  const double *pkpm_max_b_l = &pkpm_max_b[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *pkpm_max_b_r = &pkpm_max_b[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
   printf(fh, "~%"),
   /* Surface Lax penalization organized as (note T_ii = 3*P_ii/rho, includes necessary factors) : 
      [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
       |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
       |uz_zl| + sqrt(Tzz_zl), |uz_zr| + sqrt(Tzz_zr)] */
-  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurfConf_p1),
-  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurfConf_p1),
+  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
+  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
   printf(fh, "~%"),
 
   if cdim = 1 then (
@@ -330,13 +330,13 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
   )
   else (
     /* Expand surface basis quantities b_hat and max b penalization */
-    b_surf_lr_e : doExpand1(b_surf_lr, bSurfConf_p1),
-    b_surf_cl_e : doExpand1(b_surf_cl, bSurfConf_p1),
-    b_surf_cr_e : doExpand1(b_surf_cr, bSurfConf_p1),
-    b_surf_rl_e : doExpand1(b_surf_rl, bSurfConf_p1),
+    b_surf_lr_e : doExpand1(b_surf_lr, bSurfConf),
+    b_surf_cl_e : doExpand1(b_surf_cl, bSurfConf),
+    b_surf_cr_e : doExpand1(b_surf_cr, bSurfConf),
+    b_surf_rl_e : doExpand1(b_surf_rl, bSurfConf),
 
-    max_b_l_e : doExpand1(pkpm_max_b_l, bSurfConf_p1),
-    max_b_r_e : doExpand1(pkpm_max_b_r, bSurfConf_p1),
+    max_b_l_e : doExpand1(pkpm_max_b_l, bSurfConf),
+    max_b_r_e : doExpand1(pkpm_max_b_r, bSurfConf),
 
     /* Since vpar is continuous, can factor out of Lax flux so that
        if vpar > 0 : vpar (avg_b*avg_F - max_b/2*(F_r - F_l))
@@ -387,8 +387,8 @@ calc_pkpm_vlasov_surf_stream(dir, fh, funcNm, cdim, vdim, polyOrder) := block(
     u_surf_cr_e : doExpand1(u_surf_cr, bSurfConf_p1),
     u_surf_rl_e : doExpand1(u_surf_rl, bSurfConf_p1),
 
-    pkpm_lax_l_e : doExpand1(pkpm_lax_l, bSurfConf_p1),
-    pkpm_lax_r_e : doExpand1(pkpm_lax_r, bSurfConf_p1),
+    pkpm_lax_l_e : doExpand1(pkpm_lax_l, bSurfConf),
+    pkpm_lax_r_e : doExpand1(pkpm_lax_r, bSurfConf),
 
     /* Print C exprs for Ghat for div(u F_0) and div(u G_1) across surface boundary, (LEFT BOUNDARY) */
     Ghat_F_0_u_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*(F_0_lr_e + F_0_cl_e)*0.5*(u_surf_lr_e + u_surf_cl_e) - 0.5*pkpm_lax_l_e*(F_0_cl_e - F_0_lr_e))),

@@ -10,7 +10,7 @@ load(stringproc)$
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 1$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 

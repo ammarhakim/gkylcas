@@ -21,14 +21,14 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 0$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 2$
+minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
