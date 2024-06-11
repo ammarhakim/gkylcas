@@ -1,6 +1,6 @@
 /* Generate kernels that take a function f at Gauss-Legendre quadrature nodes,
    and do a nodal-to-modal transformation to yield the modal DG coefficients of f. */
-load("nodal_operations/basis_vol_quad_to_modal")$
+load("nodal_operations/basis_vol_modal_to_quad")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -45,7 +45,7 @@ vDims : [vDims_hyb, vDims_gkhyb]$
 /* Generate kernels that take the f at Gauss-Legendre quadrature nodes,
    and do a nodal-to-modal transformation to yield the modal DG coefficients of f. */
 for bInd : 1 thru length(bName) do (
-  fname : sconcat("~/max-out/basis_quad_to_modal_", bName[bInd], ".c"),
+  fname : sconcat("~/max-out/basis_modal_to_quad_", bName[bInd], ".c"),
   fh : openw(fname),
   printf(fh, "#include <gkyl_basis_~a_kernels.h> ~%", bName[bInd]),
 
@@ -55,7 +55,7 @@ for bInd : 1 thru length(bName) do (
     if (d>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating quad_to_modal ",bName[bInd]," ~ax_p~a"), d, polyOrder)),   
-      genQuadToModalKernel(fh, d, bName[bInd], polyOrder)
+      genModalToQuadKernel(fh, d, bName[bInd], polyOrder)
     )
   ),
   close(fh)
@@ -63,7 +63,7 @@ for bInd : 1 thru length(bName) do (
 
 /* Generate the hybrid basis kernels. */
 for bInd : 1 thru length(bNameHyb) do (
-  fname : sconcat("~/max-out/basis_quad_to_modal_", bNameHyb[bInd], ".c"),
+  fname : sconcat("~/max-out/basis_modal_to_quad_", bNameHyb[bInd], ".c"),
   fh : openw(fname), 
   printf(fh, "#include <gkyl_basis_~a_kernels.h> ~%", bNameHyb[bInd]),
 
@@ -72,7 +72,7 @@ for bInd : 1 thru length(bNameHyb) do (
     vmax : xreduce(max,vDims[bInd][c]),
     for v : vmin thru vmax do (
       disp(printf(false,sconcat("Creating quad_to_modal ",bNameHyb[bInd]," ~ax~av_p1"),c,v)),     
-      genQuadToModalKernelHyb(fh, c, v, bNameHyb[bInd])
+      genModalToQuadKernelHyb(fh, c, v, bNameHyb[bInd])
     )
   ),
   close(fh)
