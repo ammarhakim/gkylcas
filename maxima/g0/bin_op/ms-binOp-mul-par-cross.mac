@@ -1,0 +1,94 @@
+/* Generate kernels that perform binary operations between
+   two fields. Currently two operations are supported:
+     1) Weak division by a scalar function.
+     2) Weak multiplication.
+   This script calls the functions calcBinOp for weak multiplication. */
+
+load("bin_op/binOp-mul-par-C-cross")$
+load(stringproc)$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 0$
+maxPolyOrder_Ser : 3$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+minPdim_Ser : 1$
+maxPdim_Ser : 3$
+
+/* Tensor product basis. */
+/* Note that Serendipity, p = 1, is equivalent to Tensor */
+/* Thus no need to calculate p = 1 Tensor basis */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 1$
+minPdim_Tensor : 1$
+maxPdim_Tensor : 1$
+
+/* Hybrid basis. */
+minCdim_hyb : 1$
+maxCdim_hyb : 1$
+vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
+
+/* GK hybrid basis. */
+minCdim_gkhyb : 1$
+maxCdim_gkhyb : 1$
+vDims_gkhyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minPdim      : [minPdim_Ser, minPdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxPdim      : [maxPdim_Ser, maxPdim_Tensor]$
+
+bNameHyb   : ["hyb","gkhyb"]$
+minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_hyb, vDims_gkhyb]$
+
+for bInd : 1 thru length(bName) do (
+  /* Generate kernels for operations between two fields defined on
+     spaces with same dimensions (1D, 2D, 3D). */
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    for c : minCdim[bInd] thru maxCdim[bInd] do (
+      for p : minPdim_Ser thru maxPdim_Ser do (
+        fname : sconcat("~/max-out/binop_cross_mul_comp_par_", c, "d_", c+p, "d_",bName[bInd],"_p", polyOrder, ".c"),
+        fh : openw(fname),
+        disp(printf(false,sconcat("Creating ~ax ~ax ", bName[bInd], " p", polyOrder), c, c+p)),
+        printf(fh, "#include <gkyl_binop_cross_mul_ser.h> ~%"),      
+        printf(fh, " ~%"),
+        funcName : sconcat("binop_cross_mul_comp_par_", c, "d_", c + p, "d_" ,bName[bInd],"_p", polyOrder),
+        disp(printf(false,sconcat("Working on dg bin_op multiply ", c, "x ", c+p, "x ", bName[bInd]))),
+        calcBinOpConfMultiply(fh, funcName, c, p, bName[bInd], polyOrder),
+        close(fh)
+      )
+    )
+  )
+)$
+disp(printf(false,sconcat("Done with serendipity and tensor")))$
+
+/* Generate the hybrid basis kernels. */
+polyOrder : 1$
+for bInd : 1 thru length(bNameHyb) do (
+  for c : minCdimHyb[bInd] thru maxCdimHyb[bInd] do (
+    vmin : xreduce(min,vDims[bInd][c]),
+    vmax : xreduce(max,vDims[bInd][c]),
+    for v : vmin thru vmax do (
+      fname : sconcat("~/max-out/binop_cross_mul_comp_par_", c, "x", v, "v_",bNameHyb[bInd],"_p", polyOrder, ".c"),
+      fh : openw(fname),
+      disp(printf(false,sconcat("Creating cross multiply kernels for ",bNameHyb[bInd]," ~ax~av_p1"),c,v)),
+      printf(fh, sconcat("#include <gkyl_binop_cross_mul_",bNameHyb[bInd],".h> ~%")),      
+      printf(fh, " ~%"),
+      funcName : sconcat("binop_cross_mul_comp_par_", c, "x", v, "v_" ,bNameHyb[bInd],"_p", polyOrder),
+      calcBinOpConfMultiplyHyb(fh, funcName, c, v, bNameHyb[bInd], polyOrder),
+      close(fh)
+    )
+  )
+)$
+disp(printf(false,sconcat("Done with hyb and gkhyb")))$
