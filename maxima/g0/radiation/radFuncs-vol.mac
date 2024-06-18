@@ -5,6 +5,7 @@
 load("modal-basis")$
 load("out-scripts");
 load("utilities_gyrokinetic")$
+load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
@@ -18,6 +19,9 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  disp(NP),
+  disp(bP),
+  disp(varsP),
   NC : length(bC),  NP : length(bP),
   varsV : makelist(varsP[d],d,cdim+1,pDim),
 
@@ -39,12 +43,28 @@ calcGkRADDragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  rdv2[~a] = 2.0/dxv[~a]; ~%", dir-1, vidx1[dir])
   ),
   printf(fh, "~%"),
-
+  
   /* Expand the velocity map fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   /* Expand distribution function f in phase basis. */
   f_e : doExpand1(f, bP),
+  
+  /* Find corner nodes and evaluate f there*/
+  nodes : getNodesGkHyb(cdim, vdim),
+  f_n : evAtNodes(f_e, nodes, varsP),
+  numNodes : length(nodes),
+  printf(fh, "  double fnod[~a];~%",numNodes),
+  writeCExprs1(fnod, f_n),
+  printf(fh, "~%"),
+  
+  /* Loop over nodes, and if f<0 don't evaluate radiation */
+  printf(fh, "  // If f < 0.0 at nodes, don't evaluate radiation. ~%"),
+  for i : 1 thru numNodes do (
+    printf(fh, "  if (fnod[~a] < 0.0) ~%", i-1),
+    printf(fh, "     return 0.0; ~%")
+  ),
+  printf(fh, "~%"),
 
   /* Expand nvnu and nvsqnu in phase space basis.*/
   nvnu_e : doExpand1(nvnu, bP),

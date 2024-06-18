@@ -5,6 +5,7 @@
 load("modal-basis")$
 load("out-scripts")$
 load("utilities_gyrokinetic")$
+load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
@@ -56,9 +57,26 @@ calcGkRADDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Create expansions of f_left, f_center, and f_right in volume basis. */
   fl_e : doExpand1(fl, bP)/vmap_prime_fac_l,
+  fc_e_nm : doExpand1(fc, bP),
   fc_e : doExpand1(fc, bP)/vmap_prime_fac_c,
   fr_e : doExpand1(fr, bP)/vmap_prime_fac_r,
+
+  /* Find corner nodes and evaluate f there*/
+  nodes : getNodesGkHyb(cdim, vdim),
+  f_n : evAtNodes(fc_e_nm, nodes, varsP),
+  numNodes : length(nodes),
+  printf(fh, "  double fnod[~a];~%",numNodes),
+  writeCExprs1(fnod, f_n),
+  printf(fh, "~%"),
   
+  /* Loop over nodes, and if f<0 don't evaluate radiation */
+  printf(fh, "  // If f < 0.0 at nodes, don't evaluate radiation. ~%"),
+  for i : 1 thru numNodes do (
+    printf(fh, "  if (fnod[~a] < 0.0) ~%", i-1),
+    printf(fh, "     return 0.0; ~%")
+  ),
+  printf(fh, "~%"),
+
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("gkhyb",surfVars,polyOrder)
   ) else (
@@ -180,8 +198,25 @@ calcGkRADDragUpdateMu(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Create expansions of f_left, f_center, and f_right in volume basis. */
   fl_e : doExpand1(fl, bP)/vmap_prime_fac_l,
+  fc_e_nm : doExpand1(fc, bP),
   fc_e : doExpand1(fc, bP)/vmap_prime_fac_c,
   fr_e : doExpand1(fr, bP)/vmap_prime_fac_r,
+  
+  /* Find corner nodes and evaluate f there*/
+  nodes : getNodesGkHyb(cdim, vdim),
+  f_n : evAtNodes(fc_e_nm, nodes, varsP),
+  numNodes : length(nodes),
+  printf(fh, "  double fnod[~a];~%",numNodes),
+  writeCExprs1(fnod, f_n),
+  printf(fh, "~%"),
+  
+  /* Loop over nodes, and if f<0 don't evaluate radiation */
+  printf(fh, "  // If f < 0.0 at nodes, don't evaluate radiation. ~%"),
+  for i : 1 thru numNodes do (
+    printf(fh, "  if (fnod[~a] < 0.0) ~%", i-1),
+    printf(fh, "     return 0.0; ~%")
+  ),
+  printf(fh, "~%"),
   
   /* Surface basis (equivalent to basis of one lower
      dimensionality without surface variable) */
