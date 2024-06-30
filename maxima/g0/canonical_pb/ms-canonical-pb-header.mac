@@ -30,7 +30,10 @@ printPrototypes() := block([],
       for polyOrder : 1 thru maxPolyOrderB do (
         printf(fh, "GKYL_CU_DH double canonical_pb_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,  
           const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
-
+        funcNm : sconcat("canonical_pb_vars_pressure_",  c, "x_", bName[bInd], "_p", polyOrder),
+        printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *M2_ij, const double *v_j, 
+         const double *nv_i, double* GKYL_RESTRICT d_Jv_P);~%", funcNm, polyOrder),
+         
         for surfDir : 1 thru c+v do ( /* Iterate over each phase space coordinate */
           if surfDir<=c then (dirlabel : clabels[surfDir]) else (dirlabel : vlabels[surfDir-c]),
           printf(fh, "GKYL_CU_DH int canonical_pb_alpha_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil, 
