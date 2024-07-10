@@ -34,12 +34,12 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_sr_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_sr_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_Ni_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_Energy_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_Pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma_inv, const double *gamma, const double *GammaV2, const double *V_drift, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *gamma, const double *GammaV_inv, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_sr_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Ni_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 

@@ -1,10 +1,9 @@
-load("sr_vlasov/vlasovSRStreamFuncs-vol-C")$
+load("sr_vlasov/sr-vars-u_i")$
 load(stringproc)$
-/* This script calls the functions which calculate the
-   updates from the volume term due to the streaming
-   term v . grad(f) in (neutral) relativistic Vlasov
-   equations where v = d/dp (gamma) = p/gamma and 
-   gamma = sqrt(1 + p^2) is the particle Lorentz boost factor. */
+/* This script calls the functions which calculate 
+   the bulk four-velocity (GammaV, GammaV*V_drift) using weak division
+   GammaV = M0/n
+   GammaV*V_drift = M1i/n */
 
 /* ...... USER INPUTS........ */
 
@@ -35,23 +34,30 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
-
-
-/* Compute the volume contribution from ONLY the streaming term (for use in neutral particle simulations) */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating volume VlasovStream",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
-        fname : sconcat("~/max-out/vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/sr_vars_u_i_set_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov_sr_stream_vol_", c, "x", v, "v_", bName[bInd]),
-        calcVlasovSRStreamVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("sr_vars_u_i_set_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        if (polyOrder = 1) then (
+          set_sr_u_i_p1(fh, funcName, c, v, bName[bInd], polyOrder)
+        )
+        else (
+          set_sr_u_i(fh, funcName, c, v, bName[bInd], polyOrder)
+        ),
+        close(fh),
+
+        fname : sconcat("~/max-out/sr_vars_u_i_copy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("sr_vars_u_i_copy_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        copy_sr_u_i(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

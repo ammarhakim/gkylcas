@@ -21,33 +21,6 @@ dv11 : [dv10, dv11, dv12]$
 
 Efld  : [E0, E1, E2]$
 Bfld  : [B0, B1, B2]$
-p_over_gamma_fld : [p0_over_gamma, p1_over_gamma, p2_over_gamma]$
-
-ax(vdim, bc, bv) := 
-  if vdim = 1 then
-    doExpand1(Efld[1],bc) 
-  else if vdim = 2 then
-    doExpand1(Efld[1],bc) + doExpand1(p_over_gamma_fld[2], bv)*doExpand1(Bfld[3],bc)
-  else 
-    doExpand1(Efld[1],bc) + doExpand1(p_over_gamma_fld[2], bv)*doExpand1(Bfld[3],bc) - doExpand1(p_over_gamma_fld[3], bv)*doExpand1(Bfld[2],bc)$
-
-ay(vdim, bc, bv) := 
-  if vdim = 2 then
-    doExpand1(Efld[2],bc) - doExpand1(p_over_gamma_fld[1], bv)*doExpand1(Bfld[3],bc)
-  else
-    doExpand1(Efld[2],bc) + doExpand1(p_over_gamma_fld[3], bv)*doExpand1(Bfld[1],bc) - doExpand1(p_over_gamma_fld[1], bv)*doExpand1(Bfld[3],bc)$
-
-az(vdim, bc, bv) := doExpand1(Efld[3],bc) + doExpand1(p_over_gamma_fld[1], bv)*doExpand1(Bfld[2],bc) - doExpand1(p_over_gamma_fld[2], bv)*doExpand1(Bfld[1],bc)$
-
-calcAccel(vdir, vdim, bc, bv) :=
-  if vdir = 1
-    then ax(vdim, bc, bv)
-  elseif vdir = 2
-    then ay(vdim, bc, bv)
-  else
-    az(vdim, bc, bv)$
-
-slcn(lst, n) := makelist(lst[i], i, 1, n)$
 
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
@@ -58,28 +31,31 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [],
-  kill(varsC, varsP, basisC, basisP),
-  load(sconcat("basis-precalc/basis", basisFun, vdim, "x")),
-  /* Generate basis in velocity space only. */
-  bV : subst(pVsub,basisC[polyOrder]),
+  [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV],
+
+  /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  pDim : length(varsP),
+  
+  /* polyOrder in velocity space is p=2 for p=1 since we force p=1 to
+     mean hybrid basis. */
+  if polyOrder=1 then ( 
+    [varsV, bV] : loadBasis(basisFun, vdim, 2)
+  ) 
+  else (
+    [varsV, bV] : loadBasis(basisFun, vdim, polyOrder)
+  ), 
+  bV : subst(pVsub, copylist(bV)),  
+  varsV : subst(pVsub, copylist(varsV)), 
   NV : length(bV),
 
-  kill(varsC, varsP, basisC, basisP),
-  modNm : sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v"),
-  load(modNm),
-
-  bP    : basisP[polyOrder],
-  bC    : basisC[polyOrder],
-  varsC : slcn(varsP, cdim),
-  numC  : length(bC),
-  numP  : length(bP),
-  pDim  : length(varsP),
-
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
-  printf(fh, "  // w:           Cell-center coordinates.~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]:     Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:   Cell spacing.~%"),
-  printf(fh, "  // p_over_gamma: p/gamma (velocity).~%"),
+  printf(fh, "  // gamma:       Particle Lorentz boost factor sqrt(1 + p^2).~%"),
   printf(fh, "  // qmem:        q/m*EM fields.~%"),
   printf(fh, "  // edge:        Determines if the update is for the left edge (-1) or right edge (+1).~%"),
   printf(fh, "  // fSkin/fEdge: Input Distribution function in skin cell/last edge cell ~%"),
@@ -88,66 +64,177 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
 
-  printf(fh, "  const double dv1~a = 2/dxv[~a]; ~%", dir-1, vid[dir]),
-  for d : 1 thru vdim do (
-    printf(fh, "  const double dv~a = dxv[~a], wv~a = w[~a]; ~%", d, vid[d], d, vid[d])
-  ),
-
-  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, numC*(dir-1)),
-  /* If vdim = 1, then no magnetic field. */
-  if vdim > 1 then (
-    if vdim = 2 then (
-      for d : 1 thru 2 do (
-        printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", d-1, NV*(d-1))
-      ),
-      /* In 2 velocity dimensions, only Bz. */
-      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, numC*2+3*numC)
-    ),
-    if vdim = 3 then (
-      for d : 1 thru 3 do (
-        printf(fh, "  const double *p~a_over_gamma = &p_over_gamma[~a]; ~%", d-1, NV*(d-1)),
-        printf(fh, "  const double *B~a = &qmem[~a]; ~%", d-1, numC*(d-1)+3*numC)
-      )            
-    )
-  ),
-  printf(fh, "~%"),
-
-  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
-
   /* vv = variable in direction of surface update. */
   vv : varsV[dir],
-
   /* Surface variables to integrate over. */
   surfVars : delete(vv,varsP),
+  surfVarsV : delete(vv,varsV),
 
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
-  bSurf : sqrt(2)*delete(0,fullratsimp(innerProd(varsP,1,bP,subst([vv^2=var2,var2=1/3,vv=0],bP)))*bP),
+  /* Also generate necessary basis strings and surface nodes given by tensor product of Gauss-Legendre quadrature points */
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+    bSurf : basisFromVars("hyb", surfVars, polyOrder),
+    bSurfV : basisFromVars(basisFun, surfVarsV, 2),
 
-  /* Create expansions of f_skin, f_edge on volume basis. */
-  fSkin_e : doExpand1(fSkin, bP),
-  fEdge_e : doExpand1(fEdge, bP),
+    surf_cdim : cdim,  surf_vdim : vdim-1,
+    surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim),
+
+    basisStr : sconcat("hyb_", cdim, "x", vdim, "v", "_p", polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisFun, surfVars, polyOrder), 
+    bSurfV : basisFromVars(basisFun, surfVarsV, polyOrder),
+
+    surfNodes : gaussOrd(polyOrder+1, pDim-1),
+
+    basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder)
+  ),
+  NSurf : length(bSurf),
+  NSurfV : length(bSurfV),
+  numNodes : length(surfNodes),
+
+  for i : 1 thru vdim do (
+    printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+  ),
+  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, NC*(dir-1)),  
+  if (vdim = 1) then (
+    acc_l_e : doExpand1(Efld[1],bC), 
+    acc_r_e : doExpand1(Efld[1],bC)
+  ), 
+
+  gamma_e : doExpand1(gamma, bV), 
+  gamma_surf_l : subst(vv=-1, gamma_e), 
+  gamma_surf_r : subst(vv=1, gamma_e), 
+  if (vdim > 1) then (
+    if (dir = 1) then (
+      printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+      printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_l, vy)), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_r, vy)), 
+      writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
+      writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
+      printf(fh, "~%"),
+
+      /* zero out components of py/gamma at the surface which are empty due to derivative */
+      py_over_gamma_l_NoZero : doMakeExprLst(py_over_gamma_l_c, p1_over_gamma_l),
+      py_over_gamma_l_NoZero_e : doExpandLst(py_over_gamma_l_NoZero, bSurfV), 
+      py_over_gamma_r_NoZero : doMakeExprLst(py_over_gamma_r_c, p1_over_gamma_r),
+      py_over_gamma_r_NoZero_e : doExpandLst(py_over_gamma_r_NoZero, bSurfV), 
+
+      acc_l_e : doExpand1(Efld[1],bC) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_r_e : doExpand1(Efld[1],bC) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+
+      if (vdim = 3) then (
+        printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+        printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_l, vz)), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_r, vz)), 
+        writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
+        writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
+        printf(fh, "~%"),
+
+        /* zero out components of pz/gamma at the surface which are empty due to derivative */
+        pz_over_gamma_l_NoZero : doMakeExprLst(pz_over_gamma_l_c, p2_over_gamma_l),
+        pz_over_gamma_l_NoZero_e : doExpandLst(pz_over_gamma_l_NoZero, bSurfV), 
+        pz_over_gamma_r_NoZero : doMakeExprLst(pz_over_gamma_r_c, p2_over_gamma_r),
+        pz_over_gamma_r_NoZero_e : doExpandLst(pz_over_gamma_r_NoZero, bSurfV), 
+
+        acc_l_e : doExpand1(Efld[1],bC) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC), 
+        acc_r_e : doExpand1(Efld[1],bC) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC), 
+
+        printf(fh, "  const double *B~a = &qmem[~a]; ~%", 1, NC*4)
+      ), 
+      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, NC*5), 
+      printf(fh, "~%")
+    )
+    else if (dir = 2) then (
+      printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+      printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_l, vx)), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_r, vx)), 
+      writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
+      writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
+
+      /* zero out components of px/gamma at the surface which are empty due to derivative */
+      px_over_gamma_l_NoZero : doMakeExprLst(px_over_gamma_l_c, p0_over_gamma_l),
+      px_over_gamma_l_NoZero_e : doExpandLst(px_over_gamma_l_NoZero, bSurfV), 
+      px_over_gamma_r_NoZero : doMakeExprLst(px_over_gamma_r_c, p0_over_gamma_r),
+      px_over_gamma_r_NoZero_e : doExpandLst(px_over_gamma_r_NoZero, bSurfV), 
+ 
+      acc_l_e : doExpand1(Efld[2],bC) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_r_e : doExpand1(Efld[2],bC) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+
+      if (vdim = 3) then (
+        printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+        printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_l, vz)), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_r, vz)), 
+        writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
+        writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
+
+        /* zero out components of pz/gamma at the surface which are empty due to derivative */
+        pz_over_gamma_l_NoZero : doMakeExprLst(pz_over_gamma_l_c, p2_over_gamma_l),
+        pz_over_gamma_l_NoZero_e : doExpandLst(pz_over_gamma_l_NoZero, bSurfV), 
+        pz_over_gamma_r_NoZero : doMakeExprLst(pz_over_gamma_r_c, p2_over_gamma_r),
+        pz_over_gamma_r_NoZero_e : doExpandLst(pz_over_gamma_r_NoZero, bSurfV), 
+
+        acc_l_e : doExpand1(Efld[2],bC) + pz_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+        acc_r_e : doExpand1(Efld[2],bC) + pz_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+
+        printf(fh, "  const double *B~a = &qmem[~a]; ~%", 0, NC*3)
+      ), 
+      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 2, NC*5), 
+      printf(fh, "~%")
+    )
+    else (
+      printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+      printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_l, vx)), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_r, vx)), 
+      writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
+      writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
+
+      /* zero out components of px/gamma at the surface which are empty due to derivative */
+      px_over_gamma_l_NoZero : doMakeExprLst(px_over_gamma_l_c, p0_over_gamma_l),
+      px_over_gamma_l_NoZero_e : doExpandLst(px_over_gamma_l_NoZero, bSurfV), 
+      px_over_gamma_r_NoZero : doMakeExprLst(px_over_gamma_r_c, p0_over_gamma_r),
+      px_over_gamma_r_NoZero_e : doExpandLst(px_over_gamma_r_NoZero, bSurfV), 
+
+      printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
+      printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_l, vy)), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_r, vy)), 
+      writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
+      writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
+
+      /* zero out components of py/gamma at the surface which are empty due to derivative */
+      py_over_gamma_l_NoZero : doMakeExprLst(py_over_gamma_l_c, p1_over_gamma_l),
+      py_over_gamma_l_NoZero_e : doExpandLst(py_over_gamma_l_NoZero, bSurfV), 
+      py_over_gamma_r_NoZero : doMakeExprLst(py_over_gamma_r_c, p1_over_gamma_r),
+      py_over_gamma_r_NoZero_e : doExpandLst(py_over_gamma_r_NoZero, bSurfV), 
+
+      acc_l_e : doExpand1(Efld[3],bC) + px_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC), 
+      acc_r_e : doExpand1(Efld[3],bC) + px_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC), 
+
+      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 0, NC*3), 
+      printf(fh, "  const double *B~a = &qmem[~a]; ~%", 1, NC*4), 
+      printf(fh, "~%")
+    )
+  ), 
 
   /* alpha is the phase space flux at the surface. */
-  printf(fh, "  double alpha[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double alpha[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
 
-  /* alpha_v = q/m*(E + p/gamma x B) dot d/dv(f) */
-  acc_e : calcAccel(dir, vdim, bC, bV),
-
   /* Project alpha_v on the left and right onto surface basis. */
-  alphaV_l_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=-1, acc_e))),
+  alphaV_l_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, acc_l_e)),
   /* Zero out components of alpha which are empty. */
   alphaNoZero_l : doMakeExprLst(alphaV_l_c, alpha),
   alpha_l_e     : doExpandLst(alphaNoZero_l, bSurf),
 
-  alphaV_r_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, subst(vv=1, acc_e))),
+  alphaV_r_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, acc_r_e)),
   /* Zero out components of alpha which are empty. */
   alphaNoZero_r : doMakeExprLst(alphaV_r_c, alpha),
   alpha_r_e     : doExpandLst(alphaNoZero_r, bSurf),
-
-  /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
-  surfNodes : gaussOrd(polyOrder+1, pDim-1),
-  numNodes : length(surfNodes),
 
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 
@@ -156,8 +243,8 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
   alphaOrd_r_n : gcfac(float(evAtNodes(alpha_r_e,surfNodes,surfVars))),
 
   printf(fh, "  double fUpwindQuad[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double fUpwind[~a] = {0.0};~%", length(bSurf)),
-  printf(fh, "  double Ghat[~a] = {0.0}; ~%", length(bSurf)),
+  printf(fh, "  double fUpwind[~a] = {0.0};~%", NSurf),
+  printf(fh, "  double Ghat[~a] = {0.0}; ~%", NSurf),
   printf(fh, "~%"),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
@@ -167,27 +254,20 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
   flush_output(fh),
   /* Write out fUpwindQuad for the far left edge */
   for i : 1 thru length(alphaOrd_r_n) do (
-    /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
-    if polyOrder=1 then (
-      rcoFac : 1./(content(alphaOrd_r_n[1],alpha[0])[1]),
-      printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_r_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    ) else (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    )
+    printf(fh, "  if (~a > 0) { ~%", alphaOrd_r_n[i]),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_r(fSkin); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_l(fEdge); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } ~%")
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
+  )
+  else (
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder)
+  ),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */
@@ -195,21 +275,12 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
 
   /* Print C exprs for Ghat across surface boundary */
   Ghat_c : fullratsimp(innerProd(surfVars, alpha_r_e, bSurf, fHatSurf_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+  /* Expand G_hat in surface basis. */
+  Ghat_e : doExpand1(Ghat, bSurf),
 
   incr : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),  
@@ -221,27 +292,20 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
   flush_output(fh),
   /* Write out fUpwindQuad for the far right edge */
   for i : 1 thru length(alphaOrd_l_n) do (
-    /* This subst eliminates the need for another variable, and removes
-        the common factor (for p=1) which is not needed to determine
-        sign (not working for p>1). */
-    if polyOrder=1 then (
-      rcoFac : 1./(content(alphaOrd_l_n[1],alpha[0])[1]),
-      printf(fh, "  if (~a > 0) { ~%", fullratsimp(alphaOrd_l_n[i]*rcoFac)),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    ) else (
-      printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } else { ~%"),
-      printf(fh, "    fUpwindQuad[~a] = ~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisFun, cdim+vdim, polyOrder, cdim+dir, i-1),
-      printf(fh, "  } ~%")
-    )
+    printf(fh, "  if (~a > 0) { ~%", alphaOrd_l_n[i]),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_r(fEdge); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    fUpwindQuad[~a] = ~a_surfx~a_eval_quad_node_~a_l(fSkin); ~%", i-1, basisStr, cdim+dir, i-1),
+    printf(fh, "  } ~%")
   ),
   printf(fh, "~%"),
   printf(fh, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-  printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder),
+  if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+    printf(fh, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", cdim, vdim)
+  )
+  else (
+    printf(fh, "  ~a_~ax_p~a_upwind_quad_to_modal(fUpwindQuad, fUpwind); ~%", basisFun, cdim+vdim, polyOrder)
+  ),
   printf(fh, "~%"),
 
   /* Create expansions of f_hat (upwinded f) in the surface basis. */
@@ -249,21 +313,12 @@ calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, po
 
   /* Print C exprs for Ghat across surface boundary */
   Ghat_c : fullratsimp(innerProd(surfVars, alpha_l_e, bSurf, fHatSurf_e)),
-
-  /* Clever factorization is possible for polyOrder = 1, but for higher
-     polynomial orders, factorization is *too* clever and can lead to 
-     deeply nested parentheses, not ideal for compiler optimizations */
-  if (polyOrder = 1) then (
-    writeCExprsNoExpand1(Ghat, Ghat_c)
-  ) else (
-    writeCExprs1(Ghat, Ghat_c)
-  ),
+  writeCExprs1(Ghat, Ghat_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero : doMakeExprLst(Ghat_c, Ghat),
-  Ghat_e     : doExpandLst(GhatNoZero, bSurf),
+  /* Expand G_hat in surface basis. */
+  Ghat_e : doExpand1(Ghat, bSurf),
 
   incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
