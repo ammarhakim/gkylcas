@@ -212,7 +212,7 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
 
     /* Evaluate maximum speed for Lax penalization */
-    printf(fh, "  T_l = ~a_surfx~a_eval_quad_node_~a_l(Tii_l); ~%", basisStr, dir, i-1),
+    printf(fh, "  T_l = ~a_surfx~a_eval_quad_node_~a_r(Tii_l); ~%", basisStr, dir, i-1),
     printf(fh, "  T_r = ~a_surfx~a_eval_quad_node_~a_l(Tii_r); ~%", basisStr, dir, i-1),
     printf(fh, "  u_max = fmax(fabs(u_l[~a]), fabs(u_r[~a])); ~%", dir-1, dir-1),
     printf(fh, "  if (T_l > 0.0 && T_r > 0.0) vth_max = fmax(sqrt(fabs(T_l)), sqrt(fabs(T_r))); ~%"),
