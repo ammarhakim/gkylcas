@@ -246,8 +246,8 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "~%"),
   /* Surface Lax penalization organized as (note T_ii = 3*P_ii/rho, includes necessary factors) : 
      [ |ux_xl| + sqrt(Txx_xl), |uy_yl| + sqrt(Tyy_yl), |uz_zl| + sqrt(Tzz_zl) ]  */
-  printf(fh, "  const double *pkpm_lax_dir_l = &pkpm_lax_l[~a]; ~%", (dir-1)*NSurf),
-  printf(fh, "  const double *pkpm_lax_dir_r = &pkpm_lax_r[~a]; ~%", (dir-1)*NSurf),
+  printf(fh, "  const double *pkpm_lax_dir_l = &pkpm_lax_l[~a]; ~%", (dir-1)*NSurfConf),
+  printf(fh, "  const double *pkpm_lax_dir_r = &pkpm_lax_r[~a]; ~%", (dir-1)*NSurfConf),
   printf(fh, "~%"),
 
   if cdim = 1 then (

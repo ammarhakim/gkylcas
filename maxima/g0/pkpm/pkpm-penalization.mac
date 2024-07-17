@@ -64,7 +64,7 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   ), 
   basisStr : sconcat(basisFun, "_", cdim, "x", "_p", polyOrder),
 
-  printf(fh, "GKYL_CU_DH void ~a(double tol, 
+  printf(fh, "GKYL_CU_DH void ~a(double tol, bool force_lax, 
   const struct gkyl_wv_eqn *wv_eqn, const struct gkyl_wave_cell_geom *geom, 
   const double *vlasov_pkpm_moms_l, const double *vlasov_pkpm_moms_r,
   const double *p_ij_l, const double *p_ij_r,
@@ -72,6 +72,7 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   const double *euler_pkpm_l, const double *euler_pkpm_r,
   double* GKYL_RESTRICT pkpm_lax, double* GKYL_RESTRICT pkpm_penalization) ~%{ ~%", funcNm),
   printf(fh, "  // tol:                  Tolerance in rho^+, rho^-, and u_avg for switching to Lax fluxes.~%"),
+  printf(fh, "  // force_lax:            Flag for forcing Lax fluxes to be turned on.~%"),
   printf(fh, "  // wv_eqn:               Wave equation for computing fluctuations at the interface for upwinding.~%"),
   printf(fh, "  // geom:                 Geometry for the surface update.~%"),
   printf(fh, "  // vlasov_pkpm_moms_l/r: Input pkpm moments to the left/right of the interface.~%"),
@@ -97,15 +98,11 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *rhouz_r = &euler_pkpm_r[~a]; ~%", 2*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *ux_l = &prim_l[~a]; ~%", 0*NC),
-  printf(fh, "  const double *uy_l = &prim_l[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uz_l = &prim_l[~a]; ~%", 2*NC),
+  printf(fh, "  const double *u_i_l = &prim_l[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *Tii_l = &prim_l[~a]; ~%", (dir+5)*NC),
   printf(fh, "~%"),
 
-  printf(fh, "  const double *ux_r = &prim_r[~a]; ~%", 0*NC),
-  printf(fh, "  const double *uy_r = &prim_r[~a]; ~%", 1*NC),
-  printf(fh, "  const double *uz_r = &prim_r[~a]; ~%", 2*NC),
+  printf(fh, "  const double *u_i_r = &prim_r[~a]; ~%", (dir-1)*NC),
   printf(fh, "  const double *Tii_r = &prim_r[~a]; ~%", (dir+5)*NC),
   printf(fh, "~%"),
 
@@ -150,8 +147,8 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double q_l[10] = {0.0}; ~%"),
   printf(fh, "  double q_r[10] = {0.0}; ~%"),
 
-  printf(fh, "  double u_l[3] = {0.0}; ~%"),
-  printf(fh, "  double u_r[3] = {0.0}; ~%"),
+  printf(fh, "  double u_l = 0.0; ~%"),
+  printf(fh, "  double u_r = 0.0; ~%"),
   printf(fh, "  double T_l = 0.0; ~%"),
   printf(fh, "  double T_r = 0.0; ~%"),
   printf(fh, "  double u_max = 0.0; ~%"),
@@ -179,14 +176,9 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   for i : 1 thru numNodes do (
     /* Evaluate state variable at quadrature point */
     printf(fh, "  q_l[0] = ~a_surfx~a_eval_quad_node_~a_r(rho_l); ~%", basisStr, dir, i-1),
-
-    printf(fh, "  u_l[0] = ~a_surfx~a_eval_quad_node_~a_r(ux_l); ~%", basisStr, dir, i-1),
-    printf(fh, "  u_l[1] = ~a_surfx~a_eval_quad_node_~a_r(uy_l); ~%", basisStr, dir, i-1),
-    printf(fh, "  u_l[2] = ~a_surfx~a_eval_quad_node_~a_r(uz_l); ~%", basisStr, dir, i-1),
-
-    printf(fh, "  q_l[1] = q_l[0]*u_l[0]; ~%"),
-    printf(fh, "  q_l[2] = q_l[0]*u_l[1]; ~%"),
-    printf(fh, "  q_l[3] = q_l[0]*u_l[2]; ~%"),
+    printf(fh, "  q_l[1] = ~a_surfx~a_eval_quad_node_~a_r(rhoux_l); ~%", basisStr, dir, i-1),
+    printf(fh, "  q_l[2] = ~a_surfx~a_eval_quad_node_~a_r(rhouy_l); ~%", basisStr, dir, i-1),
+    printf(fh, "  q_l[3] = ~a_surfx~a_eval_quad_node_~a_r(rhouz_l); ~%", basisStr, dir, i-1),
     printf(fh, "  q_l[4] = ~a_surfx~a_eval_quad_node_~a_r(Pxx_l) + q_l[1]*q_l[1]/q_l[0]; ~%", basisStr, dir, i-1),
     printf(fh, "  q_l[5] = ~a_surfx~a_eval_quad_node_~a_r(Pxy_l) + q_l[1]*q_l[2]/q_l[0]; ~%", basisStr, dir, i-1),
     printf(fh, "  q_l[6] = ~a_surfx~a_eval_quad_node_~a_r(Pxz_l) + q_l[1]*q_l[3]/q_l[0]; ~%", basisStr, dir, i-1),
@@ -195,14 +187,9 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  q_l[9] = ~a_surfx~a_eval_quad_node_~a_r(Pzz_l) + q_l[3]*q_l[3]/q_l[0]; ~%", basisStr, dir, i-1),
 
     printf(fh, "  q_r[0] = ~a_surfx~a_eval_quad_node_~a_l(rho_r); ~%", basisStr, dir, i-1),
-
-    printf(fh, "  u_r[0] = ~a_surfx~a_eval_quad_node_~a_l(ux_r); ~%", basisStr, dir, i-1),
-    printf(fh, "  u_r[1] = ~a_surfx~a_eval_quad_node_~a_l(uy_r); ~%", basisStr, dir, i-1),
-    printf(fh, "  u_r[2] = ~a_surfx~a_eval_quad_node_~a_l(uz_r); ~%", basisStr, dir, i-1),
-
-    printf(fh, "  q_r[1] = q_r[0]*u_r[0]; ~%"),
-    printf(fh, "  q_r[2] = q_r[0]*u_r[1]; ~%"),
-    printf(fh, "  q_r[3] = q_r[0]*u_r[2]; ~%"),
+    printf(fh, "  q_r[1] = ~a_surfx~a_eval_quad_node_~a_l(rhoux_r); ~%", basisStr, dir, i-1),
+    printf(fh, "  q_r[2] = ~a_surfx~a_eval_quad_node_~a_l(rhouy_r); ~%", basisStr, dir, i-1),
+    printf(fh, "  q_r[3] = ~a_surfx~a_eval_quad_node_~a_l(rhouz_r); ~%", basisStr, dir, i-1),
     printf(fh, "  q_r[4] = ~a_surfx~a_eval_quad_node_~a_l(Pxx_r) + q_r[1]*q_r[1]/q_r[0]; ~%", basisStr, dir, i-1),
     printf(fh, "  q_r[5] = ~a_surfx~a_eval_quad_node_~a_l(Pxy_r) + q_r[1]*q_r[2]/q_r[0]; ~%", basisStr, dir, i-1),
     printf(fh, "  q_r[6] = ~a_surfx~a_eval_quad_node_~a_l(Pxz_r) + q_r[1]*q_r[3]/q_r[0]; ~%", basisStr, dir, i-1),
@@ -211,23 +198,35 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  q_r[9] = ~a_surfx~a_eval_quad_node_~a_l(Pzz_r) + q_r[3]*q_r[3]/q_r[0]; ~%", basisStr, dir, i-1),
     printf(fh, "~%"),
 
-    /* Evaluate maximum speed for Lax penalization */
+    /* Evaluate maximum speed for Lax penalization 
+       Check positivity of T_l/T_r and if either is negative, we force Lax fluxes. */
     printf(fh, "  T_l = ~a_surfx~a_eval_quad_node_~a_r(Tii_l); ~%", basisStr, dir, i-1),
     printf(fh, "  T_r = ~a_surfx~a_eval_quad_node_~a_l(Tii_r); ~%", basisStr, dir, i-1),
-    printf(fh, "  u_max = fmax(fabs(u_l[~a]), fabs(u_r[~a])); ~%", dir-1, dir-1),
-    printf(fh, "  if (T_l > 0.0 && T_r > 0.0) vth_max = fmax(sqrt(fabs(T_l)), sqrt(fabs(T_r))); ~%"),
-    printf(fh, "  else vth_max = 0.0; ~%"),
+    printf(fh, "  if (T_l > 0.0 && T_r > 0.0) { ~%"), 
+    printf(fh, "    vth_max = fmax(sqrt(T_l), sqrt(T_r)); ~%"),
+    printf(fh, "  } else if (T_l > 0.0 && T_r < 0.0) { ~%"),
+    printf(fh, "    vth_max = sqrt(T_l); ~%"),
+    printf(fh, "    use_lax = 1; ~%"), 
+    printf(fh, "  } else if (T_l < 0.0 && T_r > 0.0) { ~%"),
+    printf(fh, "    vth_max = sqrt(T_r); ~%"),
+    printf(fh, "    use_lax = 1; ~%"), 
+    printf(fh, "  } else { ~%"),
+    printf(fh, "    vth_max = 0.0; ~%"),
+    printf(fh, "    use_lax = 1; ~%"), 
+    printf(fh, "  } ~%"), 
+    printf(fh, "  u_l = ~a_surfx~a_eval_quad_node_~a_r(u_i_l); ~%", basisStr, dir, i-1),
+    printf(fh, "  u_r = ~a_surfx~a_eval_quad_node_~a_l(u_i_r); ~%", basisStr, dir, i-1),
+    printf(fh, "  u_max = fmax(fabs(u_l), fabs(u_r)); ~%", dir-1, dir-1),    
     printf(fh, "  pkpm_lax_quad[~a] = u_max + vth_max; ~%", i-1),
     printf(fh, "~%"),
 
-    /* Check if rho^+, rho^- or u_avg are < tolerance and we need to switch to Lax fluxes
-       Also check if Tii_l or Tii_r is < tolerance to switch to Lax fluxes 
-       (in case temperature is negative at cell interface even if it's positive inside the cell) */
+    /* Check if rho^+, rho^-  < tolerance and we need to switch to Lax fluxes 
+       Also check if there is a supersonic stagnation point such as a supersonic 
+       flow into a wall which in my experience is more robustly treated with Lax
+       fluxes. */
     printf(fh, "  if (q_l[0] < tol) use_lax = 1; ~%"),
     printf(fh, "  if (q_r[0] < tol) use_lax = 1; ~%"), 
-    printf(fh, "  if (T_l < tol) use_lax = 1; ~%"), 
-    printf(fh, "  if (T_r < tol) use_lax = 1; ~%"), 
-    printf(fh, "  if (u_l[~a] + u_r[~a] < tol) use_lax = 1; ~%", dir-1, dir-1), 
+    printf(fh, "  if (u_l + u_r < tol && u_max > vth_max) use_lax = 1; ~%"), 
     printf(fh, "~%"),
 
     /* Rotate to local coordinates at left and right interface */
@@ -276,7 +275,7 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   ), 
   if (cdim = 1) then (
     printf(fh, "  pkpm_lax_l[0] = pkpm_lax_quad[0]; ~%"),
-    printf(fh, "  if (use_lax) { ~%"),
+    printf(fh, "  if (use_lax || force_lax) { ~%"),
     printf(fh, "    double rhouxl_r = ~a_surfx~a_eval_quad_node_0_r(rhoux_l); ~%", basisStr, dir),
     printf(fh, "    double rhouyl_r = ~a_surfx~a_eval_quad_node_0_r(rhouy_l); ~%", basisStr, dir),
     printf(fh, "    double rhouzl_r = ~a_surfx~a_eval_quad_node_0_r(rhouz_l); ~%", basisStr, dir),
@@ -296,7 +295,7 @@ pkpm_vars_penalization(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     /* First convert the quadrature-based maximum speed back to the modal basis */
     printf(fh, "  ~a_upwind_quad_to_modal(pkpm_lax_quad, pkpm_lax_l); ~%", basisStr),
 
-    printf(fh, "  if (use_lax) { ~%"),
+    printf(fh, "  if (use_lax || force_lax) { ~%"),
     pkpm_lax_e : doExpand1(pkpm_lax_l, bSurf),
 
     rhouxl_e : doExpand1(rhoux_l, bC), 
