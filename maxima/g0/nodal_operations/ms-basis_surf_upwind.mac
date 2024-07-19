@@ -154,7 +154,13 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     /* Generate surface basis. this produces the ndim-1 orthogonal basis with no xv dependence. */
     bSurf : basisFromVars(basisName,surfVars,1),
   
-    printf(fh, "GKYL_CU_DH static inline void ~%"),
+    /* Do not inline the functions for the high-dimensional cases */
+    if (cdim + vdim > 4) then (
+      printf(fh, "GKYL_CU_DH static void ~%")
+    )
+    else (
+      printf(fh, "GKYL_CU_DH static inline void ~%")
+    ),
     printf(fh, "~a_~ax~av_p1_~a_upwind_quad_to_modal(const double* fUpwindQuad, double* GKYL_RESTRICT fUpwind) { ~%", basisName, cdim, vdim, dirlabels[dcurr]),
   
     /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
