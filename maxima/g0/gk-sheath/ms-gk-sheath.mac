@@ -3,30 +3,40 @@
 
    Code called in this script is in files loaded below.
 */
+load(stringproc)$
+load("gk-sheath/sheath-1x1v");
+load("gk-sheath/sheath-1x2v");
+load("gk-sheath/sheath-2x2v");
+load("gk-sheath/sheath-3x2v");
 
-/* Configuration space dimensions to generate kernels for,
-   and velocity space dimensions for each configuration space
-   dimension. */
-cDims : [1,3]$
-vDims : [[1,2],[2]]$
+/* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
+minDim_Ser : 1$
+maxDim_Ser : 3$
 
 /* Tensor order basis. */
 minPolyOrder_Tensor : 2$  /* Don't generate p=1. */
 maxPolyOrder_Tensor : 0$
+minDim_Tensor : 1$
+maxDim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+/* Configuration space dimensions to generate kernels for,
+   and velocity space dimensions for each configuration space
+   dimension. */
+vDims : [[1,2],[2],[2]]$
 
 bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minDim       : [minDim_Ser, minDim_Tensor]$
+maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
 edge : ["lower","upper"]$
-
-load("gk-sheath/sheath-1x1v");
-load("gk-sheath/sheath-1x2v");
-load("gk-sheath/sheath-3x2v_new");
 
 /* Create the sheath kernels. */
 for bInd : 1 thru length(bName) do (
@@ -39,15 +49,17 @@ for bInd : 1 thru length(bName) do (
     printf(fh, "#include <gkyl_bc_sheath_gyrokinetic_kernels.h> ~%"),
     printf(fh, "~%"),
   
-    for cI : 1 thru length(cDims) do (
-      for vI : 1 thru length(vDims[cI]) do (
-        print(sconcat("Creating bc_sheath_gyrokinetic ", cDims[cI], "x", vDims[cI][vI], "v", " ", bName[bInd], " p",polyOrder)),
-        if cDims[cI]=1 and vDims[cI][vI]=1 then (
-          genGkSheathKer1x1v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
-        ) else if cDims[cI]=1 and vDims[cI][vI]=2 then (
-          genGkSheathKer1x2v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
-        ) else if cDims[cI]=3 and vDims[cI][vI]=2 and bName[bInd]="ser" then (
-          genGkSheathKer3x2v(fh, cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
+    for cdim : minDim[bInd] thru maxDim[bInd] do (
+      for vI : 1 thru length(vDims[cdim]) do (
+        print(sconcat("Creating bc_sheath_gyrokinetic ", cdim, "x", vDims[cdim][vI], "v", " ", bName[bInd], " p",polyOrder)),
+        if cdim=1 and vDims[cdim][vI]=1 then (
+          genGkSheathKer1x1v(fh, cdim, vDims[cdim][vI], bName[bInd], polyOrder)
+        ) else if cdim=1 and vDims[cdim][vI]=2 then (
+          genGkSheathKer1x2v(fh, cdim, vDims[cdim][vI], bName[bInd], polyOrder)
+        ) else if cdim=2 and vDims[cdim][vI]=2 then (
+          genGkSheathKer2x2v(fh, cdim, vDims[cdim][vI], bName[bInd], polyOrder)
+        ) else if cdim=3 and vDims[cdim][vI]=2 and bName[bInd]="ser" then (
+          genGkSheathKer3x2v(fh, cdim, vDims[cdim][vI], bName[bInd], polyOrder)
         )
       )
     ),
@@ -77,12 +89,12 @@ printf(fh, "~%")$
 
 for bInd : 1 thru length(bName) do (
   maxPolyOrderB : maxPolyOrder[bInd],
-  for polyOrder : 1 thru maxPolyOrderB do (
-    for cI : 1 thru length(cDims) do (
-      for vI : 1 thru length(vDims[cI]) do (
+  for cdim : minDim[bInd] thru maxDim[bInd] do (
+    for polyOrder : 1 thru maxPolyOrderB do (
+      for vI : 1 thru length(vDims[cdim]) do (
         for sI : 1 thru length(edge) do (
 
-          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double wv, const double dv, const double vlowerSq, const double vupperSq, const double q2Dm, const double *phi, const double *phiWall, const double *f, double *fRefl); ~%", edge[sI], cDims[cI], vDims[cI][vI], bName[bInd], polyOrder)
+          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, const double q2Dm, const double *phi, const double *phiWall, const double *f, double *fRefl); ~%", edge[sI], cdim, vDims[cdim][vI], bName[bInd], polyOrder)
 
         )
       )

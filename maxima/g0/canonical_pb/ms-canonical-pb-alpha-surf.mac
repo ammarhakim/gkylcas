@@ -1,0 +1,74 @@
+/*
+  Generate the kernel for surface expansions of the phase space characteristics.
+
+  The functions called in this file are in canonical-alpha-surf.mac.
+*/
+load("canonical_pb/canonical-alpha-surf")$
+ratprint: false;
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser"]$
+minPolyOrder : [minPolyOrder_Ser]$
+maxPolyOrder : [maxPolyOrder_Ser]$
+minCdim      : [minCdim_Ser]$
+maxCdim      : [maxCdim_Ser]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
+
+/* Generate kernels of selected types. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    v : c, /* Canonical PB only supports equal cdim and vdim */
+
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+      /* Surface alpha in direction dir in configuration space.*/
+      for dir : 1 thru c do (
+        fname : sconcat("~/max-out/canonical_pb_alpha_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,"Creating alpha surf~a file: ~a",clabels[dir],fname)),
+  
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+
+        funcName : sconcat("canonical_pb_alpha_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        buildCanonicalPBAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), /* Not an edge */
+        close(fh),
+
+        fname : sconcat("~/max-out/canonical_pb_alpha_edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,"Creating alpha edge surf~a file: ~a",clabels[dir],fname)),
+  
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+
+        funcName : sconcat("canonical_pb_alpha_edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        buildCanonicalPBAlphaKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, true), /* An edge */
+        close(fh)
+      ),
+
+      /* Surface alpha in v direction.*/
+      for v_sub_indx : 1 thru v do (
+        fname : sconcat("~/max-out/canonical_pb_alpha_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,"Creating alpha surfvx file: ~a",fname)),
+
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+
+        funcName : sconcat("canonical_pb_alpha_surf",vlabels[v_sub_indx],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        buildCanonicalPBAlphaKernel(c+v_sub_indx, fh, funcName, c, v, bName[bInd], polyOrder, false), /* Not an edge */
+        close(fh)
+      )
+    )
+  )
+)$

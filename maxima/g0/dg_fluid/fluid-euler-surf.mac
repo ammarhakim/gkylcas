@@ -12,11 +12,6 @@ dx11 : [dx10, dx11, dx12]$
 
 lhs : [outrho, outrhoux, outrhouy, outrhouz, outenergy]$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 let(uxl_r^2, uxl_r_sq)$
 let(uxc_l^2, uxc_l_sq)$
 let(uxc_r^2, uxc_r_sq)$

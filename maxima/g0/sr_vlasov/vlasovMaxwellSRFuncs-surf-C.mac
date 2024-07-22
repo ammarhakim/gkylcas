@@ -27,11 +27,6 @@ Bfld : [B0, B1, B2]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, 
    cid, vid, cv, vv, surfVars, bSurf, NSurf,
@@ -124,8 +119,8 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpandLst(GhatNoZero_r, bSurf),
+  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = v f_l. */
   Ghat_l_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=1, fl_e)),
@@ -133,8 +128,8 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpandLst(GhatNoZero_l, bSurf),
+  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   printf(fh, "  } else { ~%~%"),
   
@@ -146,8 +141,8 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpandLst(GhatNoZero_r, bSurf),
+  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = v f_c. */
   Ghat_l_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=-1, fc_e)),
@@ -156,8 +151,8 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpandLst(GhatNoZero_l, bSurf),
+  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
   
   printf(fh, "  } ~%"),
   /* Compute surface contribution integral(phi^- Ghat) on the right. */
@@ -373,16 +368,16 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero_l : doMakeExprLst(alphaV_l_c, alpha_l),
-  alpha_l_e     : doExpandLst(alphaNoZero_l, bSurf),
+  alphaNoZero_l : makelistNoZeros1(alphaV_l_c, alpha_l),
+  alpha_l_e     : doExpand(alphaNoZero_l, bSurf),
 
   alphaV_r_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, acc_r_e)),
   writeCExprs1(alpha_r, alphaV_r_c),
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero_r : doMakeExprLst(alphaV_r_c, alpha_r),
-  alpha_r_e     : doExpandLst(alphaNoZero_r, bSurf),
+  alphaNoZero_r : makelistNoZeros1(alphaV_r_c, alpha_r),
+  alpha_r_e     : doExpand(alphaNoZero_r, bSurf),
 
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. 

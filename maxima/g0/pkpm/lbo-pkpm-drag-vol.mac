@@ -3,15 +3,9 @@
 
 load("modal-basis")$
 load("out-scripts");
+load("utilities");
 load(stringproc)$
 fpprec : 24$
-
-/* Helper functions for expanding in basis functions a quantity we know should be sparse 
-   For example, alpha, the phase space flow only depends on a few phase space coordinates */
-/* List output is a vector with some offset off */
-doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
-/* List output is a scalar */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 
 calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,NP,NC,zr,cid,vid1,dir,f_e,nu_e,
@@ -77,7 +71,7 @@ calcVlasovPKPMLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   printf(fh, "~%"),
 
   /* Zero out components of drag which are empty. */
-  alphaDrag_NoZero : doMakeExprLst(alphaDrag_c, alphaDrag),
+  alphaDrag_NoZero : makelistNoZeros1(alphaDrag_c, alphaDrag),
   alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
 
   /* Evaluate alpha_vdim at zr to approximate

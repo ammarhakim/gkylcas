@@ -26,13 +26,6 @@ dx11 : [dx0, dx1, dx2]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse 
-   For example, alpha, the phase space flow only depends on a few phase space coordinates */
-/* List output is a vector with some offset off */
-doMakeExprLstOff(vals, S, off)  := makelist(if vals[i] # 0 then S[off+i-1] else 0, i, 1, length(vals))$
-/* List output is a scalar */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 calcPKPMDivPParUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, NP, pDim, cid, vid, cv, surfVars, bSurf, bSurf_p1, NSurf, NSurf_p1, surfNodes, numNodes, basisStr, 
    F_0l_e, F_0c_e, F_0r_e, bl_e, bc_e, br_e, vTrans, 
@@ -196,7 +189,7 @@ calcPKPMDivPParUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   printf(fh, "~%"),
   flush_output(fh),
 
-  alst_vol : doMakeExprLst(alpha_c_c, alpha_c),
+  alst_vol : makelistNoZeros1(alpha_c_c, alpha_c),
   alphaVol_e : doExpand(alst_vol, bP),
 
   if cdim = 1 then (
@@ -385,7 +378,7 @@ calcPKPMDistMirrorForce(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprsCollect1(alpha_G_1_source, alpha_G_1_source_c, clst),
   printf(fh, "~%"),
   /* Zero out components of G_1 vperp source which are empty. */
-  alpha_G_1_source_NoZero : doMakeExprLst(alpha_G_1_source_c, alpha_G_1_source),
+  alpha_G_1_source_NoZero : makelistNoZeros1(alpha_G_1_source_c, alpha_G_1_source),
   alpha_G_1_source_NoZero_e : doExpand(alpha_G_1_source_NoZero, bP),
 
   /* Access F_0 and T_perp/m G, first two Laguerre moments */

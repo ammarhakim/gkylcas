@@ -40,10 +40,6 @@ calcAccel(vdir, vdim, bc) :=
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,numBasisP,cid,vid,cv,vv,surfVars,bSurf,fl_e,fc_e,fr_e,Ghat_r_c,
    GhatNoZero_r,Ghat_r_e,Ghat_l_c,GhatNoZero_l,Ghat_l_e,incr_r,incr_l],
@@ -83,7 +79,6 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
 
   numBasisP : length(bP),
 
-  print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
   const double *alpha_surf_l, const double *alpha_surf_r, 
   const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
@@ -139,7 +134,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
+  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
   Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = v f_l. */
@@ -148,7 +143,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
+  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   printf(fh, "  } else { ~%~%"),
@@ -169,7 +164,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
+  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
   Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Evaluate surface projection of Ghat_l = v f_c. */
@@ -187,7 +182,7 @@ calcVlasovStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
+  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
   
   printf(fh, "  } ~%"),
@@ -245,7 +240,7 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, vvars[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // field:     q/m*EM fields.~%"),
@@ -316,7 +311,7 @@ calcVlasovLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of alpha which are empty. */
-  alphaNoZero : doMakeExprLst(alphaV_c, alpha),
+  alphaNoZero : makelistNoZeros1(alphaV_c, alpha),
   alpha_e     : doExpand(alphaNoZero, bSurf),
 
   /* Evaluate alpha at ordinates.

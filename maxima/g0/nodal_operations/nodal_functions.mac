@@ -9,8 +9,6 @@ load("eigen")$
 load("scifac")$
 load("utilities")$
 
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 /* Given a set of an expression and a set of nodes, evaluate the expression at the nodes.
    Must also provide the variables of the functional space exprIn is defined in. */
 evAtNodes(exprIn, nodesIn, varsIn) := block([dim,numNodes,exprAtNodes],

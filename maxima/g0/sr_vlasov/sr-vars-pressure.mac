@@ -132,10 +132,10 @@ calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Zero out components of v . p and (v . p)^2 which are empty. */
   tempNoZero : doMakeExprLst(temp_c, temp),
-  temp_e     : doExpand(tempNoZero, bP),
+  temp_e     : doExpandLst(tempNoZero, bP),
 
   tempSqNoZero : doMakeExprLst(temp_sq_c, temp_sq),
-  tempSq_e     : doExpand(tempSqNoZero, bP),
+  tempSq_e     : doExpandLst(tempSqNoZero, bP),
 
   /* Full pressure factor is gamma*GammaV^2 - 2*GammaV*(v . p) + 1/gamma*((v . p)^2 - 1) 
      where v is the four-velocity GammaV*V_drift_i, p is the particle velocity, 
@@ -147,7 +147,7 @@ calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* Zero out components of p . V_drift which are empty. */
   p_facNoZero : doMakeExprLst(p_fac_c, p_fac),
-  p_fac_e     : doExpand(p_facNoZero, bP),
+  p_fac_e     : doExpandLst(p_facNoZero, bP),
 
   fl : doExpand1(f, bP),
   

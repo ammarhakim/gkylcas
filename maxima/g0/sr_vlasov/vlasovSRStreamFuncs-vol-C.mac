@@ -5,6 +5,7 @@
 
 load("modal-basis");
 load("out-scripts");
+load("utilities")$
 load ("scifac")$
 load(stringproc)$
 fpprec : 24$
