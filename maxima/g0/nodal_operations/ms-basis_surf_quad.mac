@@ -63,11 +63,23 @@ genSurfQuadEvKernel(dim, basisName, pOrder) := block(
     fh : openw(fname),
 
     for n : 1 thru length(fOrdR_n) do (
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (dim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(const double* GKYL_RESTRICT f) { ~%", basisName, dim, polyOrder, dir, n-1),
       printf(fh, "  return ~a; ~%", fOrdR_n[n]),
       printf(fh, "} ~%"),
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (dim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(const double* GKYL_RESTRICT f) { ~%", basisName, dim, polyOrder, dir, n-1),
       printf(fh, "    return ~a; ~%", fOrdL_n[n]),
       printf(fh, "} ~%")
@@ -114,11 +126,23 @@ genSurfQuadEvKernelHyb(cdim, vdim, basisName) := block(
     fh : openw(fname),
   
     for n : 1 thru length(fOrdR_n) do (
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (cdim + vdim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax~av_p1_surfx~a_eval_quad_node_~a_r(const double* GKYL_RESTRICT f) { ~%", basisName, cdim, vdim, dir, n-1),
       printf(fh, "  return ~a; ~%", fOrdR_n[n]),
       printf(fh, "} ~%"),
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (cdim + vdim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax~av_p1_surfx~a_eval_quad_node_~a_l(const double* GKYL_RESTRICT f) { ~%", basisName, cdim, vdim, dir, n-1),
       printf(fh, "    return ~a; ~%", fOrdL_n[n]),
       printf(fh, "} ~%")
