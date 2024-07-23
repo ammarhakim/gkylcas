@@ -8,7 +8,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -17,8 +17,8 @@ maxCdim_Ser : 3$
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-maxCdim_Tensor : 2$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -32,7 +32,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+    if (d=3 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       disp(printf(false,sconcat("Creating volume Maxwell",bName[bInd]," ~axp~a"),d,polyOrder)),

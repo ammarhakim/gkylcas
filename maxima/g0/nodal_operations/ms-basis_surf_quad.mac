@@ -14,9 +14,7 @@ minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
@@ -65,11 +63,23 @@ genSurfQuadEvKernel(dim, basisName, pOrder) := block(
     fh : openw(fname),
 
     for n : 1 thru length(fOrdR_n) do (
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (dim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax_p~a_surfx~a_eval_quad_node_~a_r(const double* GKYL_RESTRICT f) { ~%", basisName, dim, polyOrder, dir, n-1),
       printf(fh, "  return ~a; ~%", fOrdR_n[n]),
       printf(fh, "} ~%"),
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (dim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax_p~a_surfx~a_eval_quad_node_~a_l(const double* GKYL_RESTRICT f) { ~%", basisName, dim, polyOrder, dir, n-1),
       printf(fh, "    return ~a; ~%", fOrdL_n[n]),
       printf(fh, "} ~%")
@@ -116,11 +126,23 @@ genSurfQuadEvKernelHyb(cdim, vdim, basisName) := block(
     fh : openw(fname),
   
     for n : 1 thru length(fOrdR_n) do (
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (cdim + vdim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax~av_p1_surfx~a_eval_quad_node_~a_r(const double* GKYL_RESTRICT f) { ~%", basisName, cdim, vdim, dir, n-1),
       printf(fh, "  return ~a; ~%", fOrdR_n[n]),
       printf(fh, "} ~%"),
-      printf(fh, "GKYL_CU_DH static inline double ~%"),
+      /* Do not inline the functions for the high-dimensional cases */
+      if (cdim + vdim > 4) then (
+        printf(fh, "GKYL_CU_DH static double ~%")
+      )
+      else (
+        printf(fh, "GKYL_CU_DH static inline double ~%")
+      ),
       printf(fh, "~a_~ax~av_p1_surfx~a_eval_quad_node_~a_l(const double* GKYL_RESTRICT f) { ~%", basisName, cdim, vdim, dir, n-1),
       printf(fh, "    return ~a; ~%", fOrdL_n[n]),
       printf(fh, "} ~%")
@@ -140,7 +162,7 @@ for bInd : 1 thru length(bName) do (
       disp(printf(false,sconcat("Creating configuration space surface quadrature evaluation ",bName[bInd]," ~ax_p~a"),c,polyOrder)),
       genSurfQuadEvKernel(c, bName[bInd], polyOrder),
 
-      if not (c+3=6 and bName[bInd]="tensor" and polyOrder=2) then (  /* Don't do 3x3v p2 tensor. */
+      if not (c+3=6 and polyOrder=2) then (  /* Don't do 3x3v p2. */
         disp(printf(false,sconcat("Creating phase space surface quadrature evaluation ",bName[bInd]," ~ax3v_p~a"),c,polyOrder)),
         genSurfQuadEvKernel(c+3, bName[bInd], polyOrder)
       )

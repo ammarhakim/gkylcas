@@ -39,7 +39,7 @@ calcSelfPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     /* Gyrokinetics. */
     udim : 1,
     vdimPhys : 2*vdim-1
-  )
+  ),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),

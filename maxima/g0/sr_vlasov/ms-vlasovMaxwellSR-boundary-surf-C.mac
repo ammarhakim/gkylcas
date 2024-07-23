@@ -2,9 +2,11 @@ load("sr_vlasov/vlasovMaxwellSRFuncs-boundary-surf-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the surface term for the E + v x B term
-   in the Vlasov equation at the boundary in velocity space
+   in the relativistic Vlasov equation at the boundary in velocity space
    (used in zero-flux boundary conditions where one side of the
-   cell is not updated in a cell-based update). */
+   cell is not updated in a cell-based update). 
+   Note: v = d/dp (gamma) = p/gamma and 
+   gamma = sqrt(1 + p^2) is the particle Lorentz boost factor. */
 
 /* ...... USER INPUTS........ */
 
@@ -36,6 +38,7 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
+vlabels : ["vx","vy","vz"]$
 
 /* Compute the surface contribution in velocity space from the acceleration term */
 for bInd : 1 thru length(bName) do (
@@ -49,14 +52,18 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating boundary surface Vlasov",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         for dir : 1 thru v do ( 
-          if (dir = 1) then fname : sconcat("~/max-out/vlasov_sr_boundary_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 2) then fname : sconcat("~/max-out/vlasov_sr_boundary_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 3) then fname : sconcat("~/max-out/vlasov_sr_boundary_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fname : sconcat("~/max-out/vlasov_sr_boundary_surf", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("vlasov_sr_boundary_surf"),
+          funcName : sconcat("vlasov_sr_boundary_surf", vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           printf(fh, "#include <gkyl_vlasov_sr_kernels.h> ~%"),
-          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
-          printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder),
+          if (polyOrder=1 and bName[bInd]="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+            printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
+            printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
+          ) 
+          else (
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder)
+          ),
           calcVlasovSRLorentzBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
           close(fh)
         )        
