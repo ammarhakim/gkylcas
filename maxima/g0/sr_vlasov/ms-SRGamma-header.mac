@@ -40,14 +40,18 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid sr_vars_n_set_~ax~av_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *M0, const double *M1i); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid sr_vars_n_copy_~ax~av_~a_p~a(int count, struct gkyl_nmat *x, const double *M0, double* GKYL_RESTRICT n); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid sr_vars_GammaV_~ax~av_~a_p~a(const double *u_i, double* GKYL_RESTRICT u_i_sq, double* GKYL_RESTRICT GammaV, double* GKYL_RESTRICT GammaV_sq); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid sr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%") 
+  printf(fh, "~avoid sr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vmap, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%"), 
+  printf(fh, "~avoid sr_vars_pressure_vmap_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vmap, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")
 )$
 
 printPrototypeLorentz(deco, vi, bStr, pi) := block([si],
   /* Variations of the Lorentz boost factor. */
-  printf(fh, "~avoid sr_vars_lorentz_~av_~a_p~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
-  printf(fh, "~%")  
+  printf(fh, "~avoid sr_vars_lorentz_~av_~a_p~a(const double *w, const double *dxv, const double *vmap, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
+  printf(fh, "~%"),   
+  printf(fh, "~avoid sr_vars_lorentz_vmap_~av_~a_p~a(const double *w, const double *dxv, const double *vmap, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
+  printf(fh, "~%")
 )$
 
 fh : openw("~/max-out/gkyl_sr_Gamma_kernels.h")$

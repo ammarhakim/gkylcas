@@ -40,7 +40,11 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_sr_Ni_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
   printf(fh, "~avoid vlasov_sr_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
   printf(fh, "~avoid vlasov_sr_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%")  
+  printf(fh, "~%"), 
+
+  printf(fh, "~avoid vlasov_sr_vmap_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *jacob_vel_inv, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_vmap_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_vmap_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
 )$
 
 fh : openw("~/max-out/gkyl_mom_vlasov_sr_kernels.h")$

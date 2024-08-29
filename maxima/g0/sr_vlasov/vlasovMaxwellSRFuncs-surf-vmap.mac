@@ -60,19 +60,12 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   NV : length(bV),
 
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // jacob_vel_inv[VDIM]: Inverse velocity space Jacobian in each direction (unused in uniform grid simulations).~%"),
-  printf(fh, "  // gamma:     Particle Lorentz boost factor sqrt(1 + p^2).~%"),
-  printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells.~%"),
-  printf(fh, "  // out:       Incremented distribution function in center cell.~%"),
-
-  cid : cidx(cdim),
-  vid : vidx(cdim,vdim),
-  printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-  printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
-  printf(fh, "  const double wv = w[~a]; ~%", vid[dir], vid[dir]),
-  printf(fh, "~%"),
+  printf(fh, "  // w[NDIM]:             Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:           Cell spacing.~%"),
+  printf(fh, "  // jacob_vel_inv[VDIM]: Inverse velocity space Jacobian in each direction.~%"),
+  printf(fh, "  // gamma:               Particle Lorentz boost factor sqrt(1 + p^2).~%"),
+  printf(fh, "  // fl/fc/fr:            Input Distribution function in left/center/right cells.~%"),
+  printf(fh, "  // out:                 Incremented distribution function in center cell.~%"),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
   /* cv = variable in direction of surface update. */
@@ -82,6 +75,12 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   /* Surface variables to integrate over. */
   surfVars : delete(cv,varsP),
 
+  /* Load basis sets for inverse Jacobian in corresponding surface direction, 
+     which is p=2 in that one velocity dimension (derivative of cubic C^1 mapping) */
+  [varsV_1D, bV_1D] :  loadBasis(basisFun, 1, 2), 
+  bV_1D : subst(x=vv, copylist(bV_1D)), 
+  NV_1D : length(bV_1D),
+
   /* Generate surface basis. this produces the ndim-1 orthogonal basis with no vv dependence. */
   if polyOrder=1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("hyb",surfVars,polyOrder)
@@ -90,10 +89,21 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   ),
   NSurf : length(bSurf), 
 
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  printf(fh, "  const double wv = w[~a]; ~%", vid[dir], vid[dir]),
+  printf(fh, "  const double *jacob_vel_inv_dir = &jacob_vel_inv[~a]; ~%", NV_1D*(dir-1)),
+  printf(fh, "~%"),
+
+  /* Expand inverse velocity space Jacobian in corresponding coordinate */
+  jacob_vel_inv_e : doExpand1(jacob_vel_inv_dir, bV_1D), 
+
   /* Compute p/gamma from input gamma, p/gamma = d/dp gamma */
   gamma_e : doExpand1(gamma, bV), 
   printf(fh, "  double p_over_gamma[~a] = {0.0}; ~%", NV), 
-  p_over_gamma_c : calcInnerProdList(varsV, 1, bV, dv11[dir]*diff(gamma_e, vv)), 
+  p_over_gamma_c : calcInnerProdList(varsV, 1, bV, jacob_vel_inv_e*dv11[dir]*diff(gamma_e, vv)), 
   writeCExprs1(p_over_gamma, p_over_gamma_c), 
   /* zero out components of px/gamma which are empty due to derivative */
   p_over_gamma_NoZero : doMakeExprLst(p_over_gamma_c, p_over_gamma),
@@ -196,14 +206,22 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   varsV : subst(pVsub, copylist(varsV)), 
   NV : length(bV),
 
+  /* Load basis sets for inverse Jacobian in each direction, 
+     which are p=2 in one velocity dimension (derivative of cubic C^1 mapping) */
+  [varsV_1D, bV_1D] :  loadBasis(basisFun, 1, 2), 
+  bV_vx : subst(x=vx, copylist(bV_1D)), 
+  bV_vy : subst(x=vy, copylist(bV_1D)), 
+  bV_vz : subst(x=vz, copylist(bV_1D)), 
+  NV_1D : length(bV_1D),
+
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
-  printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // jacob_vel_inv[VDIM]: Inverse velocity space Jacobian in each direction (unused in uniform grid simulations).~%"),
-  printf(fh, "  // gamma:     Particle Lorentz boost factor sqrt(1 + p^2).~%"),
-  printf(fh, "  // qmem:      q/m*EM fields.~%"),
-  printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
-  printf(fh, "  // out:       Output distribution function in center cell ~%"),
+  printf(fh, "  // w[NDIM]:             Cell-center coordinates.~%"),
+  printf(fh, "  // dxv[NDIM]:           Cell spacing.~%"),
+  printf(fh, "  // jacob_vel_inv[VDIM]: Inverse velocity space Jacobian in each direction.~%"),
+  printf(fh, "  // gamma:               Particle Lorentz boost factor sqrt(1 + p^2).~%"),
+  printf(fh, "  // qmem:                q/m*EM fields.~%"),
+  printf(fh, "  // fl/fc/fr:            Input Distribution function in left/center/right cells ~%"),
+  printf(fh, "  // out:                 Output distribution function in center cell ~%"),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -245,6 +263,16 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     acc_r_e : doExpand1(Efld[1],bC)
   ), 
 
+  for dir : 1 thru vdim do (
+    printf(fh, "  const double *jacob_vel_inv~a = &jacob_vel_inv[~a]; ~%", dir-1, NV_1D*(dir-1))
+  ),
+
+  /* Expand inverse velocity space Jacobian in corresponding coordinate */
+  jacob_vel_inv_vx : doExpand1(jacob_vel_inv0, bV_vx), 
+  jacob_vel_inv_vy : doExpand1(jacob_vel_inv1, bV_vy), 
+  jacob_vel_inv_vz : doExpand1(jacob_vel_inv2, bV_vz),
+  jacob_vel_inv_fld : [jacob_vel_inv_vx, jacob_vel_inv_vy, jacob_vel_inv_vz],  
+
   gamma_e : doExpand1(gamma, bV), 
   gamma_surf_l : subst(vv=-1, gamma_e), 
   gamma_surf_r : subst(vv=1, gamma_e), 
@@ -252,8 +280,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     if (dir = 1) then (
       printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_l, vy)), 
-      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_r, vy)), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_l, vy)), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_r, vy)), 
       writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
       writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
       printf(fh, "~%"),
@@ -270,8 +298,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
       if (vdim = 3) then (
         printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
         printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_l, vz)), 
-        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_r, vz)), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_l, vz)), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_r, vz)), 
         writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
         writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
         printf(fh, "~%"),
@@ -293,8 +321,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     else if (dir = 2) then (
       printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_l, vx)), 
-      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_r, vx)), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_l, vx)), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_r, vx)), 
       writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
       writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
 
@@ -310,8 +338,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
       if (vdim = 3) then (
         printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
         printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_l, vz)), 
-        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[3]*diff(gamma_surf_r, vz)), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_l, vz)), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_r, vz)), 
         writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
         writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
 
@@ -332,8 +360,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     else (
       printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_l, vx)), 
-      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[1]*diff(gamma_surf_r, vx)), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_l, vx)), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_r, vx)), 
       writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
       writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
 
@@ -345,8 +373,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
 
       printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_l, vy)), 
-      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, dv11[2]*diff(gamma_surf_r, vy)), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_l, vy)), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_r, vy)), 
       writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
       writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
 
@@ -447,8 +475,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   Ghat_r_e : doExpand1(Ghat_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
-  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
-  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
+  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), subst(vv=-1, jacob_vel_inv_fld[dir])*Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), subst(vv=1, jacob_vel_inv_fld[dir])*Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr_l + dv11[dir]*incr_r),  
   printf(fh, "~%"),
 
