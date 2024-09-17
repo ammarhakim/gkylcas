@@ -1,0 +1,40 @@
+/* Generate kernels that compute the moments of the distribution function for special relativistic Vlasov. */
+
+load("canonical_pb/canonicalMomentFuncs")$
+load(stringproc)$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser"]$
+minPolyOrder : [minPolyOrder_Ser]$
+maxPolyOrder : [maxPolyOrder_Ser]$
+minCdim      : [minCdim_Ser]$
+maxCdim      : [maxCdim_Ser]$
+
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+
+    /* Canonical-pb moment calculators. */
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      disp(printf(false,sconcat("Creating Canonical-pb Moments ~ax~av", bName[bInd]),c,c)),
+      fname : sconcat("~/max-out/mom_canonical_pb_", c, "x", c, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("canonical_pb"),
+      calcCanPBMoments(fh, funcName, c, c, bName[bInd], polyOrder),
+      close(fh)
+    )
+  )
+);

@@ -1,0 +1,81 @@
+/* Functions (called by moment-calc.mac) that compute specific 
+moments that differ from their Vlasov counterparts for the can-pb
+model. */
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load(stringproc)$
+fpprec : 24$
+
+volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
+volExprTot(totDim) := prod(dxv[i-1], i, 1, totDim)$
+pVsub : [x=vx,y=vy,z=vz]$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+
+/* Energy */
+calcCanPBEnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, fl, M, clst],
+  /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  pDim : length(varsP),
+  
+  printf(fh, "GKYL_CU_DH void ~a_MEnergy_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+  ),
+  printf(fh, "~%"),
+  
+  hamill : doExpand1(hamil, bP),
+  fl : doExpand1(f, bP),
+  
+  M : calcInnerProdList(varsP, hamill, bC, fl),
+  
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+calcCanPBIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, fl, M0, Energy, M3, clst, int],
+  /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /* Number of basis monomials. */
+  NP : length(bP),
+  NC : length(bC),
+  pDim : length(varsP),
+    
+  printf(fh, "GKYL_CU_DH void ~a_int_mom_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  const double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
+  for i : 1 thru vdim do (
+    printf(fh, "  const double dv~a = dxv[~a]; ~%", i, cdim+i-1)
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M : [],
+
+  Energy : fullratsimp(innerProd(varsP, 1, doExpand1(hamil, bP), fl)),
+  M  : endcons(Energy, M),
+
+  M : map(letsimp, M),
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+
+  printf(fh, "} ~%")
+)$
+
+calcCanPBMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  printf(fh, "#include <gkyl_mom_canonical_pb_kernels.h> ~%"),
+  calcCanPBEnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcCanPBIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+)$
