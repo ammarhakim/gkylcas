@@ -5,6 +5,7 @@ model. */
 load("modal-basis");
 load("out-scripts");
 load("utilities")$
+load("canonical_pb/canonicalUtils.mac")$
 load(stringproc)$
 fpprec : 24$
 
@@ -12,6 +13,9 @@ volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
 volExprTot(totDim) := prod(dxv[i-1], i, 1, totDim)$
 pVsub : [x=vx,y=vy,z=vz]$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+slcn(lst, n) := makelist(lst[i], i, 1, n)$
+slcn_v(lst, n) := makelist(lst[i], i, n+1, length(lst))$
 
 
 /* Energy */
@@ -46,7 +50,7 @@ calcCanPBEnergy(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 )$
 
 calcCanPBIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, fl, M0, Energy, M3, clst, int],
+  [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, fl, M0, Energy, M1i, clst, int],
   /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   /* Number of basis monomials. */
@@ -63,6 +67,30 @@ calcCanPBIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   fl : doExpand1(f, bP),
 
   M : [],
+
+  /* Computes: integrated, Density, Momentum, and Energy */
+  M0 : fullratsimp(innerProd(varsP, 1, 1, fl)),
+  M  : endcons(M0,M),
+
+  /* Grab C, V vars */
+  varsP : listofvars(bP),
+  varsV : slcn_v(varsP, cdim),
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+
+  /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
+  for d : cdim + 1 thru pDim do (
+    printf(fh, "  const double rd~a2 = 2.0/dxv[~a];~%", varLabel[d], d-1)
+  ),
+  printf(fh, "~%"),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+  p : varsV, 
+  dp : rdv2vec,
+
+ /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt = dH/dp_d. */
+  for dir : 1 thru vdim do (
+    M1i : fullratsimp(innerProd(varsP, 1, dp[dir]*diff(doExpand1(hamil, bP), p[dir]), fl)),
+    M  : endcons(M1i,M)
+  ),
 
   Energy : fullratsimp(innerProd(varsP, 1, doExpand1(hamil, bP), fl)),
   M  : endcons(Energy, M),
