@@ -88,7 +88,7 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     printf(fh, "  cflFreq_mid += ~a*(fabs(~a)+~a); ~%~%", float(2*polyOrder+1), wdx[cdir], 0.5*dvdx[cdir]),
 
     /* Zero out components of alpha which are empty. */
-    alpha_cdim_NoZero   : makelistNoZeros1(alpha_cdim_c, alpha_cdim),
+    alpha_cdim_NoZero   : makelistNoZerosOff1(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
     /* Volume increment from configuration space. */
@@ -118,7 +118,7 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     printf(fh, "~%"),
 
     /* Zero out components of alpha which are empty. */
-    alpha_vdim_NoZero   : makelistNoZeros1(alpha_vdim_c, alpha_vdim),
+    alpha_vdim_NoZero   : makelistNoZerosOff1(alpha_vdim_c, alpha_vdim, a0),
     alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
     /* Evaluate alpha_vdim at cflPt to approximate
@@ -205,8 +205,8 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   /* alpha_cdim = v, alpha_vdim = -fac*grad(phi) */
   /* fac = q/m for plasma, fac = G*m for self gravitating systems */
   /* In case of external fields, also add q/m*curl(A) */
-  printf(fh, "  double alpha_cdim[~a]; ~%", cdim*numP),
-  printf(fh, "  double alpha_vdim[~a]; ~%~%", vdim*numP),
+  printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*numP),
+  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", vdim*numP),
 
   /* Expand distribution function f in phase basis, and potential in conf basis. */
   f_e   : doExpand1(f, bP),
@@ -237,7 +237,7 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
     printf(fh, "  cflFreq_mid += ~a*(fabs(~a)+~a); ~%~%", float(2*polyOrder+1), wdx[cdir], 0.5*dvdx[cdir]),
 
     /* Zero out components of alpha which are empty. */
-    alpha_cdim_NoZero   : makelistNoZeros1(alpha_cdim_c, alpha_cdim),
+    alpha_cdim_NoZero   : makelistNoZerosOff1(alpha_cdim_c, alpha_cdim, a0),
     alpha_cdim_NoZero_e : doExpand(alpha_cdim_NoZero, bP),
 
     /* Volume increment from configuration space. */
@@ -268,7 +268,7 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
     ),
 
     /* Zero out components of alpha which are empty. */
-    alpha_vdim_NoZero   : makelistNoZeros1(alpha_vdim_c, alpha_vdim),
+    alpha_vdim_NoZero   : makelistNoZerosOff1(alpha_vdim_c, alpha_vdim, a0),
     alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
     /* Evaluate alpha_vdim at cflPt to approximate
