@@ -1,7 +1,13 @@
-/* Generate kernels that compute the integrated moments of the distribution function. */
-
-load("moments/vlasovSRIntMomentsFuncs-C")$
+load("sr_vlasov/SRGammaFuncs")$
 load(stringproc)$
+/* This script calls the functions which calculate derived
+   bulk four-velocity quantities: 
+   1. u_i^2 (vdim components)
+   2. GammaV^2 = 1 + |u_i|^2,
+   3. GammaV = sqrt(1 + |u_i|^2),
+   where u_i are the spatial components of the four-velocity GammaV*V_drift.
+   Uses basis_exp_sq (obtain expansion of A^2 for a DG field A),
+   basis_sqrt (obtain expansion of sqrt(A) for a DG field A) */
 
 /* ...... USER INPUTS........ */
 
@@ -32,22 +38,19 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
-
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-  
-      /* Vlasov SR moment calculators. */
+
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating Integrated SR Vlasov Moments ~ax~av", bName[bInd]),c,v)),
-        fname : sconcat("~/max-out/vlasov_sr_int_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/sr_vars_GammaV_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov_sr_int_mom"),
-        calcSRIntMoments(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("sr_vars_GammaV_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calc_gammaV_vars(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

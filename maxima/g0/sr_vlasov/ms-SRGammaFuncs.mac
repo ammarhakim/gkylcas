@@ -1,4 +1,4 @@
-load("vlasov/SRGammaFuncs")$
+load("sr_vlasov/SRGammaFuncs")$
 load(stringproc)$
 /* This script calls the functions which calculate various 
    quantities related to the Lorentz boost factor, including
@@ -42,19 +42,13 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c=3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c>1 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         fname : sconcat("~/max-out/sr_Gamma2_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("sr_Gamma2_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         calcGamma2(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh),
-
-        fname : sconcat("~/max-out/sr_Gamma_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("sr_Gamma_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcGamma(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh),
 
         fname : sconcat("~/max-out/sr_Gamma_inv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),

@@ -46,14 +46,14 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     const double *bvar_surf_l, const double *bvar_surf_c, const double *bvar_surf_r, 
     const double *pkpm_prim_surf_l, const double *pkpm_prim_surf_c, const double *pkpm_prim_surf_r, 
     const double *fl, const double *fc, const double *fr, 
-    const double *pkpm_max_b, const double *pkpm_lax, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
+    const double *pkpm_max_b, const double *pkpm_lax_l, const double *pkpm_lax_r, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:              Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]:            Cell spacing.~%"),
   printf(fh, "  // bvar_surf_l/c/r:      Input surface magnetic field unit vector and tensor in left/center/right cells in each direction.~%"),
   printf(fh, "  // pkpm_prim_surf_l/c/r: Input surface primitive variables [u_i, 3*T_ii/m] in left/center/right cells in each direction.~%"),
   printf(fh, "  // fl/fc/fr:             Input distribution functions [F_0, T_perp/m G = T_perp/m (F_0 - F_1)] in left/center/right cells.~%"),
   printf(fh, "  // pkpm_max_b:           Surface expansion of max |b| for Lax penalization of streaming: lambda_i = |b_i|.~%"),
-  printf(fh, "  // pkpm_lax:             Surface expansion of pkpm Lax penalization: lambda_i = |u_i| + sqrt(3.0*T_ii/m).~%"),
+  printf(fh, "  // pkpm_lax_l/r:         Surface expansion of pkpm Lax penalization: lambda_i = |u_i| + sqrt(3.0*T_ii/m) on left/right surface.~%"),
   printf(fh, "  // out:                  Incremented output distribution functions in center cell.~%"),
 
   cid : cidx(cdim),
@@ -241,11 +241,9 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "  const double *pkpm_max_b_r = &pkpm_max_b[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
   printf(fh, "~%"),
   /* Surface Lax penalization organized as (note T_ii = 3*P_ii/rho, includes necessary factors) : 
-     [|ux_xl| + sqrt(Txx_xl), |ux_xr| + sqrt(Txx_xr), 
-      |uy_yl| + sqrt(Tyy_yl), |uy_yr| + sqrt(Tyy_yr),
-      |uz_zl| + sqrt(Tzz_zl), |uz_zr| + sqrt(Tzz_zr)] */
-  printf(fh, "  const double *pkpm_lax_l = &pkpm_lax[~a]; ~%", (0 + (dir-1)*2)*NSurfConf),
-  printf(fh, "  const double *pkpm_lax_r = &pkpm_lax[~a]; ~%", (1 + (dir-1)*2)*NSurfConf),
+     [ |ux_xl| + sqrt(Txx_xl), |uy_yl| + sqrt(Tyy_yl), |uz_zl| + sqrt(Tzz_zl) ]  */
+  printf(fh, "  const double *pkpm_lax_dir_l = &pkpm_lax_l[~a]; ~%", (dir-1)*NSurfConf),
+  printf(fh, "  const double *pkpm_lax_dir_r = &pkpm_lax_r[~a]; ~%", (dir-1)*NSurfConf),
   printf(fh, "~%"),
 
   if cdim = 1 then (
@@ -312,8 +310,8 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     printf(fh, "  double avg_u_l = 0.5*(ul_r + uc_l); ~%"),
     printf(fh, "  double avg_u_r = 0.5*(uc_r + ur_l); ~%"),
     printf(fh, "~%"),
-    printf(fh, "  double max_speed_l = pkpm_lax_l[0]; ~%"),
-    printf(fh, "  double max_speed_r = pkpm_lax_r[0]; ~%"),
+    printf(fh, "  double max_speed_l = pkpm_lax_dir_l[0]; ~%"),
+    printf(fh, "  double max_speed_r = pkpm_lax_dir_r[0]; ~%"),
     printf(fh, "~%"),
     /* Print C exprs for Ghat for div(u F_0) and div(u G_1) across surface boundary, (LEFT BOUNDARY) */
     Ghat_F_0_u_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*(F_0_lr_e + F_0_cl_e)*avg_u_l - 0.5*max_speed_l*(F_0_cl_e - F_0_lr_e))),
@@ -397,8 +395,8 @@ calcVlasovPKPMStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder
     u_surf_cr_e : doExpand1(u_surf_cr, bSurfConf),
     u_surf_rl_e : doExpand1(u_surf_rl, bSurfConf),
 
-    pkpm_lax_l_e : doExpand1(pkpm_lax_l, bSurfConf),
-    pkpm_lax_r_e : doExpand1(pkpm_lax_r, bSurfConf),
+    pkpm_lax_l_e : doExpand1(pkpm_lax_dir_l, bSurfConf),
+    pkpm_lax_r_e : doExpand1(pkpm_lax_dir_r, bSurfConf),
 
     /* Print C exprs for Ghat for div(u F_0) and div(u G_1) across surface boundary, (LEFT BOUNDARY) */
     Ghat_F_0_u_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, 0.5*(F_0_lr_e + F_0_cl_e)*0.5*(u_surf_lr_e + u_surf_cl_e) - 0.5*pkpm_lax_l_e*(F_0_cl_e - F_0_lr_e))),
