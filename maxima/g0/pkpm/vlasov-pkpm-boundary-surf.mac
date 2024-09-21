@@ -15,10 +15,6 @@ dx11 : [dx0, dx1, dx2]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-
 calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, pOrderV, NP, NC, pDim, cid, vid, 
    p_force_e, bb_grad_u_e, div_b_e, p_perp_div_b_e, acc_e, 
@@ -124,15 +120,15 @@ calcVlasovPKPMBoundaryAccelUpdate(fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   clst : [dvpar, wvpar],
   alphaSurf_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=-1,acc_e))),
   alphaSurf_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(vx=1,acc_e))),
-  alst_l        : doMakeExprLst(alphaSurf_l_c, alphaSurf),
-  alst_r        : doMakeExprLst(alphaSurf_r_c, alphaSurf),
+  alst_l        : makelistNoZeros1(alphaSurf_l_c, alphaSurf),
+  alst_r        : makelistNoZeros1(alphaSurf_r_c, alphaSurf),
   alphaSurf_l_e : doExpand(alst_l, bSurf),
   alphaSurf_r_e : doExpand(alst_r, bSurf),
 
   /* project div_b = 2*p_perp/rho*div(b) evaluated at interior surface onto surface basis.
      No velocity space dependence so we can just project div_b onto surface basis. */
   div_b_Surf_c : fullratsimp(innerProd(surfVars, 1, bSurf, div_b_e)),
-  div_b_lst    : doMakeExprLst(div_b_Surf_c, div_b_Surf),
+  div_b_lst    : makelistNoZeros1(div_b_Surf_c, div_b_Surf),
   div_b_Surf_e : doExpand(div_b_lst, bSurf),
   printf(fh, "  double div_b_Surf[~a] = {0.0}; ~%", NSurf),
   writeCExprsCollect1(div_b_Surf, div_b_Surf_c, clst),

@@ -15,14 +15,13 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -35,6 +34,7 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
 
 /* Compute the surface contribution in velocity space from the acceleration term */
 for bInd : 1 thru length(bName) do (
@@ -50,22 +50,21 @@ for bInd : 1 thru length(bName) do (
         for dir : 1 thru c do ( 
           fname : sconcat("~/max-out/vlasov_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
           funcName : sconcat("vlasov_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
           calcVlasovStreamUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh)
         ),
         for dir : 1 thru v do ( 
-          if (dir = 1) then fname : sconcat("~/max-out/vlasov_surfvx_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 2) then fname : sconcat("~/max-out/vlasov_surfvy_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          if (dir = 3) then fname : sconcat("~/max-out/vlasov_surfvz_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fname : sconcat("~/max-out/vlasov_surf", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("vlasov_surf"),
+          funcName : sconcat("vlasov_surf",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-          if polyOrder = 1 then (  /* Force hybrid basis (p=2 in velocity space). */
+          if (polyOrder=1 and bName[bInd]="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
             printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
-          ) elseif polyOrder > 1 then (
+          ) 
+          else (
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
             printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder)
           ),

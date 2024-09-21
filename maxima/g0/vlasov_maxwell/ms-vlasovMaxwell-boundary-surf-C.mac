@@ -17,14 +17,13 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -38,18 +37,6 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
-
-includeSurfHeaders(fhIn, bname, c, v, porder, dir) := block([],
-  printf(fhIn, "#include <gkyl_vlasov_kernels.h> ~%"),
-  if porder=1 then (
-    /* Force hybrid basis (p=2) in velocity space. */
-    printf(fhIn, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
-    printf(fhIn, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
-  ) elseif porder>1 then (
-    printf(fhIn, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bname, c+v, porder, c+dir),
-    printf(fhIn, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bname, c+v, porder)
-  )
-)$
 
 /* Compute the surface contribution in velocity space from the acceleration term */
 for bInd : 1 thru length(bName) do (
@@ -67,18 +54,25 @@ for bInd : 1 thru length(bName) do (
         for dir : 1 thru c do ( 
           fname : sconcat("~/max-out/vlasov_boundary_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
           funcName : sconcat("vlasov_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          calcVlasovStreamBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
           close(fh)
         ),
-
         /* Boundary surf kernels in velocity directions. */
         for dir : 1 thru v do ( 
           fname : sconcat("~/max-out/vlasov_boundary_surf", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
           funcName : sconcat("vlasov_boundary_surf"),
+          printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+          if (polyOrder=1 and bName[bInd]="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+            printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_surfx~a_eval_quad.h> ~%", c, v, c+dir),
+            printf(fh, "#include <gkyl_basis_hyb_~ax~av_p1_upwind_quad_to_modal.h> ~%", c, v)
+          ) 
+          else (
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_surfx~a_eval_quad.h> ~%", bName[bInd], c+v, polyOrder, c+dir),
+            printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%", bName[bInd], c+v, polyOrder)
+          ),
           calcVlasovLorentzBoundaryUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder),
           close(fh)
         )

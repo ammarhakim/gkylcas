@@ -9,7 +9,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -19,7 +19,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 2$
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 

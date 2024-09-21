@@ -11,7 +11,7 @@ load("gyrokinetic/gkFuncs-surf")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 

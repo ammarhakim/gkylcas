@@ -1,18 +1,19 @@
 /*
    Gyrokinetic sheath function for 3x2v kernel.
 */
-load("modal-basis");
-load("out-scripts");
+load("modal-basis")$
+load("out-scripts")$
 load("nodal_operations/nodal_functions")$
+load("utilities_gyrokinetic")$
 load(stringproc)$
 fpprec : 24$
 
 genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
-  [pdim,varsC,bC,varsP,bP,vSub,NP,varsV,surfPerpVar,surfVars,surfVarsC,bSurf,bV,bVpar,bMu,bX,
-   numBsurf,zvSurfVars,nodesX,nodesXMu,nodesMu,numNodesX,numNodesXMu,numNodesMu,bNMu,bNX,f_e,edge,
-   surfPerpVal,sI,phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,fSurf_e,fSurfX_q,
-   fSurfXMu_q,fReflSurfX_e,i,fSurfX_c,fReflSurfXMu_e,j,nodeIdx,fSurfXMu_c,fSurfXMu_e,
-   intLims,fReflSurfXMu_c,xBar_v,xSqBar_v,fReflSurfX_c,fReflSurf_c,fReflSurf_e,fRefl_c],
+  [pdim,varsC,bC,varsP,bP,vSub,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,surfPerpVar,surfVars,surfVarsC,
+   bSurf,bV,bVpar,bMu,bX,numBsurf,zvSurfVars,nodesX,nodesXMu,nodesMu,numNodesX,numNodesXMu,numNodesMu,
+   bNMu,bNX,f_e,edge,surfPerpVal,sI,phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,
+   fSurf_e,fSurfX_q,fSurfXMu_q,fReflSurfX_e,vparLo_e,vparUp_e,i,fSurfX_c,fReflSurfXMu_e,j,nodeIdx,
+   fSurfXMu_c,fSurfXMu_e,intLims,fReflSurfXMu_c,xBar_v,xSqBar_v,fReflSurfX_c,fReflSurf_c,fReflSurf_e,fRefl_c],
 
   pdim : cdim+vdim,
 
@@ -20,6 +21,8 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   NP : length(bP),
   varsV : copylist(varsP),  for d : 1 thru cdim do (varsV : delete(varsC[d],varsV)),
+
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   /* Get name of last config space dimension, which is always assumed to be
      the direction parallel to the magnetic field (z). */
@@ -77,7 +80,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   for sI : 1 thru length(edge) do (
 
     printf(fh, "~%"),
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(double wv, double dv, double vlowerSq, double vupperSq, double q2Dm, const double *phi, const double *phiWall, const double *f, double *fRefl) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, double q2Dm, const double *phi, const double *phiWall, const double *f, double *fRefl) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
 
     /* Calculate expansion for deltaPhi = phiSheath - phiWall, evaluated at z=zVal,
        where zVal=-1 or 1 depending on if we're on the left or right edge of the global domain, respectively. */
@@ -104,6 +107,16 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     /* Reflected f at (x)_i nodes. */
     fReflSurfX_e : makelist(0,i,1,numNodesX),
 
+    vparLo_e : subst(vpar=-1, vmap_e[1]),
+    vparUp_e : subst(vpar=1, vmap_e[1]),
+    printf(fh, "  double vparLo = ~a;~%", float(expand(vparLo_e))),
+    printf(fh, "  double vparUp = ~a;~%", float(expand(vparUp_e))),
+    printf(fh, "~%"),
+
+    printf(fh, "  double vparAbsSqLo = vmap[0]>0.? vparLo*vparLo : vparUp*vparUp;~%"),
+    printf(fh, "  double vparAbsSqUp = vmap[0]>0.? vparUp*vparUp : vparLo*vparLo;~%"),
+    printf(fh, "~%"),
+
     for i : 1 thru numNodesX do (
       printf(fh, "  // node (x)_~a ~%", i-1),
 
@@ -113,7 +126,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
 
       /* If vcut^2 at this node is below all vpar^2 in this cell, BC at this node should be absorbing
          so set coefficients of fRefl at this (x) node to 0 (no reflection from this node). */
-      printf(fh, "  if (vcutSq <= vlowerSq) { // absorb (no reflection)~%"),
+      printf(fh, "  if (vcutSq <= vparAbsSqLo) { // absorb (no reflection)~%"),
       printf(fh, "~%"),
 
       writeCExprsWithZeros1(fReflSurfX[i-1], makelist(0.,j,1,length(bV))),
@@ -121,7 +134,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
 
       /* If vcut^2 at this node is above the max vpar^2 in this cell, BC at this node should be full reflection */
       /* so set coefficients of fRefl at this (x) node to coefficients of f. */
-      printf(fh, "  } else if (vcutSq > vupperSq) { // full reflection~%"),
+      printf(fh, "  } else if (vcutSq > vparAbsSqUp) { // full reflection~%"),
       printf(fh, "~%"),
 
       /* Project f at this (x) node onto vpar,mu basis (bV). */
@@ -137,6 +150,10 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       /* Reflected f at (x)_i,(mu)_j nodes. Only need to store it for one
          (x)_i node at a time. */
       fReflSurfXMu_e : makelist(0,j,1,numNodesMu),
+
+      printf(fh, "    double wv = ~a;~%", float(fullratsimp((vparUp + vparLo)/2))),
+      printf(fh, "    double dv = ~a;~%", float(fullratsimp(vparUp - vparLo))),
+      printf(fh, "~%"),
 
       printf(fh, "    double xBar, xSqBar;~%"),
       printf(fh, "    double fReflSurfXMu[~a][~a] = {0.}; ~%", numNodesMu, length(bVpar)),

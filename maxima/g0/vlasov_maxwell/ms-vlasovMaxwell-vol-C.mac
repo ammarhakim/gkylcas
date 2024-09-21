@@ -15,14 +15,13 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -34,7 +33,7 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-/* Compute the volume contribution in BOTH real and velocity space (for use in full Vlasov-Maxwell) */
+/* Compute the volume contribution in BOTH configuration and velocity space (for use in full Vlasov-Maxwell) */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (

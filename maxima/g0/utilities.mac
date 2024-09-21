@@ -7,8 +7,7 @@ isInList(e, lst) := block([],
 
 /* Create a list of coefficients that are only nonzero (S[i-1])
    if the corresponding vals entry is nonzero. */
-doMakeExprLst(vals, S) := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-makelistNoZeros(vals, name) := makelist(if vals[i] # 0 then name[i] else 0, i, 1, length(vals))$
+makelistNoZeros(vals, name)  := makelist(if vals[i] # 0 then name[i] else 0, i, 1, length(vals))$
 makelistNoZeros1(vals, name) := makelist(if vals[i] # 0 then name[i-1] else 0, i, 1, length(vals))$
 makelistNoZerosOff(vals, name, off)  := makelist(if vals[i] # 0 then name[off+i] else 0, i, 1, length(vals))$
 makelistNoZerosOff1(vals, name, off) := makelist(if vals[i] # 0 then name[off+i-1] else 0, i, 1, length(vals))$

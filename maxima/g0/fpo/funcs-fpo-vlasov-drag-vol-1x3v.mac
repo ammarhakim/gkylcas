@@ -1,5 +1,6 @@
 load("modal-basis")$
 load("out-scripts");
+load("utilities")$
 load(stringproc)$
 
 fpprec : 24$
@@ -12,12 +13,6 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 cvars  : [x, y, z]$
 varsV  : [vx, vy, vz]$
 rdv2   : [rdvx2, rdvy2, rdvz2]$
-
-/* Helper functions for expanding (in basis functions) a quantity that should be sparse.  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates. */
-
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[a0+i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_lbo_vlasov_kernels.h> ~%"),
@@ -73,8 +68,8 @@ calcVmLBODragVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([]
     ),
     printf(fh, "~%"),
     /* Zero out components of alpha which are empty. */
-    alphaDrag_NoZero   : doMakeExprLst(alphaDrag_e, alphaDrag),
-    alphaDrag_NoZero_e : doExpandLst(alphaDrag_NoZero, bP),
+    alphaDrag_NoZero   : makelistNoZerosOff1(alphaDrag_e, alphaDrag, a0),
+    alphaDrag_NoZero_e : doExpand(alphaDrag_NoZero, bP),
     /* Evaluate alpha_vdim at zr to approximate max(abs(alpha_vdim))/dv_i. */
     alphaDrag_mid[vdir] : gcfac(float(expand(subst(zr,0.5*subst(a0=NP*(vdir-1),alphaDrag_NoZero_e))))),
     /* Volume increment from configuration space. */

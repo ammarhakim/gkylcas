@@ -15,11 +15,8 @@ load(stringproc)$
 load("scifac")$
 load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
-load("utilities")$
+load("utilities_gyrokinetic")$
 fpprec : 24$
-
-let(wvpar^2, wvpar_sq)$
-let(dvpar^2, dvpar_sq)$
 
 buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,varsP,bC,bP,pDim,varsV,cid,vid,varsSub,
@@ -36,9 +33,8 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   if (cdim = 3) then (
     [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, 2, vdim, polyOrder),
     pDim : 2+vdim,
-    varsV : makelist(varsP[i],i,3,2+vdim),
+    varsV : makelist(varsP[i],i,cdim,2+vdim),
     surfVar : varsP[dir-1],         /* Surface variable. */
-    surfIntVars : delete(surfVar,varsP), 
     surf_vvars : delete(surfVar, makelist(varsP[2+i],i,1,vdim))
   )
   else (
@@ -46,19 +42,10 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     pDim : cdim+vdim,
     varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
     surfVar : varsP[dir],         /* Surface variable. */
-    surfIntVars : delete(surfVar,varsP), 
     surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim))
   ),
-  /* Radiation drag coefficient can only depend on (x,z,vpar,mu)
-     because we assume B = B(x,z) */
-  if (cdim > 1) then (
-    varsSub : [y=z],
-    bC : subst(varsSub, copylist(bC)),  
-    varsC : subst(varsSub, copylist(varsC)),
-    bP : subst(varsSub, copylist(bP)),  
-    varsP : subst(varsSub, copylist(varsP)),
-    surfIntVars : subst(varsSub, copylist(surfIntVars))
-  ),
+
+  surfIntVars : delete(surfVar,varsP), 
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     volNodes : gaussOrdGkHyb(1+1, varsC, varsV),
@@ -84,11 +71,9 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numSurfNodes : length(surfNodes),  
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  double charge, double mass, double a, double alpha, double beta, double gamma, double v0, 
-  const double *bmag, double* GKYL_RESTRICT drag_rad_nu_surf, double* GKYL_RESTRICT drag_rad_nu) ~%{ ~%", funcNm),
-  printf(fh, "  // w[NDIM]: cell-center.~%"),
-  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *vmap, const double *vmapSq, 
+    double charge, double mass, double a, double alpha, double beta, double gamma, double v0, 
+    const double *bmag, double* GKYL_RESTRICT drag_rad_nu_surf, double* GKYL_RESTRICT drag_rad_nu) ~%{ ~%", funcNm),
   printf(fh, "  // charge: elementary charge.~%"),
   printf(fh, "  // mass: mass of electron.~%"),
   printf(fh, "  // a, alpha, beta, gamma, v0: Radiation fitting parameters.~%"),
@@ -96,11 +81,6 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // drag_rad_nu_surf: Radiation drag in direction dir at corresponding surfaces.~%"),
   printf(fh, "  //                   Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "  // drag_rad_nu: Radiation drag direction dir volume expansion.~%"),
-  printf(fh, "~%"),
-
-  printf(fh, "  const double wvpar = w[~a], dvpar = dxv[~a]; ~%", cdim, cdim),
-  printf(fh, "  const double wvmu = w[~a], dvmu = dxv[~a]; ~%", cdim+1, cdim+1),
-  printf(fh, "  const double wvpar_sq = wvpar*wvpar, dvpar_sq = dvpar*dvpar; ~%"),
   printf(fh, "~%"),
 
   printf(fh, "  double scaled_v0 = v0/sqrt(mass/(2.0*fabs(charge)));~%"),
@@ -112,42 +92,23 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   /* if cdim = 3, down-project input bmag which is expanded in (x,y,z)
      onto (x,z) basis because it has no coefficients which depend upon y */
-  if (cdim = 3) then (
-    [vars_bmag, bC_bmag] : loadBasis(basisFun, cdim, polyOrder),
-    bmag_full_e : doExpand1(bmag, bC_bmag),
-    bmag_c : calcInnerProdList(vars_bmag, 1, bC, bmag_full_e),
-    printf(fh, "  double bmag_2d[~a] = {0.0};~%", numC),
-    writeCExprs1(bmag_2d, bmag_c), 
-    bmag_e : doExpand1(bmag_2d, bC)
-  )
-  else (
-    bmag_e : doExpand1(bmag, bC)
-  ),
+  bmagBasis : getAxisymmetricConfBasis(bC),
+  bmag_e : doExpand1(bmag, bmagBasis),
+
   /* Evaluate bmag at ordinates. Only depends on configuration space */
   bmag_surf_n : gcfac(float(evAtNodes(bmag_e,surfNodes,surfIntVars))), 
   bmag_vol_n : gcfac(float(evAtNodes(bmag_e,volNodes,varsP))),
 
-  /* Project vpar, vpar^2 and mu onto their one dimensional bases and evaluate expansions at volume nodes */
-  printf(fh, "  double vpar_p[~a] = {0.0};~%", 2),
-  printf(fh, "  double vpar_sq_p[~a] = {0.0};~%", 3),
-  printf(fh, "  double mu_p[~a] = {0.0};~%", 2), 
-  basis_vpar : basisFromVars("ser",[vpar],1),
-  basis_vpar_sq : basisFromVars("ser",[vpar],2),
-  basis_mu : basisFromVars("ser",[mu],1),
-  vpar_c : calcInnerProdList([vpar], 1, basis_vpar, dvpar/2.0*varsV[1] + wvpar),
-  vpar_sq_c : calcInnerProdList([vpar], 1, basis_vpar_sq, (dvpar/2.0*varsV[1] + wvpar)^2),
-  vpar_sq_c : map(letsimp, vpar_sq_c),
-  mu_c : calcInnerProdList([mu], 1, basis_mu, dvmu/2.0*varsV[2] + wvmu),
-  writeCExprs1(vpar_p, vpar_c), 
-  writeCExprs1(vpar_sq_p, vpar_sq_c), 
-  writeCExprs1(mu_p, mu_c),
-  vpar_e : doExpand1(vpar_p, basis_vpar),
-  vpar_sq_e : doExpand1(vpar_sq_p, basis_vpar_sq),
-  mu_e : doExpand1(mu_p, basis_mu),
-  vpar_vol_n : gcfac(float(evAtNodes(vpar_e,volNodes,varsP))), 
+  /* Expand the velocity map fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+  vpar_e    : vmap_e[1],
+  mu_e      : vmap_e[2],
+  vpar_sq_e : vmapSq_e[1],
+
+  /* Evaluate expansions of vpar, mu and vpar^2 at volume nodes */
+  vpar_vol_n    : gcfac(float(evAtNodes(vpar_e,volNodes,varsP))), 
+  mu_vol_n      : gcfac(float(evAtNodes(mu_e,volNodes,varsP))), 
   vpar_sq_vol_n : gcfac(float(evAtNodes(vpar_sq_e,volNodes,varsP))), 
-  mu_vol_n : gcfac(float(evAtNodes(mu_e,volNodes,varsP))), 
-  printf(fh, "~%"),
 
   /* Evaluate vmag = sqrt(vpar^2 + 2*mu*B/m) at the ordinates and then the radiation drag. 
      For the surface expansion, we first evaluate velocity variable at surface (either vpar or mu)
@@ -156,9 +117,9 @@ buildGKRadNuKernel(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  double vnu_surf_nodal[~a] = {0.0};~%", numSurfNodes),
     printf(fh, "  double vnu_nodal[~a] = {0.0};~%", numVolNodes),
 
-    vpar_surf : gcfac(float(expand(subst(vpar=-1, vpar_e)))), 
+    vpar_surf    : gcfac(float(expand(subst(vpar=-1, vpar_e)))), 
     vpar_sq_surf : gcfac(float(expand(subst(vpar=-1, vpar_sq_e)))), 
-    mu_surf_n : gcfac(float(evAtNodes(mu_e,surfNodes,surfIntVars))), 
+    mu_surf_n    : gcfac(float(evAtNodes(mu_e,surfNodes,surfIntVars))), 
     for i : 1 thru numSurfNodes do (
       printf(fh, "  vmag_surf = sqrt((~a)+2.0*(~a)/mass);~%", vpar_sq_surf, mu_surf_n[i]*bmag_surf_n[i]),
       printf(fh, "  vnu_surf_nodal[~a] = (~a)*((a/c_const*(alpha+beta)*pow(vmag_surf,gamma))/(beta*pow(vmag_surf/scaled_v0,-alpha)+alpha*pow(vmag_surf/scaled_v0,beta)));~%", i-1, vpar_surf)

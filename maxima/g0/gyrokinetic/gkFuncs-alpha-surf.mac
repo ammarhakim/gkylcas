@@ -19,12 +19,11 @@ load("out-scripts")$
 load(stringproc)$
 load("scifac")$
 load("gyrokinetic/gkUtil")$
-load("surf_funcs/surfUtil")$
 fpprec : 24$
 
 buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,varsSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,basisStr,NSurf,numNodes,
+  [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
+   surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
@@ -36,70 +35,59 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP), 
 
-  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z */
-  if (cdim = 2) then (
-    varsSub : [y=z],
-    bC : subst(varsSub, copylist(bC)),  
-    varsC : subst(varsSub, copylist(varsC)),
-    bP : subst(varsSub, copylist(bP)),  
-    varsP : subst(varsSub, copylist(varsP))
-  ),
-
-  surfVar : varsP[surfDir],         /* Surface variable. */
+  surfVar  : varsP[surfDir],         /* Surface variable. */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
 
   surfIntVars : delete(surfVar,varsP), 
-  surf_cvars : delete(surfVar, makelist(varsP[i],i,1,cdim)),
-  surf_vvars : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
+  surf_cvars  : delete(surfVar, makelist(varsP[i],i,1,cdim)),
+  surf_vvars  : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     /* if no toroidal field and p=1, use a further reduced quadrature evaluation
        to exploit the larger sparsity in the x and z updates. 
        The x update is surfDir = 1 and the z update is surfDir = cdim */
-    if (surfDir = 1 and no_by) then (
+    if (no_by and surfDir = 1) then (
       surfNodes : gaussOrd(1+1, 1),
-      nodeVars : [z]
-    )
-    else if (surfDir = cdim and no_by) then (
+      nodeVars  : [z]
+    ) else if (no_by and surfDir = cdim) then (
       surfNodes : gaussOrdGkHyb(1+1, [x], [vpar]),
-      nodeVars : [x,vpar]
-    )
-    else (
+      nodeVars  : [x,vpar]
+    ) else (
       surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
-      nodeVars : surfIntVars
+      nodeVars  : surfIntVars
     ),
-    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
-    basisStr  : sconcat("gkhyb_", cdim, "x", vdim, "v", "_p", polyOrder)
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
-    nodeVars : surfIntVars,
-    bSurf : basisFromVars(basisFun,surfIntVars,polyOrder),
-    basisStr : sconcat(basisFun, "_", cdim+vdim, "x", "_p", polyOrder) 
+    nodeVars  : surfIntVars,
+    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
   ),
-  NSurf : length(bSurf),
-  numNodes  : length(surfNodes),
+  NSurf    : length(bSurf),
+  numNodes : length(surfNodes),
   /* if polyOrder = 1, we need to be careful about
      indexing input arrays since the surface hybrid basis has a different size in the
      vparallel surfaces and/or we are more directly exploiting the sparsity of 
      alpha (e.g., in the x and z direction when no toroidal field, by=0) 
      and thus utilize fewer coefficients to reduce the number of operations */
   if (polyOrder = 1) then (
-    tempVars : delete(x,varsP), 
-    tempBasis : basisFromVars("gkhyb",tempVars,polyOrder),
-    NSurfIndexing : length(tempBasis),
+    tempVars         : delete(x,varsP), 
+    tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
+    NSurfIndexing    : length(tempBasis),
     numNodesIndexing : length(tempBasis)
-  )
-  else (
-    NSurfIndexing : NSurf,
+  ) else (
+    NSurfIndexing    : NSurf,
     numNodesIndexing : numNodes
   ),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double q_, const double m_, 
-  const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, 
-  const double *phi, double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
+    const double q_, const double m_, const double *bmag, const double *jacobtot_inv,
+    const double *cmag, const double *b_i, const double *phi, double* GKYL_RESTRICT alpha_surf,
+    double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // vmap: velocity space mapping.~%"),
+  printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
   printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
@@ -114,18 +102,12 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   printf(fh, "~%"),
 
   /* Declare cell-center variables and variables multiplying gradients. */
-  for d : 1 thru pDim do (
-    printf(fh, "  double w~a = w[~a];~%", varLabel[d], d-1),
+  for d : 1 thru cdim+1 do (
     printf(fh, "  double rd~a2 = 2.0/dxv[~a];~%", varLabel[d], d-1)
   ),
   printf(fh, "~%"),
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
-
-  /* Declare variables with squared of cell centers and rdx2 variables (only need vpar^2). */
-  printf(fh, "  double wvparSq = wvpar*wvpar;~%"),
-  printf(fh, "  double rdvpar2Sq = rdvpar2*rdvpar2;~%"),
-  printf(fh, "~%"),
 
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
@@ -134,47 +116,25 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   ),
   printf(fh, "~%"),
 
-  /* Load a basis that only has the variables B depends on, but has the right
-     normalization and dimensionality for the dimensionality of interest. */
-  bmagBasis  : copylist(bC),
-  ignoreVars : listify(setdifference(setify(varsC),setify(varsInB))),
-  for i : 1 thru numC do (
-    for v : 1 thru length(ignoreVars) do (
-      if not freeof(ignoreVars[v],bC[i]) then (
-        bmagBasis[i] : 0
-  ))),
-  inFlds_e : expandInputFields(bC,bmagBasis),
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
+
+  inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
+
+  /* Redefine vmap_prime to exploit the relationship between it and vmap. */
+  vmap_e : inFlds_e[11],  vmap_prime_e : inFlds_e[13],
+  vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
+  inFlds_e[13] : vmap_prime_e,
 
   cmag_e : inFlds_e[2],
-  b_x_e : inFlds_e[7],  
-  b_y_e : inFlds_e[8],  
-  b_z_e : inFlds_e[9],
+  b_x_e  : inFlds_e[7],  b_y_e : inFlds_e[8],  b_z_e : inFlds_e[9],
   jacobTotInv_e : inFlds_e[10],
   /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
-  if (no_by) then (
-    BstarXdBmag_e : 0,
-    BstarYdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
-    BstarZdBmag_e : cmag_e*jacobTotInv_e
-  )
-  else (
-    BstarXdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*rdz2*diff(b_y_e,z))*jacobTotInv_e,
-    BstarYdBmag_e : (-((m_/q_)*(wvpar+vpar/rdvpar2))*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
-    if (cdim = 1) then (
-      BstarZdBmag_e : cmag_e*jacobTotInv_e
-    )
-    else (
-      BstarZdBmag_e : (cmag_e + ((m_/q_)*(wvpar+vpar/rdvpar2))*rdx2*diff(b_y_e,x))*jacobTotInv_e
-    )
-  ),
-  if (cdim = 1) then (
-    BstardBmag_e : [BstarZdBmag_e]
-  )
-  else if (cdim = 2) then (
-    BstardBmag_e : [BstarXdBmag_e, BstarZdBmag_e]
-  )
-  else (
-    BstardBmag_e : [BstarXdBmag_e, BstarYdBmag_e, BstarZdBmag_e]
-  ),
+  if (no_by or cdim = 1) then (b_y_e : 0),
+  BstardBmag_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_y_e,z))*jacobTotInv_e,
+                  (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
+                  (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
+  BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
 
   /* Compute electrostatic Hamiltonian and write it out. */
   hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
@@ -191,8 +151,7 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
     alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
       m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",no_by,false),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"R")
-  )
-  else (
+  ) else (
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,

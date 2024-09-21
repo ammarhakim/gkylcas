@@ -14,9 +14,6 @@ load("nodal_operations/quadrature_functions")$
 load("utilities")$
 fpprec : 24$
 
-let(wvpar^2, wvpar_sq)$
-let(dvpar^2, dvpar_sq)$
-
 buildGKRadNiNuKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,varsP,bC,bP,pDim,varsV,cid,vid,varsSub,
    surfVar,surfIntVars,surf_vvars,volNodes,surfNodes,bSurf,basisVolNodal,basisSurfNodal,
@@ -37,15 +34,7 @@ buildGKRadNiNuKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
     pDim : cdim+vdim
   ),
-  /* Radiation drag coefficient can only depend on (x,z,vpar,mu)
-     because we assume B = B(x,z) */
-  if (cdim > 1) then (
-    varsSub : [y=z],
-    bC : subst(varsSub, copylist(bC)),  
-    varsC : subst(varsSub, copylist(varsC)),
-    bP : subst(varsSub, copylist(bP)),  
-    varsP : subst(varsSub, copylist(varsP))
-  ),
+
   /* make two different surface expansions, 
      one for the vparallel surface expansions and one for mu surface expansions */
   surfVarVpar : vpar,         
@@ -62,9 +51,9 @@ buildGKRadNiNuKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH void ~a(const double *vnu_surf, const double *vnu,
-  const double *vsqnu_surf, const double *vsqnu, const double *nI, 
-  double* GKYL_RESTRICT nvnu_surf, double* GKYL_RESTRICT nvnu, 
-  double* GKYL_RESTRICT nvsqnu_surf, double* GKYL_RESTRICT nvsqnu) ~%{ ~%", funcNm),
+    const double *vsqnu_surf, const double *vsqnu, const double *nI, 
+    double* GKYL_RESTRICT nvnu_surf, double* GKYL_RESTRICT nvnu, 
+    double* GKYL_RESTRICT nvsqnu_surf, double* GKYL_RESTRICT nvsqnu) ~%{ ~%", funcNm),
   printf(fh, "  // vnu_surf/vnu: Input radiation drag in vparallel direction, surface and volume expansions.~%"),
   printf(fh, "  // vsqnu_surf/vsqnu: Input radiation drag in mu direction, surface and volume expansions.~%"),
   printf(fh, "  // nI: Input ion density.~%"),
