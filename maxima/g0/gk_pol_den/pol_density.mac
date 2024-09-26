@@ -11,7 +11,8 @@ gen_pol_den_kernel(fh, funcNm, dim, basisFun, polyOrder) := block(
    eps,eps_e,i,j,varsSorted,epsNew,isNew,k,rdx_ij,ijSorted,pol_den_c],
 
   /* Load a higher order tensor basis to represent phi. */
-  [vars, basis_p] : loadBasis("tensor", dim, polyOrder+1),
+  polyOrderPotential : 3,
+  [vars, basis_p] : loadBasis("tensor", dim, polyOrderPotential),
   numB_p : length(basis_p),
 
   /* Load basis to represent other quantities. */
