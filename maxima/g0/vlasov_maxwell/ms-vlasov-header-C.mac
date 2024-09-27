@@ -11,12 +11,7 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-<<<<<<< HEAD:maxima/g0/vlasov_maxwell/ms-vlasov-header-C.mac
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-=======
 /* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
->>>>>>> gk-g0-app:maxima/g0/vlasov/ms-vlasov-header-C.mac
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
