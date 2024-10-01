@@ -90,7 +90,6 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
-**/
 
 /* LHS stencil kernels. */
 disp(printf(false,"Creating fem_poisson_lhs_stencil_consteps.c"))$
@@ -106,6 +105,7 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil_consteps.c"))$
@@ -140,6 +140,7 @@ close(fh)$
 
 /* ............. Varying permittivity kernels ................ */
 
+/**
 /* LHS stencil kernels. */
 disp(printf(false,"Creating fem_poisson_lhs_stencil_vareps.c"))$
 fname : "~/max-out/fem_poisson_lhs_stencil_vareps.c"$
@@ -154,6 +155,7 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil_vareps.c"))$

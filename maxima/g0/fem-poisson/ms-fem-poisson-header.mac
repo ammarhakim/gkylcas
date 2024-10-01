@@ -9,11 +9,12 @@ bName : ["ser"]$
      =1 Dirichlet
      =2 Neumann
      =3 Robin
+     =4 Spatially varying Dirichlet
      =9 non-periodic
    For periodic we'll assume ghost cells are filled accordingly
    and use an interior stencil. */
-bcTypesFEM : [0, 1, 2, 3]$
-bcStrsFEM  : ["periodic", "dirichlet", "neumann", "robin"]$
+bcTypesFEM : [0, 1, 2, 3, 4]$
+bcStrsFEM  : ["periodic", "dirichlet", "neumann", "robin", "dirichletvar"]$
 bcKeyFEM   : makelist([bcTypesFEM[i],bcStrsFEM[i]],i,1,length(bcTypesFEM))$
 
 bcTypesNP : [0, 9]$ 
@@ -122,8 +123,8 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* RHS source stencil kernels to populate the right side vector. */
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_consteps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
-      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_vareps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_consteps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const double *phiBC, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_src_stencil_vareps", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, const double *phiBC, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyFEM, true, false),
       printf(fh, "~%"),
 
       /* Solution stencil kernels. */

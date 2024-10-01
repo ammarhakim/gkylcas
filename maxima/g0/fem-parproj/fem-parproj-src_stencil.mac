@@ -64,7 +64,7 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
     
         printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // rho: right side source.~%"),
-        printf(fh, "  // phiBC: Dirichlet boundary potential, given as a DG expansion in the ghost cell (volume).~%"),
+        printf(fh, "  // phiBC: Dirichlet boundary potential, given as a DG (volume) expansion in the skin cell.~%"),
         printf(fh, "  // nodeOff: node offset (prob idx * global number of nodes).~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // bsrc: global right side source vector.~%"),
@@ -99,7 +99,7 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
           dirichletNodes  : sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           dirichletNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletNodesI) do (
-            /* Evalaute phiBC at +1/-1 when at the lower/upper boundary.*/
+            /* Evaluate phiBC at +1/-1 when at the lower/upper boundary.*/
             bcNode : copylist(dirichletNodes[k]),
             bcNode[dir] : bcNode[dir],
             bcNodeI : sublist_indices(nodes,lambda([x],x=bcNode))[1],
