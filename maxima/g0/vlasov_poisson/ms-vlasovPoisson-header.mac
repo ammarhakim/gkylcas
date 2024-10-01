@@ -34,21 +34,24 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~adouble vlasov_poisson_extem_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_poisson_ext_phiA_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_poisson_ext_EB_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
 
   for si : 1 thru ci do (
     printf(fh, "~adouble vlasov_poisson_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~adouble vlasov_poisson_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
 
   for si : 1 thru vi do (
-    printf(fh, "~adouble vlasov_poisson_extem_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_extem_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_poisson_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_ext_phiA_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_ext_EB_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_ext_phiA_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_poisson_ext_EB_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
 
   printf(fh, "~%")

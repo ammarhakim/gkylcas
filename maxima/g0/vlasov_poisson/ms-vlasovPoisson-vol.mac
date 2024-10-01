@@ -4,7 +4,7 @@ load(stringproc)$
    updates from the volume term contributions in the
    Vlasov-Poisson kinetic equation. 
    Supports just plain Vlasov-Poisson (only phi) and 
-   Vlasov-Poisson with external fields (phi and A). */
+   Vlasov-Poisson with external fields (phi and A, or E and B). */
 
 /* ...... USER INPUTS........ */
 
@@ -13,7 +13,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -56,12 +56,22 @@ for bInd : 1 thru length(bName) do (
         calcVlasovPoissonVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh),
 
-        fname : sconcat("~/max-out/vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        /* Kernels with external phi and A potentials. */
+        fname : sconcat("~/max-out/vlasov_poisson_ext_phiA_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
         printf(fh, "~%"),
-        funcName : sconcat("vlasov_poisson_extem_vol_", c, "x", v, "v_", bName[bInd]),
-        calcVlasovPoissonExtEMVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        funcName : sconcat("vlasov_poisson_ext_phiA_vol_", c, "x", v, "v_", bName[bInd]),
+        calcVlasovPoissonExtPhiAVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh),
+
+        /* Kernels with external E and B fields. */
+        fname : sconcat("~/max-out/vlasov_poisson_ext_EB_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_vlasov_poisson_kernels.h> ~%"),
+        printf(fh, "~%"),
+        funcName : sconcat("vlasov_poisson_ext_EB_vol_", c, "x", v, "v_", bName[bInd]),
+        calcVlasovPoissonExtEBVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
     )

@@ -32,10 +32,11 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* Point at which to evaluate alpha for use in computing CFL. */
   cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // field:     potential (scaled by appropriate factors).~%"),
+  printf(fh, "  // pots:      potentials phi_tot=phi+phi_ext and A_ext (scaled by q/m).~%"),
+  printf(fh, "  // EBext:     external E and B fields (scaled by q/m).~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%~%"),
 
@@ -59,7 +60,7 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   dv1Vec : [dv10, dv11, dv12],
 
   /* access potential data */
-  printf(fh, "  const double *phi = &field[~a]; ~%~%", 0),
+  printf(fh, "  const double *phi = &pots[~a]; ~%~%", 0),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%~%"),
@@ -142,9 +143,9 @@ calcVlasovPoissonVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   printf(fh, "~%")
 )$
 
-calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcVlasovPoissonExtFieldsVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder, useExtPotentials) := block(
   [varsC,bC,varsP,bP,varsV,pOrderV,numC,numP,cflPt,cid,vid,dir,dvdx,wdx,dx1Vec,dv1Vec,
-   d,f_e,phi_e,Afld,Ax_e,Ay_e,Az_e,varsCall,Bx_e,By_e,Bz_e,
+   d,f_e,phi_e,Ex_e,Ey_e,Ez_e,Afld,Ax_e,Ay_e,Az_e,varsCall,Bx_e,By_e,Bz_e,
    incr_cdim,cdir,alpha_cdim_c,expr_out,i,alpha_cdim_NoZero,alpha_cdim_NoZero_e,
    incr_vdim,vdir,acc_e,vTransSubs,alpha_vdim_c,alpha_vdim_NoZero,alpha_vdim_NoZero_e,amid],
 
@@ -163,10 +164,11 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   /* Point at which to evaluate alpha for use in computing CFL. */
   cflPt : makelist(varsP[d]=0, d, 1, cdim+vdim),
 
-  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // field:     potentials, including external (scaled by appropriate factors).~%"),
+  printf(fh, "  // pots:      potentials phi_tot=phi+phi_ext and A_ext (scaled by q/m).~%"),
+  printf(fh, "  // EBext:     external E and B fields (scaled by q/m).~%"),
   printf(fh, "  // f:         Input distribution function.~%"),
   printf(fh, "  // out:       Incremented output.~%~%"),
 
@@ -190,15 +192,7 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   dv1Vec : [dv10, dv11, dv12],
 
   /* access potential data */
-  printf(fh, "  const double *phi = &field[~a]; ~%~%", 0),
-
-  if vdim > 1 then (
-    /* If vdim = 1, then no magnetic field. */
-    for d : 1 thru vdim do (
-      printf(fh, "  const double *A~a = &field[~a]; ~%", d-1, numC*d)
-    ),
-    printf(fh, "~%")
-  ),
+  printf(fh, "  const double *phi = &pots[~a]; ~%~%", 0),
 
   /* cflFreq_mid is our approximation of sum_i max(abs(alpha_i))/(dx_i/(2p+1)) */
   printf(fh, "  double cflFreq_mid = 0.0; ~%~%"),
@@ -209,20 +203,8 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*numP),
   printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", vdim*numP),
 
-  /* Expand distribution function f in phase basis, and potential in conf basis. */
-  f_e   : doExpand1(f, bP),
-  phi_e : doExpand1(phi, bC),
-
-  Afld : [A0, A1, A2],
-  Ax_e : doExpand1(Afld[1], bC),
-  Ay_e : doExpand1(Afld[2], bC),
-  Az_e : doExpand1(Afld[3], bC),
-
-  /* B = curl(A); NOTE: already contains q/m factor */
-  varsCall : [x, y, z],
-  Bx_e : dx1Vec[2]*diff(Az_e, varsCall[2]) - dx1Vec[3]*diff(Ay_e, varsCall[3]),
-  By_e : dx1Vec[3]*diff(Ax_e, varsCall[3]) - dx1Vec[1]*diff(Az_e, varsCall[1]),
-  Bz_e : dx1Vec[1]*diff(Ay_e, varsCall[1]) - dx1Vec[2]*diff(Ax_e, varsCall[2]),
+  /* Expand distribution function f in phase basis. */
+  f_e : doExpand1(f, bP),
 
   incr_cdim : 0,
   /* alpha_cdim = v dot grad(f) */
@@ -245,16 +227,63 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
     incr_cdim : incr_cdim+subst(a0=numP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
   ),
 
+  /* Expand fields in conf basis. */
+  phi_e : doExpand1(phi, bC),
+
+  varsCall : [x, y, z],
+  if (useExtPotentials) then (
+    Ex_e : 0,  Ey_e : 0,  Ez_e : 0,
+
+    if vdim > 1 then (
+      /* If vdim = 1, the magnetic field has no effect. */
+      for d : 1 thru vdim do (
+        printf(fh, "  const double *A~a = &pots[~a]; ~%", varsCall[d], numC*d)
+      ),
+      printf(fh, "~%")
+    ),
+
+    Afld : [Ax, Ay, Az],
+    Ax_e : doExpand1(Afld[1], bC),
+    Ay_e : doExpand1(Afld[2], bC),
+    Az_e : doExpand1(Afld[3], bC),
+
+    /* B = curl(A); NOTE: already contains q/m factor */
+    Bx_e : dx1Vec[2]*diff(Az_e, varsCall[2]) - dx1Vec[3]*diff(Ay_e, varsCall[3]),
+    By_e : dx1Vec[3]*diff(Ax_e, varsCall[3]) - dx1Vec[1]*diff(Az_e, varsCall[1]),
+    Bz_e : dx1Vec[1]*diff(Ay_e, varsCall[1]) - dx1Vec[2]*diff(Ax_e, varsCall[2])
+  ) else (
+    for d : 1 thru vdim do (
+      printf(fh, "  const double *E~a = &EBext[~a]; ~%", varsCall[d], (d-1)*numC)
+    ),
+    if vdim > 1 then (
+      /* If vdim = 1, the magnetic field has no effect. */
+      for d : 1 thru 3 do (
+        printf(fh, "  const double *B~a = &EBext[~a]; ~%", varsCall[d], (d+3-1)*numC)
+      ),
+      printf(fh, "~%")
+    ),
+
+    Efld : [Ex, Ey, Ez],
+    Ex_e : doExpand1(Efld[1], bC),
+    Ey_e : doExpand1(Efld[2], bC),
+    Ez_e : doExpand1(Efld[3], bC),
+
+    Bfld : [Bx, By, Bz],
+    Bx_e : doExpand1(Bfld[1], bC),
+    By_e : doExpand1(Bfld[2], bC),
+    Bz_e : doExpand1(Bfld[3], bC)
+  ),
+
   incr_vdim : 0,
   for vdir : 1 thru vdim do (
 
     /* Calculate the acceleration. */
     if (vdir = 1) then (
-      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[1]) + vvy*Bz_e - vvz*By_e
+      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[1]) + Ex_e + vvy*Bz_e - vvz*By_e
     ) elseif (vdir = 2) then (
-      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[2]) + vvz*Bx_e - vvx*Bz_e
+      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[2]) + Ey_e + vvz*Bx_e - vvx*Bz_e
     ) else (
-      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[3]) + vvx*By_e - vvy*Bx_e
+      acc_e : -dx1Vec[vdir]*diff(phi_e,varsCall[3]) + Ez_e + vvx*By_e - vvy*Bx_e
     ),
     vzero(vdim)  := if vdim = 1 then [vvy=0, vvz=0] elseif vdim = 2 then [vvz=0] else [],
     vTransSubs   : [vvx=vx*dv1/2+wv1, vvy=vy*dv2/2+wv2, vvz=vz*dv3/2+wv3],
@@ -290,4 +319,12 @@ calcVlasovPoissonExtEMVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) :=
   printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%"),
   printf(fh, "~%")
+)$
+
+calcVlasovPoissonExtPhiAVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  calcVlasovPoissonExtFieldsVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder, true)
+)$
+
+calcVlasovPoissonExtEBVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  calcVlasovPoissonExtFieldsVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder, false)
 )$

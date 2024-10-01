@@ -26,10 +26,11 @@ calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // field:     potential (scaled by appropriate factors).~%"),
+  printf(fh, "  // pots:      potentials phi_tot=phi+phi_ext and A_ext (scaled by q/m).~%"),
+  printf(fh, "  // EBext:     external E and B fields (scaled by q/m).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%~%"),
 
@@ -48,7 +49,7 @@ calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   dv1Vec : [dv10, dv11, dv12],
 
   /* Access potential data. */
-  printf(fh, "  const double *phi = &field[~a]; ~%~%", 0),
+  printf(fh, "  const double *phi = &pots[~a]; ~%~%", 0),
 
   /* vv = variable in direction of surface update. */
   vv : varsV[dir],
@@ -190,9 +191,9 @@ calcVlasovPoissonUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) :
   printf(fh, "} ~%")
 );
 
-calcVlasovPoissonExtEMUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcVlasovPoissonExtFieldsUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useExtPotentials) := block(
   [varsC,bC,varsP,bP,varsV,numC,numP,pDim,cid,vid,d,dx1Vec,dv1Vec,vv,surfVars,bSurf,
-   surf_cdim,surfNodes,basisStr,NSurf,numNodes,phi_e,Afld,Ax_e,Ay_e,Az_e,varsCall,Bx_e,By_e,Bz_e,
+   surf_cdim,surfNodes,basisStr,NSurf,numNodes,phi_e,Ex_e,Ey_e,Ez_e,Afld,Ax_e,Ay_e,Az_e,varsCall,Bx_e,By_e,Bz_e,
    acc_e,vTransSubs,alphaV_c,alphaNoZero,alpha_e,fl_e,fc_e,fr_e,alphaOrd_n,i,
    fHatSurf_l_e,fHatSurf_r_e,Ghat_l_c,Ghat_l_e,Ghat_r_c,Ghat_r_e,incr_l,incr_r],
 
@@ -203,10 +204,11 @@ calcVlasovPoissonExtEMUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   numP  : length(bP),
   pDim  : length(varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *pots, const double *EBext, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, varsV[dir], cdim, vdim, basisFun, polyOrder),
   printf(fh, "  // w:         Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
-  printf(fh, "  // field:     potentials, including external (scaled by appropriate factors).~%"),
+  printf(fh, "  // pots:      potentials phi_tot=phi+phi_ext and A_ext (scaled by q/m).~%"),
+  printf(fh, "  // EBext:     external E and B fields (scaled by q/m).~%"),
   printf(fh, "  // fl/fc/fr:  Input Distribution function in left/center/right cells ~%"),
   printf(fh, "  // out:       Output distribution function in center cell ~%~%"),
 
@@ -223,17 +225,6 @@ calcVlasovPoissonExtEMUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "~%"),
   dx1Vec : [dx10, dx11, dx12],
   dv1Vec : [dv10, dv11, dv12],
-
-  /* access potential data */
-  printf(fh, "  const double *phi = &field[~a]; ~%~%", 0),
-
-  if vdim > 1 then (
-    /* If vdim = 1, then no magnetic field. */
-    for d : 1 thru vdim do (
-      printf(fh, "  const double *A~a = &field[~a]; ~%", d-1, numC*d)
-    ),
-    printf(fh, "~%")
-  ),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
 
@@ -269,28 +260,64 @@ calcVlasovPoissonExtEMUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      For example, vx flux is q/m (grad_x phi + vy*(curl(A))_z - vz*(curl(A))_y) */
   printf(fh, "  double alpha[~a] = {0.0}; ~%~%", NSurf),
 
+  /* access potential data */
+  printf(fh, "  const double *phi = &pots[~a]; ~%~%", 0),
+
   phi_e : doExpand1(phi, bC),
 
-  Afld : [A0, A1, A2],
-  Ax_e : doExpand1(Afld[1], bC),
-  Ay_e : doExpand1(Afld[2], bC),
-  Az_e : doExpand1(Afld[3], bC),
-
-  /* B = curl(A); NOTE: already contains q/m factor */
   varsCall : [x, y, z],
-  Bx_e : dx1Vec[2]*diff(Az_e, varsCall[2]) - dx1Vec[3]*diff(Ay_e, varsCall[3]),
-  By_e : dx1Vec[3]*diff(Ax_e, varsCall[3]) - dx1Vec[1]*diff(Az_e, varsCall[1]),
-  Bz_e : dx1Vec[1]*diff(Ay_e, varsCall[1]) - dx1Vec[2]*diff(Ax_e, varsCall[2]),
+  if (useExtPotentials) then (
+    Ex_e : 0,  Ey_e : 0,  Ez_e : 0,
+
+    if vdim > 1 then (
+      /* If vdim = 1, the magnetic field has no effect. */
+      for d : 1 thru vdim do (
+        printf(fh, "  const double *A~a = &pots[~a]; ~%", varsCall[d], numC*d)
+      ),
+      printf(fh, "~%")
+    ),
+
+    Afld : [Ax, Ay, Az],
+    Ax_e : doExpand1(Afld[1], bC),
+    Ay_e : doExpand1(Afld[2], bC),
+    Az_e : doExpand1(Afld[3], bC),
+
+    /* B = curl(A); NOTE: already contains q/m factor */
+    Bx_e : dx1Vec[2]*diff(Az_e, varsCall[2]) - dx1Vec[3]*diff(Ay_e, varsCall[3]),
+    By_e : dx1Vec[3]*diff(Ax_e, varsCall[3]) - dx1Vec[1]*diff(Az_e, varsCall[1]),
+    Bz_e : dx1Vec[1]*diff(Ay_e, varsCall[1]) - dx1Vec[2]*diff(Ax_e, varsCall[2])
+  ) else (
+    for d : 1 thru vdim do (
+      printf(fh, "  const double *E~a = &EBext[~a]; ~%", varsCall[d], (d-1)*numC)
+    ),
+    if vdim > 1 then (
+      /* If vdim = 1, the magnetic field has no effect. */
+      for d : 1 thru 3 do (
+        printf(fh, "  const double *B~a = &EBext[~a]; ~%", varsCall[d], (d+3-1)*numC)
+      ),
+      printf(fh, "~%")
+    ),
+
+    Efld : [Ex, Ey, Ez],
+    Ex_e : doExpand1(Efld[1], bC),
+    Ey_e : doExpand1(Efld[2], bC),
+    Ez_e : doExpand1(Efld[3], bC),
+
+    Bfld : [Bx, By, Bz],
+    Bx_e : doExpand1(Bfld[1], bC),
+    By_e : doExpand1(Bfld[2], bC),
+    Bz_e : doExpand1(Bfld[3], bC)
+  ),
 
   /* alpha_v = -fac*grad(phi) */
   /* fac = q/m for plasma, fac = G*m for self gravitating systems */
   /* In case of external fields, also add q/m*curl(A) */
   if (dir = 1) then (
-    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[1]) + vvy*Bz_e - vvz*By_e
+    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[1]) + Ex_e + vvy*Bz_e - vvz*By_e
   ) elseif (dir = 2) then (
-    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[2]) + vvz*Bx_e - vvx*Bz_e
+    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[2]) + Ey_e + vvz*Bx_e - vvx*Bz_e
   ) else (
-    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[3]) + vvx*By_e - vvy*Bx_e
+    acc_e : -dx1Vec[dir]*diff(phi_e,varsCall[3]) + Ez_e + vvx*By_e - vvy*Bx_e
   ),
   vzero(vdim)  := if vdim = 1 then [vvy=0, vvz=0] elseif vdim = 2 then [vvz=0] else [],
   vTransSubs   : [vvx=vx*dv1/2+wv1, vvy=vy*dv2/2+wv2, vvz=vz*dv3/2+wv3],
@@ -377,3 +404,11 @@ calcVlasovPoissonExtEMUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
 
   printf(fh, "} ~%")
 );
+
+calcVlasovPoissonExtPhiAUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  calcVlasovPoissonExtFieldsUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, true)
+)$
+
+calcVlasovPoissonExtEBUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  calcVlasovPoissonExtFieldsUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, false)
+)$
