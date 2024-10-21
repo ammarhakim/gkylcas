@@ -12,7 +12,7 @@ load("scifac")$
 fpprec : 24$
 
 calcCanonicalPbPressure(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [], /*Fill block*/
+  [varsC, bC, NC],
 
   kill(varsC, bC),
 

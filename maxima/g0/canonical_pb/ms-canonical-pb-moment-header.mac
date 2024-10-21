@@ -8,15 +8,21 @@ maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
+/* Tensor product basis. */
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+
 /* ...... END OF USER INPUTS........ */
 
-cvars : [x, y, z]$
-
-bName        : ["ser"]$
-minPolyOrder : [minPolyOrder_Ser]$
-maxPolyOrder : [maxPolyOrder_Ser]$
-minCdim      : [minCdim_Ser]$
-maxCdim      : [maxCdim_Ser]$
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid canonical_pb_MEnergy_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),

@@ -18,16 +18,15 @@ PB(f, g, x_vec, y_vec, dx_vec, dy_vec) :=
     i, 1, length(x_vec)
   )$
 
-calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,hamil,sideStr) := block(
-  [varsP, varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
-   z, q, p, dq, dp, alpha, alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
+calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,hamil,sideStr) := block(
+  [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
+   z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf], 
   /* Calculate phase space velocity alpha in direction of surfVar. */
   /* We assume alpha.n and hamil is continuous across boundary. */
   /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
      determine upwind direction. */
 
-  varsP : listofvars(bP),
   varsC : slcn(varsP, cdim),
   varsV : slcn_v(varsP, cdim),
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -49,7 +48,6 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
 
-  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
@@ -71,17 +69,16 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
 
 
 
-calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
+calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,
                    hamil,sideStr) := block(
-  [varsP, varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
-   z, q, p, dq, dp, alpha, alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
+  [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
+   z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf],
   /* Calculate phase space velocity alpha in direction of surfVar. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
   /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
      determine upwind direction. */
 
-  varsP    : listofvars(bP),
   varsC : slcn(varsP, cdim),
   varsV : slcn_v(varsP, cdim),
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -104,7 +101,6 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
 
-  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
@@ -114,7 +110,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
      onto surface basis and print to C variable alpha. */
   alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha)),
   alphaCvar : eval_string(sconcat("alpha",sideStr)),
-  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
