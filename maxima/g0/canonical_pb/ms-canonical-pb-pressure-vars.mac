@@ -31,17 +31,19 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
-    if (d>2 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+    if not(d = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (d>2) then maxPolyOrderB : 1,
 
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/canonical_pb_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("canonical_pb_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
-      calcCanonicalPbPressure(fh, funcName, d, bName[bInd], polyOrder),
-      close(fh)
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+        fname : sconcat("~/max-out/canonical_pb_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("canonical_pb_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
+        calcCanonicalPbPressure(fh, funcName, d, "ser", polyOrder),
+        close(fh)
+      )
     )
   )
 );

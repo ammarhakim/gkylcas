@@ -37,18 +37,20 @@ vlabels : ["vx","vy","vz"]$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     v : c, /* Canonical PB only supports equal cdim and vdim */
+    if not(c = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
 
-   maxPolyOrderB : maxPolyOrder[bInd],
-   if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
-   for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-      fname : sconcat("~/max-out/canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-      disp(printf(false,"Creating volume file: ~a",fname)),
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+          fname : sconcat("~/max-out/canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          disp(printf(false,"Creating volume file: ~a",fname)),
 
-      fh : openw(fname),
-      printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
+          fh : openw(fname),
+          printf(fh, "#include <gkyl_canonical_pb_kernels.h> ~%"),
 
-      funcName : sconcat("canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-      buildCanonicalPBVolKernel(fh, funcName, c, v, bName[bInd], polyOrder)
-   )
+          funcName : sconcat("canonical_pb_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          buildCanonicalPBVolKernel(fh, funcName, c, v, bName[bInd], polyOrder)
+      )
+    )
   )
 )$

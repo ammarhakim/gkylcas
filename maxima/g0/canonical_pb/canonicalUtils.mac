@@ -61,7 +61,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
   writeCExprsCollect1(alphaCvar, alpha_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
-  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
@@ -118,7 +118,8 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V
 
 
 /* Determine the upwinded distribution function in canonical pb */
-calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr) := block(
+calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr,
+                    cdim, vdim, polyOrder,basisFun) := block(
   [fstrL, fstrR, fLNm, fRNm, fUpNm, sgn_alpha_surfNm, sgn_alphaUpNm, fSurfl_c, fSurfr_c, 
    fSurfl_e, fSurfr_e, sgn_alphaUp_e, fUp_c],
    
@@ -162,7 +163,22 @@ calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NS
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrL, NSurf),
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrR, NSurf),
     printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, NSurf),
-    printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),
+    
+    /*printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),*/
+    printf(file_handle, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+      if (surfDir - cdim > 0) then ( 
+        /* Velocity space */
+        printf(file_handle, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
+      ) else if (surfDir - cdim <= 0) then ( 
+        /* configuration space */
+        printf(file_handle, "  hyb_~ax~av_p1_xdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
+      )
+    ) else (
+      printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm)
+    ),
+
+
     sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf),
     printf(file_handle, "~%"),
     writeCExprs1(fLNm, fSurfl_c),

@@ -29,19 +29,21 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
+    if not(c = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
 
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
-    if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
-    /* Canonical-pb moment calculators. */
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating Canonical-pb Moments ~ax~av", bName[bInd]),c,c)),
-      fname : sconcat("~/max-out/mom_canonical_pb_", c, "x", c, "v_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("canonical_pb"),
-      calcCanPBMoments(fh, funcName, c, c, bName[bInd], polyOrder),
-      close(fh)
+      /* Canonical-pb moment calculators. */
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        disp(printf(false,sconcat("Creating Canonical-pb Moments ~ax~av", bName[bInd]),c,c)),
+        fname : sconcat("~/max-out/mom_canonical_pb_", c, "x", c, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("canonical_pb"),
+        calcCanPBMoments(fh, funcName, c, c, bName[bInd], polyOrder),
+        close(fh)
+      )
     )
   )
 );

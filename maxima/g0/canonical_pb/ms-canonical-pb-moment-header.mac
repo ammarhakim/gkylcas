@@ -40,13 +40,15 @@ printf(fh, "~%")$
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
+    if not(c = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
 
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
-    if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-    printPrototype(decorator, c, c, bName[bInd], polyOrder)
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      printPrototype(decorator, c, c, bName[bInd], polyOrder)
+      )
     )
   )
 );
