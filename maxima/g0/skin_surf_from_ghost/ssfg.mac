@@ -1,0 +1,103 @@
+/*
+  Functions to generate kernels that force the skin cell
+  to equal the ghost cell at the boundary surface.
+*/
+
+load("modal-basis");
+load("out-scripts");
+load(stringproc)$
+load("nodal_operations/nodal_functions")$
+fpprec : 24$
+
+genSSFGkernel(fh, funcNm, dim, basisNm, polyOrder) := block(
+  [vars,basis,numB,surfDir,surfVar,surfPerpVars,perpDirs,basisLowD,varsLowD,subList,numBLowD,
+   nodes,numNodes,nodesLowD,numNodesLowD,boundaryStr,ghostEvSign,bS,fghost_e,fghostSurf_c,
+   fghostSurf_noZero_c,fghostSurf_e,fghostSurf_n,fskin_e,fskin_n,i,curr_node,surf_node_idx,j,
+   found_node,d,nodToMod,fskin_c],
+
+  [vars, basis] : loadBasis(basisNm, dim, polyOrder),
+  numB : length(basis),
+
+  surfDir : dim,  /* Assume the last dimension is the boundary direction. */
+  surfVar : vars[surfDir],
+  surfPerpVars : delete(surfVar, vars),
+  perpDirs : delete(surfDir, makelist(i,i,1,dim)),
+
+ /* Load a basis of one fewer dimension for projecting onto surface. */
+  if dim>1 then (
+    basisLowD : basisFromVars(basisNm, surfPerpVars, polyOrder),
+    varsLowD : listofvars(basisLowD)
+  ) else (
+    varsLowD : [x],  basisLowD : [1/innerProd(varsLowD,1,1,1)]
+  ),
+  numBLowD : length(basisLowD),
+
+  /* Get the nodes at requested dimension. */
+  nodes : getNodes(basisNm, dim, polyOrder),
+  numNodes : length(nodes),
+
+  /* Get the nodes in one dimension lower. */
+  if dim>1 then (
+    nodesLowD : getNodes(basisNm, dim-1, polyOrder),
+    numNodesLowD : length(nodesLowD)
+  ),
+
+  /* Evaluate the ghost cell at the boundary and project it onto a surface basis. */
+  fghost_e : doExpand1(fghost, basis),
+
+  boundaryStr : ["lower","upper"],
+  ghostEvSign : [1, -1],  skinEvSign  : [-1, 1],
+
+  for bS : 1 thru 2 do ( /* One kernel for each of lower and upper boundaries. */
+    printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(const double *fghost, double *fskin) ~%{ ~%"), boundaryStr[bS]),
+    printf(fh,"  // fghost: field in the ghost cell.~%"),
+    printf(fh,"  // fskin: field in the skin cell.~%"),
+    printf(fh,"~%"),
+
+    /* Evaluate the (ghost cell) flux at the boundary surface. */
+    fghostSurf_c : calcInnerProdList(varsLowD,1,basisLowD,subst(surfVar=ghostEvSign[bS], fghost_e)),
+    fghostSurf_noZero_c : makelistNoZeros1(fghostSurf_c, fghostSurf),
+    fghostSurf_e : doExpand(fghostSurf_noZero_c,basisLowD),
+    printf(fh,"  double fghostSurf[~a];~%", numBLowD),
+    writeCExprs1(fghostSurf, fghostSurf_c),
+    printf(fh,"~%"),
+
+    /* Evaluate the surface expansion at nodes. */
+    fghostSurf_n : evAtNodes(fghostSurf_e, nodesLowD, surfPerpVars),
+
+    /* Evaluate skin cell at volume nodes. */
+    fskin_e : doExpand1(fskin, basis),
+    fskin_n : evAtNodes(fskin_e, nodes, vars),
+
+    /* Replace nodal values of fskin with nodal values of fghostSurf. */
+    for i : 1 thru numNodes do (
+      curr_node : nodes[i],
+      if curr_node[surfDir] = skinEvSign[bS] then (
+        surf_node_idx : -1,
+        for j : 1 thru numNodesLowD do (
+          found_node : true,
+          for d : 1 thru dim-1 do (
+            if nodesLowD[j][d] = curr_node[perpDirs[d]] then (
+              found_node : found_node and true
+            ) else (
+              found_node : found_node and false
+            )
+          ),
+          if found_node then (surf_node_idx : j)
+        ),
+
+        fskin_n[i] : fghostSurf_n[surf_node_idx]
+      )
+    ),
+
+    /* Perform a nodal to modal transformation of the skin. */
+    nodToMod : calcNodToModWithNodes(basisNm, dim, polyOrder, nodes),
+    fskin_c : nodToMod . fskin_n,
+    fskin_c : makelist(fullratsimp(fskin_c[i][1]),i,1,numB),
+
+    writeCExprs1(fskin, fskin_c),
+    printf(fh, "~%"),
+
+    printf(fh, "}~%~%")
+  )
+)$
