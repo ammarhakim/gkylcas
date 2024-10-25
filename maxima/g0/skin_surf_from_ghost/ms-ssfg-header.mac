@@ -7,7 +7,7 @@
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
-minCdim_Ser : 2$
+minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
@@ -28,8 +28,9 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-printPrototypes(fh) := block([],
+printPrototypes(fh) := block([varsCall, boundaryStr, bInd,c,polyOrder,bS],
 
+  varsCall : [x, y, z],
   boundaryStr : ["lower","upper"],
 
   for bInd : 1 thru length(bName) do (
@@ -39,8 +40,10 @@ printPrototypes(fh) := block([],
     for c : minCdim[bInd] thru maxCdim[bInd] do (
       /* Conf-space functions. */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        for bS : 1 thru 2 do ( /* One kernel for each of lower and upper boundaries. */
-          printf(fh, sconcat("GKYL_CU_DH void skin_surf_from_ghost_", boundaryStr[bS], "_", c, "x_", bName[bInd], "_p", polyOrder, "(const double *fghost, double *fskin);~%"))
+        for dir : 1 thru c do (
+          for bS : 1 thru 2 do ( /* One kernel for each of lower and upper boundaries. */
+            printf(fh, sconcat("GKYL_CU_DH void skin_surf_from_ghost_", boundaryStr[bS], varsCall[dir], "_", c, "x_", bName[bInd], "_p", polyOrder, "(const double *fghost, double *fskin);~%"))
+          )
         )
       ),
       printf(fh, "~%")
