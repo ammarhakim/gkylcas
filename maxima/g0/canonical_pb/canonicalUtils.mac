@@ -9,6 +9,8 @@ load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
 load("utilities")$
 
+/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 slcn(lst, n) := makelist(lst[i], i, 1, n)$
 slcn_v(lst, n) := makelist(lst[i], i, n+1, length(lst))$
 
@@ -61,7 +63,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
   writeCExprsCollect1(alphaCvar, alpha_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
-  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
+  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
@@ -110,7 +112,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V
      onto surface basis and print to C variable alpha. */
   alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha)),
   alphaCvar : eval_string(sconcat("alpha",sideStr)),
-  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
+  alphaNoZero_c : doMakeExprLst(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
 
   return(alphaSurf_e)
@@ -170,7 +172,7 @@ calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NS
       if (surfDir - cdim > 0) then ( 
         /* Velocity space */
         printf(file_handle, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
-      ) else if (surfDir - cdim <= 0) then ( 
+      ) else ( 
         /* configuration space */
         printf(file_handle, "  hyb_~ax~av_p1_xdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
       )
