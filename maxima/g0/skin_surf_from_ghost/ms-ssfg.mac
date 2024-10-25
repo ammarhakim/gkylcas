@@ -9,7 +9,7 @@ load("skin_surf_from_ghost/ssfg.mac")$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
-minCdim_Ser : 2$
+minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
