@@ -1,13 +1,14 @@
 /*
-  Generate the kernels header file for the updater which shifts
-  the distribution to make it positive at positivity control points.
+  Generate the kernels header file for the updater which translates
+  the DG coefficients of a lower dimensional donor field to a higher
+  dim target field.
 */
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
-minCdim_Ser : 1$
+minCdim_Ser : 2$
 maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
@@ -31,23 +32,17 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 printPrototypes(fh) := block([],
 
   for bInd : 1 thru length(bName) do (
-    maxPolyOrderB : maxPolyOrder[bInd],
-    if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
-
-    for c : minCdim[bInd] thru maxCdim[bInd] do (
-      /* Conf-space functions. */
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_conf_pos_check_~ax_~a_p~a(const double *fld);~%", c, bName[bInd], polyOrder),
-        printf(fh, "~%")
-      ),
-
-      /* Phase-space functions. */
+    for c : max(2,minCdim[bInd]) thru maxCdim[bInd] do (
       for gkV : 1 thru length(gkVdims[c]) do (
         v : gkVdims[c][gkV],
   
+        maxPolyOrderB : maxPolyOrder[bInd],
+        if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
         for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-          printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_shift_only_~ax~av_~a_p~a(double ffloor, double *distf);~%", c, v, bName[bInd], polyOrder),
-          printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_MRS_limiter_~ax~av_~a_p~a(double ffloor, double *distf);~%", c, v, bName[bInd], polyOrder),
+
+          for c_low : 1 thru c-1 do (
+            printf(fh, "GKYL_CU_DH void translate_dim_gyrokinetic_~ax~av_~a_p~a_from_~ax~av_p~a(const double *flow, double *fout);~%", c, v, bName[bInd], polyOrder, c_low, v, polyOrder)
+          ),
           printf(fh, "~%")
         )
       )
@@ -55,7 +50,7 @@ printPrototypes(fh) := block([],
   )
 )$
 
-fh : openw("~/max-out/gkyl_positivity_shift_gyrokinetic_kernels.h")$
+fh : openw("~/max-out/gkyl_translate_dim_gyrokinetic_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
