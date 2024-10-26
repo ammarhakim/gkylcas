@@ -7,9 +7,9 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minDim_Ser : 1$
-maxDim_Ser : 6$
+maxDim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -17,16 +17,16 @@ maxDim_Ser : 6$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minDim_Tensor : 2$
-maxDim_Tensor : 4$
+maxDim_Tensor : 0$
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
-maxCdim_hyb : 3$
+maxCdim_hyb : 0$
 vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$
-maxCdim_gkhyb : 3$
+maxCdim_gkhyb : 0$
 vDims_gkhyb : [[1,2], [2], [2]]$  /* Vdim for each of Cdim. */
 
 /* ...... END OF USER INPUTS........ */

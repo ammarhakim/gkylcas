@@ -1,0 +1,23 @@
+cdim : 2$
+basisFun : "Tensor"$
+load("modal-basis")$
+load("scifac")$
+load("nodal_operations/nodal_functions")$
+[varsC,bC] : loadBasis(basisFun, cdim, 2)$
+NC : length(bC)$
+
+nodes : getNodes(basisFun, cdim, 2)$ 
+numNodes : length(nodes)$  
+
+/* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
+basisNodal : getVarsNodalBasisWithNodes(basisFun, cdim, 2, varsC, nodes)$
+
+fnodal_e : doExpand1(f, basisNodal)$
+fmodal_c : calcInnerProdList(varsC, 1, bC, fnodal_e)$
+fmodal_e : 0$
+for i : 1 thru NC do (
+  fmodal_e : fmodal_e + fmodal_c[i]*bC[i]
+)$
+print(fmodal_e)$
+print(fullratsimp(subst(y=-1,subst(x=-1, fmodal_e))))$
+print(fullratsimp(subst(y=-1,subst(x=1, fmodal_e))))$

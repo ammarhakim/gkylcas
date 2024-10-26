@@ -19,7 +19,7 @@ genQuadToModalKernel(fh, pdim, basisName, pOrder) := block(
 
   printf(fh, "GKYL_CU_DH ~%"), 
   printf(fh, "void ~%"),
-  printf(fh, "quad_to_modal_~ad_~a_p~a(const double* fquad, double* GKYL_RESTRICT fmodal, long linc2) { ~%", pdim, basisName, pOrder),
+  printf(fh, "quad_to_modal_~ad_~a_p~a(const double* fquad, double* GKYL_RESTRICT fmodal) { ~%", pdim, basisName, pOrder),
 
   /* Make nodal expansions in tensor nodal basis where nodes are Gauss-Legendre quadrature points */
   if (pOrder = 1) then (
@@ -32,21 +32,7 @@ genQuadToModalKernel(fh, pdim, basisName, pOrder) := block(
   fHatNodal_e : doExpand1(fquad,basisNodal),
   /* Project nodal basis back onto modal basis */
   fHatModProj_e : fullratsimp(calcInnerProdList(vars, 1, basis, fHatNodal_e)),
-
-  printf(fh, "  switch (linc2) { ~%"), 
-  for i : 1 thru length(fHatModProj_e) do (
-    printf(fh, "    case ~a: ~%", i-1),
-    /* polynomial order 1 can be cleverly factorized with radcan */
-    if (pOrder = 1) then (
-      printf(fh, "      fmodal[~a] = ~a; ~%", i-1, float(radcan(fHatModProj_e[i])))
-    )
-    else (
-      printf(fh, "      fmodal[~a] = ~a; ~%", i-1, float(expand(fHatModProj_e[i])))
-    ), 
-    printf(fh, "    break; ~%"),  
-    printf(fh, "~%")
-  ),
-  printf(fh, "  } ~%"), 
+  writeCExprs1(fmodal, fHatModProj_e), 
   flush_output(fh),
 
   printf(fh, "} ~%")
