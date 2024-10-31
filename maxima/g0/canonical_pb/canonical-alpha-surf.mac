@@ -139,14 +139,38 @@ buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
        set of kernels if we are on the edge so we also can evaluate the correct 
        alpha_surf at the upper configuration space boundary without evaluating
        quantities such as geometry in the ghost cells where they are not defined */
-    printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
-    printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
+    /* Handle the hybrid space velicty, which has difference NSurfIndexing/numNodesIndexing
+      because of hybrid in velicty or conf space */
+    if (polyOrder=1 and basisFun="ser" and surfDir > cdim) then (
+      surfIntVars_hyb_conf : delete(varsP[1],varsP),
+      bSurf_hyb_conf : basisFromVars("hyb",surfIntVars_hyb_conf,polyOrder),
+      surfNodes_hyb_conf : gaussOrdHyb(1+1, cdim-1, vdim),
+      NSurfIndexing_hyb_conf : length(bSurf_hyb_conf),
+      numNodesIndexing_hyb_conf  : length(surfNodes_hyb_conf),
+      printf(fh, "  double *alphaR = &alpha_surf[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+      printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing)
+    ) 
+    else (
+      printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
+      printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing)
+    ),
     alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R"),
     calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"R")
   )
   else (
-    printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
-    printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
+    if (polyOrder=1 and basisFun="ser" and surfDir > cdim) then (
+      surfIntVars_hyb_conf : delete(varsP[1],varsP),
+      bSurf_hyb_conf : basisFromVars("hyb",surfIntVars_hyb_conf,polyOrder),
+      surfNodes_hyb_conf : gaussOrdHyb(1+1, cdim-1, vdim),
+      NSurfIndexing_hyb_conf : length(bSurf_hyb_conf),
+      numNodesIndexing_hyb_conf  : length(surfNodes_hyb_conf),
+      printf(fh, "  double *alphaL = &alpha_surf[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+      printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing)
+    ) 
+    else (
+      printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
+      printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing)
+    ),
     alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L"),
     calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"L")
   ),

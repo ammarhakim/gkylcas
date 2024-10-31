@@ -122,10 +122,23 @@ calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOr
   alphaSurfL_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L"),
   alphaSurfR_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R"),
 
-  printf(fh, "  const double *alphaL = &alpha_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *alphaR = &alpha_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_l[~a];~%", (surfDir-1)*numNodesIndexing),
-  printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_r[~a];~%", (surfDir-1)*numNodesIndexing),
+  if (polyOrder=1 and basisFun="ser" and surfDir > cdim) then (
+   surfIntVars_hyb_conf : delete(varsP[1],varsP),
+   bSurf_hyb_conf : basisFromVars("hyb",surfIntVars_hyb_conf,polyOrder),
+   surfNodes_hyb_conf : gaussOrdHyb(1+1, cdim-1, vdim),
+   NSurfIndexing_hyb_conf : length(bSurf_hyb_conf),
+   numNodesIndexing_hyb_conf  : length(surfNodes_hyb_conf),
+   printf(fh, "  const double *alphaL = &alpha_surf_l[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+   printf(fh, "  const double *alphaR = &alpha_surf_r[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+   printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_l[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing),
+   printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_r[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing)
+  ) 
+  else (
+   printf(fh, "  const double *alphaL = &alpha_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),
+   printf(fh, "  const double *alphaR = &alpha_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),
+   printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_l[~a];~%", (surfDir-1)*numNodesIndexing),
+   printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_r[~a];~%", (surfDir-1)*numNodesIndexing)
+  ),
   printf(fh, "  const int *const_sgn_alphaL = &const_sgn_alpha_l[~a];~%", surfDir-1),
   printf(fh, "  const int *const_sgn_alphaR = &const_sgn_alpha_r[~a];~%", surfDir-1),
   printf(fh, "~%"),
@@ -283,10 +296,24 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
      (which stores the next interior edge surface alpha at -1 and alpha is continuous)
      When we need the surface alpha at -1, we use alpha_skin 
      (which stores the skin cell surface alpha at -1 and alpha is continuous) */
-  printf(fh, "  const double *alphaL = &alpha_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *alphaR = &alpha_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_skin[~a];~%", (surfDir-1)*numNodesIndexing),
-  printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_edge[~a];~%", (surfDir-1)*numNodesIndexing),
+
+  if (polyOrder=1 and basisFun="ser" and surfDir > cdim) then (
+   surfIntVars_hyb_conf : delete(varsP[1],varsP),
+   bSurf_hyb_conf : basisFromVars("hyb",surfIntVars_hyb_conf,polyOrder),
+   surfNodes_hyb_conf : gaussOrdHyb(1+1, cdim-1, vdim),
+   NSurfIndexing_hyb_conf : length(bSurf_hyb_conf),
+   numNodesIndexing_hyb_conf  : length(surfNodes_hyb_conf),   
+   printf(fh, "  const double *alphaL = &alpha_surf_skin[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+   printf(fh, "  const double *alphaR = &alpha_surf_edge[~a];~%", cdim*NSurfIndexing_hyb_conf + (surfDir-1-cdim)*NSurfIndexing),
+   printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_skin[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing),
+   printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_edge[~a];~%", cdim*numNodesIndexing_hyb_conf + (surfDir-1-cdim)*numNodesIndexing)
+  ) 
+  else (
+   printf(fh, "  const double *alphaL = &alpha_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
+   printf(fh, "  const double *alphaR = &alpha_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
+   printf(fh, "  const double *sgn_alpha_surfL = &sgn_alpha_surf_skin[~a];~%", (surfDir-1)*numNodesIndexing),
+   printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_edge[~a];~%", (surfDir-1)*numNodesIndexing)
+  ),
   printf(fh, "  const int *const_sgn_alphaL = &const_sgn_alpha_skin[~a];~%", surfDir-1),
   printf(fh, "  const int *const_sgn_alphaR = &const_sgn_alpha_edge[~a];~%", surfDir-1),
   printf(fh, "~%"),
