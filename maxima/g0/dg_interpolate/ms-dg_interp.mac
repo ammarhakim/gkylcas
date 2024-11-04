@@ -18,10 +18,10 @@ maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 0$
 
-/* Vdim possibilities for each of Cdim=[1,2,3]. */
-gkVdims : [[1], [2], [2]]$
-
 /* ...... END OF USER INPUTS........ */
+
+/* Vdim possibilities for each of Cdim=[1,2,3]. */
+gkVdims : [[1,2], [2], [2]]$
 
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$
