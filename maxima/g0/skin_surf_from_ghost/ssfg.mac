@@ -96,8 +96,12 @@ genSSFGkernelInDir(fh, funcNm, dim, surfDir, basisNm, polyOrder) := block(
     /* Perform a nodal to modal transformation of the skin. */
     fskin_c : nodToMod . fskin_n,
     fskin_c : makelist(fullratsimp(fskin_c[i][1]),i,1,numB),
+    /* Write these coefficients to avoid wrongful use of new coefficients. */
+    printf(fh,"  double fskinNew[~a];~%", numB),
+    writeCExprs1(fskinNew, fskin_c),
+    printf(fh,"~%"),
 
-    writeCExprs1(fskin, fskin_c),
+    writeCExprs1(fskin, makelist(fskinNew[i-1],i,1,numB)),
     printf(fh, "~%"),
 
     printf(fh, "}~%~%")
