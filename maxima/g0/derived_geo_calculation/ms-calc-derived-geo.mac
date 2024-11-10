@@ -21,14 +21,13 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          disp(printf(false,sconcat("Creating derived_geo_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          fName : sconcat("~/max-out/derived_geo_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
-          fh : openw(fName),
-          printf(fh, "#include \"gkyl_calc_derived_geo_kernels.h\"~%~%"),
-          calcDerivedGeo(fh, cD, bName[bInd], polyOrder),
-          close(fh)
-
-      )
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      disp(printf(false,sconcat("Creating derived_geo_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+      fName : sconcat("~/max-out/derived_geo_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
+      fh : openw(fName),
+      printf(fh, "#include \"gkyl_calc_derived_geo_kernels.h\"~%~%"),
+      calcDerivedGeo(fh, cD, bName[bInd], polyOrder),
+      close(fh)
+    )
   )
 );
