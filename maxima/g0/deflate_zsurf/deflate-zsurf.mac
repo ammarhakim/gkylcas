@@ -2,21 +2,18 @@ load("modal-basis")$
 load(stringproc)$
 load("out-scripts")$
 
-/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other zsurfmetric quantities
-J = det(g_ij))
-b_i = g_iz/sqrt(g_zz)
+/* Taking a 2d or 3d DG field as an input, these kernels will
+deflate the field onto a surface of constant "z" (the last coordinate)
 */
 
 deflatezsurf(fh, basisName, polyOrder, cdim) := block(
-/* powerset maxima function will give me combos*/
+  [vars, basis, numCoeffs, removeVars, vars_deflated, removeStr,
+   ndim, basis_deflated, numCoeffs_deflated, fld_zl, fld_e, boundaries,
+   boundaryvals, ibry, sublist, fld_deflated_e, fld_deflated_c],
 
-  disp("basisName", basisName),
-  /* get the full basis*/
-  kill(varsC, varsP, basisC, basisP),
   [vars,basis] : loadBasis(basisName, cdim, polyOrder),
   numCoeffs : length(basis),
 
-  disp("vars", vars),
   if cdim=2 then (
     removeVars : [y]
   ),
@@ -24,23 +21,13 @@ deflatezsurf(fh, basisName, polyOrder, cdim) := block(
   if cdim=3 then (
     removeVars : [z]
   ),
-  disp("list of remove vars", removeVars),
 
   vars_deflated : delete(removeVars[1],vars),
   removeStr : "rem",
   removeStr : sconcat(removeStr,removeVars[1]),
   ndim : length(vars),
-  disp("vars_deflated: ", vars_deflated),
-  disp("removeVars: ", removeVars),
-  disp("Vars", vars),
-  kill(varsC, varsP, basisC, basisP),
   basis_deflated : basisFromVars(basisName, vars_deflated, polyOrder) ,
   numCoeffs_deflated : length(basis_deflated),
-
-  /* Use loadBasis functions instead of loading this old way*/
-  /* Can load basis using specific variables x and z for example*/
-
-
 
   mkzlist(S,N) := makelist(S[i],i,0,N-1),
 
@@ -53,7 +40,6 @@ deflatezsurf(fh, basisName, polyOrder, cdim) := block(
   for ibry : 1 thru 2 do(
 
     sublist : makelist(removeVars[k] = boundaryvals[ibry],k,1,length(removeVars)),
-    disp("sublist", sublist),
 
     fld_deflated_e : subst(sublist, fld_e),
     fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),

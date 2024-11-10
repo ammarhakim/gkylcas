@@ -26,18 +26,18 @@ printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 for bInd : 1 thru 1 do (
-   for cInd : 1 thru length(cD) do(
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-         for ibry : 1 thru 2 do(
-             boundary : boundaries[ibry],
-             removeVars : removeVarsList[cInd],
-             removeStr : "rem",
-             removeStr : sconcat(removeStr,removeVars),
-             disp(printf(false,sconcat("Creating header entry for deflate_zsurf_",bName[bInd]," ~axp~a"),cD[cInd],polyOrder)),
-             printf(fh, "GKYL_CU_DH void deflate_zsurf_~a_~ax_~a_p~a_~a(const double *fld, double *fld_deflated); ~%", boundary, cD[cInd], bName[bInd], polyOrder, removeStr)
-          )
-      )
-   )
+  for cInd : 1 thru length(cD) do(
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      for ibry : 1 thru 2 do(
+        boundary : boundaries[ibry],
+        removeVars : removeVarsList[cInd],
+        removeStr : "rem",
+        removeStr : sconcat(removeStr,removeVars),
+        disp(printf(false,sconcat("Creating header entry for deflate_zsurf_",bName[bInd]," ~axp~a"),cD[cInd],polyOrder)),
+        printf(fh, "GKYL_CU_DH void deflate_zsurf_~a_~ax_~a_p~a_~a(const double *fld, double *fld_deflated); ~%", boundary, cD[cInd], bName[bInd], polyOrder, removeStr)
+       )
+    )
+  )
 );
 
 printf(fh, "EXTERN_C_END ~%")$
