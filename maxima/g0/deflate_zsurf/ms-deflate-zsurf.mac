@@ -1,4 +1,4 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+/* Create kernels to deflate DG fields onto a surface of constant z. */
 load("deflate_zsurf/deflate-zsurf.mac")$
 load(stringproc)$
 

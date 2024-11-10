@@ -1,4 +1,5 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+/* Create header file for kernels to deflate DG fields 
+onto a surface of constant z. */
 load(stringproc)$
 /* ...... USER INPUTS........ */
 

@@ -1,4 +1,5 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+/* Create kernels to deflate 3D DG fields
+(geometric quantities) into lower dimensions. */
 load("deflate_geo/deflate-geo.mac")$
 load(stringproc)$
 
