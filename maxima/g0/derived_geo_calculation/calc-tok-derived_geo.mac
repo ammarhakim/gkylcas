@@ -4,8 +4,8 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 load("out-scripts")$
 
-/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other geometric quantities
-J = det(g_ij))
+/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other 
+geometric quantities such as J = det(g_ij))
 b_i = g_iz/sqrt(g_zz)
 */
 
