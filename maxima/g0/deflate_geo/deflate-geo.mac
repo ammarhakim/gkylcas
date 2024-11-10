@@ -7,7 +7,7 @@ and deflate them to either 1d or 2d DG fields.
 */
 
 deflateGeo(fh, basisName, polyOrder) := block(
-  [vars, basis, numCoeffs, varsNoZ, removeVarsList,
+  [vars, basis, numCoeffs, varsNoZ, removeVarsList, i,
    removeVars, vars_deflated, removeStr, ndim, basis_deflated, 
    numCoeffs_deflated, fld_zl, fld_e, sublist, fld_deflated_e, fld_deflated_c],
 
