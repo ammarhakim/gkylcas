@@ -1,4 +1,5 @@
 /* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+load("deflate_geo/deflate-geo.mac")$
 load(stringproc)$
 /* ...... USER INPUTS........ */
 
@@ -25,22 +26,23 @@ printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 for bInd : 1 thru 1 do (
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-           varsNoZ : delete(z,vars),
-           removeVarsList : delete([],full_listify(powerset(setify(varsNoZ)))),
-           for i : 1 thru length(removeVarsList) do(
-             removeVars : removeVarsList[i],
-             removeStr : "rem",
-             for j : 1 thru length(removeVars) do( 
-               removeStr : sconcat(removeStr,removeVars[j])
-             ),
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    [vars,basis] : loadBasis(bName[bInd], 3, polyOrder),
+    varsNoZ : delete(z,vars),
+    removeVarsList : delete([],full_listify(powerset(setify(varsNoZ)))),
+    for i : 1 thru length(removeVarsList) do(
+      removeVars : removeVarsList[i],
+      removeStr : "rem",
+      for j : 1 thru length(removeVars) do( 
+        removeStr : sconcat(removeStr,removeVars[j])
+      ),
 
-              cD : 3 - length(removeVars),
-              disp(printf(false,sconcat("Creating header entry for deflate_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+       cD : 3 - length(removeVars),
+       disp(printf(false,sconcat("Creating header entry for deflate_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
 
-              printf(fh, "GKYL_CU_DH void deflate_geo_~ax_~a_p~a_~a(const double *fld, double *fld_deflated); ~%", cD, bName[bInd], polyOrder, removeStr)
-            )
-      )
+       printf(fh, "GKYL_CU_DH void deflate_geo_~ax_~a_p~a_~a(const double *fld, double *fld_deflated); ~%", cD, bName[bInd], polyOrder, removeStr)
+    )
+  )
 );
 
 printf(fh, "EXTERN_C_END ~%")$

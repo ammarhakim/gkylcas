@@ -2,31 +2,26 @@ load("modal-basis")$
 load(stringproc)$
 load("out-scripts")$
 
-/* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other geometric quantities
-J = det(g_ij))
-b_i = g_iz/sqrt(g_zz)
+/* These kernels take 3d DG fields (intended to be geometric quantities
+and deflate them to either 1d or 2d DG fields.
 */
 
 deflateGeo(fh, basisName, polyOrder) := block(
-/* powerset maxima function will give me combos*/
+  [vars, basis, numCoeffs, varsNoZ, removeVarsList,
+   removeVars, vars_deflated, removeStr, ndim, basis_deflated, 
+   numCoeffs_deflated, fld_zl, fld_e, sublist, fld_deflated_e, fld_deflated_c],
 
-  disp("basisName", basisName),
   /* get the full 3d basis*/
-  kill(varsC, varsP, basisC, basisP),
   [vars,basis] : loadBasis(basisName, 3, polyOrder),
   numCoeffs : length(basis),
 
-  /* We can never rmove z*/
+  /* We can never remove z*/
   varsNoZ : delete(z,vars),
-  /*kill(varsC, varsP, basisC, basisP),*/
-  /*[varsNoZ,basisNoz] : loadBasis(basisName, ndim, polyOrder),*/
   removeVarsList : delete([],full_listify(powerset(setify(varsNoZ)))),
 
-  disp("list of remove vars", removeVarsList),
 
   for i : 1 thru length(removeVarsList) do(
     removeVars : removeVarsList[i],
-    /*[vars_deflated,basis_deflated] : loadBasis(basisName, ndim, polyOrder),*/
     vars_deflated : vars,
     removeStr : "rem",
     for j : 1 thru length(removeVars) do( 
@@ -34,17 +29,8 @@ deflateGeo(fh, basisName, polyOrder) := block(
       removeStr : sconcat(removeStr,removeVars[j])
     ),
     ndim : length(vars_deflated),
-    disp("vars_deflated: ", vars_deflated),
-    disp("removeVars: ", removeVars),
-    disp("Vars", vars),
-    kill(varsC, varsP, basisC, basisP),
     basis_deflated : basisFromVars(basisName, vars_deflated, polyOrder) ,
     numCoeffs_deflated : length(basis_deflated),
-
-    /* Use loadBasis functions instead of loading this old way*/
-    /* Can load basis using specific variables x and z for example*/
-
-
 
     mkzlist(S,N) := makelist(S[i],i,0,N-1),
 
@@ -52,7 +38,6 @@ deflateGeo(fh, basisName, polyOrder) := block(
     fld_e : doExpand(fld_zl, basis),
 
     sublist : makelist(removeVars[k] = 0,k,1,length(removeVars)),
-    disp("sublist", sublist),
 
     fld_deflated_e : subst(sublist, fld_e),
     fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
