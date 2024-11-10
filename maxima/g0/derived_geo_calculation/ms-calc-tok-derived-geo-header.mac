@@ -1,4 +1,6 @@
-/* Create kernels to project a Maxwellian onto the DG basis using quadrature. */
+/* Create header files for kernels to calculate derived geometric quantities from the
+   metric coefficients and magnetic field strength. This is specialized
+   to tokamaks where J is already known*/
 load(stringproc)$
 /* ...... USER INPUTS........ */
 
@@ -16,7 +18,6 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-
 fName : "~/max-out/gkyl_tok_calc_derived_geo_kernels.h"$
 fh : openw(fName)$
 printf(fh, "#pragma once ~%")$
@@ -27,11 +28,10 @@ printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-          disp(printf(false,sconcat("Creating header entry for derived_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-          printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2); ~%", cD, bName[bInd], polyOrder),
-          printf(fh, "GKYL_CU_DH void adjust_gzz_~ax_~a_p~a(const double *cmag, const double *cmag_ref, double *gzz, const double *J, const double *bmag, double *gij); ~%", cD, bName[bInd], polyOrder)
-      )
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      disp(printf(false,sconcat("Creating header entry for derived_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+      printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2); ~%", cD, bName[bInd], polyOrder)
+    )
   )
 );
 

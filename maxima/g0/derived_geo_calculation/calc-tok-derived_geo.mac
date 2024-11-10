@@ -5,22 +5,17 @@ load(stringproc)$
 load("out-scripts")$
 
 /* Taking DG fields g_ij and |B| as inputs, this kernel will calculate the other 
-geometric quantities such as J = det(g_ij))
-b_i = g_iz/sqrt(g_zz)
+geometric quantities such as b_i = g_iz/sqrt(g_zz)
 */
 
 calcDerivedGeo(fh, ndim,basisName, polyOrder) := block(
-  /* Get nodes and nodal basis */
-/*fh:openw("~/max-out/derived_geo_Ser_3x_p1.c");
-ndim:3;
-basisName:"Ser";
-polyOrder:1;*/
+  [evNodes, numCoeffs, vars, basis, N2M, zc_all, zc, i, j, gij_zl, gij_e,
+   bmag_zl, bmag_e, J_zl, J_e, sublist, numEvNodes, n, gmat, Jsq_i, gr_ni, Jsq_ne, gr_ne,
+   bi_ne, cmag_ne, counter, temp, temp2],
 
   evNodes : getNodes(basisName, ndim, polyOrder),
   numCoeffs : length(evNodes),
 
-
-  kill(varsC, varsP, basisC, basisP),
   load(sconcat("basis-precalc/basis", basisName, ndim, "x")),
   [vars,basis] : [varsC, basisC[polyOrder]],
 
@@ -47,18 +42,8 @@ polyOrder:1;*/
   bmag_zl: mkzlist(bmag, numCoeffs),
   bmag_e: doExpand(bmag_zl, basis),
 
-  /* set up for the adjusting function as well*/
-  cmag_zl: mkzlist(cmag, numCoeffs),
-  cmag_e: doExpand(cmag_zl, basis),
-  cmag_ref_zl: mkzlist(cmag_ref, numCoeffs),
-  cmag_ref_e: doExpand(cmag_ref_zl, basis),
   J_zl: mkzlist(J, numCoeffs),
   J_e: doExpand(J_zl, basis),
-  gzz_zl: mkzlist(gzz, numCoeffs),
-  gzz_e: doExpand(gzz_zl, basis),
-  /* Done with adjustment setup*/
-
-
 
   sublist : makelist(makelist(zc[m] = evNodes[k][m], m,1,ndim),k,1,numCoeffs),
 
@@ -67,9 +52,7 @@ polyOrder:1;*/
   trimfloat(flt) := if abs(flt) < 1e-15 then 0 else flt ,
   flt(expr) := float(expand(expr)),
 
-
   /*Construct g matrix for calculation*/
-  /*symmetric_sublist : [[g12_n,g21_n], [g13_n,g31_n], [g23_n,g32_n]];*/
   for n : 1 thru numEvNodes do(
     gmat : zeromatrix (ndim, ndim),
     for i:1 thru ndim do(
@@ -77,23 +60,14 @@ polyOrder:1;*/
         gmat[i, j] : concat(g,i,j, "_n")[n-1]
       )
     ),
-    /*for i : 1 thru length(symmetric_sublist) do(
-      gij : subst(symmetric_sublist[i][1], symmetric_sublist[i][2],gij)
-    ),*/
-    /*gij_n[n] : gij,*/
     Jsq_ni[n] : determinant(gmat),
     for i:1 thru 3 do(
       for j:1 thru 3 do(
         gr_ni[i,j,n] : fullratsimp(invert(gmat)*determinant(gmat))[i,j]
       )
-    ),
-    /*New part where we do gzz adjustment*/
-    /*disp(determinant(gmat)),*/
-    tempz : solve(determinant(gmat)*Bsq_n[n-1]/g33_n[n-1] = Csq_n[n-1], g33_n[n-1]),
-    gzz_adjust_ni[n] : rhs(tempz[1])
+    )
   ),
   Jsq_ne : makelist(Jsq_ni[i], i, 1, numEvNodes),
-  gzz_adjust_ne : makelist(gzz_adjust_ni[i], i, 1, numEvNodes),
 
   for i:1 thru ndim do(
     for j:1 thru ndim do(
@@ -109,17 +83,7 @@ polyOrder:1;*/
   /*Construct expression for cmag*/
   cmag_ne : makelist((concat(J,"_n")[k-1]*concat(bmag,"_n")[k-1])/sqrt(concat(g,3,3,"_n")[k-1]),k,1,numEvNodes),
 
-  /*disp(cmag_ne),*/
-
-  /* construct expression for adjusting gzz*/
-  /*gzz_adjust_ne : rhs(solve(determinant(gmat)*Bsq/g33_n = Csq, g33_n)[1]),*/
-  /*disp(gzz_adjust_ne[1]),*/
-  /*disp(gmat),*/
-
-
-
   printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2) ~%{ ~%", ndim, basisName, polyOrder),
-
 
   /*separate gFld*/
   counter : 0,
@@ -208,7 +172,6 @@ polyOrder:1;*/
     printf(fh, "Jsq_n[~a] = J_n[~a]*J_n[~a]; ~%", n-1, n-1, n-1)
   ),
 
-
   printf(fh, "// Calculate Jinv at nodes ~%"),
   for n : 1 thru numEvNodes do(
     printf(fh, "Jinv_n[~a] = 1.0/J_n[~a]; ~%", n-1, n-1)
@@ -217,7 +180,6 @@ polyOrder:1;*/
   temp:calcModCoeff(mkzlist(Jinv_n,numEvNodes)),
   temp2 : makelist(temp[k][1],k,1,numEvNodes),
   writeCExprs1(concat(Jinv),temp2),
-
 
   printf(fh, "// Calculate Jtot at nodes ~%"),
   for n : 1 thru numEvNodes do(
@@ -228,7 +190,6 @@ polyOrder:1;*/
   temp2 : makelist(temp[k][1],k,1,numEvNodes),
   writeCExprs1(concat(Jtot),temp2),
 
-
   printf(fh, "// Calculate Jtotinv at nodes ~%"),
   for n : 1 thru numEvNodes do(
     printf(fh, "Jtotinv_n[~a] = 1/Jtot_n[~a]; ~%", n-1, n-1)
@@ -237,7 +198,6 @@ polyOrder:1;*/
   temp:calcModCoeff(mkzlist(Jtotinv_n,numEvNodes)),
   temp2 : makelist(temp[k][1],k,1,numEvNodes),
   writeCExprs1(concat(Jtotinv),temp2),
-
 
   printf(fh, "// Calculate bmaginv at nodes ~%"),
   for n : 1 thru numEvNodes do(
@@ -248,8 +208,6 @@ polyOrder:1;*/
   for n : 1 thru numEvNodes do(
     printf(fh, "bmaginvsq_n[~a] = bmaginv_n[~a]*bmaginv_n[~a]; ~%", n-1, n-1, n-1)
   ),
-
-
 
   printf(fh, "// Calculate g^ij at nodes without factor of 1/det~%"),
   for i : 1 thru ndim do (
@@ -289,14 +247,12 @@ polyOrder:1;*/
       printf(fh, "~%")
   ),
 
-
   printf(fh, "// Calculate cmag at nodes ~%"),
   writeCExprsNoExpand1(concat(cmag,"_n"), cmag_ne),
   printf(fh, "// Convert nodal to modal for cmag ~%"),
   temp:calcModCoeff(mkzlist(cmag_n,numEvNodes)),
   temp2 : makelist(temp[k][1],k,1,numEvNodes),
   writeCExprs1(concat(cmag),temp2),
-
 
   printf(fh, "// Calculate gxxJ at nodes ~%"),
   for n : 1 thru numEvNodes do(
@@ -334,7 +290,6 @@ polyOrder:1;*/
   temp2 : makelist(temp[k][1],k,1,numEvNodes),
   writeCExprs1(concat(gxzJ),temp2),
 
-
   printf(fh, "// Calculate gzzJ - J/g_zz at nodes ~%"),
   for n : 1 thru numEvNodes do(
     printf(fh, "eps2_n[~a] = gr33_n[~a]*J_n[~a] - J_n[~a]/g33_n[~a]; ~%", n-1, n-1, n-1, n-1, n-1)
@@ -346,7 +301,5 @@ polyOrder:1;*/
 
   printf(fh, " ~%"),
   printf(fh, "}~%")
-
-
 
 )$
