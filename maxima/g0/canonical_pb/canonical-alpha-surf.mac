@@ -154,7 +154,7 @@ buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
       printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
       printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing)
     ),
-    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R"),
+    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R",cdim,vdim,pDim),
     calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"R")
   )
   else (
@@ -171,7 +171,7 @@ buildCanonicalPBAlphaKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder
       printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
       printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing)
     ),
-    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L"),
+    alphaSurf : calcAndWrite_CanonicalPB_alpha(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L",cdim,vdim,pDim),
     calcAndWrite_sgn_CanonicalPB_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf,"L")
   ),
   printf(fh, "  return const_sgn_alpha_surf; ~%"),

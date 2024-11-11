@@ -68,7 +68,6 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   for dir : 1 thru cdim do (
     pbfac[dir] : 4*dxdvInv[dir]
   ),
-  volfac : 1,
   for dir : 1 thru cdim do (
     printf(fh, "  double dxdvInv~a = 1.0/(dxv[~a]*dxv[~a]); ~%", dir-1, cid[dir], vid[dir])
   ),
@@ -80,9 +79,14 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   fl : doExpand1(f, bP),
   Hl : doExpand1(hamil, bP),
+  /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
+  For instance if we have varsC = [x,y,z] with:
+  - 1 ignorable coordinate: [x,y, \dot{x},\dot{y}] are all that show up in {f,H} 
+  - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
+  It's assumed that H does not depend on these ignorable coordinates */
   pb : (pb : 0, for dir : 1 thru cdim do (
      pbBasis : pbfac[dir]*(PB_vol(bP,Hl,varsC[dir],varsV[dir])),
-     pb : pb + fullratsimp(volfac*calcInnerProdList(varsP, 1, pbBasis, fl))
+     pb : pb + fullratsimp(calcInnerProdList(varsP, 1, pbBasis, fl))
      ),
   pb),
   writeCIncrExprsNoExpand(facsum(fullratsimp(pb),dxv)),

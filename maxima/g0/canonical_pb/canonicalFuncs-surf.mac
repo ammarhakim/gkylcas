@@ -119,8 +119,8 @@ calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOr
 
   /* Compute the surface alpha but do *not* write it out; we already computed it
      We just need to re-compute it here in Maxima to get the right sparsity pattern */
-  alphaSurfL_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L"),
-  alphaSurfR_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R"),
+  alphaSurfL_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L",cdim,vdim,pDim),
+  alphaSurfR_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R",cdim,vdim,pDim),
 
   if (polyOrder=1 and basisFun="ser" and surfDir > cdim) then (
    surfIntVars_hyb_conf : delete(varsP[1],varsP),
@@ -289,8 +289,8 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
      We just need to re-compute it here in Maxima to get the right sparsity pattern 
      Further, for boundary surface kernels we will only use one of the surface alphas
      for computing the update (but pre-compute both for convenience here). */
-  alphaSurfL_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L"),
-  alphaSurfR_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R"),
+  alphaSurfL_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"L",cdim,vdim,pDim),
+  alphaSurfR_e : calc_canonical_pb_alpha_no_write(fh,surfDir,bP,varsP,bSurf,basisFun,rdx2vec,rdv2vec,hamil,"R",cdim,vdim,pDim),
 
   /* When we need the surface alpha at +1, we use alpha_edge 
      (which stores the next interior edge surface alpha at -1 and alpha is continuous)

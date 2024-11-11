@@ -20,7 +20,7 @@ PB(f, g, x_vec, y_vec, dx_vec, dy_vec) :=
     i, 1, length(x_vec)
   )$
 
-calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,hamil,sideStr) := block(
+calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,hamil,sideStr,cdim,vdim,pDim) := block(
   [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
    z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf], 
@@ -30,7 +30,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
      determine upwind direction. */
 
   varsC : slcn(varsP, cdim),
-  varsV : slcn_v(varsP, cdim),
+  varsV : slcn_v(varsP, cdim), /* cdim offset */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
 
@@ -39,6 +39,10 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
 
   surfVar     : varsP[surfDir],         /* Surface variable. */
   surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+
+  /* print("varsC ",varsC),
+  print("varsV ",varsV),
+  print("varsR ",varsR), */
 
   /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
@@ -53,7 +57,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
-  elseif sideStr="R" then (evPoint : 1),
+  else if sideStr="R" then (evPoint : 1),
 
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */
@@ -72,7 +76,7 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,h
 
 
 calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,
-                   hamil,sideStr) := block(
+                   hamil,sideStr,cdim,vdim,pDim) := block(
   [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
    z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf],
@@ -106,7 +110,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
-  elseif sideStr="R" then (evPoint : 1),
+  else if sideStr="R" then (evPoint : 1),
 
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */

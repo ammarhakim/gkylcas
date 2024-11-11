@@ -2,7 +2,9 @@
     pressure tensor and metric
 
     // Solve for d*P*Jv: d*P*Jv = h^{ij}*M2_{ij} - n*h^{ij}*u_i*u_j 
-    //                     = h^{ij}*M2_{ij} - h^{ij}*M1i*V_drift_j 
+    //                          = h^{ij}*M2_{ij} - h^{ij}*M1i*V_drift_j
+    //                          = 2E - h^{ij}*M1i*V_drift_j (ENERGY CONS.)
+    // P = nT
     */
 
 load("modal-basis")$

@@ -7,6 +7,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
@@ -14,6 +15,7 @@ minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -23,6 +25,7 @@ minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid canonical_pb_MEnergy_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
@@ -40,14 +43,15 @@ printf(fh, "~%")$
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    if not(c = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
-
+    for v : c thru maxVdim[bInd] do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      printPrototype(decorator, c, c, bName[bInd], polyOrder)
+        if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
+          printPrototype(decorator, c, v, bName[bInd], polyOrder)
+        )
       )
     )
   )
