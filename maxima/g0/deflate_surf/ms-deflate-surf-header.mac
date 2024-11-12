@@ -1,0 +1,68 @@
+/* 
+  Create header file for kernels to deflate DG fields 
+  onto a surface.
+*/
+load(stringproc)$
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minDim_Ser : 1$
+maxDim_Ser : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser"]$
+minPolyOrder : [minPolyOrder_Ser]$
+maxPolyOrder : [maxPolyOrder_Ser]$
+minDim       : [minDim_Ser]$
+maxDim       : [maxDim_Ser]$
+
+/* Configuration space dimensions to generate kernels for,
+   and velocity space dimensions for each configuration space
+   dimension. */
+vDims : [[1,2],[2],[2]]$
+varsC : [x,y,z]$
+edge  : ["lower", "upper"]$
+
+fh : openw("~/max-out/gkyl_deflate_surf_kernels.h")$
+
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+for bInd : 1 thru length(bName) do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    /* For configuration space quantities. */
+    for cdim : minDim[bInd] thru maxDim[bInd] do (
+      disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax p~a"),cdim,polyOrder)),
+      /* Generate a kernel for deflating onto each surf. */
+      for dir : max(1,minDim[bInd]) thru cdim do (
+        for sI : 1 thru length(edge) do (
+          printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax_~a_p~a(const double *fld, double *fld_deflated); ~%", varsC[dir], edge[sI], cdim, bName[bInd], polyOrder)
+        )
+      )
+    ),
+
+    /* For phase space quantities. */
+    for cdim : minDim[bInd] thru maxDim[bInd] do (
+      for vI : 1 thru length(vDims[cdim]) do (
+        vdim : vDims[cdim][vI],
+
+        disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax~av p~a"),cdim,vdim,polyOrder)),
+        /* Generate a kernel for deflating onto each surf. */
+        for dir : max(1,minDim[bInd]) thru cdim do (
+          for sI : 1 thru length(edge) do (
+            printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax~av_~a_p~a(const double *fld, double *fld_deflated); ~%", varsC[dir], edge[sI], cdim, vdim, bName[bInd], polyOrder)
+          )
+        )
+      )
+    )
+  )
+)$
+printf(fh, "~%")$
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$

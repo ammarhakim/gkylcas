@@ -1,0 +1,56 @@
+load("modal-basis")$
+load(stringproc)$
+load("out-scripts")$
+
+/*
+  Taking a DG field as an input, these kernels will deflate the field onto a given surface.
+  Deflation here means evaluating the logical coordinate perpendicular to that surface at
+  +/-1 and projecting onto the corresponding surface basis.
+*/
+deflateSurf(fh, cdim, vdim, surfDir, basisType, polyOrder) := block(
+  [vars, basis, varsC, bC, vSub, numB, surfVar, perpVars,
+   basisSurf, numBSurf, fld_e, edge, edgeVal, sI, fldSurf_c],
+
+  if (vdim = 0) then (
+    [vars,basis] : loadBasis(basisType, cdim, polyOrder)
+  ) else (
+    [varsC,bC,vars,basis,vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder)
+  ),
+  numB : length(basis),
+
+  surfVar : vars[surfDir],
+  perpVars : delete(surfVar,vars),
+
+  if (length(perpVars) > 0) then (
+    if (vdim > 0 and polyOrder = 1) then (
+      basisSurf : basisFromVars("gkhyb", perpVars, polyOrder)
+    ) else (
+      basisSurf : basisFromVars(basisType, perpVars, polyOrder)
+    )
+  ) else (
+    basisSurf : [1/innerProd(perpVars,1,1,1)]
+  ),
+  numBSurf : length(basisSurf),
+
+  mkzlist(S,N) := makelist(S[i],i,0,N-1),
+
+  fld_e : doExpand1(fld, basis),
+
+  /* Generate separate kernels for lower/upper boundaries. */
+  edge    : ["lower", "upper"],
+  edgeVal : [-1, 1],
+
+  if (vdim > 0) then ( vdimStr : sconcat(vdim,"v") ) else ( vdimStr : "" ),
+
+  for sI : 1 thru length(edge) do (
+
+    fldSurf_c : calcInnerProdList(perpVars,1,basisSurf,subst(surfVar=edgeVal[sI],fld_e)),
+
+    printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax~a_~a_p~a(const double *fld, double *fld_deflated) ~%{ ~%", surfVar, edge[sI], cdim, vdimStr, basisType, polyOrder),
+
+    writeCExprs1(fld_deflated, fldSurf_c),
+
+    printf(fh, "}~%"),
+    printf(fh, " ~%")
+  )
+)$
