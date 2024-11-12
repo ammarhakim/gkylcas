@@ -1,6 +1,6 @@
 /* 
-  Create header file for kernels to deflate DG fields 
-  onto a surface.
+  Create header file for kernels to inflate DG fields 
+  from a surface to a volume expansion.
 */
 load(stringproc)$
 /* ...... USER INPUTS........ */
@@ -26,7 +26,7 @@ vDims : [[1,2],[2],[2]]$
 varsCall : [x,y,z]$
 edge  : ["lower", "upper"]$
 
-fh : openw("~/max-out/gkyl_deflate_surf_kernels.h")$
+fh : openw("~/max-out/gkyl_inflate_surf_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
@@ -37,12 +37,10 @@ for bInd : 1 thru length(bName) do (
   for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
     /* For configuration space quantities. */
     for cdim : minDim[bInd] thru maxDim[bInd] do (
-      disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax p~a"),cdim,polyOrder)),
+      disp(printf(false,sconcat("Creating inflate_surf ",bName[bInd]," ~ax p~a"),cdim,polyOrder)),
       /* Generate a kernel for deflating onto each surf. */
       for dir : max(1,minDim[bInd]) thru cdim do (
-        for sI : 1 thru length(edge) do (
-          printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax_~a_p~a(const double *fld, double *fld_deflated); ~%", varsCall[dir], edge[sI], cdim, bName[bInd], polyOrder)
-        )
+        printf(fh, "GKYL_CU_DH void inflate_surf~a_~ax_~a_p~a(const double *fld_deflated, double *fld); ~%", varsCall[dir], cdim, bName[bInd], polyOrder)
       )
     ),
 
@@ -51,12 +49,10 @@ for bInd : 1 thru length(bName) do (
       for vI : 1 thru length(vDims[cdim]) do (
         vdim : vDims[cdim][vI],
 
-        disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax~av p~a"),cdim,vdim,polyOrder)),
+        disp(printf(false,sconcat("Creating inflate_surf ",bName[bInd]," ~ax~av p~a"),cdim,vdim,polyOrder)),
         /* Generate a kernel for deflating onto each surf. */
         for dir : max(1,minDim[bInd]) thru cdim do (
-          for sI : 1 thru length(edge) do (
-            printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax~av_~a_p~a(const double *fld, double *fld_deflated); ~%", varsCall[dir], edge[sI], cdim, vdim, bName[bInd], polyOrder)
-          )
+          printf(fh, "GKYL_CU_DH void inflate_surf~a_~ax~av_~a_p~a(const double *fld_deflated, double *fld); ~%", varsCall[dir], cdim, vdim, bName[bInd], polyOrder)
         )
       )
     )

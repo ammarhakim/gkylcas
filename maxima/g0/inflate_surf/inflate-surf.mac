@@ -1,0 +1,49 @@
+load("modal-basis")$
+load(stringproc)$
+load("out-scripts")$
+fpprec : 24$
+
+/*
+  Taking a surface DG field at the lower or upper boundary, these kernels inflate it
+  to produce a volume DG field (with no variation in the direction perpendicular to the surface).
+*/
+inflateSurf(fh, cdim, vdim, surfDir, basisType, polyOrder) := block(
+  [vars, basis, varsC, bC, vSub, numB, surfVar, perpVars,
+   basisSurf, numBSurf, fldSurf_e, fld_c],
+
+  if (vdim = 0) then (
+    [vars,basis] : loadBasis(basisType, cdim, polyOrder)
+  ) else (
+    [varsC,bC,vars,basis,vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder)
+  ),
+  numB : length(basis),
+
+  surfVar : vars[surfDir],
+  perpVars : delete(surfVar,vars),
+
+  if (length(perpVars) > 0) then (
+    if (vdim > 0 and polyOrder = 1) then (
+      basisSurf : basisFromVars("gkhyb", perpVars, polyOrder)
+    ) else (
+      basisSurf : basisFromVars(basisType, perpVars, polyOrder)
+    )
+  ) else (
+    basisSurf : [1/innerProd(perpVars,1,1,1)]
+  ),
+  numBSurf : length(basisSurf),
+
+  fldSurf_e : doExpand1(fld_deflated, basisSurf),
+
+  varsCall : [x,y,z],
+  if (vdim > 0) then ( vdimStr : sconcat(vdim,"v") ) else ( vdimStr : "" ),
+
+  fld_c : calcInnerProdList(vars,1,basis,fldSurf_e),
+
+  printf(fh, "GKYL_CU_DH void inflate_surf~a_~ax~a_~a_p~a(const double *fld_deflated, double *fld) ~%{ ~%", varsCall[surfDir], cdim, vdimStr, basisType, polyOrder),
+
+  writeCExprs1(fld, fld_c),
+
+  printf(fh, "}~%"),
+  printf(fh, " ~%")
+  
+)$

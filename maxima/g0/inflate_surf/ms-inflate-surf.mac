@@ -1,8 +1,7 @@
-/* 
-  Create header file for kernels to deflate DG fields 
-  onto a surface.
-*/
+/* Create kernels to inflate a surface DG field to the volume. */
+load("inflate_surf/inflate-surf.mac")$
 load(stringproc)$
+
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
@@ -23,27 +22,20 @@ maxDim       : [maxDim_Ser]$
    and velocity space dimensions for each configuration space
    dimension. */
 vDims : [[1,2],[2],[2]]$
-varsCall : [x,y,z]$
-edge  : ["lower", "upper"]$
-
-fh : openw("~/max-out/gkyl_deflate_surf_kernels.h")$
-
-printf(fh, "#pragma once ~%")$
-printf(fh, "#include <gkyl_util.h> ~%")$
-printf(fh, "EXTERN_C_BEG ~%")$
-printf(fh, "~%")$
 
 for bInd : 1 thru length(bName) do (
   for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
     /* For configuration space quantities. */
     for cdim : minDim[bInd] thru maxDim[bInd] do (
-      disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax p~a"),cdim,polyOrder)),
+      fName : sconcat("~/max-out/inflate_surf_", cdim, "x_", bName[bInd], "_", "p", polyOrder, ".c"),
+      fh : openw(fName),
+      printf(fh, "#include <gkyl_inflate_surf_kernels.h>~%~%"),
+      disp(printf(false,sconcat("Creating inflate_surf ",bName[bInd]," ~ax p~a"),cdim,polyOrder)),
       /* Generate a kernel for deflating onto each surf. */
       for dir : max(1,minDim[bInd]) thru cdim do (
-        for sI : 1 thru length(edge) do (
-          printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax_~a_p~a(const double *fld, double *fld_deflated); ~%", varsCall[dir], edge[sI], cdim, bName[bInd], polyOrder)
-        )
-      )
+        inflateSurf(fh, cdim, 0, dir, bName[bInd], polyOrder)
+      ),
+      close(fh)
     ),
 
     /* For phase space quantities. */
@@ -51,18 +43,16 @@ for bInd : 1 thru length(bName) do (
       for vI : 1 thru length(vDims[cdim]) do (
         vdim : vDims[cdim][vI],
 
-        disp(printf(false,sconcat("Creating deflate_surf ",bName[bInd]," ~ax~av p~a"),cdim,vdim,polyOrder)),
+        fName : sconcat("~/max-out/inflate_surf_", cdim, "x", vdim, "v_", bName[bInd], "_", "p", polyOrder, ".c"),
+        fh : openw(fName),
+        printf(fh, "#include <gkyl_inflate_surf_kernels.h>~%~%"),
+        disp(printf(false,sconcat("Creating inflate_surf ",bName[bInd]," ~ax~av p~a"),cdim,vdim,polyOrder)),
         /* Generate a kernel for deflating onto each surf. */
         for dir : max(1,minDim[bInd]) thru cdim do (
-          for sI : 1 thru length(edge) do (
-            printf(fh, "GKYL_CU_DH void deflate_surf~a_~a_~ax~av_~a_p~a(const double *fld, double *fld_deflated); ~%", varsCall[dir], edge[sI], cdim, vdim, bName[bInd], polyOrder)
-          )
-        )
+          inflateSurf(fh, cdim, vdim, dir, bName[bInd], polyOrder)
+        ),
+        close(fh)
       )
     )
   )
 )$
-printf(fh, "~%")$
-
-printf(fh, "EXTERN_C_END ~%")$
-close(fh)$
