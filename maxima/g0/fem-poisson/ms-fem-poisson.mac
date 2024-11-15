@@ -13,6 +13,8 @@ load("fem-poisson/fem-poisson-src_stencil_consteps")$
 load("fem-poisson/fem-poisson-sol_stencil")$
 load("fem-poisson/fem-poisson-lhs_stencil_vareps")$
 load("fem-poisson/fem-poisson-src_stencil_vareps")$
+load("fem-poisson/fem-poisson-bias_lhs")$
+load("fem-poisson/fem-poisson-bias_src")$
 
 /* ...... USER INPUTS........ */
 
@@ -105,7 +107,6 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
-**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil_consteps.c"))$
@@ -121,6 +122,7 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/
 
 /**
 /* Solution nodal-to-modal kernels. */
@@ -155,7 +157,6 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
-**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_src_stencil_vareps.c"))$
@@ -171,4 +172,38 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/
 
+/* ............. Biased plane kernels ................ */
+
+/* Function to replace LHS equations with 0's and 1's to enforce the biasing of
+   a point (1D), a line (2D), or a plane (3D). */
+disp(printf(false,"Creating fem_poisson_bias_plane_lhs.c"))$
+fname : "~/max-out/fem_poisson_bias_plane_lhs.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    funcName : sconcat("fem_poisson_bias_plane_lhs_", c, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_poisson_bias_plane_lhs_", c, "x_", bName[bInd]))),
+    generate_fem_poisson_bias_plane_lhs(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
+
+/* Function to replace RHS source vectors with biasing potential to
+   enforce the biasing of a point (1D), a line (2D), or a plane (3D). */
+disp(printf(false,"Creating fem_poisson_bias_plane_src.c"))$
+fname : "~/max-out/fem_poisson_bias_plane_src.c"$
+fh    : openw(fname)$
+printf(fh, "#include <gkyl_fem_poisson_kernels.h> ~%")$
+printf(fh, " ~%")$
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    funcName : sconcat("fem_poisson_bias_plane_src_", c, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_poisson_bias_plane_src_", c, "x_", bName[bInd]))),
+    generate_fem_poisson_bias_plane_src(fh, funcName, c, bName[bInd], maxPolyOrder[bInd])
+  )
+)$
+close(fh)$
