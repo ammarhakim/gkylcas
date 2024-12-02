@@ -1,0 +1,111 @@
+load("modal-basis")$
+load("out-scripts")$
+load("utilities_gyrokinetic")$
+
+array_average(polyOrder,basisType,cfname,hfname) := block(
+
+    headerf : openw(hfname),
+    /* write prologue of header file*/
+    printf(headerf,"#pragma once~%~%"),
+    printf(headerf,"#include <gkyl_util.h>~%"),
+    printf(headerf,"#include <math.h>~%~%"),
+    printf(headerf,"EXTERN_C_BEG~%~%"),
+
+    fh : openw(cfname),
+    /* write prologue of c file*/
+    printf(fh,"#include <gkyl_array_average_kernels.h>~%~%"),
+
+    for dim : 1 thru 3 do (
+        dims : makelist(k, k, 1, dim),
+        
+        /* Generate all single elements */
+        single_elements : dims,
+        
+        /* Generate all pairs (combinations of size 2) */
+        double_elements : if length(dims) > 1 then 
+            create_list([dims[i], dims[j]], i, 1, length(dims), j, i+1, length(dims)) 
+            else [],
+        
+        /* Generate all triplets (combinations of size 3) */
+        triple_elements : if length(dims) > 2 then 
+            create_list([dims[i], dims[j], dims[k]], i, 1, length(dims), j, i+1, length(dims), k, j+1, length(dims)) 
+            else [],
+        
+        /* Combine single, double, and triple elements */
+        all_elements : append(
+            append(create_list([x], x, single_elements), double_elements),
+            triple_elements
+        ),
+
+        for i : 1 thru length(all_elements) do (
+            intdims : all_elements[i],
+
+            if dim = 3 then (dimNames : ["x","y","z"]),
+            if dim = 2 then (dimNames : ["x","y"]),
+            if dim = 1 then (dimNames : ["x"]),
+
+            /* Original basis */
+            [dimVars, b_full] : loadBasis(basisType, dim, polyOrder),
+
+            outdimVars : dimVars,
+            outdimNames : dimNames,
+
+            for j : 1 thru length(intdims) do(
+                outdimNames : delete(dimNames[intdims[j]],outdimNames),
+                outdimVars  : delete(dimVars[intdims[j]],outdimVars)
+            ),
+
+            rdm_s : "",
+            for j : 1 thru length(outdimNames) do(
+            rdm_s : sconcat(rdm_s,outdimNames[j])
+            ),
+
+            if rdm_s # "" then rdm_s : sconcat(rdm_s,"_"), 
+
+            dm_s : "",
+            for j : 1 thru length(dimNames) do(
+            dm_s : sconcat(dm_s,dimNames[j])
+            ),
+
+            funcName : sconcat("gkyl_array_average_",dim,"x_", basisType,"_p", polyOrder, "_", rdm_s, "ker"),
+            fname : sconcat("~/max-out/",funcName, ".c"),
+
+
+            /* integral dimensionality */
+            int_dim : dim - length(intdims),
+
+            /* Output sub basis */
+            b_remain : basisFromVars(basisType, outdimVars, polyOrder),
+
+            /* We expand our conf field on the full basis */
+            f_full : doExpand1(in, b_full),
+
+            /* We integrate it on our output basis over the complementary variables */
+            if length(b_remain) > 0 then(
+                f_out : calcInnerProdList(dimVars, 1, b_remain, f_full)
+            ) else (
+                /* handle the full average case */
+                f_out : [innerProd(dimVars, 1, 1, f_full)]
+            ),
+
+            /* write the .c file */
+            printf(fh, "GKYL_CU_DH void ~a( const double *in, double* GKYL_RESTRICT out, const double subvol) ~%{ ~%", funcName),
+
+            /* write down the average (this use fh globaly...)*/
+            writeCIncrExprsNoExpand1(out, subvol*expand(f_out)),
+
+            /* close accolade in .c file */
+            printf(fh, "} ~%"),
+
+            /* write the .h file */
+            printf(headerf, "GKYL_CU_DH void ~a( const double *in, double* GKYL_RESTRICT out,  const double subvol);~%", funcName),
+
+            print(funcName)
+        )
+    ),
+    
+    /* finalize header file*/
+    printf(headerf,"~%EXTERN_C_END"),
+    close(headerf),
+    close(fh)
+)$
