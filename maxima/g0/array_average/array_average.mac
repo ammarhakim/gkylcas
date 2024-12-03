@@ -78,18 +78,18 @@ array_average(polyOrder,basisType,cfname,hfname) := block(
             b_remain : basisFromVars(basisType, outdimVars, polyOrder),
 
             /* We expand our conf field on the full basis */
-            f_full : doExpand1(in, b_full),
+            f_full : doExpand1(fin, b_full),
 
             /* We integrate it on our output basis over the complementary variables */
             if length(b_remain) > 0 then(
-                f_out : calcInnerProdList(dimVars, 1, b_remain, f_full)
+                f_out  : calcInnerProdList(dimVars, 1, b_remain, f_full)
             ) else (
                 /* handle the full average case */
-                f_out : [innerProd(dimVars, 1, 1, f_full)]
+                f_out  : [innerProd(dimVars, 1, 1, f_full)]
             ),
 
             /* write the .c file */
-            printf(fh, "GKYL_CU_DH void ~a( const double *in, double* GKYL_RESTRICT out, const double subvol) ~%{ ~%", funcName),
+            printf(fh, "GKYL_CU_DH void ~a( const double *fin, double* GKYL_RESTRICT out, const double subvol) ~%{ ~%", funcName),
 
             /* write down the average (this use fh globaly...)*/
             writeCIncrExprsNoExpand1(out, subvol*expand(f_out)),
@@ -98,7 +98,7 @@ array_average(polyOrder,basisType,cfname,hfname) := block(
             printf(fh, "} ~%"),
 
             /* write the .h file */
-            printf(headerf, "GKYL_CU_DH void ~a( const double *in, double* GKYL_RESTRICT out,  const double subvol);~%", funcName),
+            printf(headerf, "GKYL_CU_DH void ~a( const double *fin, double* GKYL_RESTRICT out,  const double subvol);~%", funcName),
 
             print(funcName)
         )
