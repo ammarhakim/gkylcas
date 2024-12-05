@@ -3,7 +3,9 @@ load("out-scripts")$
 load("utilities_gyrokinetic")$
 
 array_average(polyOrder,basisType,cfname,hfname) := block(
-
+    [headerf,fh,dims,single_elements,double_elements,triple_elements,
+     all_elements,intdims,dimNames,dimVars,b_full,outdimVars,outdimNames,
+     rdm_s,dm_s,funcName,fname,int_dim,b_remain,f_full,w_full,f_out],
     headerf : openw(hfname),
     /* write prologue of header file*/
     printf(headerf,"#pragma once~%~%"),
