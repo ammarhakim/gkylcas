@@ -7,8 +7,8 @@ gen_dg_interp_gk_kern(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Interpolation operator transfering a field defined on one grid to
      another grid. This kernel is called to compute contribution from a single
      origin-grid cell, to a single target-grid cell. */
-  [varsC,bC,varsP,bP,vSub,pdim,vars,basis,numB,interpDims,numInterpDims,intLimits,
-   dI,d,cFld_e,cFld_c,fFld_e,fFld_c,varMap,intLims,intLimsX,intLimsV,subList,subListX,
+  [varsC,bC,varsP,bP,vSub,pdim,vars,basis,numB,interpDims,numInterpDims,intLims,
+   dI,d,cFld_e,cFld_c,fFld_e,fFld_c,varMap,intLimsX,intLimsV,subList,subListX,
    subListV,IcFld_c,IcFld_cx,IcFld_cv,tempPowVars],
 
   pdim : cdim + vdim,
@@ -22,153 +22,145 @@ gen_dg_interp_gk_kern(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numB  : length(basis),
   NC : length(bC),
 
-  interpDims    : makelist(i,i,1,pdim),
-  numInterpDims : length(interpDims),
+  /* Generate a kernel for interpolating along each direction. */
+  for dir : 1 thru pdim do (
 
-  /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar) ~%{ ~%", funcNm),
-  printf(fh, "  // wDo: cell center of donor cell.~%"),
-  printf(fh, "  // wTar: cell center of target cell.~%"),
-  printf(fh, "  // dxDo: cell length of donor cell.~%"),
-  printf(fh, "  // dxTar: cell length of target cell.~%"),
-  printf(fh, "  // fldDo: donor field.~%"),
-  printf(fh, "  // fldTar: target field in cells pointed to by the stencil.~%"),
-  printf(fh, "~%"),
-
-  intLimits : makelist([-1,1], d, 1, pdim),
-  for dI : 1 thru numInterpDims do (
-    d : interpDims[dI],
-    intLimits[d] : [ 1-(2/dxTar[d-1])*(wTar[d-1]+dxTar[d-1]/2-(wDo[d-1]-dxDo[d-1]/2)),
-                    -1+(2/dxTar[d-1])*(wDo[d-1]+dxDo[d-1]/2-(wTar[d-1]-dxTar[d-1]/2)) ] 
-  ),
-  /* Create a variable saving limits of integration. */
-  printf(fh, "  double eLo[~a];~%", pdim),
-  printf(fh, "  double eUp[~a];~%", pdim),
-  for d : 0 thru pdim-1 do (
-    printf(fh, "  eLo[~a] = fmax(-1.0,~a);~%", d, float(intLimits[d+1][1])),
-    printf(fh, "  eUp[~a] = fmin( 1.0,~a);~%", d, float(intLimits[d+1][2]))
-  ),
-  printf(fh, "~%"),
+    /* Function declaration with input/output variables. */
+    printf(fh, "GKYL_CU_DH void ~a_~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar) ~%{ ~%", funcNm, vars[dir]),
+    printf(fh, "  // wDo: cell center of donor cell.~%"),
+    printf(fh, "  // wTar: cell center of target cell.~%"),
+    printf(fh, "  // dxDo: cell length of donor cell.~%"),
+    printf(fh, "  // dxTar: cell length of target cell.~%"),
+    printf(fh, "  // fldDo: donor field.~%"),
+    printf(fh, "  // fldTar: target field in cells pointed to by the stencil.~%"),
+    printf(fh, "~%"),
   
-  /* Field expansions and list of coefficients. */
-  cFld_c : makelist(fldDo[i],i,0,numB-1),
-  fFld_c : makelist(fldTar[i],i,0,numB-1),
-  cFld_e : doExpand(cFld_c,basis),
-  fFld_e : doExpand(fFld_c,basis),
-  
-  /* Create a table of the relationship between the logical coordinates
-     in each direction of the donor and target grids, that is, the linear map
-       xi_c = L(xi_f)
-     where xi_c and xi_f are the is the donor and target logical coordinates. */
-  varMap : makelist(vars[i],i,1,pdim),
-  for dI : 1 thru numInterpDims do (
-    d : interpDims[dI],
-    varMap[d] : (2/dxDo[d-1])*(wTar[d-1]-wDo[d-1]+(dxTar[d-1]/2)*vars[d])
-  ),
-  
-  /* Compute the inner product, on target grid of current cell,
-     of the donor field times the basis target-grid functions. */
-  intLims : makelist([eLo[d-1], eUp[d-1]],d,1,pdim),
-  /**
-    This approach produces extremely long lines.
-  subList : makelist(vars[i]=varMap[i],i,1,pdim),
-  IcFld_c : fullratsimp(calcInnerProdListGen(vars,intLims,1.0,basis,subst(subList,cFld_e))),
-  
-  /* In general these expressions are very complex. It would be beneficial to
-     perform some kind of common subexpression elimination. For now we'll just eliminate the exponents. */
-  powVars : [],
-  powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eLo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eUp[i-1],i,1,pdim),powVars),
-  tempPowVars : [],
-  writeCIncrExprsCollect1noPowers(fldTar, IcFld_c, [dxDo,dxTar], powVars, tempPowVars),
-  printf(fh, "~%"),
-  **/
-
-  /**
-    This approach splits the inner product by splitting the expansion in cFld_e.
-    Unfortunately the lines are still very long.
-  **/
-  expTerms : args(cFld_e),
-  IcFld_c : makelist(0,i,1,numB),
-  tempPowVars : [],
-  powVars : [],
-  powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eLo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eUp[i-1],i,1,pdim),powVars),
-  for k : 1 thru numB do (
+    intLims : makelist([-1,1], d, 1, pdim),
+    intLims[dir] : [ 1-(2/dxTar[dir-1])*(wTar[dir-1]+dxTar[dir-1]/2-(wDo[dir-1]-dxDo[dir-1]/2)),
+                    -1+(2/dxTar[dir-1])*(wDo[dir-1]+dxDo[dir-1]/2-(wTar[dir-1]-dxTar[dir-1]/2)) ],
+    /* Create a variable saving limits of integration. */
+    printf(fh, "  double eLo = fmax(-1.0,~a);~%", float(intLims[dir][1])),
+    printf(fh, "  double eUp = fmin( 1.0,~a);~%", float(intLims[dir][2])),
+    printf(fh, "~%"),
+    
+    /* Field expansions and list of coefficients. */
+    cFld_c : makelist(fldDo[i],i,0,numB-1),
+    fFld_c : makelist(fldTar[i],i,0,numB-1),
+    cFld_e : doExpand(cFld_c,basis),
+    fFld_e : doExpand(fFld_c,basis),
+    
+    /* Create a table of the relationship between the logical coordinates
+       in each direction of the donor and target grids, that is, the linear map
+         xi_c = L(xi_f)
+       where xi_c and xi_f are the is the donor and target logical coordinates. */
+    varMap : makelist(vars[i],i,1,pdim),
+    varMap[dir] : (2/dxDo[dir-1])*(wTar[dir-1]-wDo[dir-1]+(dxTar[dir-1]/2)*vars[dir]),
+    
+    /* Compute the inner product, on target grid of current cell,
+       of the donor field times the basis target-grid functions. */
+    intLims : makelist([-1, 1],d,1,pdim),
+    intLims[dir] : [eLo, eUp],
+    /**
+      This approach produces extremely long lines.
+    **/
     subList : makelist(vars[i]=varMap[i],i,1,pdim),
-    IcFld_c : fullratsimp(calcInnerProdListGen(vars,intLims,1.0,basis,subst(subList,expTerms[k]))),
-
+    IcFld_c : fullratsimp(calcInnerProdListGen(vars,intLims,1.0,basis,subst(subList,cFld_e))),
+    
     /* In general these expressions are very complex. It would be beneficial to
        perform some kind of common subexpression elimination. For now we'll just eliminate the exponents. */
-    tempPowVars : writeCIncrExprsCollect1noPowers(fldTar, IcFld_c, [dxDo,dxTar], powVars, tempPowVars),
-    printf(fh, "~%")
-  ),
+    powVars : [],
+    powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(eLo,powVars),
+    powVars : endcons(eUp,powVars),
+    tempPowVars : [],
+    writeCIncrExprsCollect1noPowers(fldTar, IcFld_c, [dxDo,dxTar], powVars, tempPowVars),
+    printf(fh, "~%"),
   
-  /**
-    This approach splits the inner product by splitting the expansion in cFld_e, and 
-    (for p=1 or Tensor only) split the x- and v- integrals (MF 2024/11/10: doesn't work).
-  printf(fh, "  double tmp[~a]; ~%", NC),
-  tmp_c : makelist(0,i,1,NC),
-  expTerms : args(cFld_e),
-  IcFld_c : makelist(0,i,1,numB),
-  tempPowVars : [],
-  powVars : [],
-  powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eLo[i-1],i,1,pdim),powVars),
-  powVars : endcons(makelist(eUp[i-1],i,1,pdim),powVars),
-  for k : 1 thru numB do (
-    /* Do v-space integrals. */
-    intLimsV : makelist(intLims[i],i,cdim+1,pdim),
-    subListV : makelist(vars[i]=varMap[i],i,cdim+1,pdim),
-    IcFld_cv : fullratsimp(calcInnerProdListGen(varsV,intLimsV,1.0,basis,subst(subListV,expTerms[k]))),
-
-    for j : 1 thru numB do (
-      if (IcFld_cv[j] # 0) then (
-        /* Store the result of v-space integrals in a projection on x-basis. */
-        IcFld_cx : calcInnerProdList(varsC,1,bC,IcFld_cv[j]),
-        /*
-        writeCExprs1(tmp, IcFld_cx),
-        */
-        printf(fh, "~%"),
-        printf(fh, "  for (int k=0; k<~a; k++) tmp[k] = 0.0; ~%", NC),
-        printf(fh, "~%"),
-
-        tempPowVars : writeCExprs1noPowers(tmp, IcFld_cx, powVars, tempPowVars),
-        tmp_c : makelistNoZeros1(IcFld_cx, tmp),
-        tmp_e : doExpand(tmp_c,bC),
-        printf(fh, "~%"),
-
-        /* Now do the x-integrals and write the result. */
-        intLimsX : makelist(intLims[i],i,1,cdim),
-        subListX : makelist(vars[i]=varMap[i],i,1,cdim),
-        IcFld_c : float(expand(fullratsimp(innerProdGen(varsC,intLimsX,1.0,1.0,subst(subListX,tmp_e))))),
-
-/*
-       [subList,tempPowVars] : findReplacePowers(IcFld_c, powVars, 1, tempPowVars),
-
-        printf(fh, "  ~a += ~a; ~%", fldTar[j-1], IcFld_c)
-       */
-       tempPowVars : writeCIncrExprsCollectnoPowers([fldTar[j-1]], [IcFld_c], [dxDo,dxTar], powVars, tempPowVars)
-
-      )
+    /**
+      This approach splits the inner product by splitting the expansion in cFld_e.
+      Unfortunately the lines are still very long.
+    expTerms : args(cFld_e),
+    IcFld_c : makelist(0,i,1,numB),
+    tempPowVars : [],
+    powVars : [],
+    powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(eLo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(eUp[i-1],i,1,pdim),powVars),
+    for k : 1 thru numB do (
+      subList : makelist(vars[i]=varMap[i],i,1,pdim),
+      IcFld_c : fullratsimp(calcInnerProdListGen(vars,intLims,1.0,basis,subst(subList,expTerms[k]))),
+  
+      /* In general these expressions are very complex. It would be beneficial to
+         perform some kind of common subexpression elimination. For now we'll just eliminate the exponents. */
+      tempPowVars : writeCIncrExprsCollect1noPowers(fldTar, IcFld_c, [dxDo,dxTar], powVars, tempPowVars),
+      printf(fh, "~%")
     ),
-    printf(fh, "~%")
-  ),
-  **/
+    **/
+    
+    /**
+      This approach splits the inner product by splitting the expansion in cFld_e, and 
+      (for p=1 or Tensor only) split the x- and v- integrals (MF 2024/11/10: doesn't work).
+    printf(fh, "  double tmp[~a]; ~%", NC),
+    tmp_c : makelist(0,i,1,NC),
+    expTerms : args(cFld_e),
+    IcFld_c : makelist(0,i,1,numB),
+    tempPowVars : [],
+    powVars : [],
+    powVars : endcons(makelist( wDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist( wTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxDo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(dxTar[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(eLo[i-1],i,1,pdim),powVars),
+    powVars : endcons(makelist(eUp[i-1],i,1,pdim),powVars),
+    for k : 1 thru numB do (
+      /* Do v-space integrals. */
+      intLimsV : makelist(intLims[i],i,cdim+1,pdim),
+      subListV : makelist(vars[i]=varMap[i],i,cdim+1,pdim),
+      IcFld_cv : fullratsimp(calcInnerProdListGen(varsV,intLimsV,1.0,basis,subst(subListV,expTerms[k]))),
   
-  printf(fh, "}~%"),
-  printf(fh, "~%")
+      for j : 1 thru numB do (
+        if (IcFld_cv[j] # 0) then (
+          /* Store the result of v-space integrals in a projection on x-basis. */
+          IcFld_cx : calcInnerProdList(varsC,1,bC,IcFld_cv[j]),
+          /*
+          writeCExprs1(tmp, IcFld_cx),
+          */
+          printf(fh, "~%"),
+          printf(fh, "  for (int k=0; k<~a; k++) tmp[k] = 0.0; ~%", NC),
+          printf(fh, "~%"),
+  
+          tempPowVars : writeCExprs1noPowers(tmp, IcFld_cx, powVars, tempPowVars),
+          tmp_c : makelistNoZeros1(IcFld_cx, tmp),
+          tmp_e : doExpand(tmp_c,bC),
+          printf(fh, "~%"),
+  
+          /* Now do the x-integrals and write the result. */
+          intLimsX : makelist(intLims[i],i,1,cdim),
+          subListX : makelist(vars[i]=varMap[i],i,1,cdim),
+          IcFld_c : float(expand(fullratsimp(innerProdGen(varsC,intLimsX,1.0,1.0,subst(subListX,tmp_e))))),
+  
+  /*
+         [subList,tempPowVars] : findReplacePowers(IcFld_c, powVars, 1, tempPowVars),
+  
+          printf(fh, "  ~a += ~a; ~%", fldTar[j-1], IcFld_c)
+         */
+         tempPowVars : writeCIncrExprsCollectnoPowers([fldTar[j-1]], [IcFld_c], [dxDo,dxTar], powVars, tempPowVars)
+  
+        )
+      ),
+      printf(fh, "~%")
+    ),
+    **/
+    
+    printf(fh, "}~%"),
+    printf(fh, "~%")
+  )
   
 )$
 

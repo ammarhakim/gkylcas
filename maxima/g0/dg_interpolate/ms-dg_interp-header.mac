@@ -3,11 +3,13 @@
   a DG field from one grid to another (dimensionality of the grids is
   the same, only resolution varies).
 */
+load("modal-basis")$
+
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -41,7 +43,13 @@ printPrototypes(fh) := block(
         if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
         for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
 
-          printf(fh, "GKYL_CU_DH void dg_interpolate_gyrokinetic_~ax~av_~a_p~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar);~%", c, v, bName[bInd], polyOrder)
+          [jnk,jnk,varsP,jnk,jnk] : loadGkBasis(bName[bInd], c, v, polyOrder),
+
+          /* Generate a kernel for interpolating along each direction. */
+          for dir : 1 thru c+v do (
+            printf(fh, "GKYL_CU_DH void dg_interpolate_gyrokinetic_~ax~av_~a_p~a_~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar);~%", c, v, bName[bInd], polyOrder, varsP[dir])
+          ),
+          printf(fh, "~%")
 
         )
       )
