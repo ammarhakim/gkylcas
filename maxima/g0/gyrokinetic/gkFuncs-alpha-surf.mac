@@ -94,7 +94,7 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
   printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
-  printf(fh, "  // alpha_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
+  printf(fh, "  // alpha_surf: output surface phase space speed (times J*B) in each direction (cdim + 1 components).~%"),
   printf(fh, "  //             Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "  // sgn_alpha_surf: output sign(alpha_surf) in each direction at quadrature points (cdim + 1 components).~%"),
   printf(fh, "  //                 Note: Each cell owns their *lower* edge sign(alpha_surf).~%"),
@@ -136,10 +136,12 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
                   (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
   BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
 
+  JBBstardBmag_e : BstardBmag_e/jacobTotInv_e,
+
   /* Compute electrostatic Hamiltonian and write it out. */
   hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
 
-  /* Calculate and write phase space velocity alpha in direction surfDir. */
+  /* Calculate and write phase space velocity J*B*alpha in direction surfDir. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
   if (edge = true) then (
     /* alpha_surf owns the *lower* edge surface expansion, so write out a separate
@@ -148,14 +150,14 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
        quantities such as geometry in the ghost cells where they are not defined */
     printf(fh, "  double *alphaR = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfR = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
-    alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
-      m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",no_by,false),
+    alphaSurf_e : calcAndWrite_JBalpha(fh,surfDir,bP,polyOrder,basisFun,
+      m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,JBBstardBmag_e,"R",no_by,false),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"R")
   ) else (
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
-    alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
-      m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"L",no_by,false),
+    alphaSurf_e : calcAndWrite_JBalpha(fh,surfDir,bP,polyOrder,basisFun,
+      m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,JBBstardBmag_e,"L",no_by,false),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"L")
   ),
   printf(fh, "  return const_sgn_alpha_surf; ~%"),

@@ -88,10 +88,12 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
                   (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
   BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
 
+  JBBstardBmag_e : BstardBmag_e / jacobTotInv_e,
+
   /* Compute electrostatic Hamiltonian and write it out. */
   hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
 
-  pbAuxFlds : [BstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
+  pbAuxFlds : [JBBstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
 
   alphaSum_e : 0,
   /* Note: no contribution from mu. */
@@ -110,7 +112,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
     dirVar_phys : wDir+dirVar/rdDirVar2,
     if (dir > cdim) then ( dirVar_phys : vmap_e[dir-cdim] ),
-    alpha_e : poissonBracket(dirVar_phys,hamil_e,m_,q_,rdx2vec,rdv2vec,pbAuxFlds,no_by),
+    alpha_e : JBpoissonBracket(dirVar_phys,hamil_e,m_,q_,rdx2vec,rdv2vec,pbAuxFlds,no_by),
 
     /* Project alpha on basis and write to array. */
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),

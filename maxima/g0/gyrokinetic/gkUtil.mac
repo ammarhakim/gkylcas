@@ -242,9 +242,9 @@ calcAndWrite_BstarZdBmag(fH,cdim,bP,bmagBasis,surfDir,mass,charge,wvpar,rdx2,rdv
   return(BstarZdBmag_e)
 )$
 
-poissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
+JBpoissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
   [varsCall,cdim,varsC,rdy2,rdz2,BstardBmag_e,bmagInv_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
-  /* Compute the Poisson bracket in general geometry. */
+  /* Compute the Poisson bracket in curvilinear geometry, multiplied by J.B. */
 
   /* Function that computes the gradient. */
   /* 
@@ -271,19 +271,19 @@ poissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
   ),
 
   varsC : makelist(varsCall[d],d,1,cdim),
-  BstardBmag_e : pbFacs[1],
+  JBBstardBmag_e : pbFacs[1],
   b_x_e : pbFacs[2],  b_y_e : pbFacs[3],  b_z_e : pbFacs[4],
   jacobTotInv_e : pbFacs[5],  vmap_prime_e : pbFacs[6],
 
   if (no_by) then ( b_y_e : 0 ),
 
-  pb_e : (1/mass)*BstardBmag_e .
-        ((rdv2V[1]/vmap_prime_e[1])*(fgrad(f,varsC,rdx2V)*diff(g,vpar)-fgrad(g,varsC,rdx2V)*diff(f,vpar)))
-        +(-(1/charge)*b_z_e*rdx2V[1]*rdy2*(diff(f,x)*diff(g,y)-diff(f,y)*diff(g,x))
-          +(1/charge)*b_y_e*rdx2V[1]*rdz2*(diff(f,x)*diff(g,z)-diff(f,z)*diff(g,x))
-          -(1/charge)*b_x_e*rdy2*rdz2*(diff(f,y)*diff(g,z)-diff(f,z)*diff(g,y)))*jacobTotInv_e,
+  JBpb_e : (1/mass)*JBBstardBmag_e .
+          ((rdv2V[1]/vmap_prime_e[1])*(fgrad(f,varsC,rdx2V)*diff(g,vpar)-fgrad(g,varsC,rdx2V)*diff(f,vpar)))
+          +(-(1/charge)*b_z_e*rdx2V[1]*rdy2*(diff(f,x)*diff(g,y)-diff(f,y)*diff(g,x))
+            +(1/charge)*b_y_e*rdx2V[1]*rdz2*(diff(f,x)*diff(g,z)-diff(f,z)*diff(g,x))
+            -(1/charge)*b_x_e*rdy2*rdz2*(diff(f,y)*diff(g,z)-diff(f,z)*diff(g,y))),
 
-  return(pb_e)
+  return(JBpb_e)
 )$
 
 calcAndWrite_alphaEM(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
@@ -347,8 +347,8 @@ calcAndWrite_alphaEM(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   return([alphaUp_e,alphaSurf_e,alphaUpSurf_e])
 )$
 
-calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
-                   inFlds,hamil_e,BstardBmag_e,sideStr,no_by,isStep2) := block(
+calcAndWrite_JBalpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
+                   inFlds,hamil_e,JBBstardBmag_e,sideStr,no_by,isStep2) := block(
   [varsP,varLabel,dirLabel,wSurf,rdSurfVar2,surfVar,surfIntVars,b_x_e,b_y_e,b_z_e,
    jacobTotInv_e,vmap_e,vmap_prime_e,pbAuxFlds,cdim,surfVar_phys,alpha_e,bSurf,
    numSurf,evPoint,alpha_c,alphaCvar,clst,alphaNoZero_c],
@@ -370,13 +370,13 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   b_x_e         : inFlds[7],   b_y_e : inFlds[8],  b_z_e : inFlds[9],
   jacobTotInv_e : inFlds[10],  vmap_e : inFlds[11],  vmap_prime_e : inFlds[13],
 
-  pbAuxFlds : [BstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
+  pbAuxFlds : [JBBstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
 
   cdim : length(rdx2V),
   surfVar_phys : wSurf+surfVar/rdSurfVar2,
   if (surfDir > cdim) then ( surfVar_phys : vmap_e[surfDir-cdim] ),
 
-  alpha_e : poissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
+  alpha_e : JBpoissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
@@ -407,7 +407,7 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
 )$
 
 calc_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
-                   inFlds,hamil_e,BstardBmag_e,sideStr,no_by,isStep2) := block(
+                   inFlds,hamil_e,JBBstardBmag_e,sideStr,no_by,isStep2) := block(
   [varsP,varLabel,dirLabel,wSurf,rdSurfVar2,surfVar,surfIntVars,b_x_e,b_y_e,b_z_e,
    jacobTotInv_e,vmap_e,vmap_prime_e,pbAuxFlds,cdim,surfVar_phys,alpha_e,bSurf,
    numSurf,evPoint,alpha_c,alphaCvar,clst,alphaNoZero_c],
@@ -429,13 +429,13 @@ calc_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   b_x_e         : inFlds[7],  b_y_e : inFlds[8],  b_z_e : inFlds[9],
   jacobTotInv_e : inFlds[10],  vmap_e : inFlds[11],  vmap_prime_e : inFlds[13],
 
-  pbAuxFlds : [BstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
+  pbAuxFlds : [JBBstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
 
   cdim : length(rdx2V),
   surfVar_phys : wSurf+surfVar/rdSurfVar2,
   if (surfDir > cdim) then ( surfVar_phys : vmap_e[surfDir-cdim] ),
 
-  alpha_e : poissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
+  alpha_e : JBpoissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
 
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
