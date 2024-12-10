@@ -13,7 +13,7 @@ load("gyrokinetic/gkFuncs-surf")$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
-maxCdim_Ser : 1$
+maxCdim_Ser : 3$
 
 /* Tensor order basis. No need to generate p=1. */
 minPolyOrder_Tensor : 2$
@@ -59,8 +59,6 @@ for bInd : 1 thru length(bName) do (
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
         for dir : 1 thru c do (
-/**
-**/
           /* Advection in configuration space.*/
           fname : sconcat("~/max-out/gyrokinetic_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
           disp(printf(false,"Creating surface file: ~a",fname)),
@@ -81,19 +79,8 @@ for bInd : 1 thru length(bName) do (
           calcGKBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
           close(fh),
 
-          fname : sconcat("~/max-out/gyrokinetic_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
-          disp(printf(false,"Creating surface flux file: ~a",fname)),
-
-          fh : openw(fname),
-          includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
-          funcName : sconcat("gyrokinetic_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcGKBoundaryFluxUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
-          close(fh),
-
           /* if cdim > 1, also generate a set of kernels for the case where there is no toroidal field (by = 0) */
           if (c > 1) then (
-/**
-**/
             fname : sconcat("~/max-out/gyrokinetic_no_by_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
             disp(printf(false,"Creating surface file (no by): ~a",fname)),
     
@@ -111,20 +98,9 @@ for bInd : 1 thru length(bName) do (
             includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
             funcName : sconcat("gyrokinetic_no_by_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcGKBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, true),
-            close(fh),
-
-            fname : sconcat("~/max-out/gyrokinetic_no_by_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
-            disp(printf(false,"Creating surface flux file (no by): ~a",fname)),
-
-            fh : openw(fname),
-            includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
-            funcName : sconcat("gyrokinetic_no_by_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcGKBoundaryFluxUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, true),
             close(fh)
           )
         ),
-/**
-**/
         /* Advection in velocity space.*/
         fname : sconcat("~/max-out/gyrokinetic_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
         disp(printf(false,"Creating surface file: ~a",fname)),
