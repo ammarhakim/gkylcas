@@ -104,6 +104,8 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
                   (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
   BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
 
+  JBBstardBmag_e : BstardBmag_e / jacobTotInv_e,
+
   /* Compute electrostatic Hamiltonian (used to determine sparsity of pre-computed phase space flux alpha). */
   hamil_e : calc_HamilES_no_write(q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e),
 
