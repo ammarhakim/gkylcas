@@ -55,7 +55,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   ),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *jacobtot_inv, 
     const double *vmap_prime_l, const double *vmap_prime_c, const double *vmap_prime_r,
     const double *alpha_surf_l, const double *alpha_surf_r, 
     const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r,
@@ -63,6 +63,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
     const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // jacobtot_inv: 1/(jacobgeo * bmag) projected so it's continuous.~%"),
   printf(fh, "  // vmap_prime_l,vmap_prime_c,vmap_prime_r: velocity space mapping derivative in left, center and right cells.~%"),
   printf(fh, "  // alpha_surf_l: Surface expansion of phase space flux on the left.~%"),
   printf(fh, "  // alpha_surf_r: Surface expansion of phase space flux on the right.~%"),
@@ -162,11 +163,21 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
     printf(fh, "  double vmap_prime_min = fmin(fmin(fabs(~a),fabs(~a)),fabs(~a));~%",vmap_prime_l[surfDir-cdim-1],vmap_prime_c[surfDir-cdim-1],vmap_prime_r[surfDir-cdim-1]),
     vprimeStr : "/vmap_prime_min"
   ),
+
+  /* Surface averaged jacobtot_inv (assume continuous jacobTotInv). */
+  jtotinvSurfL_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1,jacobTotInv_e)),
+  jtotinvSurfR_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=1,jacobTotInv_e)),
+  jtotinvSurfLavg : innerProd(surfIntVars, 1, 1, doExpand(jtotinvSurfL_c,bSurf))/innerProd(surfIntVars,1,1,1),
+  jtotinvSurfRavg : innerProd(surfIntVars, 1, 1, doExpand(jtotinvSurfR_c,bSurf))/innerProd(surfIntVars,1,1,1),
+  printf(fh, "  double Jtot_inv_L = ~a;~%", float(expand(jtotinvSurfLavg))),
+  printf(fh, "  double Jtot_inv_R = ~a;~%", float(expand(jtotinvSurfRavg))),
+  printf(fh, "~%"),
+
   /* Extra 1/2 factor is because we are multiplying by 2/dx and we only need 1/dx 
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
+  printf(fh, "  double cflFreq = fmax(fabs(Jtot_inv_L*alphaL[0]~a), fabs(Jtot_inv_R*alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
@@ -223,7 +234,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   ),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *jacobtot_inv, 
     const double *vmap_prime_edge, const double *vmap_prime_skin,
     const double *alpha_surf_edge, const double *alpha_surf_skin, 
     const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
@@ -231,6 +242,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
     const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // jacobtot_inv: 1/(jacobgeo * bmag) projected so it's continuous.~%"),
   printf(fh, "  // vmap_prime_edge,vmap_prime_skin: velocity space mapping derivative in edge and skin cells.~%"),
   printf(fh, "  // alpha_surf_edge: Surface expansion of phase space flux on the lower edges of the edge cell.~%"),
   printf(fh, "  // alpha_surf_skin: Surface expansion of phase space flux on the lower edges of the skin cell.~%"),
@@ -295,6 +307,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "  const double *sgn_alpha_surfR = &sgn_alpha_surf_edge[~a];~%", (surfDir-1)*numNodesIndexing),
   printf(fh, "  const int *const_sgn_alphaL = &const_sgn_alpha_skin[~a];~%", surfDir-1),
   printf(fh, "  const int *const_sgn_alphaR = &const_sgn_alpha_edge[~a];~%", surfDir-1),
+  printf(fh, "  double Jtot_inv;~%"),
   printf(fh, "~%"),
   fEdge_e : doExpand1(fedge, bP)/vmap_prime_fac_edge,
   fSkin_e : doExpand1(fskin, bP)/vmap_prime_fac_skin,
@@ -319,6 +332,12 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "~%"),
   flush_output(fh),
 
+  /* Surface averaged jacobtot_inv (assume continuous jacobTotInv). */
+  jtotinvSurf_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=1,jacobTotInv_e)),
+  jtotinvSurfAvg : innerProd(surfIntVars, 1, 1, doExpand(jtotinvSurf_c,bSurf))/innerProd(surfIntVars,1,1,1),
+  printf(fh, "  Jtot_inv = ~a;~%", float(expand(jtotinvSurfAvg))),
+  printf(fh, "~%"),
+
   /* Otherwise, edge == 1, and we are doing the right edge boundary and the skin cell needs to be evaluated at -1 */
   printf(fh, "  } else { ~%~%"), 
 
@@ -338,6 +357,13 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   writeCIncrExprsNoExpand1(out, rdSurfVar2*incrL_c),
   printf(fh, "~%"),
   flush_output(fh),
+
+  /* Surface averaged jacobtot_inv (assume continuous jacobTotInv). */
+  jtotinvSurf_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1,jacobTotInv_e)),
+  jtotinvSurfAvg : innerProd(surfIntVars, 1, 1, doExpand(jtotinvSurf_c,bSurf))/innerProd(surfIntVars,1,1,1),
+  printf(fh, "    Jtot_inv = ~a;~%", float(expand(jtotinvSurfAvg))),
+  printf(fh, "~%"),
+
   printf(fh, "  } ~%~%"), 
 
   /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
@@ -354,7 +380,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
+  printf(fh, "  double cflFreq = fmax(fabs(Jtot_inv*alphaL[0]~a), fabs(Jtot_inv*alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
