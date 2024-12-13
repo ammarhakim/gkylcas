@@ -76,7 +76,7 @@ array_average(polyOrder_max,basisType,cfname,hfname) := block(
           dm_s : sconcat(dm_s,dimNames[j])
         ),
 
-        funcName : sconcat("gkyl_array_average_",dim,"x_", basisType,"_p", polyOrder, "_avg", intdim_s, "_ker"),
+        funcName : sconcat("gkyl_array_average_",dim,"x_", basisType,"_p", polyOrder, "_avg", intdim_s),
 
         /* integral dimensionality */
         int_dim : dim - length(intdims),
