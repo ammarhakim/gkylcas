@@ -168,38 +168,32 @@ calcVlasovMaxwellSRVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   printf(fh, "  double cflFreq_mid = 0.0; ~%"),
 
   /* alpha_cdim = p/gamma, alpha_vdim = q/m (E + p/gamma x B) */
-  printf(fh, "  double alpha_cdim[~a] = {0.0}; ~%", cdim*length(bP)),
-  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", vdim*length(bP)),
+  printf(fh, "  double alpha_vdim[~a] = {0.0}; ~%~%", length(bP)),
 
-  /* Expand distribution function f in phase basis. */
+  /* Expand distribution function f and alpha_vdim in phase basis. 
+     alpha_vdim is filled appropriately in each direction (E + p/gamma x B) 
+     Since alpha_vdim includes a 1/J factor for the non-uniform mapping, 
+     alpha_vdim is dense and there are no simplifications to be made 
+     (so we just expand in the full phase basis). */
   f_e : doExpand1(f, bP),
+  alpha_vdim_e : doExpand1(alpha_vdim, bP), 
 
   incr_cdim : 0,
-  /* alpha_cdim = v dot grad(f) */
-  for cdir : 1 thru cdim do (
-    /* Expand p_over_gamma in velocity space basis */
-    alpha_cdim_c : calcInnerProdList(varsP, 1, bP, p_over_gamma_fld[cdir]),
-    expr : gcfac(float(expand(radcan(alpha_cdim_c)))),
-
-    /* Write out the component of alpha_cdim's phase space expansion */
-    for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_cdim[NP*(cdir-1)+i-1], dx11[cdir]*(expr[i]))
-    ),
-    /* zero out components of alpha which are empty */
-    alpha_cdim_NoZero   : doMakeExprLst_a0(alpha_cdim_c, alpha_cdim),
-    alpha_cdim_NoZero_e : doExpandLst(alpha_cdim_NoZero, bP),
-    
+  /* alpha_cdim = v dot grad(f) (p/gamma dot grad(f) in relativity) */
+  for cdir : 1 thru cdim do (    
     /* evaluate alpha_cdim at cflPt to approximate
     ** max(abs(alpha_vdim))/(dv_i/(2p+1)). */
-    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(cdir-1),alpha_cdim_NoZero_e))))),
+    amid : gcfac(float(expand(subst(cflPt,0.5*dx11[cdir]*p_over_gamma_fld[cdir])))),
     printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*polyOrder+1), amid),
     printf(fh, "~%"),
 
-    /* Volume increment from configuration space. */
-    incr_cdim : incr_cdim+subst(a0=NP*(cdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), alpha_cdim_NoZero_e*f_e))
+    /* Volume increment from configuration space (p_over_gamma). */
+    incr_cdim : incr_cdim+calcInnerProdList(varsP, 1, diff(bP,varsP[cdir]), dx11[cdir]*p_over_gamma_fld[cdir]*f_e)
   ),
+  /* Write out total configuration space volume update */
+  writeCExprsCollect1c(incr_cdim), 
+  printf(fh, "~%"), 
 
-  incr_vdim : 0,
   /* alpha_vdim = (q/m)*(E + v x B) dot grad_v(f) */
   for vdir : 1 thru vdim do (
     acc : calcAccel(vdir, vdim, bC, p_over_gamma_fld),
@@ -208,27 +202,21 @@ calcVlasovMaxwellSRVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 
     /* Write out the component of alpha_vdim's phase space expansion */
     for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", alpha_vdim[NP*(vdir-1)+i-1], dv11[vdir]*(expr[i]))
+      printf(fh, "  ~a = ~a; ~%", alpha_vdim[i-1], dv11[vdir]*(expr[i]))
     ),
-
-    /* zero out components of alpha which are empty */
-    alpha_vdim_NoZero   : doMakeExprLst_a0(alpha_vdim_c, alpha_vdim),
-    alpha_vdim_NoZero_e : doExpandLst(alpha_vdim_NoZero, bP),
 
     /* evaluate alpha_vdim at cflPt to approximate
     ** max(abs(alpha_vdim))/(dv_i/(2p+1)) */
-    amid : gcfac(float(expand(subst(cflPt,0.5*subst(a0=NP*(vdir-1),alpha_vdim_NoZero_e))))),
+    amid : gcfac(float(expand(subst(cflPt,0.5*alpha_vdim_e)))),
     printf(fh, "  cflFreq_mid += ~a*fabs(~a); ~%", float(2*pOrderV+1), amid),
     printf(fh, "~%"),
     /* Volume increment from configuration space. */
-    incr_vdim : incr_vdim+subst(a0=NP*(vdir-1),calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+vdir]), alpha_vdim_NoZero_e*f_e))
+    incr_vdim : calcInnerProdList(varsP, 1, diff(bP,varsP[cdim+vdir]), alpha_vdim_e*f_e), 
+    /* Write out component of velocity-space increment. Separated per direction due to density of update. */
+    writeCExprsCollect1c(incr_vdim), 
+    printf(fh, "~%")
   ),
 
-  /* write out first attempts to simplify the radicals with radcan, e.g. force sqrt(3)*sqrt(5) = sqrt(15) */
-  /* outscripts loads scifac and uses the aggressive factorization routine "gcfac" */
-  writeCExprsCollect1c(radcan(incr_cdim+incr_vdim)),
-
-  printf(fh, "~%"),
   printf(fh, "  return cflFreq_mid; ~%"),
   printf(fh, "} ~%")
 )$

@@ -109,38 +109,50 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   p_over_gamma_NoZero : doMakeExprLst(p_over_gamma_c, p_over_gamma),
   p_over_gamma_NoZero_e : doExpandLst(p_over_gamma_NoZero, bV), 
 
-  /* alpha is the phase space flux at the surface. */
-  printf(fh, "  double alpha[~a] = {0.0}; ~%", NSurf),
-  /* Project alpha_v on the left and right onto surface basis, and print resulting coefficients. */
-  alpha_c : fullratsimp(calcInnerProdList(surfVars, 1, bSurf, p_over_gamma_NoZero_e)),
-  writeCExprs1(alpha, alpha_c),
-  printf(fh, "~%"),
-  flush_output(fh),
-  /* Zero out components of alpha which are empty. */
-  alphaNoZero : doMakeExprLst(alpha_c, alpha),
-  alpha_e : doExpandLst(alphaNoZero, bSurf),
-
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
-  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
-  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
-  
+  printf(fh, "  double fUpwind_l[~a]; ~%", NSurf),
+  printf(fh, "  double fUpwind_r[~a]; ~%", NSurf),
   printf(fh, "  if (~a>0) { ~%~%",wv),
-
   /* Because v > 0, need left edge value */
-  /* Evaluate surface projection of Ghat_r = v f_c. */
-  Ghat_r_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=1, fc_e)),
-  writeCExprsCollect1lhsc(Ghat_r, Ghat_r_c),
+  /* Evaluate surface projection of 
+     Ghat_l = v f_l(cv=1)
+     Ghat_r = v f_c(cv=1). */
+  fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, fl_e)),
+  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
   printf(fh, "~%"),
   flush_output(fh),
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
-  /* Evaluate surface projection of Ghat_l = v f_l. */
-  Ghat_l_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=1, fl_e)),
+  fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, fc_e)),
+  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } else { ~%~%"),
+  /* Else v < 0, need right edge value */
+  /* Evaluate surface projection of 
+     Ghat_l = v f_c(cv=-1)
+     Ghat_r = v f_r(cv=-1). */
+  fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, fc_e)),
+  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, fr_e)),
+  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } ~%"),
+  /* Construct Ghat from p/gamma*fUpwind. */
+  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
+  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
+  fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
+  fUpwind_r_e : doExpand1(fUpwind_r, bSurf),
+
+  Ghat_l_c : calcInnerProdList(surfVars, p_over_gamma_NoZero_e, bSurf, fUpwind_l_e),
   writeCExprsCollect1lhsc(Ghat_l, Ghat_l_c),
   printf(fh, "~%"),
   flush_output(fh),
@@ -148,30 +160,14 @@ calcVlasovSRStreamUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) 
   GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
   Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
-  printf(fh, "  } else { ~%~%"),
-  
-  /* Because v < 0, need right edge value */
-  /* Evaluate surface projection of Ghat_r = v f_r. */
-  Ghat_r_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=-1, fr_e)),
-  writeCExprs1(Ghat_r, Ghat_r_c), 
+  Ghat_r_c : calcInnerProdList(surfVars, p_over_gamma_NoZero_e, bSurf, fUpwind_r_e),
+  writeCExprsCollect1lhsc(Ghat_r, Ghat_r_c),
   printf(fh, "~%"),
   flush_output(fh),
-
   /* Zero out components of Ghat which are empty. */
   GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
   Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
-  /* Evaluate surface projection of Ghat_l = v f_c. */
-  Ghat_l_c : calcInnerProdList(surfVars, alpha_e, bSurf, subst(cv=-1, fc_e)),
-  writeCExprs1(Ghat_l, Ghat_l_c), 
-  printf(fh, "~%"),
-  flush_output(fh),
-
-  /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
-  
-  printf(fh, "  } ~%"),
   /* Compute surface contribution integral(phi^- Ghat) on the right. */
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
@@ -257,12 +253,6 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   for i : 1 thru vdim do (
     printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
   ),
-  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, NC*(dir-1)),
-  if (vdim = 1) then (
-    acc_l_e : doExpand1(Efld[1],bC), 
-    acc_r_e : doExpand1(Efld[1],bC)
-  ), 
-
   for dir : 1 thru vdim do (
     printf(fh, "  const double *jacob_vel_inv~a = &jacob_vel_inv[~a]; ~%", dir-1, NV_1D*(dir-1))
   ),
@@ -273,15 +263,22 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   jacob_vel_inv_vz : doExpand1(jacob_vel_inv2, bV_vz),
   jacob_vel_inv_fld : [jacob_vel_inv_vx, jacob_vel_inv_vy, jacob_vel_inv_vz],  
 
+  /* acceleration is re-scaled by inverse Jacobian (we need alpha/J for update) */
+  printf(fh, "  const double *E~a = &qmem[~a]; ~%", dir-1, NC*(dir-1)),
+  if (vdim = 1) then (
+    acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC)), 
+    acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC))
+  ), 
+
   gamma_e : doExpand1(gamma, bV), 
-  gamma_surf_l : subst(vv=-1, gamma_e), 
-  gamma_surf_r : subst(vv=1, gamma_e), 
+  /* NOTE: p/gamma includes inverse Jacobian in direction of update so we can 
+     compute correctly scaled alpha_i/J_i = 1/J_i (p/gamma x B) */
   if (vdim > 1) then (
     if (dir = 1) then (
       printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_l, vy)), 
-      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_r, vy)), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_e, vy))), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_e, vy))), 
       writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
       writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
       printf(fh, "~%"),
@@ -292,14 +289,14 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
       py_over_gamma_r_NoZero : doMakeExprLst(py_over_gamma_r_c, p1_over_gamma_r),
       py_over_gamma_r_NoZero_e : doExpandLst(py_over_gamma_r_NoZero, bSurfV), 
 
-      acc_l_e : doExpand1(Efld[1],bC) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
-      acc_r_e : doExpand1(Efld[1],bC) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC)) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC)) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
 
       if (vdim = 3) then (
         printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
         printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_l, vz)), 
-        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_r, vz)), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_e, vz))), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_e, vz))), 
         writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
         writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
         printf(fh, "~%"),
@@ -310,8 +307,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
         pz_over_gamma_r_NoZero : doMakeExprLst(pz_over_gamma_r_c, p2_over_gamma_r),
         pz_over_gamma_r_NoZero_e : doExpandLst(pz_over_gamma_r_NoZero, bSurfV), 
 
-        acc_l_e : doExpand1(Efld[1],bC) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC), 
-        acc_r_e : doExpand1(Efld[1],bC) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC), 
+        acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC)) + py_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC), 
+        acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[1],bC)) + py_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC) - pz_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC), 
 
         printf(fh, "  const double *B~a = &qmem[~a]; ~%", 1, NC*4)
       ), 
@@ -321,8 +318,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     else if (dir = 2) then (
       printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_l, vx)), 
-      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_r, vx)), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_e, vx))), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_e, vx))), 
       writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
       writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
 
@@ -332,14 +329,14 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
       px_over_gamma_r_NoZero : doMakeExprLst(px_over_gamma_r_c, p0_over_gamma_r),
       px_over_gamma_r_NoZero_e : doExpandLst(px_over_gamma_r_NoZero, bSurfV), 
  
-      acc_l_e : doExpand1(Efld[2],bC) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
-      acc_r_e : doExpand1(Efld[2],bC) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[2],bC)) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+      acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[2],bC)) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
 
       if (vdim = 3) then (
         printf(fh, "  double p2_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
         printf(fh, "  double p2_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_l, vz)), 
-        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_surf_r, vz)), 
+        pz_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_e, vz))), 
+        pz_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[3]*dv11[3]*diff(gamma_e, vz))), 
         writeCExprs1(p2_over_gamma_l, pz_over_gamma_l_c), 
         writeCExprs1(p2_over_gamma_r, pz_over_gamma_r_c), 
 
@@ -349,8 +346,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
         pz_over_gamma_r_NoZero : doMakeExprLst(pz_over_gamma_r_c, p2_over_gamma_r),
         pz_over_gamma_r_NoZero_e : doExpandLst(pz_over_gamma_r_NoZero, bSurfV), 
 
-        acc_l_e : doExpand1(Efld[2],bC) + pz_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
-        acc_r_e : doExpand1(Efld[2],bC) + pz_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
+        acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[2],bC)) + pz_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_l_NoZero_e*doExpand1(Bfld[3],bC), 
+        acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[2],bC)) + pz_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC) - px_over_gamma_r_NoZero_e*doExpand1(Bfld[3],bC), 
 
         printf(fh, "  const double *B~a = &qmem[~a]; ~%", 0, NC*3)
       ), 
@@ -360,8 +357,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
     else (
       printf(fh, "  double p0_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p0_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_l, vx)), 
-      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_surf_r, vx)), 
+      px_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_e, vx))), 
+      px_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[1]*dv11[1]*diff(gamma_e, vx))), 
       writeCExprs1(p0_over_gamma_l, px_over_gamma_l_c), 
       writeCExprs1(p0_over_gamma_r, px_over_gamma_r_c), 
 
@@ -373,8 +370,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
 
       printf(fh, "  double p1_over_gamma_l[~a] = {0.0}; ~%", NSurfV), 
       printf(fh, "  double p1_over_gamma_r[~a] = {0.0}; ~%", NSurfV), 
-      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_l, vy)), 
-      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_surf_r, vy)), 
+      py_over_gamma_l_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=-1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_e, vy))), 
+      py_over_gamma_r_c : calcInnerProdList(surfVarsV, 1, bSurfV, subst(vv=1, jacob_vel_inv_fld[dir]*jacob_vel_inv_fld[2]*dv11[2]*diff(gamma_e, vy))), 
       writeCExprs1(p1_over_gamma_l, py_over_gamma_l_c), 
       writeCExprs1(p1_over_gamma_r, py_over_gamma_r_c), 
 
@@ -384,8 +381,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
       py_over_gamma_r_NoZero : doMakeExprLst(py_over_gamma_r_c, p1_over_gamma_r),
       py_over_gamma_r_NoZero_e : doExpandLst(py_over_gamma_r_NoZero, bSurfV), 
 
-      acc_l_e : doExpand1(Efld[3],bC) + px_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC), 
-      acc_r_e : doExpand1(Efld[3],bC) + px_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC), 
+      acc_l_e : subst(vv=-1, jacob_vel_inv_fld[dir]*doExpand1(Efld[3],bC)) + px_over_gamma_l_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_l_NoZero_e*doExpand1(Bfld[1],bC), 
+      acc_r_e : subst(vv=1, jacob_vel_inv_fld[dir]*doExpand1(Efld[3],bC)) + px_over_gamma_r_NoZero_e*doExpand1(Bfld[2],bC) - py_over_gamma_r_NoZero_e*doExpand1(Bfld[1],bC), 
 
       printf(fh, "  const double *B~a = &qmem[~a]; ~%", 0, NC*3), 
       printf(fh, "  const double *B~a = &qmem[~a]; ~%", 1, NC*4), 
@@ -475,8 +472,8 @@ calcVlasovSRLorentzUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
   Ghat_r_e : doExpand1(Ghat_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
-  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), subst(vv=-1, jacob_vel_inv_fld[dir])*Ghat_l_e),
-  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), subst(vv=1, jacob_vel_inv_fld[dir])*Ghat_r_e),
+  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr_l + dv11[dir]*incr_r),  
   printf(fh, "~%"),
 

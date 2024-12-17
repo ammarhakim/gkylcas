@@ -23,16 +23,26 @@ calc_vmap(fh, funcNm, vdim) := block(
   NV_p2 : length(bV_p2),
 
   /* Specific bases for computing Jacobian */
-  bV_vx : subst(x=x, copylist(bV_p3)), 
-  bV_vy : subst(x=y, copylist(bV_p3)), 
-  bV_vz : subst(x=z, copylist(bV_p3)), 
-  [varsV_vdim,bV_vdim] : loadBasis("Tensor", vdim, 2),
+  bV_vx_p3 : subst(x=x, copylist(bV_p3)), 
+  bV_vy_p3 : subst(x=y, copylist(bV_p3)), 
+  bV_vz_p3 : subst(x=z, copylist(bV_p3)), 
+  bV_vx_p2 : subst(x=x, copylist(bV_p2)), 
+  bV_vy_p2 : subst(x=y, copylist(bV_p2)), 
+  bV_vz_p2 : subst(x=z, copylist(bV_p2)), 
+  [varsV_vdim_p3,bV_vdim_p3] : loadBasis("Ser", vdim, 3),
+  [varsV_vdim_p2,bV_vdim_p2] : loadBasis("Tensor", vdim, 2),
+  NV_vdim_p2 : length(bV_vdim_p2), 
+  NV_vdim_p3 : length(bV_vdim_p3), 
 
   /* Function declaration with input/output variables. */
-  printf(fh, "void ~a(const double *dv, const double *v_cubic_dir[GKYL_MAX_VDIM], double* GKYL_RESTRICT vmap, double* GKYL_RESTRICT jacob_vel_inv) ~%{ ~%", funcNm),
+  printf(fh, "void ~a(const double *dv, const double *v_cubic_dir[GKYL_MAX_VDIM], double* GKYL_RESTRICT vmap, double* GKYL_RESTRICT jacob_vel_inv, 
+    double* GKYL_RESTRICT vmap_pgkyl, double* GKYL_RESTRICT jacob_vel_pgkyl, double* GKYL_RESTRICT jacob_vel_gauss) ~%{ ~%", funcNm),
   printf(fh, "  // v_cubic_dir: Cubic C^1 representation of the velocity mapping.~%"),
-  printf(fh, "  // vmap: Velocity-space nonuniform mapping.~%"),
-  printf(fh, "  // jacob_vel_inv: Inverse of velocity space Jacobian.~%"),
+  printf(fh, "  // vmap: Velocity-space nonuniform mapping in each dimension.~%"),
+  printf(fh, "  // jacob_vel_inv: Inverse of velocity space Jacobian in each dimension.~%"),
+  printf(fh, "  // vmap_pgkyl: Velocity-space nonuniform mapping for I/O (defined in full 1V, 2V, or 3V).~%"),
+  printf(fh, "  // jacob_vel_pgkyl: Velocity space Jacobian for I/O (defined in full 1V, 2V, or 3V).~%"),
+  printf(fh, "  // jacob_vel_gauss: Velocity space Jacobian at Gauss-Legendre quadrature points.~%"),
   printf(fh, " ~%"),  
 
   printf(fh, "  double dv_tot = 1.0; ~%"),
@@ -41,6 +51,7 @@ calc_vmap(fh, funcNm, vdim) := block(
     printf(fh, "  dv_tot *= 2.0/dv[~a]; ~%", dir-1, dir-1),
     printf(fh, "  const double *v_cubic_dir~a = &v_cubic_dir[~a][0]; ~%", dir-1, dir-1),
     printf(fh, "  double *p~a = &vmap[~a]; ~%", dir-1, NV_p3*(dir-1)),
+    printf(fh, "  double *vmap_pgkyl~a = &vmap_pgkyl[~a]; ~%", dir-1, NV_vdim_p3*(dir-1)),
     printf(fh, "  double *jacob_vel_inv~a = &jacob_vel_inv[~a]; ~%", dir-1, NV_p2*(dir-1))
   ),
 
@@ -84,22 +95,45 @@ calc_vmap(fh, funcNm, vdim) := block(
     printf(fh, "~%") 
   ), 
 
-  /* Expand full Jacobian at Gauss-Legendre quadrature nodes */
+  /* Expand vmap and inverse Jacobian in high dimensional basis for I/O
+     along with full Jacobian at Gauss-Legendre quadrature nodes */
   nodes_gauss : gaussOrd(3, vdim),
   num_nodes_gauss : length(nodes_gauss), 
-  px_gauss_e : doExpand1(p0, bV_vx), 
-  py_gauss_e : doExpand1(p1, bV_vy), 
-  pz_gauss_e : doExpand1(p2, bV_vz), 
+  px_gauss_e : doExpand1(p0, bV_vx_p3), 
+  py_gauss_e : doExpand1(p1, bV_vy_p3), 
+  pz_gauss_e : doExpand1(p2, bV_vz_p3), 
   /* Evaluate the derivative at nodes */
   if (vdim = 1) then (
-    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x), nodes_gauss, varsV_vdim)
+    vmap_vx_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, px_gauss_e), 
+    jacob_vel_vdim_c : calcInnerProdList(varsV_vdim_p2, 1, bV_vdim_p2, diff(px_gauss_e,x)), 
+    writeCExprs1(vmap_pgkyl0, vmap_vx_c), 
+    printf(fh, "~%"), 
+    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x), nodes_gauss, varsV_vdim_p3)
   )
   else if (vdim = 2) then(
-    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x)*diff(py_gauss_e,y), nodes_gauss, varsV_vdim)
+    vmap_vx_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, px_gauss_e), 
+    vmap_vy_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, py_gauss_e), 
+    jacob_vel_vdim_c : calcInnerProdList(varsV_vdim_p2, 1, bV_vdim_p2, diff(px_gauss_e,x)*diff(py_gauss_e,y)), 
+    writeCExprs1(vmap_pgkyl0, vmap_vx_c), 
+    writeCExprs1(vmap_pgkyl1, vmap_vy_c), 
+    printf(fh, "~%"),     
+    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x)*diff(py_gauss_e,y), nodes_gauss, varsV_vdim_p3)
   )
   else (
-    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x)*diff(py_gauss_e,y)*diff(pz_gauss_e,z), nodes_gauss, varsV_vdim)
+    vmap_vx_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, px_gauss_e), 
+    vmap_vy_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, py_gauss_e), 
+    vmap_vz_c : calcInnerProdList(varsV_vdim_p3, 1, bV_vdim_p3, pz_gauss_e), 
+    jacob_vel_vdim_c : calcInnerProdList(varsV_vdim_p2, 1, bV_vdim_p2, diff(px_gauss_e,x)*diff(py_gauss_e,y)*diff(pz_gauss_e,z)), 
+    writeCExprs1(vmap_pgkyl0, vmap_vx_c), 
+    writeCExprs1(vmap_pgkyl1, vmap_vy_c), 
+    writeCExprs1(vmap_pgkyl2, vmap_vz_c), 
+    printf(fh, "~%"),  
+    jacob_vel_gauss_nodes : evAtNodes(diff(px_gauss_e,x)*diff(py_gauss_e,y)*diff(pz_gauss_e,z), nodes_gauss, varsV_vdim_p3)
   ),
+  for i : 1 thru NV_vdim_p2 do (
+    printf(fh, "  jacob_vel_pgkyl[~a] = dv_tot*(~a);~%", i-1, float(expand(jacob_vel_vdim_c[i])))
+  ),
+  printf(fh, "~%"), 
   for i : 1 thru num_nodes_gauss do (
     printf(fh, "  jacob_vel_gauss[~a] = dv_tot*(~a);~%", i-1, float(expand(jacob_vel_gauss_nodes[i])))
   ),
