@@ -1,4 +1,4 @@
-load("lbo_vlasov/vmLBOFuncs-drag-vol")$
+load("lbo_vlasov/vmLBOFuncs-drag-vmap-vol")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -11,7 +11,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -19,7 +19,7 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 1$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating lbo_vlasov_drag_vol_~ax~av_",bName[bInd]," _p~a"),c,v,polyOrder)),
-        funcName : sconcat("lbo_vlasov_drag_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
+        funcName : sconcat("lbo_vlasov_vmap_drag_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
         fname : sconcat("~/max-out/",funcName, ".c"),
         fh : openw(fname),
         calcVmLBODragVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
