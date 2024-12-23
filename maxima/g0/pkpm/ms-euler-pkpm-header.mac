@@ -46,14 +46,15 @@ printPKPMPrototype(deco, ci, bStr, pi) := block([si],
   const double* p_ij, const double* prim, const double* pkpm_accel, 
   double* GKYL_RESTRICT fluid_io, double* GKYL_RESTRICT pkpm_vars_io); ~%", deco, ci, bStr, pi),
 
-  printf(fh, "~avoid euler_pkpm_em_coupling_set_~ax_~a_p~a(int count, int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, bool pkpm_field_static, double dt, 
-  struct gkyl_nmat *A, struct gkyl_nmat *rhs, 
+  printf(fh, "~avoid euler_pkpm_em_coupling_set_~ax_~a_p~a(int count, 
+  int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, bool pkpm_field_static, double dt, 
+  struct gkyl_nmat *A_n, struct gkyl_nmat *rhs_n, 
   const double *app_accel[GKYL_MAX_SPECIES], const double *ext_em, const double *app_current, 
-  const double *vlasov_pkpm_moms[GKYL_MAX_SPECIES], const double* pkpm_u[GKYL_MAX_SPECIES], 
-  double* GKYL_RESTRICT em); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid euler_pkpm_em_coupling_copy_~ax_~a_p~a(int count, int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, struct gkyl_nmat *x, 
-  const double *vlasov_pkpm_moms[GKYL_MAX_SPECIES], const double* pkpm_u[GKYL_MAX_SPECIES], 
-  double* GKYL_RESTRICT euler_pkpm[GKYL_MAX_SPECIES], double* GKYL_RESTRICT em) ; ~%", deco, ci, bStr, pi),
+  const double *vlasov_pkpm_moms[GKYL_MAX_SPECIES], 
+  double* GKYL_RESTRICT euler_pkpm[GKYL_MAX_SPECIES], double* GKYL_RESTRICT em); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid euler_pkpm_em_coupling_copy_~ax_~a_p~a(int count, 
+  int num_species, double qbym[GKYL_MAX_SPECIES], double epsilon0, 
+  struct gkyl_nmat *x, double* GKYL_RESTRICT euler_pkpm[GKYL_MAX_SPECIES], double* GKYL_RESTRICT em); ~%", deco, ci, bStr, pi),
 
   printf(fh, "~avoid euler_pkpm_source_~ax_~a_p~a(const double *qmem, const double *vlasov_pkpm_moms, const double *euler_pkpm, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
   printf(fh, "~adouble euler_pkpm_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *prim, const double *p_ij, const double *euler_pkpm, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
@@ -98,6 +99,7 @@ printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_mat.h> ~%")$
 printf(fh, "#include <gkyl_wave_geom.h> ~%")$
 printf(fh, "#include <gkyl_wv_eqn.h> ~%")$
+printf(fh, "#include <gkyl_wv_ten_moment_priv.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
