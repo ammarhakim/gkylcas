@@ -39,7 +39,7 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      fname : sconcat("~/max-out/testingfpo/fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
+      fname : sconcat("~/max-out/fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
       funcNm : sconcat("fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder),
       generateFpoVlasovDiffVol(fname, funcNm, c, bName[bInd], polyOrder)
     )

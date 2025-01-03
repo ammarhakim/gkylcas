@@ -11,7 +11,7 @@ load("fpo/funcs-fpo-vlasov-diff-boundary-surf-cross")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
 maxCdim_Ser : 1$
@@ -42,15 +42,13 @@ dirCombos : listify(cartesian_product(setify(dirs), setify(dirs)))$
 
 dirNums : [[vx, 1], [vy, 2], [vz, 3]]$
 
-dirCombos : [[vy,vx]]$
-
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for vidx : 1 thru length(dirCombos) do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
         pv1 : dirCombos[vidx][1],
         pv2 : dirCombos[vidx][2],
-        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",
+        fname : sconcat("~/max-out/fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder),
         funcNm : sconcat("fpo_vlasov_diff_boundary_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
         pvdir1 : assoc(pv1,dirNums),
@@ -60,14 +58,14 @@ for bInd : 1 thru length(bName) do (
           /* vxvx, vyvy, vzvz*/
           generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx]) 
         )
-        elseif (pvdir1 > pvdir2) then (
+        elseif (pvdir1 < pvdir2) then (
+          /* vxvy, vxvz, vyvz */  
+          generateFpoVlasovDiffBoundarySurfCrossUpper(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
+        )
+        else (
           /* vyvx, vzvx, vzvy */
           generateFpoVlasovDiffBoundarySurfCrossLower(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
         )
-        else ( 
-          /* vxvy, vxvz, vyvz */
-          generateFpoVlasovDiffBoundarySurfCrossUpper(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
-       )
       )
     )
   )

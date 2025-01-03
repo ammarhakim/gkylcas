@@ -1,6 +1,6 @@
 /*
   Generate kernels for the updates from the surface term
-  contributions from the diffusion portion of the 
+  contributions from the drag portion of the 
   Rosenbluth/Fokker-Planck Operator
 */
 
@@ -43,7 +43,7 @@ for bInd : 1 thru length(bName) do (
     for vidx : 1 thru length(dirs) do (
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
         pv : dirs[vidx],
-        fname : sconcat("~/max-out/testingfpo/fpo_vlasov_drag_surf",pv,"_",
+        fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
         funcNm : sconcat("fpo_vlasov_drag_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
         generateFpoVlasovDragSurf(fname, funcNm, c, bName[bInd], polyOrder, pv)

@@ -1,5 +1,5 @@
 /*
-  Generate kernels for to calculate the diffusion tensor from input
+  Generate kernels to calculate the diffusion tensor from input
   Roesnbluth potential, D_ij = d^2 G / dvi dvj
 */
 
@@ -68,7 +68,7 @@ for bInd : 1 thru length(bName) do (
             "_p",polyOrder,"_", pv1, pv2),
           funcNm : sconcat("fpo_diff_coeff_cross_", c,"x3v_", pv1, pv2, "_", bName[bInd]),
           generateFpoDiffCoeffCrossUpper(fname, funcNm, c, bName[bInd], polyOrder, dirCombos[vidx])
-        )
+        ) 
       )    
     )
   )

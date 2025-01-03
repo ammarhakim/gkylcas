@@ -129,14 +129,14 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
     printf(fh, "~%"),
     printf(fh, "  // Index into D and f stencils. ~%"),
 
-    stencilCells : getStencilCellsList1D(stencilLoc[sI]),
+    stencilCells : [L, C, R], 
 
     diff_coeff_index : 4*(pvdir-1),
     printf(fh, "  const double *DC = &diff_coeff_C[~a]; ~%", diff_coeff_index*NC),
     for i : 1 thru length(stencilCells) do (
       if (stencilCells[i] = C or stencilCells[i] = R) then (
         printf(fh, "  const double *D_surf_~a = &diff_coeff_surf_stencil[~a][~a]; ~%", 
-          stencilCells[i], i-1, diff_coeff_index*numSurf)
+          stencilCells[i], i-1, 2*diff_coeff_index*numSurf)
       ),
       printf(fh, "  const double* f~a = f_stencil[~a]; ~%", stencilCells[i], i-1)
     ), 
@@ -166,7 +166,7 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
       surft1_up_c : calcInnerProdList(surfVars, D_surf_R_e, bSurf, df_rec_up_e),
 
       /* surft2 = -1/2 * < d/dpv2 (psi-) * Dij * f_rec > */
-      surft2_lo_c : calcInnerProdList(surfVars, subst(pv=-1.0, DC_e), bSurf, f_rec_lo_e),
+      surft2_lo_c : calcInnerProdList(surfVars, subst(pv=-1, DC_e), bSurf, f_rec_lo_e),
       surft2_up_c : calcInnerProdList(surfVars, D_surf_R_e, bSurf, f_rec_up_e),
 
       /* vol = 1/2 * < d/dvj (Dij * d/dvi(psi)) * f > */
@@ -199,7 +199,7 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
 
       /* surft2 = -1/2 * < d/dpv2 (psi-) * Dij * f_rec > */
       surft2_lo_c : calcInnerProdList(surfVars, D_surf_C_e, bSurf, f_rec_lo_e),
-      surft2_up_c : calcInnerProdList(surfVars, subst(pv=1.0, DC_e), bSurf, f_rec_up_e),
+      surft2_up_c : calcInnerProdList(surfVars, subst(pv=1, DC_e), bSurf, f_rec_up_e),
 
       /* vol = 1/2 * < d/dvj (Dij * d/dvi(psi)) * f > */
       vol_c : calcInnerProdList(varsP, 1, diff(DC_e * diff(bP, pv), pv), fC_e),
@@ -246,7 +246,7 @@ generateFpoVlasovDiffBoundarySurfDiag(fname, funcNm, cdim, basisFun, polyOrder, 
 
     /* Calculate CFL */
     printf(fh, "~%"),
-    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((polyOrder+1)^2)/sqrt(2^pdim)),
+    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((polyOrder+1)^2.0/sqrt(2.0^(pdim-1)))),
 
     printf(fh, "} ~%"),
     flush_output(fh),

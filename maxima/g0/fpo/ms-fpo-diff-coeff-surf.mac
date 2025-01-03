@@ -1,7 +1,6 @@
 /*
-  Generate kernels for the diagonal terms of the
-  diffusion tensor for the Rosenbluth/Fokker-Planck Operator
-  D_ii = d^2 G / dv_i^2 
+  Generate kernels for the surface projections of the 
+  FPO diffusion tensor.
 */
 
 load(stringproc);
@@ -46,7 +45,7 @@ for bInd : 1 thru length(bName) do (
       dir : dirs[vidx],
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
         fname : sconcat("~/max-out/fpo_diff_coeff_surf_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir,".c"),
-        funcNm : sconcat("fpo_diff_coeff_diag_",c,"x3v_",dir, "_", bName[bInd],"_p",polyOrder),
+        funcNm : sconcat("fpo_diff_coeff_surf_",c,"x3v_",dir, "_", bName[bInd],"_p",polyOrder),
         generateFpoDiffCoeffSurf(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )

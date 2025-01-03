@@ -1,4 +1,4 @@
-/* 
+/*
   Generate kernels for to calculate the diffusion tensor from input
   Roesnbluth potential, D_ij = d^2 G / dvi dvj.
 
@@ -11,7 +11,7 @@
   Domain stencils are oriented such that the horizontal axis is the "lower"
   of the two input variables, e.g. vxvy and vyvx stencils are both oriented 
   with vx on the horizonal axis. For simplicity, off-diagonal element calculations
-  thus use variables pvx/pvy for horizontal/vertical axes rather than the input 
+  thus use variables pv1/pv2 for horizontal/vertical axes rather than the input 
   pv1/pv2.
 
   The regions are, in order of keri linear indexing and with stencil index location,
@@ -25,56 +25,60 @@
     0: Domain volume [0, 0]
     1: Left edge [-1, 0]
     2: Right edge [1, 0]
-    3: Bottom edge [0, -1]
+    3: Bottom edge [0, -1] ~/max-out/fpo_diff_coeff_cross_1x3v_ser_p1_vxvy_stencil_invx_invy.c
     4: Top edge [0, 1]
     5: Bottom left corner [-1, -1]
     6: Top left corner [-1, 1]
     7: Bottom right corner [1, -1]
     8: Top right corner [1, 1]
-*/
-
-load("bvp_utilities/bvp-util");
+*/      
 load("fpo/fpo-utils");
 load("modal-basis");
 load("out-scripts");
 load("recovery");
+load("bvp_utilities/bvp-util");
+
 fpprec : 24$
 
-/* Upper diagonal terms, vxvy, vxvz, vyvz */
+/* Upper diagonal elements, vxvy, vxvz, vyvz */
 generateFpoDiffCoeffCrossUpper(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
+  [pv1, pv2, vdim, pdim, dirNums, pvdir1, pvdir2, varsC, bC, varsP, bP, NC, surfVars1, bSurf1,
+  numSurf, surfVars2, bSurf2, coordVarS, dim, stencilLoc, stencilLoc_rev, stencilStr,
+  GTL_lst, GTC_lst, GTR_lst, GCL_lst, GCC_lst, GCR_lst, GBL_lst, GBC_lst, GBR_lst, GCC_e,
+  G_surf_CC_pv2_e, dGdpv2_surf_CC_pv1_e, G_rec2_lo_p, G_rec2_up_p, G_rec6_lo_p, G_rec6_up_p,
+  G_rec_lo_c, G_rec_up_c, dG_rec_lo_c, dG_rec_up_c, G_rec2_pv1_lo_p, G_rec2_pv1_up_p,
+  dG_rec_lo_e, dG_rec_up_e, G_rec_lo_e, G_rec_up_e, surft1_lo_c, surft1_up_c,
+  surft2_lo_c, surft2_up_c, vol_c, surft1_lo_e, surft1_up_e, surft2_lo_e, surft2_up_e],
   /* Phase space variables */
-  pvx : dirCombo[1],
-  pvy : dirCombo[2],
+  pv1 : dirCombo[1],
+  pv2 : dirCombo[2],
 
   /* FPO is always 3V */
   vdim : 3,
   pdim : vdim+cdim,
   dirNums : [[vx, 1], [vy, 2], [vz, 3]],
-  pvdirx : assoc(pvx,dirNums),
-  pvdiry : assoc(pvy,dirNums),
+  pvdir1 : assoc(pv1,dirNums),
+  pvdir2 : assoc(pv2,dirNums),
 
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bP),
 
-  surfVarspvx : delete(pvx, varsP),
-  bSurfpvx : basisFromVars(basisFun, surfVarspvx, polyOrder),
-  numSurf : length(bSurfpvx),
+  surfVars1 : delete(pv1, varsP),
+  bSurf1 : basisFromVars(basisFun, surfVars1, polyOrder),
+  numSurf : length(bSurf1),
 
-  surfVarspvy : delete(pvy, varsP),
-  bSurfpvy : basisFromVars(basisFun, surfVarspvy, polyOrder),
+  surfVars2 : delete(pv2, varsP),
+  bSurf2 : basisFromVars(basisFun, surfVars2, polyOrder),
 
   /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
-  coordVarS : getCoordVarS([pvx, pvy]),
+  coordVarS : getCoordVarS([pv1, pv2]),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
   with -1 meaning it is at a lower boundary, 1 upper boundary, or
   0 away from boundaries in that direction. */
   dim : 2,
   stencilLoc : getStencilCoords(dim),
-
-  stencilLoc : delete([0,0],stencilLoc),
 
   /* Begin iteration over stencil locations */
   for sI : 1 thru length(stencilLoc) do (
@@ -84,7 +88,6 @@ generateFpoDiffCoeffCrossUpper(fname, funcNm, cdim, basisFun, polyOrder, dirComb
       stencilStr : sconcat(stencilStr, "_", 
       assoc(stencilLoc[sI][d], [[-1, "lo"], [0, "in"], [1, "up"]]), string(dirCombo[d]))
     ),
-
 
     fnameStencil : sconcat(fname,"_stencil", stencilStr, ".c"),
     disp(printf(false, "Creating ~a", fnameStencil)),
@@ -103,31 +106,37 @@ generateFpoDiffCoeffCrossUpper(fname, funcNm, cdim, basisFun, polyOrder, dirComb
     printf(fh, "  // Use cell-average value for gamma. ~%"),
     printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
 
-    printf(fh, "  double dv1_pvx = 2.0/dxv[~a]; ~%", pvdirx+cdim-1),
-    printf(fh, "  double dv1_pvy = 2.0/dxv[~a]; ~%", pvdiry+cdim-1),
-    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdirx+cdim-1, pvdiry+cdim-1),
+    printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir1+cdim-1),
+    printf(fh, "  double dv2 = 2.0/dxv[~a]; ~%", pvdir2+cdim-1),
+    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1+cdim-1, pvdir2+cdim-1),
     printf(fh, " ~%"),
     printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
     printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
     printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
     printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
     printf(fh, "  double vol[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double *out = &diff_coeff[~a]; ~%", (3*(pvdirx-1) + (pvdiry-1))*NC),
+    printf(fh, "  double *out = &diff_coeff[~a]; ~%", (3*(pvdir1-1) + (pvdir2-1))*NC),
     printf(fh, "~%"),
 
-    stencilCells : getStencilCellsList(stencilLoc[sI]),
+    stencilCells : [BL, CL, TL, BC, CC, TC, BR, CR, TR],
 
     for i : 1 thru length(stencilCells) do (
       printf(fh, "  const double* G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
 
       if (stencilCells[i] = CC) then (
         printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
-          pvx, i-1, (pvdirx-1)*numSurf)
+          pv2, i-1, (pvdir2-1)*numSurf),
+        printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
+          pv1, i-1, (pvdir1-1)*numSurf)
       )
     ),
 
+    index : (vdim-1)*(pvdir1-1) + (pvdir2-2),
     printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
-      pvx, pvy, (3*(pvdiry-1) + (pvdirx-1))*numSurf),
+      pv2, pv1, index*numSurf),
+    index : (vdim-1)*(pvdir2-1) + (pvdir1-1),
+    printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
+      pv1, pv2, index*numSurf),
     printf(fh, "~%"),
 
     /* Components of G for upcoming recovery */
@@ -143,396 +152,11 @@ generateFpoDiffCoeffCrossUpper(fname, funcNm, cdim, basisFun, polyOrder, dirComb
 
     GCC_e : doExpand1(GCC, bP),
 
-    /* Surface expansions of G and derivatives */
-    G_surf_CC_pvx : eval_string(sconcat("G_surf_CC_",pvx)),
-    dGdpvx_surf_CC_pvy : eval_string(sconcat("dGd",pvx,"_surf_CC_",pvy)),
-
-    G_surf_CC_pvx_lst : makelist(G_surf_CC_pvx[i], i, 0, numSurf-1),
-    dGdpvx_surf_CC_pvy_lst : makelist(dGdpvx_surf_CC_pvy[i], i, 0, numSurf-1)/dv1_pvx,
-
-    if (stencilLoc[sI]= [0, 0]) then (
-      /*
-        Center
-        +-----+-----+-----+
-        | GTL | GTC | GTR |
-        +-----+-----+-----+
-        | GCL | GCC | GCR |
-        +-----+-----+-----+
-        | GBL | GBC | GBR |
-        +-----+-----+-----+ 
-      */
-
-      /* 2- and 6-cell recovery of G */
-      G_rec2_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
-      G_rec2_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
-
-      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pvy, pvx], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)),
-        dg(dg(GBR_lst), dg(GCR_lst))),
-      G_rec6_up_p : calcRecovFaceGen(basisFun, [pvy, pvx], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)),
-        dg(dg(GCR_lst), dg(GTR_lst))),
-
-      /* surft1 = < psi- d/dpvx G > | vy boundary */
-      surft1_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, diff(G_rec6_lo_p, pvx)),
-      surft1_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, diff(G_rec6_up_p, pvx)),
-
-      /* surft2 = < d/dpvx (psi-) G > */
-      surft2_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_lo_p)),
-      surft2_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_up_p))
-
-    )
-    elseif (stencilLoc[sI] = [-1, 0] or stencilLoc[sI] = [1, 0]) then ( 
-      /*
-        [-1, 0]
-        Left
-        +-----+-----+-----+
-        | +++ | GTC | GTR |
-        +-----+-----+-----+
-        | +++ | GCC | GCR |
-        +-----+-----+-----+
-        | +++ | GBC | GBR |
-        +-----+-----+-----+ 
-
-        [1, 0]
-        Right
-        +-----+-----+-----+
-        | GTL | GTC | +++ |
-        +-----+-----+-----+
-        | GCL | GCC | +++ |
-        +-----+-----+-----+
-        | GBL | GBC | +++ |
-        +-----+-----+-----+ 
-      */
-
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvx_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
-      G_rec2_pvx_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
-
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GCC_lst), dg(GTC_lst)),
-
-      /* surft1 = < psi- d/dpvx G > | vy boundary */
-      surft1_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-        subst(pvy=0.0, diff(G_rec2_pvy_lo_p, pvx))),
-      surft1_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-        subst(pvy=0.0, diff(G_rec2_pvy_up_p, pvx))),
-
-      /* surft2 = < d/dpvx (psi-) G > */
-      if (stencilLoc[sI] = [-1, 0]) then (
-        surft2_lo_c : G_surf_CC_pvx_lst,
-        surft2_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_up_p))
-      )
-      else (
-        surft2_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_lo_p)),
-        surft2_up_c : G_surf_CC_pvx_lst
-      )
-    )
-    elseif (stencilLoc[sI] = [0, -1] or stencilLoc[sI] = [0, 1]) then (
-      /*
-        [0, -1]
-        Bottom
-        +-----+-----+-----+
-        | GTL | GTC | GTR |
-        +-----+-----+-----+
-        | GCL | GCC | GCR |
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+ 
-
-        [0, 1]
-        Top
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+
-        | GCL | GCC | GCR |
-        +-----+-----+-----+
-        | GBL | GBC | GBR |
-        +-----+-----+-----+ 
-      */
-
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvx_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
-      G_rec2_pvx_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
-
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GCC_lst), dg(GTC_lst)),
-
-      /* surft1 = < psi- d/dpvx G > | vy boundary */
-      if (stencilLoc[sI] = [0, -1]) then (
-        surft1_lo_c : dGdpvx_surf_CC_pvy_lst,
-        surft1_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0.0, diff(G_rec2_pvy_up_p, pvx)))
-      )
-      else (
-        surft1_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0.0, diff(G_rec2_pvy_lo_p, pvx))),
-        surft1_up_c : dGdpvx_surf_CC_pvy_lst
-      ),
-
-      /* surft2 = < d/dpvx (psi-) G > */
-      surft2_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_lo_p)),
-      surft2_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_up_p))
-
-    )
-    elseif (stencilLoc[sI] = [-1, -1] or stencilLoc[sI] = [-1, 1]) then (
-      /*
-        [-1, -1]
-        Bottom Left Corner
-        +-----+-----+-----+
-        | +++ | GTC | GTR |
-        +-----+-----+-----+
-        | +++ | GCC | GCR |
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+ 
-
-
-        [-1, 1]
-        Top Left Corner
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+
-        | +++ | GCC | GCR |
-        +-----+-----+-----+
-        | +++ | GBC | GBR |
-        +-----+-----+-----+ 
-      */
-
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvx_lo_p : 0,
-      G_rec2_pvx_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
-
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GCC_lst), dg(GTC_lst)),
-
-      /* surft1 = < psi- d/dpvx G > | vy boundary */
-      if (stencilLoc[sI] = [-1, -1]) then (
-        surft1_lo_c : dGdpvx_surf_CC_pvy_lst,
-        surft1_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0, diff(G_rec2_pvy_up_p, pvx)))
-      )
-      else (
-        surft1_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0, diff(G_rec2_pvy_lo_p, pvx))),
-        surft1_up_c : dGdpvx_surf_CC_pvy_lst
-      ),
-
-      /* surft2 = < d/dpvx (psi-) G > */
-      surft2_lo_c : G_surf_CC_pvx_lst,
-      surft2_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_up_p))
-
-    )
-    elseif (stencilLoc[sI] = [1, -1] or stencilLoc[sI] = [1, 1]) then (
-      /*
-        [1, -1]
-        Bottom Right Corner
-        +-----+-----+-----+
-        | GTL | GTC | +++ |
-        +-----+-----+-----+
-        | GCL | GCC | +++ |
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+ 
-
-        [1, 1]
-        Top Right Corner
-        +-----+-----+-----+
-        | +++ | +++ | +++ |
-        +-----+-----+-----+
-        | GCL | GCC | +++ |
-        +-----+-----+-----+
-        | GBL | GBC | +++ |
-        +-----+-----+-----+ 
-      */
-
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvx_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
-      G_rec2_pvx_up_p : 0,
-
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder,
-        dg(GCC_lst), dg(GTC_lst)),
-
-      /* surft1 = < psi- d/dpvx G > | vy boundary */
-      if (stencilLoc[sI] = [1, -1]) then (
-        surft1_lo_c : dGdpvx_surf_CC_pvy_lst,
-        surft1_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0,diff(G_rec2_pvy_up_p, pvx)))
-      )
-      else (
-        surft1_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, 
-          subst(pvy=0,diff(G_rec2_pvy_lo_p, pvx))),
-        surft1_up_c : dGdpvx_surf_CC_pvy_lst
-      ),
-
-      /* surft2 = < d/dpvx (psi-) G > */
-      surft2_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, subst(pvx=0, G_rec2_pvx_lo_p)),
-      surft2_up_c : G_surf_CC_pvx_lst
-    ),
-
-    vol_c : calcInnerProdList(varsP, 1, diff(diff(bP, pvx), pvy), GCC_e),
-
-    /* Expansions of surface and volume terms */
-    surft1_lo_e : doExpand1(surft1_lo, bSurfpvy),
-    surft1_up_e : doExpand1(surft1_up, bSurfpvy),
-
-    surft2_lo_e : doExpand1(surft2_lo, bSurfpvx),
-    surft2_up_e : doExpand1(surft2_up, bSurfpvx),
-
-    vol_lst : makelist(vol[i], i, 0, NC-1),
-
-    /* Write out individual surface term expansions */
-    writeCExprs1(surft1_lo, surft1_lo_c),
-    writeCExprs1(surft1_up, surft1_up_c),
-    printf(fh, "~%"),
-    flush_output(fh),
-  
-    writeCExprs1(surft2_lo, surft2_lo_c),
-    writeCExprs1(surft2_up, surft2_up_c),
-    printf(fh, "~%"),
-    flush_output(fh),
-  
-    writeCExprs1(vol, vol_c),
-    printf(fh, "~%"),
-    flush_output(fh),
-
-    kernel : calcInnerProdList(surfVarspvy, 1, subst(pvy=1, bP), surft1_up_e) +
-      calcInnerProdList(surfVarspvy, -1, subst(pvy=-1, bP), surft1_lo_e) +
-      calcInnerProdList(surfVarspvx, -1, subst(pvx=1, diff(bP, pvy)), surft2_up_e) +
-      calcInnerProdList(surfVarspvx, 1, subst(pvx=-1, diff(bP ,pvy)), surft2_lo_e) +
-      vol_lst,
-    writeCExprsCollect1(out, gamma_avg*kernel*dv1_sq, [gamma_avg, dv1_sq]),
-    printf(fh, "} ~%"),
-    close(fh)
-  )
-)$
-
-
-/* Lower diagonal terms, vyvx, vzvx, vzvy */
-generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
-  [],
-  /* Phase space variables */
-  pvx : dirCombo[2],
-  pvy : dirCombo[1],
-
-  /* FPO is always 3V */
-  vdim : 3,
-  pdim : vdim+cdim,
-  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
-  pvdirx : assoc(pvx,dirNums),
-  pvdiry : assoc(pvy,dirNums),
-
-  /* Load basis of dimensionality requested. */
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
-  NC : length(bP),
-
-  surfVarspvx : delete(pvx, varsP),
-  bSurfpvx : basisFromVars(basisFun, surfVarspvx, polyOrder),
-  numSurf : length(bSurfpvx),
-
-  surfVarspvy : delete(pvy, varsP),
-  bSurfpvy : basisFromVars(basisFun, surfVarspvy, polyOrder),
-
-  /* Associative list between stencil location (-1,0,1) and variable strings in kernel name. */
-  coordVarS : getCoordVarS([pvx, pvy]),
-
-  /* List of stencil locations. Each entry is a dim-dimensional list
-  with -1 meaning it is at a lower boundary, 1 upper boundary, or
-  0 away from boundaries in that direction. */
-  dim : 2,
-  stencilLoc : getStencilCoords(dim),
-
-  stencilLoc : [[-1, 0], [0,0]],
-
-  /* Begin iteration over stencil locations */
-  for sI : 1 thru length(stencilLoc) do (
-    /* String used in kernel name to differentiate stencil locations */
-    stencilStr : "",
-    for d : 1 thru dim do (
-      stencilStr : sconcat(stencilStr, "_", 
-      assoc(stencilLoc[sI][d], [[-1, "lo"], [0, "in"], [1, "up"]]), string(dirCombo[d]))
-    ),
-
-
-    fnameStencil : sconcat(fname,"_stencil", stencilStr, ".c"),
-    disp(printf(false, "Creating ~a", fnameStencil)),
-    fh : openw(fnameStencil),
-    printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
-    printf(fh, " ~%"),
-
-    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
-    printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
-    printf(fh, "  // gamma: Scalar factor gamma. ~%"),
-    printf(fh, "  // fpo_g_stencil[9]: 9 cell stencil of Rosenbluth potential G. ~%"),
-    printf(fh, "  // fpo_g_surf_stencil[9]: 9 cell stencil of surface projection of G. ~%"),
-    printf(fh, "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
-    printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
-    printf(fh, "~%"),
-    printf(fh, "  // Use cell-average value for gamma. ~%"),
-    printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
-
-    printf(fh, "  double dv1_pvx = 2.0/dxv[~a]; ~%", pvdirx+cdim-1),
-    printf(fh, "  double dv1_pvy = 2.0/dxv[~a]; ~%", pvdiry+cdim-1),
-    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdirx+cdim-1, pvdiry+cdim-1),
-    printf(fh, " ~%"),
-    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
-    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
-    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
-    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
-    printf(fh, "  double vol[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double *out = &diff_coeff[~a]; ~%", (3*(pvdiry-1) + (pvdirx-1))*NC),
-    printf(fh, "~%"),
-
-    stencilCells : getStencilCellsList(stencilLoc[sI]),
-
-    for i : 1 thru length(stencilCells) do (
-      printf(fh, "  const double* G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
-
-      if (stencilCells[i] = CC) then (
-        printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
-          pvy, i-1, (pvdiry-1)*numSurf)
-      )
-    ),
-
-    printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
-      pvy, pvx, (3*(pvdirx-1) + (pvdiry-1))*numSurf),
-    printf(fh, "~%"),
-
-    /* Components of G for upcoming recovery */
-    GTL_lst : makelist(GTL[i], i, 0, NC-1),
-    GTC_lst : makelist(GTC[i], i, 0, NC-1),
-    GTR_lst : makelist(GTR[i], i, 0, NC-1),
-    GCL_lst : makelist(GCL[i], i, 0, NC-1),
-    GCC_lst : makelist(GCC[i], i, 0, NC-1),
-    GCR_lst : makelist(GCR[i], i, 0, NC-1),
-    GBL_lst : makelist(GBL[i], i, 0, NC-1),
-    GBC_lst : makelist(GBC[i], i, 0, NC-1),
-    GBR_lst : makelist(GBR[i], i, 0, NC-1),
-
-    GCC_e : doExpand1(GCC, bP),
-
-    /* Surface expansions of G and derivatives */
-    G_surf_CC_pvy : eval_string(sconcat("G_surf_CC_",pvy)),
-    dGdpvy_surf_CC_pvx : eval_string(sconcat("dGd",pvy,"_surf_CC_",pvx)),
-
-    G_surf_CC_pvy_lst : makelist(G_surf_CC_pvy[i], i, 0, numSurf-1),
-    dGdpvy_surf_CC_pvx_lst : makelist(dGdpvy_surf_CC_pvx[i], i, 0, numSurf-1)/dv1_pvy,
+    /* Surface expansions of G_v2 and (dG/dv2)_v1 */
+    G_surf_CC_pv2_e : doExpand1(eval_string(sconcat("G_surf_CC_",pv2)), bSurf2),
+    G_surf_CC_pv1_e : doExpand1(eval_string(sconcat("G_surf_CC_",pv1)), bSurf1),
+    dGdpv2_surf_CC_pv1_e : doExpand1(eval_string(sconcat("dGd",pv2,"_surf_CC_",pv1)), bSurf1)/dv2,
+    dGdpv1_surf_CC_pv2_e : doExpand1(eval_string(sconcat("dGd",pv1,"_surf_CC_",pv2)), bSurf2)/dv1,
 
     if (stencilLoc[sI] = [0, 0]) then (
       /*
@@ -545,29 +169,27 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | GBL | GBC | GBR |
         +-----+-----+-----+ 
       */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
-      /* 2- and 6-cell recovery of G */
-      G_rec2_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GCC_lst), dg(GTC_lst)),
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
 
-      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)),
-        dg(dg(GTL_lst), dg(GTC_lst))),
-      G_rec6_up_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)),
-        dg(dg(GTC_lst), dg(GTR_lst))),
-
-      /* surft1 = < psi- d/dpvy G > | vx boundary */
-      surft1_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, diff(G_rec6_lo_p, pvy)),
-      surft1_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, diff(G_rec6_up_p, pvy)),
-
-      /* surft2 = < d/dpvy (psi-) G > */
-      surft2_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_lo_p)),
-      surft2_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_up_p))
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
     )
-    elseif (stencilLoc[sI] = [-1, 0] or stencilLoc[sI] = [1, 0]) then ( 
+    elseif (stencilLoc[sI] = [-1, 0]) then (
       /*
         [-1, 0]
         Left
@@ -578,7 +200,30 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         +-----+-----+-----+
         | +++ | GBC | GBR |
         +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1,pv2=-1], GCC_e)]), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1,pv2=1], GCC_e)]), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+
+    )
+    elseif (stencilLoc[sI] = [1, 0]) then (
+      /*
         [1, 0]
         Right
         +-----+-----+-----+
@@ -589,34 +234,28 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | GBL | GBC | +++ |
         +-----+-----+-----+ 
       */
-      /* 2- and 6-cell recovery of G */
-      G_rec2_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GCC_lst), dg(GTC_lst)),
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
 
-      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)),
-        dg(dg(GTL_lst), dg(GTC_lst))),
-      G_rec6_up_p : calcRecovFaceGen(basisFun, [pvx, pvy], varsP, 0, 0, polyOrder, 1,
-        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)),
-        dg(dg(GTC_lst), dg(GTR_lst))),
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)])),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
 
-      /* surft1 = < psi- d/dpvy G > | vx boundary */
-      if (stencilLoc[sI] = [-1, 0]) then (
-        surft1_lo_c : dGdpvy_surf_CC_pvx_lst,
-        surft1_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, diff(G_rec6_up_p, pvy))
-      )
-      else (
-       surft1_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, diff(G_rec6_lo_p, pvy)),
-       surft1_up_c : dGdpvy_surf_CC_pvx_lst
-      ),
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
 
-      /* surft2 = < d/dpvy (psi-) G > */
-      surft2_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_lo_p)),
-      surft2_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_up_p))
     )
-    elseif (stencilLoc[sI] = [0, -1] or stencilLoc[sI] = [0, 1]) then (
+    elseif (stencilLoc[sI] = [0, -1]) then (
       /*
         [0, -1]
         Bottom
@@ -627,7 +266,27 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         +-----+-----+-----+
         | +++ | +++ | +++ |
         +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+    )
+    elseif (stencilLoc[sI] = [0, 1]) then (
+      /*
         [0, 1]
         Top
         +-----+-----+-----+
@@ -638,34 +297,26 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | GBL | GBC | GBR |
         +-----+-----+-----+ 
       */
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GCC_lst), dg(GTC_lst)),
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
-      G_rec2_pvx_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
-      G_rec2_pvx_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : 0,
 
-      /* surft1 = < psi- d/dpvy G > | vx boundary */
-      surft1_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
-        subst(pvx=0, diff(G_rec2_pvx_lo_p, pvy))),
-      surft1_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
-        subst(pvx=0, diff(G_rec2_pvx_up_p, pvy))),
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)
 
-      /* surft2 = < d/dpvy (psi-) G > */
-      if (stencilLoc[sI] = [0, -1]) then (
-        surft2_lo_c : G_surf_CC_pvy_lst,
-        surft2_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_up_p))
-      )
-      else (
-        surft2_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_lo_p)),
-        surft2_up_c : G_surf_CC_pvy_lst
-      )
     )
-    elseif (stencilLoc[sI] = [-1, -1] or stencilLoc[sI] = [-1, 1]) then (
+    elseif (stencilLoc[sI] = [-1, -1]) then (
       /*
         [-1, -1]
         Bottom Left Corner
@@ -676,7 +327,27 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         +-----+-----+-----+
         | +++ | +++ | +++ |
         +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1,pv2=1], GCC_e)]), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))    
+    )
+    elseif (stencilLoc[sI] = [-1, 1]) then (
+      /*
         [-1, 1]
         Top Left Corner
         +-----+-----+-----+
@@ -687,31 +358,25 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | +++ | GBC | GBR |
         +-----+-----+-----+ 
       */
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GCC_lst), dg(GTC_lst)),
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
 
-      G_rec2_pvx_up_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCC_lst), dg(GCR_lst)),
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1,pv2=-1], GCC_e)]), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : 0,
 
-      /* surft1 = < psi- d/dpvy G > | vx boundary */
-      surft1_lo_c : dGdpvy_surf_CC_pvx_lst,
-      surft1_up_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx, 
-        subst(pvx=0, diff(G_rec2_pvx_up_p, pvy))),
-
-      /* surft2 = < d/dpvy (psi-) G > */
-      if (stencilLoc[sI] = [-1, -1]) then (
-        surft2_lo_c : G_surf_CC_pvy_lst,
-        surft2_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_up_p))
-      )
-      else (
-        surft2_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_lo_p)),
-        surft2_up_c : G_surf_CC_pvy_lst
-      )
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)   
     )
-    elseif (stencilLoc[sI] = [1, -1] or stencilLoc[sI] = [1, 1]) then (
+    elseif (stencilLoc[sI] = [1, -1]) then (
       /*
         [1, -1]
         Bottom Right Corner
@@ -721,8 +386,28 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | GCL | GCC | +++ |
         +-----+-----+-----+
         | +++ | +++ | +++ |
-        +-----+-----+-----+ 
+        +-----+-----+-----+
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
 
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))  
+  )
+  elseif (stencilLoc[sI] = [1, 1]) then (
+      /*
         [1, 1]
         Top Right Corner
         +-----+-----+-----+
@@ -733,39 +418,51 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
         | GBL | GBC | +++ |
         +-----+-----+-----+ 
       */
-      /* 2-cell recovery of G in each direction */
-      G_rec2_pvy_lo_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GBC_lst), dg(GCC_lst)),
-      G_rec2_pvy_up_p : calcRecov2CellGen(basisFun, pvy, varsP, polyOrder, 
-        dg(GCC_lst), dg(GTC_lst)),
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
 
-      G_rec2_pvx_lo_p : calcRecov2CellGen(basisFun, pvx, varsP, polyOrder, 
-        dg(GCL_lst), dg(GCC_lst)),
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)])),
+      G_rec6_up_p : 0,
 
-      /* surft1 = < psi- d/dpvy G > | vx boundary */
-      surft1_lo_c : calcInnerProdList(surfVarspvx, 1, bSurfpvx,
-        subst(pvx=0, diff(G_rec2_pvx_lo_p, pvy))),
-      surft1_up_c : dGdpvy_surf_CC_pvx_lst,
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)
 
-      /* surft2 = < d/dpvy (psi-) G > */
-      if (stencilLoc[sI] = [1, -1]) then (
-        surft2_lo_c : G_surf_CC_pvy_lst,
-        surft2_up_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_up_p))
-      )
-      else (
-        surft2_lo_c : calcInnerProdList(surfVarspvy, 1, bSurfpvy, subst(pvy=0, G_rec2_pvy_lo_p)),
-        surft2_up_c : G_surf_CC_pvy_lst
-      )
+
     ),
 
-    vol_c : calcInnerProdList(varsP, 1, diff(diff(bP, pvy), pvx), GCC_e),
+    /* Expansions of surface projections of (G)_v2 and (dG/dv2)_v1 */
+    dG_rec_lo_e : doExpand(dG_rec_lo_c, bSurf2),
+    dG_rec_up_e : doExpand(dG_rec_up_c, bSurf2),
+
+    G_rec_lo_e : doExpand(G_rec_lo_c, bSurf1),
+    G_rec_up_e : doExpand(G_rec_up_c, bSurf1),
+
+    /* surft1 = < psi- * d/dvj(G_rec) > dS_vi */
+    surft1_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, dG_rec_lo_e),
+    surft1_up_c : calcInnerProdList(surfVars2, 1, bSurf2, dG_rec_up_e),
+
+    /* surft2 = -< d/dvi(psi-) G_rec > dS_vj */
+    surft2_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_rec_lo_e),
+    surft2_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_rec_up_e),
+
+    /* vol = < G d^2/dvi dvj(psi) > */
+    vol_c : calcInnerProdList(varsP, 1, diff(diff(bP, pv2), pv1), GCC_e),
 
     /* Expansions of surface and volume terms */
-    surft1_lo_e : doExpand1(surft1_lo, bSurfpvx),
-    surft1_up_e : doExpand1(surft1_up, bSurfpvx),
+    surft1_lo_e : doExpand1(surft1_lo, bSurf2),
+    surft1_up_e : doExpand1(surft1_up, bSurf2),
 
-    surft2_lo_e : doExpand1(surft2_lo, bSurfpvy),
-    surft2_up_e : doExpand1(surft2_up, bSurfpvy),
+    surft2_lo_e : doExpand1(surft2_lo, bSurf1),
+    surft2_up_e : doExpand1(surft2_up, bSurf1),
 
     vol_lst : makelist(vol[i], i, 0, NC-1),
 
@@ -784,10 +481,10 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
     printf(fh, "~%"),
     flush_output(fh),
 
-    kernel : calcInnerProdList(surfVarspvx, 1, subst(pvx=1, bP), surft1_up_e) +
-      calcInnerProdList(surfVarspvx, -1, subst(pvx=-1, bP), surft1_lo_e) +
-      calcInnerProdList(surfVarspvy, -1, subst(pvy=1, diff(bP, pvx)), surft2_up_e) +
-      calcInnerProdList(surfVarspvy, 1, subst(pvy=-1, diff(bP, pvx)), surft2_lo_e) +
+    kernel : calcInnerProdList(surfVars2, 1, subst(pv2=1, bP), surft1_up_e) +
+      calcInnerProdList(surfVars2, -1, subst(pv2=-1, bP), surft1_lo_e) +
+      calcInnerProdList(surfVars1, -1, subst(pv1=1, diff(bP, pv2)), surft2_up_e) +
+      calcInnerProdList(surfVars1, 1, subst(pv1=-1, diff(bP, pv2)), surft2_lo_e) +
       vol_lst,
 
     writeCExprsCollect1(out, gamma_avg*kernel*dv1_sq, [gamma_avg, dv1_sq]),
@@ -796,7 +493,930 @@ generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirComb
   )
 )$
 
-/* Diagonal elements of the diffusion tensor */
+/* Lower diagonal elements, vyvx, vzvx, vzvy */
+generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
+  [],
+  /* Phase space variables */
+  pv1 : dirCombo[1],
+  pv2 : dirCombo[2],
+
+  /*
+    The difference between this function and the Upper cross terms is that now,
+    pv1 > pv2 (e.g. vy,vx). We choose to stencil such that the "lower" direction (vx) is along
+    the horizontal axis of the stencil diagrams shown here. This difference is only relevant
+    to the choice of cells involved in the recoveries, as now, for example, a recovery in pv1
+    will be vertical (as opposed to horizontal in the Upper cross term).
+  */
+
+
+  /* FPO is always 3V */
+  vdim : 3,
+  pdim : vdim+cdim,
+  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
+  pvdir1 : assoc(pv1,dirNums),
+  pvdir2 : assoc(pv2,dirNums),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bP),
+
+  surfVars1 : delete(pv1, varsP),
+  bSurf1 : basisFromVars(basisFun, surfVars1, polyOrder),
+  numSurf : length(bSurf1),
+
+  surfVars2 : delete(pv2, varsP),
+  bSurf2 : basisFromVars(basisFun, surfVars2, polyOrder),
+
+  /* 
+    Associative list between stencil location (-1,0,1) and variable strings in kernel name. 
+    Note that we've flipped pv1 and pv2 so domain indexing starts with "lower" variable
+  */
+  coordVarS : getCoordVarS([pv2, pv1]),
+
+  /* List of stencil locations. Each entry is a dim-dimensional list
+  with -1 meaning it is at a lower boundary, 1 upper boundary, or
+  0 away from boundaries in that direction. */
+  dim : 2,
+  stencilLoc : getStencilCoords(dim),
+  stencilLoc : delete([0,0], stencilLoc),
+
+  /* Begin iteration over stencil locations */
+  for sI : 1 thru length(stencilLoc) do (
+    /* String used in kernel name to differentiate stencil locations */
+    stencilStr : "",
+
+    /* Reverse the stencil index JUST FOR NAMING for consistency */
+    stencilLoc_rev : [stencilLoc[sI][2], stencilLoc[sI][1]],
+    for d : 1 thru dim do (
+      stencilStr : sconcat(stencilStr, "_", 
+      assoc(stencilLoc_rev[d], [[-1, "lo"], [0, "in"], [1, "up"]]), string(dirCombo[d]))
+    ),
+
+    fnameStencil : sconcat(fname,"_stencil", stencilStr, ".c"),
+    disp(printf(false, "Creating ~a", fnameStencil)),
+    fh : openw(fnameStencil),
+    printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
+    printf(fh, " ~%"),
+
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
+    printf(fh, "  // gamma: Scalar factor gamma. ~%"),
+    printf(fh, "  // fpo_g_stencil[9]: 9 cell stencil of Rosenbluth potential G. ~%"),
+    printf(fh, "  // fpo_g_surf_stencil[9]: 9 cell stencil of surface projection of G. ~%"),
+    printf(fh, "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
+    printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
+    printf(fh, "~%"),
+    printf(fh, "  // Use cell-average value for gamma. ~%"),
+    printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
+
+    printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir1+cdim-1),
+    printf(fh, "  double dv2 = 2.0/dxv[~a]; ~%", pvdir2+cdim-1),
+    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1+cdim-1, pvdir2+cdim-1),
+    printf(fh, " ~%"),
+    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double vol[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double *out = &diff_coeff[~a]; ~%", (3*(pvdir1-1) + (pvdir2-1))*NC),
+    printf(fh, "~%"),
+
+    stencilCells : [BL, CL, TL, BC, CC, TC, BR, CR, TR],
+
+    for i : 1 thru length(stencilCells) do (
+      printf(fh, "  const double* G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
+
+      if (stencilCells[i] = CC) then (
+        printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
+          pv2, i-1, (pvdir2-1)*numSurf),
+        printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
+          pv1, i-1, (pvdir1-1)*numSurf)
+      )
+    ),
+
+    if (pvdir1 < pvdir2) then (
+      index : (vdim-1)*(pvdir1-1) + (pvdir2-2)
+    )
+    else (
+      index : (vdim-1)*(pvdir1-1) + (pvdir2-1)
+    ),
+
+    index : (vdim-1)*(pvdir1-1) + (pvdir2-1),
+    printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
+      pv2, pv1, index*numSurf),
+    index : (vdim-1)*(pvdir2-1) + (pvdir1-2),
+    printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
+      pv1, pv2, index*numSurf),
+    printf(fh, "~%"),
+    /* Components of G for upcoming recovery */
+    GTL_lst : makelist(GTL[i], i, 0, NC-1),
+    GTC_lst : makelist(GTC[i], i, 0, NC-1),
+    GTR_lst : makelist(GTR[i], i, 0, NC-1),
+    GCL_lst : makelist(GCL[i], i, 0, NC-1),
+    GCC_lst : makelist(GCC[i], i, 0, NC-1),
+    GCR_lst : makelist(GCR[i], i, 0, NC-1),
+    GBL_lst : makelist(GBL[i], i, 0, NC-1),
+    GBC_lst : makelist(GBC[i], i, 0, NC-1),
+    GBR_lst : makelist(GBR[i], i, 0, NC-1),
+
+    GCC_e : doExpand1(GCC, bP),
+
+    /* Surface expansions of G_v2 and (dG/dv2)_v1 */
+    G_surf_CC_pv2_e : doExpand1(eval_string(sconcat("G_surf_CC_",pv2)), bSurf2),
+    G_surf_CC_pv1_e : doExpand1(eval_string(sconcat("G_surf_CC_",pv1)), bSurf1),
+    dGdpv2_surf_CC_pv1_e : doExpand1(eval_string(sconcat("dGd",pv2,"_surf_CC_",pv1)), bSurf1)/dv2,
+    dGdpv1_surf_CC_pv2_e : doExpand1(eval_string(sconcat("dGd",pv1,"_surf_CC_",pv2)), bSurf2)/dv1,
+
+    if (stencilLoc[sI] = [0, 0]) then (
+      /*
+        Center
+        +-----+-----+-----+
+        | GTL | GTC | GTR |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | GBL | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)), 
+        dg(dg(GTL_lst), dg(GTC_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)), 
+        dg(dg(GTC_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+    )
+    elseif (stencilLoc[sI] = [-1, 0]) then (
+      /*
+        [-1, 0]
+        Left
+        +-----+-----+-----+
+        | +++ | GTC | GTR |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)), 
+        dg(dg(GTC_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+    )
+    elseif (stencilLoc[sI] = [1, 0]) then (
+      /*
+        [1, 0]
+        Right
+        +-----+-----+-----+
+        | GTL | GTC | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | GBL | GBC | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)), 
+        dg(dg(GTL_lst), dg(GTC_lst))),
+      G_rec6_up_p : 0,
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)
+
+    )
+    elseif (stencilLoc[sI] = [0, -1]) then (
+      /*
+        [0, -1]
+        Bottom
+        +-----+-----+-----+
+        | GTL | GTC | GTR |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=-1], GCC_e)]), dg(dg(GCL_lst), dg(GCC_lst)), 
+        dg(dg(GTL_lst), dg(GTC_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=1], GCC_e)]), dg(dg(GCC_lst), dg(GCR_lst)), 
+        dg(dg(GTC_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+
+    )
+    elseif (stencilLoc[sI] = [0, 1]) then (
+      /*
+        [0, 1]
+        Top
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | GBL | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)])),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))    
+    )
+    elseif (stencilLoc[sI] = [-1, -1]) then (
+      /*
+        [-1, -1]
+        Bottom Left Corner
+        +-----+-----+-----+
+        | +++ | GTC | GTR |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=1], GCC_e)]), dg(dg(GCC_lst), dg(GCR_lst)), 
+        dg(dg(GTC_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+    )
+    elseif (stencilLoc[sI] = [-1, 1]) then (
+      /*
+        [-1, 1]
+        Top Left Corner
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBC_lst), dg(GBR_lst)), dg(dg(GCC_lst), dg(GCR_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_up_p, pv1)))
+
+
+    )
+    elseif (stencilLoc[sI] = [1, -1]) then (
+      /*
+        [1, -1]
+        Bottom Right Corner
+        +-----+-----+-----+
+        | GTL | GTC | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GCC_lst), dg(GTC_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=-1], GCC_e)]), dg(dg(GCL_lst), dg(GCC_lst)), 
+        dg(dg(GTL_lst), dg(GTC_lst))),
+      G_rec6_up_p : 0,
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)
+  )
+  elseif (stencilLoc[sI] = [1, 1]) then (
+      /*
+        [1, 1]
+        Top Right Corner
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | GBL | GBC | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv1, varsP, polyOrder, dg(GBC_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv2, pv1], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GBC_lst)), dg(dg(GCL_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)])),
+      G_rec6_up_p : 0,
+
+      /* Surface projections of (G_rec)_v1 and (dG/dv1)_v2 */
+      G_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, subst(pv1=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_surf_CC_pv1_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        subst(pv2=0, diff(G_rec6_lo_p, pv1))),
+      dG_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, 
+        dGdpv1_surf_CC_pv2_e)    
+    ),
+
+    /* Expansions of surface projections of (G)_v2 and (dG/dv2)_v1 */
+    dG_rec_lo_e : doExpand(dG_rec_lo_c, bSurf2),
+    dG_rec_up_e : doExpand(dG_rec_up_c, bSurf2),
+
+    G_rec_lo_e : doExpand(G_rec_lo_c, bSurf1),
+    G_rec_up_e : doExpand(G_rec_up_c, bSurf1),
+
+    /* surft1 = < psi- * d/dvj(G_rec) > dS_vi */
+    surft1_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, dG_rec_lo_e),
+    surft1_up_c : calcInnerProdList(surfVars2, 1, bSurf2, dG_rec_up_e),
+
+    /* surft2 = -< d/dvi(psi-) G_rec > dS_vj */
+    surft2_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, G_rec_lo_e),
+    surft2_up_c : calcInnerProdList(surfVars1, 1, bSurf1, G_rec_up_e),
+
+    /* vol = < G d^2/dvi dvj(psi) > */
+    vol_c : calcInnerProdList(varsP, 1, diff(diff(bP, pv2), pv1), GCC_e),
+
+    /* Expansions of surface and volume terms */
+    surft1_lo_e : doExpand1(surft1_lo, bSurf2),
+    surft1_up_e : doExpand1(surft1_up, bSurf2),
+
+    surft2_lo_e : doExpand1(surft2_lo, bSurf1),
+    surft2_up_e : doExpand1(surft2_up, bSurf1),
+
+    vol_lst : makelist(vol[i], i, 0, NC-1),
+
+    /* Write out individual surface term expansions */
+    writeCExprs1(surft1_lo, surft1_lo_c),
+    writeCExprs1(surft1_up, surft1_up_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+  
+    writeCExprs1(surft2_lo, surft2_lo_c),
+    writeCExprs1(surft2_up, surft2_up_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+  
+    writeCExprs1(vol, vol_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    kernel : calcInnerProdList(surfVars2, 1, subst(pv2=1, bP), surft1_up_e) +
+      calcInnerProdList(surfVars2, -1, subst(pv2=-1, bP), surft1_lo_e) +
+      calcInnerProdList(surfVars1, -1, subst(pv1=1, diff(bP, pv2)), surft2_up_e) +
+      calcInnerProdList(surfVars1, 1, subst(pv1=-1, diff(bP, pv2)), surft2_lo_e) +
+      vol_lst,
+
+    writeCExprsCollect1(out, gamma_avg*kernel*dv1_sq, [gamma_avg, dv1_sq]),
+    printf(fh, "} ~%"),
+    close(fh)
+  )
+)$
+
+
+/* Lower diagonal elements, vyvx, vzvx, vzvy */
+generateFpoDiffCoeffCrossLower(fname, funcNm, cdim, basisFun, polyOrder, dirCombo) := block(
+  [],
+  /* Phase space variables */
+  pv1 : dirCombo[1],
+  pv2 : dirCombo[2],
+
+  /*
+    The difference between this function and the Upper cross terms is that now,
+    pv1 > pv2 (e.g. vy,vx). We choose to stencil such that the "lower" direction (vx) is along
+    the horizontal axis of the stencil diagrams shown here. This difference is only relevant
+    to the choice of cells involved in the recoveries, as now, for example, a recovery in pv1
+    will be vertical (as opposed to horizontal in the Upper cross term).
+  */
+
+
+  /* FPO is always 3V */
+  vdim : 3,
+  pdim : vdim+cdim,
+  dirNums : [[vx, 1], [vy, 2], [vz, 3]],
+  pvdir1 : assoc(pv1,dirNums),
+  pvdir2 : assoc(pv2,dirNums),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  NC : length(bP),
+
+  surfVars1 : delete(pv1, varsP),
+  bSurf1 : basisFromVars(basisFun, surfVars1, polyOrder),
+  numSurf : length(bSurf1),
+
+  surfVars2 : delete(pv2, varsP),
+  bSurf2 : basisFromVars(basisFun, surfVars2, polyOrder),
+
+  /* 
+    Associative list between stencil location (-1,0,1) and variable strings in kernel name. 
+    Note that we've flipped pv1 and pv2 so domain indexing starts with "lower" variable
+  */
+  coordVarS : getCoordVarS([pv2, pv1]),
+
+  /* List of stencil locations. Each entry is a dim-dimensional list
+  with -1 meaning it is at a lower boundary, 1 upper boundary, or
+  0 away from boundaries in that direction. */
+  dim : 2,
+  stencilLoc : getStencilCoords(dim),
+  stencilLoc : delete([0,0], stencilLoc),
+
+  /* Begin iteration over stencil locations */
+  for sI : 1 thru length(stencilLoc) do (
+    /* String used in kernel name to differentiate stencil locations */
+    stencilStr : "",
+
+    /* Reverse the stencil index JUST FOR NAMING for consistency */
+    stencilLoc_rev : [stencilLoc[sI][2], stencilLoc[sI][1]],
+    for d : 1 thru dim do (
+      stencilStr : sconcat(stencilStr, "_", 
+      assoc(stencilLoc_rev[d], [[-1, "lo"], [0, "in"], [1, "up"]]), string(dirCombo[d]))
+    ),
+
+    fnameStencil : sconcat(fname,"_stencil", stencilStr, ".c"),
+    disp(printf(false, "Creating ~a", fnameStencil)),
+    fh : openw(fnameStencil),
+    printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
+    printf(fh, " ~%"),
+
+    printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *dxv, const double *gamma, const double* fpo_g_stencil[9], const double* fpo_g_surf_stencil[9], const double* fpo_dgdv_surf, double *diff_coeff) { ~%", funcNm, polyOrder, stencilStr),
+    printf(fh, "  // dxv[NDIM]: Cell spacing in each direction. ~%"),
+    printf(fh, "  // gamma: Scalar factor gamma. ~%"),
+    printf(fh, "  // fpo_g_stencil[9]: 9 cell stencil of Rosenbluth potential G. ~%"),
+    printf(fh, "  // fpo_g_surf_stencil[9]: 9 cell stencil of surface projection of G. ~%"),
+    printf(fh, "  // fpo_dgdv_surf: Surface expansion of dG/dv in center cell. ~%"),
+    printf(fh, "  // diff_coeff: Output array for diffusion tensor. ~%"),
+    printf(fh, "~%"),
+    printf(fh, "  // Use cell-average value for gamma. ~%"),
+    printf(fh, "  double gamma_avg = gamma[0]/sqrt(pow(2, ~a)); ~%", cdim),
+
+    printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir1+cdim-1),
+    printf(fh, "  double dv2 = 2.0/dxv[~a]; ~%", pvdir2+cdim-1),
+    printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%", pvdir1+cdim-1, pvdir2+cdim-1),
+    printf(fh, " ~%"),
+    printf(fh, "  double surft1_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft1_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_lo[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double surft2_up[~a] = {0.0}; ~%", numSurf),
+    printf(fh, "  double vol[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double *out = &diff_coeff[~a]; ~%", (3*(pvdir1-1) + (pvdir2-1))*NC),
+    printf(fh, "~%"),
+
+    stencilCells : [BL, CL, TL, BC, CC, TC, BR, CR, TR],
+
+    for i : 1 thru length(stencilCells) do (
+      printf(fh, "  const double* G~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1),
+
+      if (stencilCells[i] = CC) then (
+        printf(fh, "  const double* G_surf_CC_~a = &fpo_g_surf_stencil[~a][~a]; ~%",
+          pv2, i-1, (pvdir2-1)*numSurf)
+      )
+    ),
+
+    if (pvdir1 < pvdir2) then (
+      index : (vdim-1)*(pvdir1-1) + (pvdir2-2)
+    )
+    else (
+      index : (vdim-1)*(pvdir1-1) + (pvdir2-1)
+    ),
+    printf(fh, "  const double* dGd~a_surf_CC_~a = &fpo_dgdv_surf[~a]; ~%", 
+      pv2, pv1, index*numSurf),
+    printf(fh, "~%"),
+    /* Components of G for upcoming recovery */
+    GTL_lst : makelist(GTL[i], i, 0, NC-1),
+    GTC_lst : makelist(GTC[i], i, 0, NC-1),
+    GTR_lst : makelist(GTR[i], i, 0, NC-1),
+    GCL_lst : makelist(GCL[i], i, 0, NC-1),
+    GCC_lst : makelist(GCC[i], i, 0, NC-1),
+    GCR_lst : makelist(GCR[i], i, 0, NC-1),
+    GBL_lst : makelist(GBL[i], i, 0, NC-1),
+    GBC_lst : makelist(GBC[i], i, 0, NC-1),
+    GBR_lst : makelist(GBR[i], i, 0, NC-1),
+
+    GCC_e : doExpand1(GCC, bP),
+
+    /* Surface expansions of G_v2 and (dG/dv2)_v1 */
+    G_surf_CC_pv2_e : doExpand1(eval_string(sconcat("G_surf_CC_",pv2)), bSurf2),
+    dGdpv2_surf_CC_pv1_e : doExpand1(eval_string(sconcat("dGd",pv2,"_surf_CC_",pv1)), bSurf1)/dv2,
+
+    if (stencilLoc[sI] = [0, 0]) then (
+      /*
+        Center
+        +-----+-----+-----+
+        | GTL | GTC | GTR |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | GBL | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2- and 6-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+    )
+    elseif (stencilLoc[sI] = [-1, 0]) then (
+      /*
+        [-1, 0]
+        Left
+        +-----+-----+-----+
+        | +++ | GTC | GTR |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=-1], GCC_e)]), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)]), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+    )
+    elseif (stencilLoc[sI] = [1, 0]) then (
+      /*
+        [1, 0]
+        Right
+        +-----+-----+-----+
+        | GTL | GTC | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | GBL | GBC | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=-1, pv2=1], GCC_e)])),
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+
+    )
+    elseif (stencilLoc[sI] = [0, -1]) then (
+      /*
+        [0, -1]
+        Bottom
+        +-----+-----+-----+
+        | GTL | GTC | GTR |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec6_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+
+    )
+    elseif (stencilLoc[sI] = [0, 1]) then (
+      /*
+        [0, 1]
+        Top
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | GCR |
+        +-----+-----+-----+
+        | GBL | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec6_up_p : 0,
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+  
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e)   
+
+    )
+    elseif (stencilLoc[sI] = [-1, -1]) then (
+      /*
+        [-1, -1]
+        Bottom Left Corner
+        +-----+-----+-----+
+        | +++ | GTC | GTR |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec2_pv1_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=1, pv2=-1], GCC_e)]), dg(dg(GCC_lst), dg(GTC_lst)), 
+        dg(dg(GCR_lst), dg(GTR_lst))),
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+    )
+    elseif (stencilLoc[sI] = [-1, 1]) then (
+      /*
+        [-1, 1]
+        Top Left Corner
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | +++ | GCC | GCR |
+        +-----+-----+-----+
+        | +++ | GBC | GBR |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : 0,
+      G_rec2_up_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCC_lst), dg(GCR_lst)),
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        bcs([der=0, val=subst([pv1=-1, pv2=-1], GCC_e)]), dg(dg(GBC_lst), dg(GCC_lst)), 
+        dg(dg(GBR_lst), dg(GCR_lst))),
+      G_rec2_pv1_up_p : 0,
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_up_p)),
+
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e)
+    )
+    elseif (stencilLoc[sI] = [1, -1]) then (
+      /*
+        [1, -1]
+        Bottom Right Corner
+        +-----+-----+-----+
+        | GTL | GTC | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec2_pv1_lo_p : 0,
+      G_rec6_up_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GCL_lst), dg(GTL_lst)), dg(dg(GCC_lst), dg(GTC_lst)), 
+        bcs([der=0, val=subst([pv1=1, pv2=1], GCC_e)])),
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_up_p, pv2)))
+  )
+  elseif (stencilLoc[sI] = [1, 1]) then (
+      /*
+        [1, 1]
+        Top Right Corner
+        +-----+-----+-----+
+        | +++ | +++ | +++ |
+        +-----+-----+-----+
+        | GCL | GCC | +++ |
+        +-----+-----+-----+
+        | GBL | GBC | +++ |
+        +-----+-----+-----+ 
+      */
+      /* 2-cell recoveries of G */
+      G_rec2_lo_p : calcRecov2CellGen(basisFun, pv2, varsP, polyOrder, dg(GCL_lst), dg(GCC_lst)),
+      G_rec2_up_p : 0,
+
+      G_rec6_lo_p : calcRecovFaceGen(basisFun, [pv1, pv2], varsP, 0, 0, polyOrder, 0, 
+        dg(dg(GBL_lst), dg(GCL_lst)), dg(dg(GBC_lst), dg(GCC_lst)), 
+        bcs([der=0, val=subst([pv1=-1, pv2=1], GCC_e)])),
+      G_rec2_pv1_up_p : 0,     
+
+      /* Surface projections of (G_rec)_v2 and (dG/dv2)_v1 */
+      G_rec_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, subst(pv2=0, G_rec2_lo_p)),
+      G_rec_up_c : calcInnerProdList(surfVars2, 1, bSurf2, G_surf_CC_pv2_e),
+
+      dG_rec_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, 
+        subst(pv1=0, diff(G_rec6_lo_p, pv2))),
+      dG_rec_up_c : calcInnerProdList(surfVars1, 1, bSurf1, dGdpv2_surf_CC_pv1_e)
+    ),
+
+    /* Expansions of surface projections of (G)_v2 and (dG/dv2)_v1 */
+    dG_rec_lo_e : doExpand(dG_rec_lo_c, bSurf1),
+    dG_rec_up_e : doExpand(dG_rec_up_c, bSurf1),
+
+    G_rec_lo_e : doExpand(G_rec_lo_c, bSurf2),
+    G_rec_up_e : doExpand(G_rec_up_c, bSurf2),
+
+    /* surft1 = < psi- * d/dvj(G_rec) > dS_vi */
+    surft1_lo_c : calcInnerProdList(surfVars1, 1, bSurf1, dG_rec_lo_e),
+    surft1_up_c : calcInnerProdList(surfVars1, 1, bSurf1, dG_rec_up_e),
+
+    /* surft2 = -< d/dvi(psi-) G_rec > dS_vj */
+    surft2_lo_c : calcInnerProdList(surfVars2, 1, bSurf2, G_rec_lo_e),
+    surft2_up_c : calcInnerProdList(surfVars2, 1, bSurf2, G_rec_up_e),
+
+    /* vol = < G d^2/dvi dvj(psi) > */
+    vol_c : calcInnerProdList(varsP, 1, diff(diff(bP, pv2), pv1), GCC_e),
+
+    /* Expansions of surface and volume terms */
+    surft1_lo_e : doExpand1(surft1_lo, bSurf1),
+    surft1_up_e : doExpand1(surft1_up, bSurf1),
+
+    surft2_lo_e : doExpand1(surft2_lo, bSurf2),
+    surft2_up_e : doExpand1(surft2_up, bSurf2),
+
+    vol_lst : makelist(vol[i], i, 0, NC-1),
+
+    /* Write out individual surface term expansions */
+    writeCExprs1(surft1_lo, surft1_lo_c),
+    writeCExprs1(surft1_up, surft1_up_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+  
+    writeCExprs1(surft2_lo, surft2_lo_c),
+    writeCExprs1(surft2_up, surft2_up_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+  
+    writeCExprs1(vol, vol_c),
+    printf(fh, "~%"),
+    flush_output(fh),
+
+    kernel : calcInnerProdList(surfVars1, 1, subst(pv1=1, bP), surft1_up_e) +
+      calcInnerProdList(surfVars1, -1, subst(pv1=-1, bP), surft1_lo_e) +
+      calcInnerProdList(surfVars2, -1, subst(pv2=1, diff(bP, pv1)), surft2_up_e) +
+      calcInnerProdList(surfVars2, 1, subst(pv2=-1, diff(bP, pv1)), surft2_lo_e) +
+      vol_lst,
+
+    writeCExprsCollect1(out, gamma_avg*kernel*dv1_sq, [gamma_avg, dv1_sq]),
+    printf(fh, "} ~%"),
+    close(fh)
+  )
+)$
+
+
+
 generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
   [],
 
@@ -815,6 +1435,8 @@ generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
   with -1 meaning it is at a lower boundary, 1 upper boundary, or
   0 away from boundaries in that direction. */
   stencilLoc : getStencilCoords(dim),
+
+  stencilLoc : delete([0,0], stencilLoc),
 
   for sI : 1 thru length(stencilLoc) do (
     stencilStr : sconcat("_", assoc(stencilLoc[sI][1], 
@@ -856,19 +1478,17 @@ generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
     d2G_surf_C_e : doExpand1(d2G_surf_C, bSurf)/dv1_sq,
 
     /* Some combination of [L,C,R] depending on location */ 
-    stencilCells : getStencilCellsList1D(stencilLoc[sI]),
-    disp(stencilCells),
+    stencilCells : [L, C, R],
 
     diff_coeff_index : 4*(pvdir-1),
     for i : 1 thru length(stencilCells) do (
       printf(fh, "  const double* G_~a = fpo_g_stencil[~a]; ~%", stencilCells[i], i-1)
     ),
     printf(fh, "  ~%"),
-    printf(fh, "  const double* d2G_surf_C = &fpo_d2gdv2_surf[~a]; ~%", diff_coeff_index*numSurf),
+    printf(fh, "  const double* d2G_surf_C = &fpo_d2gdv2_surf[~a]; ~%", (pvdir-1)*numSurf),
     printf(fh, "  ~%"),
     printf(fh, "  double *out = &diff_coeff[~a]; ~%", diff_coeff_index*NC),
     printf(fh, "  ~%"),
-    
 
     if stencilLoc[sI] = [0] then (
       /*
@@ -876,7 +1496,6 @@ generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
         | G_L | G_C | G_R |
         +-----+-----+-----+
       */
-      stencilCells : [L, C, R],
 
       G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1, 
         dg(G_L_lst), dg(G_C_lst), dg(G_R_lst))
@@ -887,7 +1506,6 @@ generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
         | +++ | G_C | G_R |
         +-----+-----+-----+
       */
-      stencilCells : [C, R],
 
       G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
         bcs([der=2, val=d2G_surf_C_e]), dg(G_C_lst), dg(G_R_lst))
@@ -898,7 +1516,6 @@ generateFpoDiffCoeffDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
         | G_L | G_C | +++ |
         +-----+-----+-----+
       */
-      stencilCells : [L, C],
 
       G_rec : calcRecov1CellGen(basisFun, pv, varsP, polyOrder, 1,
         dg(G_L_lst), dg(G_C_lst), bcs([der=2, val=d2G_surf_C_e]))

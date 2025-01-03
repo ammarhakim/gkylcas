@@ -1,7 +1,6 @@
 /* 
-  Generate kernels for the drag coefficient
-  for the Rosenbluth/Fokker-Planck Operator
-  a_i = d H / dv_i 
+  Generate kernels for the drag coefficient for the Rosenbluth/Fokker-Planck Operator,
+  a_i = d H / dv_i, and sign information at interface for flux calculation.
 */
 
 load(stringproc);
@@ -45,11 +44,15 @@ for bInd : 1 thru length(bName) do (
     for vidx : 1 thru length(dirs) do (
       dir : dirs[vidx],
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+        /* Generate stencil kernels */
         fname : sconcat("~/max-out/fpo_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
         funcNm : sconcat("fpo_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
+        generateFpoDragCoeffStencil(fname, funcNm, c, bName[bInd], polyOrder, dir),
 
-        /* Generate stencil kernels */
-        generate_fpo_drag_coeff_stencil(fname, funcNm, c, bName[bInd], polyOrder, dir)
+        /* Generate kernel to compute sign information */
+        fname : sconcat("~/max-out/fpo_sgn_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
+        funcNm : sconcat("fpo_sgn_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
+        generateFpoSgnDragCoeff(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )
   )
