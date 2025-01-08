@@ -213,7 +213,7 @@ arrayIntegrate_eps_gradperp_sq(fh, funcNm, dim, basisFun, polyOrder) := block(
   [dimPerp,vars,basis,f_e,gradfSq_e,dir,volumeFac,exprStr,subList,k,s],
   kill(varsC, basisC),
 
-  dimPerp : 2,
+  dimPerp : dim-1,
 
   [vars, basis] : loadBasis(basisFun, dim, polyOrder),
   numB : length(basis),
@@ -250,7 +250,7 @@ arrayIntegrate_eps_gradperp_sq(fh, funcNm, dim, basisFun, polyOrder) := block(
     dfSq_e : dfSq_e+doExpand(dfdxNoZeros_c,basis)
   ),
 
-  volumeFac : vol, /* This includes the (prod_{i=1}^dim dx_i/2) factor. */
+  volumeFac : vol, /* This is the (prod_{i=1}^dim dx_i/2) factor. */
   printf(fh, "  const double volFac = ~a;~%", float(volumeFac)),
   printf(fh, "~%"),
 
