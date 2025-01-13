@@ -3,7 +3,7 @@
 
   The functions called in this file are in vlasovAlphaGenGeoFuncs-C.mac.
 */
-load("vlasov/vlasovAlphaGenGeoFuncs-C")$
+load("vlasov_maxwell/vlasovAlphaGenGeoFuncs-C")$
 
 /* ...... USER INPUTS........ */
 

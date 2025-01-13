@@ -33,8 +33,6 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble vlasov_poisson_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~adouble vlasov_poisson_extem_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   if (ci = 3) then (
     printf(fh, "~adouble vlasov_stream_gen_geo_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *cot_vec, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
@@ -62,13 +60,9 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
         const double *sgn_alpha_surf_edge, const double *sgn_alpha_surf_skin, 
         const int *const_sgn_alpha_edge, const int *const_sgn_alpha_skin, 
         const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
-    ),
-    printf(fh, "~adouble vlasov_poisson_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    )
   ),
   for si : 1 thru vi do (
-    printf(fh, "~adouble vlasov_poisson_extem_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_extem_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_poisson_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~adouble vlasov_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     printf(fh, "~adouble vlasov_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *field, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),

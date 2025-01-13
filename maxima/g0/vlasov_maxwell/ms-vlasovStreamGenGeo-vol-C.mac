@@ -1,9 +1,8 @@
-load("vlasov/vlasovStreamGenGeoFuncs-vol-C")$
+load("vlasov_maxwell/vlasovStreamGenGeoFuncs-vol-C")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    updates from the volume term due to the streaming
-   term v.grad(f) in the Vlasov-Poisson and Vlasov-Maxwell
-   equations. */
+   term v.grad(f) in Vlasov-Maxwell equations. */
 
 /* ...... USER INPUTS........ */
 
