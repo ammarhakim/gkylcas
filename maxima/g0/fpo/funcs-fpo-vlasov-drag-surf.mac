@@ -14,7 +14,12 @@ load("utilities")$
 fpprec : 24$
 
 generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
-  [],
+  [vdim, pdim, varsC, bC, varsP, bP, NC, dirNums, pvdir, surfVars, surfNodes, numNodes,
+  fh, bSurf, numSurf, drag_coeff_surf_L_e, drag_coeff_surf_R_e, fL_e, fC_e, fR_e, fUp_L_e,
+  fUp_R_e, GhatL_c, GhatR_c, GhatL_e, GhatR_e, incrL_c, incrR_c],
+
+  if (polyOrder = 1) then ( basisFun : "hyb" ),
+
   /* FPO is always 3V */
   vdim : 3,
   pdim : cdim+vdim,
@@ -28,8 +33,6 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
 
   /* Phase space variable for direction */
   surfVars : delete(pv, varsP),
-  bSurf : basisFromVars(basisFun, surfVars, polyOrder),
-  numSurf : length(bSurf),
 
   /*
     +---+---+---+
@@ -43,9 +46,19 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   disp(printf(false, "creating ~a", fname)),
   fh : openw(fname),
   printf(fh, "#include <gkyl_fpo_vlasov_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%",
-    basisFun, pdim, polyOrder),
-  printf(fh, "~%~%"),
+  if (polyOrder = 1) then (
+    printf(fh, "#include <gkyl_basis_hyb_~ax3v_p~a_upwind_quad_to_modal.h> ~%",
+      cdim, polyOrder),
+    printf(fh, "~%~%")
+  )
+  else (
+    printf(fh, "#include <gkyl_basis_~a_~ax_p~a_upwind_quad_to_modal.h> ~%",
+      basisFun, pdim, polyOrder),
+    printf(fh, "~%~%")
+  ),
+
+  bSurf : basisFromVars(basisFun, surfVars, polyOrder),
+  numSurf : length(bSurf),
 
   printf(fh, "GKYL_CU_DH double ~a(const double* dxv, 
   const double *alpha_surf_L, const double *alpha_surf_R,

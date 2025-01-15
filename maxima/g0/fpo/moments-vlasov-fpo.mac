@@ -36,6 +36,8 @@ calcFPOMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    temp_1_c,temp_2_c,temp_3_c,temp_4_c,temp_5_c,temp_6_c,
    temp_7_c,temp_8_c,temp_9_c,temp_10_c,temp_11_c,temp_12_c,corr_c],
 
+  if (polyOrder = 1) then (basisFun : "hyb"),
+
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 
   /* Number of basis monomials. */
@@ -202,6 +204,8 @@ calcFPOBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    mBlo_e,mBup_e,Dlo_e,Dup_e,fBlo_c,fBup_c,Dlo_c,Dup_c,
    dvSurf,surfExpr,clst, t],
     
+  if (polyOrder = 1) then (basisFun : "hyb"),
+
   /* Load basis of dimensionality requested. */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
 

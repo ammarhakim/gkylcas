@@ -16,7 +16,13 @@ setMatValue(A, row, col, val) := block(
 dirs : [x,y,z]$
 
 setFpoConservationMatrices(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [],
+  [vdim, varsC, bC, varsP, bP, NP, NC, numMat, bcorr_ai, m0_e, m1x_e, m1y_e, m1z_e, m1_e_lst,
+  acorr_x_c, acorr_y_c, acorr_z_c, Dcorr_c, acorr_c_lst, acorr_x_e, acorr_y_e, acorr_z_e,
+  Dcorr_e, acorr_e_lst, vol_corr_ai_lst, bcorr_ax_e, bcorr_ay_e, bcorr_az_e, bcorr_ai_lst,
+  bcorr_energy_e, bcorr_ai_D_ij_lst, acorr_e, acorr_c, block_offset, weak_mul_c, 
+  weak_mul_mat, weak_mul_mat_flat, m1i_e],
+
+  if (polyOrder = 1) then (basisFun : "hyb"),
 
   /* FPO is always 3V */
   vdim : 3,
@@ -187,7 +193,12 @@ setFpoConservationMatrices(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
 
 accumulateFpoConservationCorrs(fh, funcNm, cdim, basisFun, polyOrder) := block(
-  [],
+  [vdim, varsC, bC, varsP, bP, surfVarsvx, surfVarsvy, surfVarsvz, bSurfvx, bSurfvy, bSurfvz,
+  NP, numSurf, NC, ax_corr_e, ay_corr_e, az_corr_e, D_corr_e, ax_accum_out_c, ay_accum_out_c,
+  az_accum_out_c, D_accum_out_c, ax_surf_accum_out_c, ay_surf_accum_out_c, az_surf_accum_out_c,
+  Dxx_surf_accum_out_c, Dyy_surf_accum_out_c, Dzz_surf_accum_out_c],
+
+  if (polyOrder = 1) then (basisFun : "hyb"),
 
   /* FPO is always 3V */
   vdim : 3,

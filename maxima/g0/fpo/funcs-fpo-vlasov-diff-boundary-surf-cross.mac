@@ -33,6 +33,9 @@ generateFpoVlasovDiffBoundarySurfCrossUpper(fname, funcNm, cdim, basisFun, polyO
   f_rec2_pv1_lo_p, f_rec2_pv1_up_p, f_rec6_lo_p, f_rec6_up_p, f_rec_lo_e, f_rec_up_e,
   df_rec_up_e, df_rec_lo_e, surft1_lo_c, surft1_up_c, surft2_lo_c, surft2_up_c, vol_c,
   surft1_lo_e, surft1_up_e, surft2_lo_e, surft2_up_e, vol_lst, kernel],
+
+  if (polyOrder = 1) then ( basisFun : "hyb" ),
+
   pv1 : dirCombo[1],
   pv2 : dirCombo[2],
 
@@ -443,6 +446,9 @@ generateFpoVlasovDiffBoundarySurfCrossLower(fname, funcNm, cdim, basisFun, polyO
   f_rec2_pv1_lo_p, f_rec2_pv1_up_p, f_rec6_lo_p, f_rec6_up_p, f_rec_lo_e, f_rec_up_e,
   df_rec_up_e, df_rec_lo_e, surft1_lo_c, surft1_up_c, surft2_lo_c, surft2_up_c, vol_c,
   surft1_lo_e, surft1_up_e, surft2_lo_e, surft2_up_e, vol_lst, kernel],
+
+  if (polyOrder = 1) then ( basisFun : "hyb" ),
+
   pv1 : dirCombo[1],
   pv2 : dirCombo[2],
 

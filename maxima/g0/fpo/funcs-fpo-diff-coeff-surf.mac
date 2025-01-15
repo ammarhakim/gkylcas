@@ -14,6 +14,7 @@ dirs : [vx, vy, vz]$
 
 generateFpoDiffCoeffSurf(fname, funcNm, cdim, basisFun, polyOrder, pv1) := block(
   [],
+  if (polyOrder = 1) then (basisFun : "hyb"),
   /* FPO is only defined in 3V */
   vdim : 3,
   pdim : vdim+cdim,
