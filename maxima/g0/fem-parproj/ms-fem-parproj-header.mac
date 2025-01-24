@@ -140,7 +140,8 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "~%"),
 
       /* Right side source stencil (mass matrix . modal_to_nodal matrix). */
-      findCombos(fh, "GKYL_CU_DH void", "fem_parproj_src_stencil", "const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyND, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_parproj_src_stencil_noweight", "const double *weight, const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyND, true, false),
+      findCombos(fh, "GKYL_CU_DH void", "fem_parproj_src_stencil_weighted", "const double *weight, const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyND, true, false),
       printf(fh, "~%"),
 
       /* Solution stencil kernels. */

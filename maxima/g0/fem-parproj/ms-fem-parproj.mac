@@ -34,7 +34,6 @@ minDim       : [minDim_Ser, minDim_Tensor]$
 maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
 /**
-**/
 /* Kernels computing the number of nodes in the global problem. */
 disp(printf(false,"Creating fem_parproj_num_nodes.c"))$
 fname : "~/max-out/fem_parproj_num_nodes.c"$
@@ -82,20 +81,30 @@ for bInd : 1 thru length(bName) do (
 )$
 close(fh)$
 
+**/
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_parproj_src_stencil.c"))$
 fname : "~/max-out/fem_parproj_src_stencil.c"$
 fh    : openw(fname)$
 printf(fh, "#include <gkyl_fem_parproj_kernels.h> ~%")$
 printf(fh, " ~%")$
+/* Stencils without a weight. */
 for bInd : 1 thru length(bName) do (
   for c : minDim[bInd] thru maxDim[bInd] do (
-    funcName : sconcat("fem_parproj_src_stencil_", c, "x_", bName[bInd]),
-    generate_fem_parproj_src_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+    funcName : sconcat("fem_parproj_src_stencil_noweight_", c, "x_", bName[bInd]),
+    generate_fem_parproj_src_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd], false)
+  )
+)$
+/* Stencils with a weight. */
+for bInd : 1 thru length(bName) do (
+  for c : minDim[bInd] thru maxDim[bInd] do (
+    funcName : sconcat("fem_parproj_src_stencil_weighted_", c, "x_", bName[bInd]),
+    generate_fem_parproj_src_stencil(fh, funcName, c, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd], true)
   )
 )$
 close(fh)$
 
+/**
 /* Solution nodal-to-modal kernels. */
 disp(printf(false,"Creating fem_parproj_sol_stencil.c"))$
 fname : "~/max-out/fem_parproj_sol_stencil.c"$
@@ -109,5 +118,4 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
-/**
 **/
