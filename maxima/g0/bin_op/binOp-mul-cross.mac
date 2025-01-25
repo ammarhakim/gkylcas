@@ -126,15 +126,15 @@ calcBinOpCrossMultiplyHyb(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp_par,
 
   if (basisFun = "hyb") then (
     [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, 1),
-    printf(fh, "#include <gkyl_binop_cross_mul_hyb.h> ~%"),      
+    printf(fh, "#include <gkyl_binop_cross_mul_hyb.h> ~%"),
     printf(fh, " ~%")
   ) 
   else if (basisFun = "gkhyb") then (
     [varsC,bC,varsP,bP,vsub] : loadGkBasis(basisFun, cdim, vdim, 1),
-    printf(fh, "#include <gkyl_binop_cross_mul_gkhyb.h> ~%"),      
+    printf(fh, "#include <gkyl_binop_cross_mul_gkhyb.h> ~%"),
     printf(fh, " ~%")
   ),
-  NP  : length(bP),
+  NP : length(bP),
 
   /* Function declaration with input/output variables. */
   printf(fh, "GKYL_CU_DH~%"),
