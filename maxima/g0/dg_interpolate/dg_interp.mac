@@ -27,7 +27,7 @@ writeCIncrExprsCollect1noPowersAtomicAdd(lhs, rhs, clst, qPow, alreadyDecl) := b
   return(alreadyDecl)
 )$
 
-gen_dg_interp_gk_kern(fh, funcNm, cdim, vdim, basisFun, polyOrder, isGK) := block(
+gen_dg_interp_kern(fh, funcNm, cdim, vdim, basisFun, polyOrder, isGK) := block(
   /* Interpolation operator transfering a field defined on one grid to
      another grid. This kernel is called to compute contribution from a single
      origin-grid cell, to a single target-grid cell. */
