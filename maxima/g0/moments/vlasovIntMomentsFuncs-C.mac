@@ -21,10 +21,7 @@ volExpr(totDim) := prod(dxv[i-1], i, 1, totDim)$
 calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   /* Computes the integral of M0, M1i and M2 at the same time. */
   kill(varsC, varsP, basisC, basisP),
-  load(sconcat("basis-precalc/basis", basisFun, cdim, "x", vdim, "v")),
-
-  bP : basisP[polyOrder],
-  bC : basisC[polyOrder],
+  [varsC, bC, varsP, bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
     
   printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a*~a; ~%", volExpr(cdim+vdim), float(1/(2^(cdim+vdim))) ),
