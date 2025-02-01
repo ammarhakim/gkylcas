@@ -92,7 +92,8 @@ calcBinOpCrossMultiply(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp_par, ac
     printf(fh, "  switch (linc2) { ~%"), 
     for i : 1 thru length(fg_c) do (
       printf(fh, "    case ~a: ~%", i-1),
-      printf(fh, "      fg[~a] += a*(~a); ~%", i-1, float(expand(fg_c[i])))
+      printf(fh, "      fg[~a] += a*(~a); ~%", i-1, float(expand(fg_c[i]))), 
+      printf(fh, "      break; ~%")
     ), 
     flush_output(fh),
     printf(fh, "  } ~%")
@@ -165,7 +166,8 @@ calcBinOpCrossMultiplyHyb(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp_par,
     printf(fh, "  switch (linc2) { ~%"), 
     for i : 1 thru length(fg_c) do (
       printf(fh, "    case ~a: ~%", i-1),
-      printf(fh, "      fg[~a] += a*(~a); ~%", i-1, float(expand(fg_c[i])))
+      printf(fh, "      fg[~a] += a*(~a); ~%", i-1, float(expand(fg_c[i]))), 
+      printf(fh, "      break; ~%")
     ), 
     flush_output(fh),
     printf(fh, "  } ~%")
