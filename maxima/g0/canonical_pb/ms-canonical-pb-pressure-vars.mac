@@ -12,6 +12,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
@@ -19,6 +20,7 @@ minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -28,21 +30,24 @@ minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
-  for d : minCdim[bInd] thru maxCdim[bInd] do (
-    if not(d = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
-      minPolyOrderB : minPolyOrder[bInd],
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (d>2) then maxPolyOrderB : 1,
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
 
-      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-        fname : sconcat("~/max-out/canonical_pb_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("canonical_pb_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
-        calcCanonicalPbPressure(fh, funcName, d, "ser", polyOrder),
-        close(fh)
+          disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~ax~avp~a"),c,v,polyOrder)),
+          fname : sconcat("~/max-out/canonical_pb_vars_pressure_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("canonical_pb_vars_pressure_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcCanonicalPbPressure(fh, funcName, c, v, "ser", polyOrder),
+          close(fh)
+
+        )
       )
     )
   )

@@ -10,6 +10,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
@@ -17,6 +18,7 @@ minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -26,23 +28,25 @@ minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    if not(c = 3 and bName[bInd] = "ser") then ( /* SKIP hybrid in 3d */
-
+    for v : c thru maxVdim[bInd] do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+c>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       /* Canonical-pb moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating Canonical-pb Moments ~ax~av", bName[bInd]),c,c)),
-        fname : sconcat("~/max-out/mom_canonical_pb_", c, "x", c, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("canonical_pb"),
-        calcCanPBMoments(fh, funcName, c, c, bName[bInd], polyOrder),
-        close(fh)
+        if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
+          disp(printf(false,sconcat("Creating Canonical-pb Moments ~ax~av", bName[bInd]),c,v)),
+          fname : sconcat("~/max-out/mom_canonical_pb_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("canonical_pb"),
+          calcCanPBMoments(fh, funcName, c, v, bName[bInd], polyOrder),
+          close(fh)
+        )
       )
     )
   )
