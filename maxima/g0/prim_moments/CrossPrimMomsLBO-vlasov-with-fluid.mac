@@ -341,7 +341,7 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([udim
   ),
   tempVars : [],
   sqCoeffs : [makelist(u_self[a0+k-1],k,1,NC),makelist(u_other[a0+k-1],k,1,NC)],
-  tempVars : writeCIncrExprsCollectnoPowers(uSumSq, uSumSq_c, [dx], sqCoeffs, tempVars),
+  tempVars : writeCIncrExprsCollect1noPowers(uSumSq, uSumSq_c, [dx], sqCoeffs, tempVars),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
