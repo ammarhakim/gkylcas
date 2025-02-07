@@ -40,7 +40,13 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
     +---+---+---+
   */
 
-  surfNodes : gaussOrd(polyOrder+1, pdim-1),
+  if (basisFun = "hyb") then (
+    surfNodes : gaussOrdHyb(polyOrder+1, cdim, vdim-1)
+  )
+  else (
+    surfNodes : gaussOrd(polyOrder+1, pdim-1)
+  ),
+
   numNodes : length(surfNodes),
 
   disp(printf(false, "creating ~a", fname)),
@@ -118,9 +124,11 @@ generateFpoVlasovDragSurf(fname, funcNm, cdim, basisFun, polyOrder, pv) := block
   writeCIncrExprsCollect1(out, 0.5*dv1*(incrL_c+incrR_c), [dv1]),
 
   /* Write out CFL frequency */
+  if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+  else ( pOrder : polyOrder ),
   printf(fh, "  double cflFreq = fmax(fabs(drag_coeff_surf_L[0]), fabs(drag_coeff_surf_R[0])); ~%"),
   printf(fh, "~%"),
-  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*polyOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*pOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
 
 
   printf(fh, "}~%"),

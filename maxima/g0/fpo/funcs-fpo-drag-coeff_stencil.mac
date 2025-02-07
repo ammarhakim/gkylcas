@@ -74,11 +74,8 @@ generateFpoDragCoeffStencil(fname, funcNm, cdim, basisFun, polyOrder, pv) := blo
     surfVars : delete(pv, varsP),
     bSurf : basisFromVars(basisFun, surfVars, polyOrder),
 
-    surfNodes : gaussOrd(polyOrder+1, pdim-1),
-
     NC : length(bP),
     numSurf : length(bSurf),
-    numNodes : length(surfNodes),
 
     H_L_lst : makelist(H_L[i], i, 0, NC-1),
     H_C_lst : makelist(H_C[i], i, 0, NC-1),
@@ -179,7 +176,12 @@ generateFpoSgnDragCoeff(fname, funcNm, cdim, basisFun, polyOrder, pv) := block(
   surfVars : delete(pv, varsP),
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
 
-  surfNodes : gaussOrd(polyOrder+1, pdim-1),
+  if (basisFun = "hyb") then (
+    surfNodes : gaussOrdHyb(polyOrder+1, cdim, vdim-1)
+  )
+  else (
+    surfNodes : gaussOrd(polyOrder+1, pdim-1)
+  ),
   numSurf : length(bSurf),
   numNodes : length(surfNodes),
 

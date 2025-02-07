@@ -427,8 +427,10 @@ generateFpoVlasovDiffBoundarySurfCrossUpper(fname, funcNm, cdim, basisFun, polyO
         pv1, pv1)
     ),
 
+    if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+    else ( pOrder : polyOrder ),
     printf(fh, "~%"),
-    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((polyOrder+1)^2/sqrt(2.0^(pdim-1)))),
+    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((pOrder+1)^2/sqrt(2.0^(pdim-1)))),
     printf(fh, "} ~%"),
 
     close(fh)
@@ -845,8 +847,10 @@ generateFpoVlasovDiffBoundarySurfCrossLower(fname, funcNm, cdim, basisFun, polyO
         pv1, pv1)
     ),
 
+    if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+    else ( pOrder : polyOrder ),
     printf(fh, "~%"),
-    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((polyOrder+1)^2/sqrt(2.0^(pdim-1)))),
+    printf(fh, "  return ~a*cflFreq; ~%", dv1_sq*float((pOrder+1)^2/sqrt(2.0^(pdim-1)))),
     printf(fh, "} ~%"),
 
     close(fh)

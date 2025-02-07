@@ -51,7 +51,12 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) 
   bSurf : basisFromVars(basisFun, surfVars, polyOrder),
   numSurf : length(bSurf),
 
-  surfNodes : gaussOrd(polyOrder+1, pdim-1),
+  if (basisFun = "hyb") then (
+    surfNodes : gaussOrdHyb(polyOrder+1, cdim, vdim-1)
+  )
+  else (
+    surfNodes : gaussOrd(polyOrder+1, pdim-1)
+  ),
   numNodes : length(surfNodes),
 
   printf(fh, "GKYL_CU_DH double ~a(const double* dxv,
@@ -151,7 +156,9 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) 
   printf(fh, "  } ~%~%"),
 
   /* Write out CFL frequency */
-  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*polyOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
+  if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+  else ( pOrder : polyOrder ),
+  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*pOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
 
   printf(fh, "}~%"),
   flush_output(fh),

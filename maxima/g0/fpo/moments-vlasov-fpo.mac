@@ -15,7 +15,7 @@
 load("modal-basis");
 load("out-scripts");
 load(stringproc)$
-fpprec : 30$
+fpprec : 24$
 
 volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
 
@@ -212,6 +212,7 @@ calcFPOBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NP : length(bP),
   NC : length(bC),
+
   fpprec : 24,       
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const int *idx, enum gkyl_vel_edge edge, const double *vBoundary, const double *dxv, const double *D_ij, const double *fIn, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // idx[~a]:   cell index in each direction. ~%", cdim+vdim),

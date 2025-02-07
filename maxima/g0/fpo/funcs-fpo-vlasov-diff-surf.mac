@@ -245,8 +245,10 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
       pv1, pv1)
   ),
 
+  if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+  else ( pOrder : polyOrder ),
   printf(fh, "~%"),
-  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(polyOrder+1)^2)/sqrt(2.0^(pdim-1))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(pOrder+1)^2)/sqrt(2.0^(pdim-1))),
   printf(fh, "} ~%"),
   close(fh)
 
@@ -397,10 +399,12 @@ generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := b
   writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
 
   /* Calculate CFL */
+  if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
+  else ( pOrder : polyOrder ),
   printf(fh, "~%"),
   printf(fh, "  double cflFreq = fmax(fabs(D_surf_C[0]), fabs(D_surf_R[0])); ~%"),    
   printf(fh, "~%"),
-  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(polyOrder+1)^2)/sqrt(2.0^(pdim-1))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(pOrder+1)^2)/sqrt(2.0^(pdim-1))),
   printf(fh, "} ~%"),
   close(fh)   
 )$
