@@ -13,7 +13,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
-maxCdim_Ser : 1$
+maxCdim_Ser : 2$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -38,7 +38,10 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       fname : sconcat("~/max-out/fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
       funcNm : sconcat("fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder),
       generateFpoVlasovDiffVol(fname, funcNm, c, bName[bInd], polyOrder)

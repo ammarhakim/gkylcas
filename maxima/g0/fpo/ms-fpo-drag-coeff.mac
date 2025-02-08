@@ -14,7 +14,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
-maxCdim_Ser : 1$
+maxCdim_Ser : 2$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -43,12 +43,14 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for vidx : 1 thru length(dirs) do (
       dir : dirs[vidx],
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         /* Generate stencil kernels */
         fname : sconcat("~/max-out/fpo_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
         funcNm : sconcat("fpo_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
         generateFpoDragCoeffStencil(fname, funcNm, c, bName[bInd], polyOrder, dir),
-
         /* Generate kernel to compute sign information */
         fname : sconcat("~/max-out/fpo_sgn_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
         funcNm : sconcat("fpo_sgn_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),

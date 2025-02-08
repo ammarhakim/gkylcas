@@ -8,7 +8,7 @@
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d>2 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       printFPOPrototype(decorator, d, bName[bInd], polyOrder)
     )

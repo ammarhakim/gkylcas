@@ -10,13 +10,13 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 2$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 0$
 
@@ -28,17 +28,11 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-d : 1$
-bInd : 1$
-polyOrder : 2$
-
-
 for bInd : 1 thru length(bName) do (
   for d : minCdim[bInd] thru maxCdim[bInd] do (
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
-    if (d>2 and bName[bInd] = "ser") then maxPolyOrderB : 1,
-   
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
 
       /* Kernels to set matrices for linear solve */

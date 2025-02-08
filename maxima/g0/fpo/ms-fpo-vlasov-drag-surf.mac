@@ -13,7 +13,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 3$
-maxCdim_Ser : 1$
+maxCdim_Ser : 2$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -41,7 +41,11 @@ dirs : [vx, vy, vz]$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for vidx : 1 thru length(dirs) do (
-      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
+
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         pv : dirs[vidx],
         fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
