@@ -380,6 +380,54 @@ gen_nodal_to_modal(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc
   // C code is not generated here. Need to fix this eventually
 }
 
+static void
+gen_quad_to_modal(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  bn = get_basis_name(type);
+
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+  int vdim = basis.get_vdim();
+
+  if (vdim == 0) {
+
+    // function declaration
+    fh << "GKYL_CU_DH void quad_to_modal_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+       << "(const double *fquad, double *fmodal, long linc2);" << std::endl;
+  } else {
+    int cdim = ndim-vdim;
+    // function declaration
+    fh << "GKYL_CU_DH void quad_to_modal_" << cdim << "x" << vdim << "v_" << bn << "_" << "p" << polyOrder
+       << "(const double *fquad, double *fmodal, long linc2);" << std::endl;
+  }
+
+  // C code is not generated here. Need to fix this eventually
+}
+
+static void
+gen_modal_to_quad(Gkyl::ModalBasisType type, std::ostream& fh, std::ostream& fc, const Gkyl::ModalBasis& basis)
+{
+  std::string bn;
+  bn = get_basis_name(type);
+
+  int ndim = basis.get_ndim(), polyOrder = basis.get_polyOrder();
+  int vdim = basis.get_vdim();
+
+  if (vdim == 0) {
+
+    // function declaration
+    fh << "GKYL_CU_DH void modal_to_quad_" << ndim << "d_" << bn << "_" << "p" << polyOrder
+       << "(const double *fmodal, double *fquad, long linc2);" << std::endl;
+  } else {
+    int cdim = ndim-vdim;
+    // function declaration
+    fh << "GKYL_CU_DH void modal_to_quad_" << cdim << "x" << vdim << "v_" << bn << "_" << "p" << polyOrder
+       << "(const double *fmodal, double *fquad, long linc2);" << std::endl;
+  }
+
+  // C code is not generated here. Need to fix this eventually
+}
+
 void
 gen_ser_basis()
 {
@@ -428,6 +476,10 @@ gen_ser_basis()
       gen_node_coords(Gkyl::MODAL_SER, header, flip_file, mbasis);
       // generate nodal to modal
       gen_nodal_to_modal(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      // generate Gauss-Legendre quadrature nodal to modal
+      gen_quad_to_modal(Gkyl::MODAL_SER, header, flip_file, mbasis);
+      // generate modal to Gauss-Legendre quadrature nodal 
+      gen_modal_to_quad(Gkyl::MODAL_SER, header, flip_file, mbasis);
     }
     std::cout << std::endl;
   }
@@ -485,6 +537,10 @@ gen_hyb_basis()
       gen_node_coords(Gkyl::MODAL_HYB, header, flip_file, mbasis);
       // generate nodal to modal
       gen_nodal_to_modal(Gkyl::MODAL_HYB, header, flip_file, mbasis);
+      // generate Gauss-Legendre quadrature nodal to modal
+      gen_quad_to_modal(Gkyl::MODAL_HYB, header, flip_file, mbasis);
+      // generate modal to Gauss-Legendre quadrature nodal 
+      gen_modal_to_quad(Gkyl::MODAL_HYB, header, flip_file, mbasis);
       std::cout << std::endl;
     }
   }
@@ -540,6 +596,10 @@ gen_gkhyb_basis()
       gen_node_coords(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
       // generate nodal to modal
       gen_nodal_to_modal(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      // generate Gauss-Legendre quadrature nodal to modal
+      gen_quad_to_modal(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
+      // generate modal to Gauss-Legendre quadrature nodal 
+      gen_modal_to_quad(Gkyl::MODAL_GKHYB, header, flip_file, mbasis);
       std::cout << std::endl;
     }
   }
@@ -594,6 +654,10 @@ gen_ten_basis()
       gen_node_coords(Gkyl::MODAL_TEN, header, flip_file, mbasis);
       // generate nodal to modal
       gen_nodal_to_modal(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      // generate Gauss-Legendre quadrature nodal to modal
+      gen_quad_to_modal(Gkyl::MODAL_TEN, header, flip_file, mbasis);
+      // generate modal to Gauss-Legendre quadrature nodal 
+      gen_modal_to_quad(Gkyl::MODAL_TEN, header, flip_file, mbasis);
     }
     std::cout << std::endl;
   }

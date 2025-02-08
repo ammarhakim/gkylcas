@@ -16,8 +16,38 @@ calcVlasovStreamVolUpdater(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
+  pOrderV : polyOrder,
   /* Load basis of dimensionality requested. */
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  if (basisFun="tensor") then (
+    /* If we are using the tensor basis, just use the simple load command */
+    [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+    [varsP,bP] : loadBasis(basisFun, cdim+vdim, polyOrder), 
+    /* Do a variable substitution for the lower dimensional tensor basis functions
+       to construct the correct set of variables for the subsequent operations */
+    if (cdim+vdim = 2) then (
+      varsSub : [y=vx],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim+vdim = 3) then (
+      varsSub : [y=vx, z=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+    else if (cdim = 2 and vdim = 2) then (
+      varsSub : [vx=y, vy=vx, vz=vy],
+      bP : subst(varsSub, copylist(bP)),  
+      varsP : subst(varsSub, copylist(varsP))
+    )
+  )
+  else (
+    /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
+    [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+
+    /* Identify polyOrder in velocity space as p=2 for p=1 since we force p=1 to
+       mean hybrid basis. */
+    if polyOrder=1 then ( pOrderV : 2 )
+  ),
 
   printf(fh, "GKYL_CU_DH double ~a_p~a(const double *w, const double *dxv, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),

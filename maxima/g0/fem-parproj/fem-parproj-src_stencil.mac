@@ -101,7 +101,7 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
           for k : 1 thru length(dirichletNodesI) do (
             /* Evalaute phiBC at +1/-1 when at the lower/upper boundary.*/
             bcNode : copylist(dirichletNodes[k]),
-            bcNode[dir] : -bcNode[dir],
+            bcNode[dir] : bcNode[dir],
             bcNodeI : sublist_indices(nodes,lambda([x],x=bcNode))[1],
             src_c[dirichletNodesI[k]]     : phiBC_c[bcNodeI],
             insertVal[dirichletNodesI[k]] : true

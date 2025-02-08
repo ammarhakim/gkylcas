@@ -64,7 +64,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
     GammaJacIon_e : (sheathDirDx/2)*doExpand1(GammaJac_i, basis),
     /* Evaluate the (ghost cell) flux at the boundary surface. */
     GammaJacIonB_c : calcInnerProdList(varsLowD,1,basisLowD,subst(sheathVar=ghostEvSign[bS], GammaJacIon_e)),
-    GammaJacIonB_noZero_c : doMakeExprLst(GammaJacIonB_c, GammaJacIonB),
+    GammaJacIonB_noZero_c : makelistNoZeros1(GammaJacIonB_c, GammaJacIonB),
     GammaJacIonB_e : doExpand(GammaJacIonB_noZero_c,basisLowD),
     printf(fh,"  double GammaJacIonB[~a];~%", numBLowD),
     writeCExprs1(GammaJacIonB, GammaJacIonB_c),
@@ -73,7 +73,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
     m0JacIon_e : doExpand1(m0JacIon, basis),
     /* Evaluate the (skin cell) ion density at the boundary surface. */
     m0JacIonB_c : calcInnerProdList(varsLowD,1,basisLowD,subst(sheathVar=skinEvSign[bS], m0JacIon_e)),
-    m0JacIonB_noZero_c : doMakeExprLst(m0JacIonB_c, m0JacIonB),
+    m0JacIonB_noZero_c : makelistNoZeros1(m0JacIonB_c, m0JacIonB),
     m0JacIonB_e : doExpand(m0JacIonB_noZero_c,basisLowD),
     printf(fh,"  double m0JacIonB[~a];~%", numBLowD),
     writeCExprs1(m0JacIonB, m0JacIonB_c),
@@ -184,7 +184,7 @@ genPhiCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   jacInv_e : doExpand1(jacInv,basis),
   m0Ion_c : calcInnerProdList(vars, jacInv_e, basis, m0JacIon_e),
   m0Ion_e : doExpand(m0Ion_c,basis),
-  m0Ion_noZero_c : doMakeExprLst(m0Ion_c, m0Ion),
+  m0Ion_noZero_c : makelistNoZeros1(m0Ion_c, m0Ion),
   m0Ion_e : doExpand(m0Ion_noZero_c,basis),
   printf(fh,"  double m0Ion[~a];~%", numB),
   writeCExprs1(m0Ion, m0Ion_c),
