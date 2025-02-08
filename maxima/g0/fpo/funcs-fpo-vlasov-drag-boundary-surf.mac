@@ -80,7 +80,7 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) 
   printf(fh, "  const double *sgn_drag_coeff_surf_Skin = &sgn_alpha_surf_Skin[~a]; ~%", (pvdir-1)*numNodes),
   printf(fh, "  const int *const_sgn_drag_coeff_Edge = &const_sgn_alpha_Edge[~a]; ~%", pvdir-1),
   printf(fh, "  const int *const_sgn_drag_coeff_Skin = &const_sgn_alpha_Skin[~a]; ~%", pvdir-1),
-  printf(fh, "  double dv1 = 2.0/dxv[~a]; ~%", pvdir-1+cdim),
+  printf(fh, "  double dv_inv = 2.0/dxv[~a]; ~%", pvdir-1+cdim),
   printf(fh, "~%"),
   printf(fh, "  double cflFreq = 0.0; ~%"),
   printf(fh, "~%"),
@@ -118,7 +118,7 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) 
 
   incrR_c : calcInnerProdList(surfVars, -1.0, subst(pv=1.0, bP), GhatR_e),
 
-  writeCIncrExprsCollect1(out, 0.5*dv1*incrR_c, [dv1]),
+  writeCIncrExprsCollect1(out, 0.5*dv_inv*incrR_c, [dv_inv]),
   printf(fh, "  cflFreq = fabs(drag_coeff_surf_Edge[0]);"),
   printf(fh, "~%"),
 
@@ -148,17 +148,20 @@ generateFpoVlasovDragBoundarySurf(fname, funcNm, cdim, basisFun, polyOrder, pv) 
   GhatL_e : doExpand1(GhatL, bSurf),
 
   incrL_c : calcInnerProdList(surfVars, 1.0, subst(pv=-1.0, bP), GhatL_e),
-  writeCIncrExprsCollect1(out, 0.5*dv1*incrL_c, [dv1]),
+  writeCIncrExprsCollect1(out, 0.5*dv_inv*incrL_c, [dv_inv]),
   printf(fh, "  cflFreq = fabs(drag_coeff_surf_Skin[0]);"),
   printf(fh, "~%"),
   printf(fh, "~%"),
 
   printf(fh, "  } ~%~%"),
 
-  /* Write out CFL frequency */
+  /* 
+      Write out CFL frequency.
+      Drag term estimate: (2p+1)/dv * a_surf[0]/2^((pdim-1)/2)
+  */
   if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
   else ( pOrder : polyOrder ),
-  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*(2*pOrder+1)*dv1*2.0^(-0.5*(pdim-1)))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(0.5*dv_inv*(2*pOrder+1)*2.0^(-0.5*(pdim-1)))),
 
   printf(fh, "}~%"),
   flush_output(fh),

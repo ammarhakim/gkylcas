@@ -69,7 +69,7 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   printf(fh, "  // f_stencil[9]: 9-cell stencil of distribution function. ~%"), 
   printf(fh, "  // out: Incremented output. ~%~%"),
  
-  printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%~%", pvdir1+cdim-1, pvdir2+cdim-1),
+  printf(fh, "  double dv_inv_sq = 4.0/dxv[~a]/dxv[~a]; ~%~%", pvdir1+cdim-1, pvdir2+cdim-1),
   printf(fh, "  double f_rec_lo[~a] = {0.0}; ~%", numSurf),
   printf(fh, "  double f_rec_up[~a] = {0.0}; ~%", numSurf),
   printf(fh, "  double df_rec_lo[~a] = {0.0}; ~%", numSurf),
@@ -230,9 +230,12 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   printf(fh, "~%"),
   flush_output(fh),
 
-  writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
+  writeCIncrExprsCollect1(out, 0.5*dv_inv_sq*kernel, [dv_inv_sq]),
 
-  /* Calculate CFL */
+  /* 
+      Calculate CFL.
+      Diffusion term estimate: 4*(p+1)^2 / (dv1*dv2) * D_surf[0]/2^((pdim-1)/2)
+  */
   printf(fh, "~%"),
 
   /* Max in pv1 direction */
@@ -248,7 +251,7 @@ generateFpoVlasovDiffSurfCross(fname, funcNm, cdim, basisFun, polyOrder, pv1, pv
   if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
   else ( pOrder : polyOrder ),
   printf(fh, "~%"),
-  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(pOrder+1)^2)/sqrt(2.0^(pdim-1))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(dv_inv_sq*(pOrder+1)^2*2.0^(-0.5*(pdim-1)))),
   printf(fh, "} ~%"),
   close(fh)
 
@@ -292,7 +295,7 @@ generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := b
   printf(fh, "  // f_stencil[9]: 9-cell stencil of distribution function. ~%"), 
   printf(fh, "  // out: Incremented output. ~%~%"),
  
-  printf(fh, "  double dv1_sq = 4.0/dxv[~a]/dxv[~a]; ~%~%", pvdir+cdim-1, pvdir+cdim-1),
+  printf(fh, "  double dv_inv_sq = 4.0/dxv[~a]/dxv[~a]; ~%~%", pvdir+cdim-1, pvdir+cdim-1),
   printf(fh, "  double f_rec_lo[~a] = {0.0}; ~%", numSurf),
   printf(fh, "  double f_rec_up[~a] = {0.0}; ~%", numSurf),
   printf(fh, "  double df_rec_lo[~a] = {0.0}; ~%", numSurf),
@@ -396,15 +399,18 @@ generateFpoVlasovDiffSurfDiag(fname, funcNm, cdim, basisFun, polyOrder, pv) := b
     calcInnerProdList(surfVars, -1, subst(pv=1, diff(bP,pv)), surft2_up_e) + 
     calcInnerProdList(surfVars, 1 ,subst(pv=-1, diff(bP,pv)), surft2_lo_e) +
     vol_lst,
-  writeCIncrExprsCollect1lhsc(out, 0.5*dv1_sq*kernel),
+  writeCIncrExprsCollect1(out, 0.5*dv_inv_sq*kernel, [dv_inv_sq]),
 
-  /* Calculate CFL */
+  /* 
+      Calculate CFL.
+      Diffusion term estimate: 4*(p+1)^2 / (dv1*dv2) * D_surf[0]/2^((pdim-1)/2)
+  */
   if ( basisFun = "hyb" ) then ( pOrder : polyOrder + 1 )
   else ( pOrder : polyOrder ),
   printf(fh, "~%"),
   printf(fh, "  double cflFreq = fmax(fabs(D_surf_C[0]), fabs(D_surf_R[0])); ~%"),    
   printf(fh, "~%"),
-  printf(fh, "  return ~a*cflFreq; ~%", float(dv1_sq*(pOrder+1)^2)/sqrt(2.0^(pdim-1))),
+  printf(fh, "  return ~a*cflFreq; ~%", float(dv_inv_sq*(pOrder+1)^2*2.0^(-0.5*(pdim-1)))),
   printf(fh, "} ~%"),
   close(fh)   
 )$
