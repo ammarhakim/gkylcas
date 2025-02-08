@@ -5,7 +5,6 @@
 
 load(stringproc);
 load("fpo/funcs-fpo-diff-coeff_stencil");
-load("fpo/test-diff-coeff");
 
 /* ...... USER INPUTS........ */
 
