@@ -4,7 +4,6 @@
    recovery. It's presently only meant for ICs. */
 
 load("gk_pol_den/pol_density")$
-load("gk_pol_den/pol_density_1x")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -44,9 +43,7 @@ for bInd : 1 thru length(bName) do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
       disp(printf(false,sconcat("Creating gkyl_gyrokinetic_pol_density ~ax p~a ", bName[bInd]),cd,polyOrder)),
       funcName : sconcat("gkyl_gyrokinetic_pol_density_",cd,"x_",bName[bInd],"_p",polyOrder),
-      if cd = 1
-        then gen_pol_den_kernel_1x(fh, funcName, cd, bName[bInd], polyOrder)
-        else gen_pol_den_kernel(fh, funcName, cd, bName[bInd], polyOrder)
+      gen_pol_den_kernel(fh, funcName, cd, bName[bInd], polyOrder)
     )
   ),
 
