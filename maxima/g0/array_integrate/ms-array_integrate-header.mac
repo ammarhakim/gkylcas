@@ -17,7 +17,16 @@ maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 0$
 
+/* GK hybrid basis. */
+minPolyOrder_GkHybrid : 1$
+maxPolyOrder_GkHybrid : 1$
+minCdim_GkHybrid : 1$
+maxCdim_GkHybrid : 3$
+
 /* ...... END OF USER INPUTS........ */
+
+/* Vdim possibilities for each of Cdim=[1,2,3]. */
+gkVdims : [[1,2], [2], [2]]$
 
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$
@@ -37,23 +46,33 @@ printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG~%")$
 printf(fh, "~%")$
 
-funcName : "gkyl_array_integrate_op_none_ker"$
-printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)$
-printf(fh, "~%")$
-
-funcName : "gkyl_array_integrate_op_abs_ker"$
-printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)$
-printf(fh, "~%")$
-
-funcName : "gkyl_array_integrate_op_sq_ker"$
-printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)$
-printf(fh, "~%")$
-
 for bInd : 1 thru length(bName) do (
 
   for cd : minCdim[bInd] thru maxCdim[bInd] do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      funcName : sconcat("gkyl_array_integrate_op_grad_sq_",cd,"x_",bName[bInd],"_p",polyOrder,"_ker"),
+      funcName : sconcat("gkyl_array_integrate_op_none_",cd,"x_",bName[bInd],"_p",polyOrder),
+      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName),
+
+      funcName : sconcat("gkyl_array_integrate_op_abs_",cd,"x_",bName[bInd],"_p",polyOrder),
+      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName),
+
+      funcName : sconcat("gkyl_array_integrate_op_sq_",cd,"x_",bName[bInd],"_p",polyOrder),
+      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName),
+
+      funcName : sconcat("gkyl_array_integrate_op_sq_weighted_",cd,"x_",bName[bInd],"_p",polyOrder),
+      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName),
+
+      funcName : sconcat("gkyl_array_integrate_op_grad_sq_",cd,"x_",bName[bInd],"_p",polyOrder),
+      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName),
+
+      printf(fh, "~%")
+    )
+  ),
+  printf(fh, "~%"),
+
+  for cd : max(2,minCdim[bInd]) thru min(maxCdim[bInd],3) do (
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      funcName : sconcat("gkyl_array_integrate_op_gradperp_sq_",cd,"x_",bName[bInd],"_p",polyOrder),
       printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)
     )
   ),
@@ -61,21 +80,35 @@ for bInd : 1 thru length(bName) do (
 
   for cd : max(2,minCdim[bInd]) thru min(maxCdim[bInd],3) do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      funcName : sconcat("gkyl_array_integrate_op_gradperp_sq_",cd,"x_",bName[bInd],"_p",polyOrder,"_ker"),
-      printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)
-    )
-  ),
-  printf(fh, "~%"),
-
-  for cd : max(2,minCdim[bInd]) thru min(maxCdim[bInd],3) do (
-    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      funcName : sconcat("gkyl_array_integrate_op_eps_gradperp_sq_",cd,"x_",bName[bInd],"_p",polyOrder,"_ker"),
+      funcName : sconcat("gkyl_array_integrate_op_eps_gradperp_sq_",cd,"x_",bName[bInd],"_p",polyOrder),
       printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)
     )
   ),
   printf(fh, "~%")
 
 )$
+
+/* Generate phase-space kernels of selected types. */
+bName        : ["gkhyb"]$
+minPolyOrder : [minPolyOrder_GkHybrid]$
+maxPolyOrder : [maxPolyOrder_GkHybrid]$
+minCdim      : [minCdim_GkHybrid     ]$
+maxCdim      : [maxCdim_GkHybrid     ]$
+for bInd : 1 thru length(bName) do (
+  for cd : minCdim[bInd] thru maxCdim[bInd] do (
+    for gkV : 1 thru length(gkVdims[cd]) do (
+      vd : gkVdims[cd][gkV],
+
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (cd=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        funcName : sconcat("gkyl_array_integrate_op_sq_weighted_",cd,"x",vd,"v_",bName[bInd],"_p",polyOrder),
+        printf(fh, "GKYL_CU_DH void ~a(double *dxSq, double vol, int num_comp, int num_basis, const double *weight, const double *fIn, double *out);~%", funcName)
+      )
+    )
+  ),
+  printf(fh, "~%")
+);
 
 printf(fh, "EXTERN_C_END~%")$
 printf(fh, "~%")$

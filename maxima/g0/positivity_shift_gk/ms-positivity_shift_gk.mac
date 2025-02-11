@@ -1,6 +1,7 @@
 /*
   Generate kernels for the updater which shifts the distribution
-  to make it positive at positivity control points.
+  to make it positive at certain "check" nodes (e.g. gauss-legendre,
+  gauss-lobatto, or positivity control nodes).
 */
 load("positivity_shift_gk/pos_shift_gk.mac")$
 
@@ -25,6 +26,7 @@ gkVdims : [[1,2], [2], [2]]$
 Chose the nodes to enforce positivity at, options:
   - positivity
   - gauss_legendre
+  - gauss_lobatto
 */
 nodeType : "gauss_legendre"$
 
@@ -39,22 +41,47 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 /* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
+  maxPolyOrderB : maxPolyOrder[bInd],
+  if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+
   for c : minCdim[bInd] thru maxCdim[bInd] do (
+
+    /* Generate conf space kernels. */
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+      fname : sconcat("~/max-out/positivity_shift_gyrokinetic_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,"Creating conf-space file: ~a",fname)),
+  
+      fh : openw(fname),
+      printf(fh, "#include <gkyl_positivity_shift_gyrokinetic_kernels.h> ~%"),
+      printf(fh, "~%"),
+
+      funcName : sconcat("positivity_shift_gyrokinetic_conf_pos_check_", c, "x_", bName[bInd], "_p", polyOrder),
+      genPosShiftGKConfPosCheckKernel(fh, funcName, c, bName[bInd], polyOrder, nodeType),
+      close(fh)
+    ),
+
+    /* Generate phase space kernels. */
     for gkV : 1 thru length(gkVdims[c]) do (
       v : gkVdims[c][gkV],
 
-      maxPolyOrderB : maxPolyOrder[bInd],
-      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
         fname : sconcat("~/max-out/positivity_shift_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        disp(printf(false,"Creating volume file: ~a",fname)),
+        disp(printf(false,"Creating phase-space file: ~a",fname)),
   
         fh : openw(fname),
         printf(fh, "#include <gkyl_positivity_shift_gyrokinetic_kernels.h> ~%"),
+        printf(fh, "#include <math.h> ~%"),
+        printf(fh, "#include <float.h> ~%"),
         printf(fh, "~%"),
 
-        funcName : sconcat("positivity_shift_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        genPosShiftGKkernel(fh, funcName, c, v, bName[bInd], polyOrder, nodeType),
+        /* Kernel that just shifts nodes. */
+        funcName : sconcat("positivity_shift_gyrokinetic_shift_only_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        genPosShiftGKPhaseShiftKernel(fh, funcName, c, v, bName[bInd], polyOrder, nodeType),
+        printf(fh, "~%"),
+
+        /* Kernel that applies MRS limiter if cell_av>0, shifts nodes if not. */
+        funcName : sconcat("positivity_shift_gyrokinetic_MRS_limiter_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        genPosShiftGKPhaseMRSKernel(fh, funcName, c, v, bName[bInd], polyOrder, nodeType),
         close(fh)
       )
     )

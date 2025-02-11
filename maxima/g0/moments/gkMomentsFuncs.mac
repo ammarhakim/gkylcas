@@ -59,7 +59,7 @@ calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "GKYL_CU_DH void ~a_M0_step2_~ax~av_~a_p~a(const double *dxv, const double *vmap, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
-  printf(fh, "  const double volFact = 2.0*M_PI/m_*dxv[~a]/2; ~%", cdim+1),
+  printf(fh, "  const double volFact = ~a*dxv[~a]/m_; ~%", float(2.0*%pi/2), cdim+1),
   f_e : doExpand1(f, bP_dvpar),
   M : calcInnerProdList(varsP, 1, bC, f_e),
   writeCIncrExprsNoExpand1(out, volFact*expand(M)),
@@ -324,6 +324,59 @@ calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "~%")
 )$
 
+/* Simultaneously calculate M0, M1, M2par and M2perp. */
+calcGkFourMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsP,bP,vSub,vmap_e,vmapSq_e,vmap_prime_e,vmap_c,d,f_e,bmag_e,
+   M0,M1,M2par,Mtemp,tmp_e,M2perp,four_moments,tempPowVars],
+
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
+  vmap_c : [],
+  for d : 1 thru vdim do (
+    vmap_c : append( vmap_c, delete(mu,delete(vpar,listofvars(vmap_e[d]))) )
+  ),
+
+  printf(fh, "GKYL_CU_DH void ~a_four_moments_~ax~av_~a_p~a(const double *dxv, const double *vmap, double m_, const double *bmag, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  if vdim = 1 then printf(fh, "  const double volFact = ~a; ~%", float(volExpr(cdim, vdim)/(2^vdim)))
+  else printf(fh, "  const double volFact = ~a/m_; ~%", float(2*%pi*volExpr(cdim, vdim)/(2^vdim))),
+
+  f_e : doExpand1(f, bP),
+  bmag_e : doExpand1(bmag, bC),
+
+  M0 : calcInnerProdList(varsP, 1, bC, f_e),
+  M0 : map(letsimp, M0),
+
+  M1 : calcInnerProdList(varsP, vmap_e[1], bC, f_e),
+  M1 : map(letsimp, M1),
+
+  M2par : calcInnerProdList(varsP, vmap_e[1]*vmap_e[1], bC, f_e),
+  M2par : map(letsimp, M2par),
+
+  if vdim > 1 then (
+    Mtemp : calcInnerProdList(varsP, vmap_e[2], bC, f_e),
+    Mtemp : map(letsimp, Mtemp),
+
+    printf(fh, "  double tmp[~a]; ~%", length(bC)),
+    writeCExprs1(tmp, Mtemp),
+
+    tmp_e : doExpand1(tmp, bC),
+    M2perp : fullratsimp(innerProd(varsC, bC, 2*bmag_e/m_, tmp_e))
+  ),
+  four_moments : [],
+  four_moments : append(four_moments, M0),
+  four_moments : append(four_moments, M1),
+  four_moments : append(four_moments, M2par),
+  if vdim > 1 then
+    four_moments : append(four_moments, M2perp),
+  tempPowVars : [],
+  tempPowVars : writeCIncrExprsCollect1noPowers(out, volFact*expand(four_moments), [volFact,m_], [vmap_c], tempPowVars),
+  printf(fh, "} ~%"),
+  printf(fh, "~%")
+)$
+
 calcGkMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_mom_gyrokinetic_kernels.h> ~%"),
   calcGkM0(fh, funcNm, cdim, vdim, basisFun, polyOrder),
@@ -334,8 +387,9 @@ calcGkMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   calcGkM3par(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   if vdim > 1 then calcGkM3perp(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcGkThreeMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcGkFourMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   if vdim > 1 then (
-     calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder),
-     calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+    calcGkM0_step1(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+    calcGkM0_step2(fh, funcNm, cdim, vdim, basisFun, polyOrder)
   )
 )$

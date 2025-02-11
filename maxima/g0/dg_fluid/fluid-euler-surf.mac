@@ -263,11 +263,11 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double q_cl_local[5] = {0.0}; ~%"),
   printf(fh, "  double q_cr_local[5] = {0.0}; ~%"),
   printf(fh, "  double q_rl_local[5] = {0.0}; ~%"),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_lr, q_lr_local); ~%", dir-1, dir-1, dir-1),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_cl, q_cl_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_lr, q_lr_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_cl, q_cl_local); ~%", dir-1, dir-1, dir-1),
 
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_cr, q_cr_local); ~%", dir-1, dir-1, dir-1),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_rl, q_rl_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_cr, q_cr_local); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_rl, q_rl_local); ~%", dir-1, dir-1, dir-1),
   printf(fh, "~%"),
 
   /* Compute jumps for calculating fluctuations */
@@ -293,8 +293,8 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double speeds_l[3] = {0.0}; ~%"),
   printf(fh, "  double speeds_r[3] = {0.0}; ~%"),  
 
-  printf(fh, "  double my_max_speed_l = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_l, q_lr_local, q_cl_local, waves_l, speeds_l); ~%"),
-  printf(fh, "  double my_max_speed_r = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_r, q_cr_local, q_rl_local, waves_r, speeds_r); ~%"), 
+  printf(fh, "  double my_max_speed_l = wave_roe(wv_eqn, delta_l, q_lr_local, q_cl_local, waves_l, speeds_l); ~%"),
+  printf(fh, "  double my_max_speed_r = wave_roe(wv_eqn, delta_r, q_cr_local, q_rl_local, waves_r, speeds_r); ~%"), 
   printf(fh, "~%"),
 
   /* rescale speeds */
@@ -315,8 +315,8 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double amdq_r_local[5] = {0.0}; ~%"),
   printf(fh, "  double apdq_r_local[5] = {0.0}; ~%"),
 
-  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_lr_local, q_cl_local, waves_l, speeds_l, amdq_l_local, apdq_l_local); ~%"),
-  printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_cr_local, q_rl_local, waves_r, speeds_r, amdq_r_local, apdq_r_local); ~%"),  
+  printf(fh, "  qfluct_roe(wv_eqn, q_lr_local, q_cl_local, waves_l, speeds_l, amdq_l_local, apdq_l_local); ~%"),
+  printf(fh, "  qfluct_roe(wv_eqn, q_cr_local, q_rl_local, waves_r, speeds_r, amdq_r_local, apdq_r_local); ~%"),  
   printf(fh, "~%"),
 
   /* Rotate local fluctuations at interface back to compute final update */
@@ -325,10 +325,10 @@ calcEuler1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double amdq_r[5] = {0.0}; ~%"),
   printf(fh, "  double apdq_r[5] = {0.0}; ~%"),
 
-  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], amdq_l_local, amdq_l); ~%", dir-1, dir-1, dir-1),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], apdq_l_local, apdq_l); ~%", dir-1, dir-1, dir-1),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], amdq_r_local, amdq_r); ~%", dir-1, dir-1, dir-1),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], apdq_r_local, apdq_r); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], amdq_l_local, amdq_l); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], apdq_l_local, apdq_l); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], amdq_r_local, amdq_r); ~%", dir-1, dir-1, dir-1),
+  printf(fh, "  rot_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], apdq_r_local, apdq_r); ~%", dir-1, dir-1, dir-1),
   printf(fh, "~%"),
 
   Ghat_rho_l_exp : avg_rho_l*avg_ux_l - 0.5*(apdq_l[0] - amdq_l[0]),
@@ -692,10 +692,10 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
 
     /* Rotate to local coordinates at left and right interface */
-    printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_lr, q_lr_local); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_cl, q_cl_local); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_cr, q_cr_local); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_rl, q_rl_local); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_lr, q_lr_local); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_local(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], q_cl, q_cl_local); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_cr, q_cr_local); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_local(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], q_rl, q_rl_local); ~%", dir-1, dir-1, dir-1),
     printf(fh, "~%"),
 
     /* Compute jumps for calculating fluctuations */
@@ -713,8 +713,8 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
 
     /* Compute local waves and speeds at interface */
-    printf(fh, "  my_max_speed_l = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_l, q_lr_local, q_cl_local, waves_l, speeds_l); ~%"),
-    printf(fh, "  my_max_speed_r = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_r, q_cr_local, q_rl_local, waves_r, speeds_r); ~%"), 
+    printf(fh, "  my_max_speed_l = wave_roe(wv_eqn, delta_l, q_lr_local, q_cl_local, waves_l, speeds_l); ~%"),
+    printf(fh, "  my_max_speed_r = wave_roe(wv_eqn, delta_r, q_cr_local, q_rl_local, waves_r, speeds_r); ~%"), 
 
     /* rescale speeds */
     printf(fh, "  lenr_l = geom_l->lenr[~a]; ~%", dir-1),
@@ -729,15 +729,15 @@ calcEulerUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
 
     /* Compute local fluctuations at interface */
-    printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_lr_local, q_cl_local, waves_l, speeds_l, amdq_l_local, apdq_l_local); ~%"),
-    printf(fh, "  gkyl_wv_eqn_qfluct(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, q_cr_local, q_rl_local, waves_r, speeds_r, amdq_r_local, apdq_r_local); ~%"),  
+    printf(fh, "  qfluct_roe(wv_eqn, q_lr_local, q_cl_local, waves_l, speeds_l, amdq_l_local, apdq_l_local); ~%"),
+    printf(fh, "  qfluct_roe(wv_eqn, q_cr_local, q_rl_local, waves_r, speeds_r, amdq_r_local, apdq_r_local); ~%"),  
     printf(fh, "~%"),
 
     /* Rotate local fluctuations back to global coordinates */
-    printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], amdq_l_local, amdq_l); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], apdq_l_local, apdq_l); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], amdq_r_local, amdq_r); ~%", dir-1, dir-1, dir-1),
-    printf(fh, "  gkyl_wv_eqn_rotate_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], apdq_r_local, apdq_r); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], amdq_l_local, amdq_l); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_global(wv_eqn, geom_l->tau1[~a], geom_l->tau2[~a], geom_l->norm[~a], apdq_l_local, apdq_l); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], amdq_r_local, amdq_r); ~%", dir-1, dir-1, dir-1),
+    printf(fh, "  rot_to_global(wv_eqn, geom_r->tau1[~a], geom_r->tau2[~a], geom_r->norm[~a], apdq_r_local, apdq_r); ~%", dir-1, dir-1, dir-1),
     printf(fh, "~%"),
 
     printf(fh, "  amdq_rho_quad_l[~a] = amdq_l[0]; ~%", i-1),
