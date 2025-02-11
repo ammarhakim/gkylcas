@@ -79,9 +79,9 @@ calcEulerLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double q_l_local[5] = {0.0}; ~%"),
   printf(fh, "  double q_c_local[5] = {0.0}; ~%"),
   printf(fh, "  double q_r_local[5] = {0.0}; ~%"),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, tau1, tau2, norm, q_avg_l, q_l_local); ~%"),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, tau1, tau2, norm, q_avg_c, q_c_local); ~%"),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, tau1, tau2, norm, q_avg_r, q_r_local); ~%"),
+  printf(fh, "  rot_to_local(wv_eqn, tau1, tau2, norm, q_avg_l, q_l_local); ~%"),
+  printf(fh, "  rot_to_local(wv_eqn, tau1, tau2, norm, q_avg_c, q_c_local); ~%"),
+  printf(fh, "  rot_to_local(wv_eqn, tau1, tau2, norm, q_avg_r, q_r_local); ~%"),
   printf(fh, "~%"),
 
   /* Compute jumps for calculating fluctuations */
@@ -110,7 +110,7 @@ calcEulerLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   /* Rotate the slopes into the local coordinate system */
   printf(fh, "  double delta_c_local[5] = {0.0}; ~%"),
-  printf(fh, "  gkyl_wv_eqn_rotate_to_local(wv_eqn, tau1, tau2, norm, delta_c, delta_c_local); ~%"),
+  printf(fh, "  rot_to_local(wv_eqn, tau1, tau2, norm, delta_c, delta_c_local); ~%"),
   printf(fh, "~%"),
 
   /* Compute local waves and speeds at interface */
@@ -118,9 +118,9 @@ calcEulerLimiter(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  double waves_slope_c[15] = {0.0}; ~%"),  
   printf(fh, "  double waves_slope_r[15] = {0.0}; ~%"),  
   printf(fh, "  double speeds[3] = {0.0}; ~%"),
-  printf(fh, "  double my_max_speed_l = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_l, q_c_local, q_c_local, waves_slope_l, speeds); ~%"),
-  printf(fh, "  double my_max_speed_c = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_c_local, q_c_local, q_c_local, waves_slope_c, speeds); ~%"),
-  printf(fh, "  double my_max_speed_r = gkyl_wv_eqn_waves(wv_eqn, GKYL_WV_HIGH_ORDER_FLUX, delta_r, q_c_local, q_c_local, waves_slope_r, speeds); ~%"), 
+  printf(fh, "  double my_max_speed_l = wave_roe(wv_eqn, delta_l, q_c_local, q_c_local, waves_slope_l, speeds); ~%"),
+  printf(fh, "  double my_max_speed_c = wave_roe(wv_eqn, delta_c_local, q_c_local, q_c_local, waves_slope_c, speeds); ~%"),
+  printf(fh, "  double my_max_speed_r = wave_roe(wv_eqn, delta_r, q_c_local, q_c_local, waves_slope_r, speeds); ~%"), 
   printf(fh, "~%"),
 
   printf(fh, "  double mm[15] = {0.0}; ~%"),

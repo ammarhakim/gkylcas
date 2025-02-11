@@ -4,7 +4,7 @@
 load("modal-basis");
 load("out-scripts");
 load("nodal_operations/nodal_functions")$
-load("gk-sheath/sheath_util.mac")$
+load("utilities_gyrokinetic")$
 load(stringproc)$
 fpprec : 24$
 

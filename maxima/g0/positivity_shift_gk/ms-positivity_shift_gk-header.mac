@@ -31,14 +31,23 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 printPrototypes(fh) := block([],
 
   for bInd : 1 thru length(bName) do (
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+
     for c : minCdim[bInd] thru maxCdim[bInd] do (
+      /* Conf-space functions. */
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_conf_pos_check_~ax_~a_p~a(const double *fld);~%", c, bName[bInd], polyOrder),
+        printf(fh, "~%")
+      ),
+
+      /* Phase-space functions. */
       for gkV : 1 thru length(gkVdims[c]) do (
         v : gkVdims[c][gkV],
   
-        maxPolyOrderB : maxPolyOrder[bInd],
-        if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
         for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-          printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_~ax~av_~a_p~a(double ffloor, double *distf, double *Deltaf);~%", c, v, bName[bInd], polyOrder),
+          printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_shift_only_~ax~av_~a_p~a(double ffloor, double *distf);~%", c, v, bName[bInd], polyOrder),
+          printf(fh, "GKYL_CU_DH bool positivity_shift_gyrokinetic_MRS_limiter_~ax~av_~a_p~a(double ffloor, double *distf);~%", c, v, bName[bInd], polyOrder),
           printf(fh, "~%")
         )
       )

@@ -9,6 +9,8 @@ load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
 load("utilities")$
 
+/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
+doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
 slcn(lst, n) := makelist(lst[i], i, 1, n)$
 slcn_v(lst, n) := makelist(lst[i], i, n+1, length(lst))$
 
@@ -18,18 +20,17 @@ PB(f, g, x_vec, y_vec, dx_vec, dy_vec) :=
     i, 1, length(x_vec)
   )$
 
-calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,hamil,sideStr) := block(
-  [varsP, varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
-   z, q, p, dq, dp, alpha, alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
+calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,hamil,sideStr,cdim,vdim,pDim) := block(
+  [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
+   z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf], 
   /* Calculate phase space velocity alpha in direction of surfVar. */
   /* We assume alpha.n and hamil is continuous across boundary. */
   /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
      determine upwind direction. */
 
-  varsP : listofvars(bP),
   varsC : slcn(varsP, cdim),
-  varsV : slcn_v(varsP, cdim),
+  varsV : slcn_v(varsP, cdim), /* cdim offset */
   varLabel : makelist(string(varsP[d]),d,1,pDim),
   dirLabel : varLabel[surfDir],
 
@@ -38,6 +39,10 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
 
   surfVar     : varsP[surfDir],         /* Surface variable. */
   surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+
+  /* print("varsC ",varsC),
+  print("varsV ",varsV),
+  print("varsR ",varsR), */
 
   /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
@@ -49,11 +54,10 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
 
-  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
-  elseif sideStr="R" then (evPoint : 1),
+  else if sideStr="R" then (evPoint : 1),
 
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */
@@ -71,17 +75,16 @@ calcAndWrite_CanonicalPB_alpha(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,ham
 
 
 
-calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
-                   hamil,sideStr) := block(
-  [varsP, varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
-   z, q, p, dq, dp, alpha, alphaUp, bSurf, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
+calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V,
+                   hamil,sideStr,cdim,vdim,pDim) := block(
+  [varsC, varsV, varLabel, dirLabel, wSurf, rdSurfVar2, surfVar, surfIntVars, rdx2vec, rdv2vec,
+   z, q, p, dq, dp, alpha, alphaUp, numSurf, evPoint, replaceList, alpha_c, printf, alphaCvar,
    alphaNoZero_c, alphaSurf, alphaUpSurf],
   /* Calculate phase space velocity alpha in direction of surfVar. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
   /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
      determine upwind direction. */
 
-  varsP    : listofvars(bP),
   varsC : slcn(varsP, cdim),
   varsV : slcn_v(varsP, cdim),
   varLabel : makelist(string(varsP[d]),d,1,pDim),
@@ -104,11 +107,10 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
   dp : rdv2vec,
   alpha : PB(z,hamil,q,p,dq,dp),
 
-  bSurf : basisFromVars(basisType,surfIntVars,polyOrder),
   numSurf : length(bSurf),
 
   if sideStr="L" then (evPoint : -1)
-  elseif sideStr="R" then (evPoint : 1),
+  else if sideStr="R" then (evPoint : 1),
 
   /* Project full alpha expression evaluated at interior surface
      onto surface basis and print to C variable alpha. */
@@ -122,7 +124,8 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,rdx2V,rdv2V,
 
 
 /* Determine the upwinded distribution function in canonical pb */
-calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr) := block(
+calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr,
+                    cdim, vdim, polyOrder,basisFun) := block(
   [fstrL, fstrR, fLNm, fRNm, fUpNm, sgn_alpha_surfNm, sgn_alphaUpNm, fSurfl_c, fSurfr_c, 
    fSurfl_e, fSurfr_e, sgn_alphaUp_e, fUp_c],
    
@@ -166,7 +169,22 @@ calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NS
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrL, NSurf),
     printf(file_handle, "  double f_~a[~a] = {0.};~%", fstrR, NSurf),
     printf(file_handle, "  double sgn_alphaUp~a[~a] = {0.};~%", sideStr, NSurf),
-    printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),
+    
+    /*printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),*/
+    printf(file_handle, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
+    if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+      if (surfDir - cdim > 0) then ( 
+        /* Velocity space */
+        printf(file_handle, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
+      ) else ( 
+        /* configuration space */
+        printf(file_handle, "  hyb_~ax~av_p1_xdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
+      )
+    ) else (
+      printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm)
+    ),
+
+
     sgn_alphaUp_e : doExpand1(sgn_alphaUpNm, bSurf),
     printf(file_handle, "~%"),
     writeCExprs1(fLNm, fSurfl_c),
