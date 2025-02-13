@@ -1,41 +1,48 @@
-#lang racket/base
+#lang racket
 
-(provide generate-lax-friedrichs)
+(provide generate-lax-friedrichs-scalar-1d)
 
-(define (flux-substitute flux-expr var-name)
-  (regexp-replace* #px"\\bu\\b" flux-expr var-name))
+(define (flux-substitute flux-expr cons-expr var-name)
+  (string-replace flux-expr cons-expr var-name))
 
-;;; ---------------------------------------------------------
-;;; Lax–Friedrichs (Finite-Difference) Solver Code Generation
-;;; ---------------------------------------------------------
-(define (generate-lax-friedrichs pde
-                                 #:nx [nx 100]
-                                 #:x0 [x0 0.0]
-                                 #:x1 [x1 1.0]
-                                 #:tfinal [tfinal 1.0]
-                                 #:cfl [cfl 0.95]
-                                 #:init-func
-                                  [init-func "(x < 1.0) ? 1.0 : 0.0"])
- "Generate a C code string that solves the PDE described by `pde` using the Lax-Friedrichs finite-difference method.
+;; -----------------------------------------------------------
+;; Lax–Friedrichs (Finite-Difference) Solver for 1D Scalar PDE
+;; -----------------------------------------------------------
+(define (generate-lax-friedrichs-scalar-1d pde
+                                           #:nx [nx 200]
+                                           #:x0 [x0 0.0]
+                                           #:x1 [x1 2.0]
+                                           #:t-final [t-final 1.0]
+                                           #:cfl [cfl 0.95]
+                                           #:init-func
+                                            [init-func "(x < 1.0) ? 1.0 : 0.0"])
+ "Generate a C code string that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
-  - `tfinal`: Final time.
+  - `t-final`: Final time.
   - `cfl`: CFL coefficient.
   - `init-func`: C code for the initial condition, e.g. piecewise constant."
 
   (define name (hash-ref pde 'name))
+  (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
   (define max-speed-expr (hash-ref pde 'max-speed-expr))
   (define parameters (hash-ref pde 'parameters))
 
-  (define flux-um (flux-substitute flux-expr "um"))
-  (define flux-ui (flux-substitute flux-expr "ui"))
-  (define flux-up (flux-substitute flux-expr "up"))
+  (define flux-um (flux-substitute flux-expr cons-expr "um"))
+  (define flux-ui (flux-substitute flux-expr cons-expr "ui"))
+  (define flux-up (flux-substitute flux-expr cons-expr "up"))
+
+  (define max-speed-code (flux-substitute max-speed-expr cons-expr "u[i]"))
+
+  (define parameter-code (cond
+    [(non-empty-string? parameters) (string-append "double " parameters ";")]
+    [else ""]))
 
   (define code
     (format "
 // AUTO-GENERATED CODE for PDE: ~a
-// Lax–Friedrichs first-order finite-difference solver in 1D.
+// Lax–Friedrichs first-order finite-difference solver for a scalar PDE in 1D.
 
 #include <stdio.h>
 #include <math.h>
@@ -138,8 +145,8 @@ int main() {
 "
            ;; PDE name for code comments.
            name
-           ;; Additional PDE parameters (e.g. double a = 1.0; for linear advection).
-           parameters
+           ;; Additional PDE parameters (e.g. a = 1.0 for linear advection).
+           parameter-code
            ;; Number of cells.
            nx
            ;; Left boundary.
@@ -149,11 +156,11 @@ int main() {
            ;; CFL coefficient.
            cfl
            ;; Final time.
-           tfinal
+           t-final
            ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0).
            init-func
            ;; Expression for local wave-speed estimate.
-           max-speed-expr
+           max-speed-code
            ;; Left flux f(u_{i - 1}).
            flux-um
            ;; Middle flux f(u_i).
