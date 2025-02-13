@@ -114,6 +114,11 @@ int main() {
       }
     }
 
+    // Avoid division by zero.
+    if (alpha < 1e-14) {
+      alpha = 1e-14;
+    }
+
     // Compute stable time step from alpha.
     double dt = CFL * dx / alpha;
 

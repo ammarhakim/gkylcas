@@ -49,4 +49,5 @@
     (display code-linear-advection-lf)))
 
 ;; Show whether L-1/L-2/L-infinity stability is satisfied.
+(display "Stability: ")
 (display proof-linear-advection-lf-stability)

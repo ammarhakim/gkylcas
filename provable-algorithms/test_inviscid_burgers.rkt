@@ -49,4 +49,5 @@
     (display code-inviscid-burgers-lf)))
 
 ;; Show whether L-1/L-2/L-infinity stability is satisfied.
+(display "Stability: ")
 (display proof-inviscid-burgers-lf-stability)
