@@ -1,10 +1,11 @@
 /*
-  Generate kernels for the updates from the surface term
-  contributions from the drag portion of the 
-  Rosenbluth/Fokker-Planck Operator
+  Generate kernels for the surface projections of the 
+  FPO diffusion tensor.
 */
 
-load("fpo/funcs-fpo-vlasov-drag-surf")$
+load(stringproc);
+load("fpo/funcs-fpo-diff-coeff-surf");
+
 
 /* ...... USER INPUTS........ */
 
@@ -41,17 +42,18 @@ dirs : [vx, vy, vz]$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for vidx : 1 thru length(dirs) do (
+      dir : dirs[vidx],
+
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
-
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        pv : dirs[vidx],
-        fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
-          c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
-        funcNm : sconcat("fpo_vlasov_drag_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragSurf(fname, funcNm, c, bName[bInd], polyOrder, pv)
+        fname : sconcat("~/max-out/fpo_diff_coeff_surf_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir,".c"),
+        funcNm : sconcat("fpo_diff_coeff_surf_",c,"x3v_",dir, "_", bName[bInd],"_p",polyOrder),
+        generateFpoDiffCoeffSurf(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )
   )
 )$
+
+
