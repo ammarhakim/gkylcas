@@ -2,6 +2,29 @@
 
 (provide generate-lax-friedrichs-scalar-1d)
 
+;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
+(define (convert-expr expr)
+  (match expr
+    ;; If expr is a symbol, then convert it directly to a string.
+    [(? symbol? symb) (symbol->string symb)]
+
+    ;; If expr is a numerical constant, then convert it directly to a string.
+    [(? number? num) (number->string num)]
+
+    ;; If expr is a sum of the form (+ expr1 expr2 ...), then convert it to "(expr1 + expr2 + ...)" in C.
+    [`(+ . ,terms)
+     (let ([c-terms (map convert-expr terms)])
+       (string-append "(" (string-join c-terms " + ") ")"))]
+
+    ;; If expr is a product of the form (* expr1 expr2 ...), then convert it to "(expr1 * expr2 * ...)" in C.
+    [`(* . ,terms)
+     (let ([c-terms (map convert-expr terms)])
+       (string-append "(" (string-join c-terms " * ") ")"))]
+
+    ;; If expr is an absolute value of the form (abs expr1), then convert it to "fabs(expr1)" in C.
+    [`(abs ,arg)
+     (format "fabs(~a)" (convert-expr arg))]))
+
 (define (flux-substitute flux-expr cons-expr var-name)
   (string-replace flux-expr cons-expr var-name))
 
@@ -29,11 +52,15 @@
   (define max-speed-expr (hash-ref pde 'max-speed-expr))
   (define parameters (hash-ref pde 'parameters))
 
-  (define flux-um (flux-substitute flux-expr cons-expr "um"))
-  (define flux-ui (flux-substitute flux-expr cons-expr "ui"))
-  (define flux-up (flux-substitute flux-expr cons-expr "up"))
+  (define cons-code (convert-expr cons-expr))
+  (define flux-code (convert-expr flux-expr))
+  (define max-speed-code (convert-expr max-speed-expr))
 
-  (define max-speed-code (flux-substitute max-speed-expr cons-expr "u[i]"))
+  (define flux-um (flux-substitute flux-code cons-code "um"))
+  (define flux-ui (flux-substitute flux-code cons-code "ui"))
+  (define flux-up (flux-substitute flux-code cons-code "up"))
+
+  (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
     [(non-empty-string? parameters) (string-append "double " parameters ";")]
@@ -160,7 +187,7 @@ int main() {
            ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0).
            init-func
            ;; Expression for local wave-speed estimate.
-           max-speed-code
+           max-speed-local
            ;; Left flux f(u_{i - 1}).
            flux-um
            ;; Middle flux f(u_i).
