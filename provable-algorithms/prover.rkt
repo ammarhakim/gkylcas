@@ -3,7 +3,9 @@
 (require racket/trace)
 (provide prove-lax-friedrichs-scalar-1d-stable
          prove-lax-friedrichs-scalar-1d-tvd
-         prove-lax-friedrichs-scalar-1d-entropy)
+         prove-lax-friedrichs-scalar-1d-entropy
+	 symbolic-diff
+	 symbolic-simp-rule)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
