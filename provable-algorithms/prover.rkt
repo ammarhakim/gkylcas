@@ -1,7 +1,9 @@
 #lang racket
 
 (require racket/trace)
-(provide prove-lax-friedrichs-scalar-1d-stability)
+(provide prove-lax-friedrichs-scalar-1d-stable
+         prove-lax-friedrichs-scalar-1d-tvd
+         prove-lax-friedrichs-scalar-1d-entropy)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -104,18 +106,18 @@
     [else (symbolic-simp (symbolic-simp-rule expr))]))
 (trace symbolic-simp)
 
-;; -------------------------------------------------------------------------------------------------
-;; Prove L-1/L-2/L-infinity stability of Lax–Friedrichs (Finite-Difference) Solver for 1D Scalar PDE
-;; -------------------------------------------------------------------------------------------------
-(define (prove-lax-friedrichs-scalar-1d-stability pde
-                                                     #:nx [nx 200]
-                                                     #:x0 [x0 0.0]
-                                                     #:x1 [x1 2.0]
-                                                     #:t-final [t-final 1.0]
-                                                     #:cfl [cfl 0.95]
-                                                     #:init-func
-                                                     [init-func "(x < 1.0) ? 1.0 : 0.0"])
-   "Prove that the Lax-Friedrichs finite-difference method is L-1/L-2/L-infinity stable for the 1D scalar PDE specified by `pde`. 
+;; ----------------------------------------------------------------------------------------------------------------
+;; Prove L-1/L-2/L-infinity stable convergence of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; ----------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-stable pde
+                                               #:nx [nx 200]
+                                               #:x0 [x0 0.0]
+                                               #:x1 [x1 2.0]
+                                               #:t-final [t-final 1.0]
+                                               #:cfl [cfl 0.95]
+                                               #:init-func
+                                               [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method converges with L-1/L-2/L-infinity stability for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -136,8 +138,87 @@
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
     
-    ;; Check whether the absolute value of the derivative of the flux derivative is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
-    [(not (equal? `(abs ,(symbolic-simp (symbolic-diff flux-expr cons-expr))) (symbolic-simp max-speed-expr))) #f]
+    ;; Check whether the absolute value of the derivative of the flux function is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
+    [(not (equal? `(abs ,(symbolic-simp (symbolic-diff flux-expr cons-expr)))
+                  (symbolic-simp max-speed-expr))) #f]
 
+    ;; Otherwise, return true.
+    [else #t]))
+
+;; --------------------------------------------------------------------------------------------------------------------------
+;; Prove the total variation diminishing (TVD) property for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; --------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-tvd pde
+                                            #:nx [nx 200]
+                                            #:x0 [x0 0.0]
+                                            #:x1 [x1 2.0]
+                                            #:t-final [t-final 1.0]
+                                            #:cfl [cfl 0.95]
+                                            #:init-func
+                                            [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method satisfies the total variation diminishing (TVD) property for the 1D scalar PDE specified by `pde`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define max-speed-expr (hash-ref pde 'max-speed-expr))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+    
+    ;; Check whether the absolute value of the derivative of the flux function is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
+    [(not (equal? `(abs ,(symbolic-simp (symbolic-diff flux-expr cons-expr)))
+                  (symbolic-simp max-speed-expr))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+;; ------------------------------------------------------------------------------------------------------------------------
+;; Prove the Lax entropy property (for weak solutions) of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; ------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-entropy pde
+                                                #:nx [nx 200]
+                                                #:x0 [x0 0.0]
+                                                #:x1 [x1 2.0]
+                                                #:t-final [t-final 1.0]
+                                                #:cfl [cfl 0.95]
+                                                #:init-func
+                                                [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method satisfies the Lax entropy property (for weak solutions) for the 1D scalar PDE specified by `pde`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define max-speed-expr (hash-ref pde 'max-speed-expr))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+    
+    ;; Check whether the flux function is convex, i.e. that the second derivative of the flux function is strictly non-negative (otherwise, return false).
+    [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-diff flux-expr cons-expr) cons-expr))])
+       (or (not (number? deriv)) (< deriv 0))) #f]
+    
     ;; Otherwise, return true.
     [else #t]))

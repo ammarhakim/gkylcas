@@ -32,22 +32,67 @@
                                      #:cfl cfl
                                      #:init-func init-func))
 
-;; Attempt to prove L-1/L-2/L-infinity stability of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
-(define proof-inviscid-burgers-lf-stability
-  (prove-lax-friedrichs-scalar-1d-stability pde-inviscid-burgers
-                                            #:nx nx
-                                            #:x0 x0
-                                            #:x1 x1
-                                            #:t-final t-final
-                                            #:cfl cfl
-                                            #:init-func init-func))
-
 ;; Output the code to a file.
 (with-output-to-file "inviscid_burgers_lf.c"
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lf)))
 
-;; Show whether L-1/L-2/L-infinity stability is satisfied.
-(display "Stability: ")
-(display proof-inviscid-burgers-lf-stability)
+;; Attempt to prove L-1/L-2/L-infinity stable convergence of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-stable
+  (call-with-output-file "proof_inviscid_burgers_lf_stable.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-stable pde-inviscid-burgers
+                                               #:nx nx
+                                               #:x0 x0
+                                               #:x1 x1
+                                               #:t-final t-final
+                                               #:cfl cfl
+                                               #:init-func init-func)))
+    #:exists `replace))
+
+;; Show whether L-1/L-2/L-infinity stable convergence is satisfied.
+(display "L-1/L-2/L-infinity stable convergence: ")
+(display proof-inviscid-burgers-lf-stable)
+(display "\n")
+
+;; Attempt to prove the total variation diminishing (TVD) property of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-tvd
+  (call-with-output-file "proof_inviscid_burgers_lf_tvd.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-tvd pde-inviscid-burgers
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-func init-func)))
+    #:exists `replace))
+
+
+;; Show whether the total variation diminishing (TVD) property is satisfied.
+(display "Total variation diminishing (TVD): ")
+(display proof-inviscid-burgers-lf-tvd)
+(display "\n")
+
+;; Attempt to prove the Lax entropy property (for weak solutions) of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-entropy
+  (call-with-output-file "proof_inviscid_burgers_lf_entropy.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-entropy pde-inviscid-burgers
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-func init-func)))
+    #:exists `replace))
+
+
+;; Show whether the Lax entropy property (for weak solutions) is satisfied.
+(display "Lax entropy property (for weak solutions): ")
+(display proof-inviscid-burgers-lf-entropy)
+(display "\n")

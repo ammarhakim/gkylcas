@@ -32,22 +32,67 @@
                                      #:cfl cfl
                                      #:init-func init-func))
 
-;; Attempt to prove L-1/L-2/L-infinity stability of the Lax-Friedrichs solver for the 1D linear advection equation.
-(define proof-linear-advection-lf-stability
-  (prove-lax-friedrichs-scalar-1d-stability pde-linear-advection
-                                            #:nx nx
-                                            #:x0 x0
-                                            #:x1 x1
-                                            #:t-final t-final
-                                            #:cfl cfl
-                                            #:init-func init-func))
-
 ;; Output the code to a file.
 (with-output-to-file "linear_advection_lf.c"
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lf)))
 
-;; Show whether L-1/L-2/L-infinity stability is satisfied.
-(display "Stability: ")
-(display proof-linear-advection-lf-stability)
+;; Attempt to prove L-1/L-2/L-infinity stable convergence of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lf-stable
+  (call-with-output-file "proof_linear_advection_lf_stable.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-stable pde-linear-advection
+                                               #:nx nx
+                                               #:x0 x0
+                                               #:x1 x1
+                                               #:t-final t-final
+                                               #:cfl cfl
+                                               #:init-func init-func)))
+    #:exists `replace))
+
+;; Show whether L-1/L-2/L-infinity stable convergence is satisfied.
+(display "L-1/L-2/L-infinity stable convergence: ")
+(display proof-linear-advection-lf-stable)
+(display "\n")
+
+;; Attempt to prove the total variation diminishing (TVD) property of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lf-tvd
+  (call-with-output-file "proof_linear_advection_lf_tvd.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-tvd pde-linear-advection
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-func init-func)))
+    #:exists `replace))
+
+
+;; Show whether the total variation diminishing (TVD) property is satisfied.
+(display "Total variation diminishing (TVD): ")
+(display proof-linear-advection-lf-tvd)
+(display "\n")
+
+;; Attempt to prove the Lax entropy property (for weak solutions) of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lf-entropy
+  (call-with-output-file "proof_linear_advection_lf_entropy.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out])
+        (prove-lax-friedrichs-scalar-1d-entropy pde-linear-advection
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-func init-func)))
+    #:exists `replace))
+
+
+;; Show whether the Lax entropy property (for weak solutions) is satisfied.
+(display "Lax entropy property (for weak solutions): ")
+(display proof-linear-advection-lf-entropy)
+(display "\n")
