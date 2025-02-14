@@ -78,6 +78,15 @@ getStoredNodesWithBC(nodesIn,cellLoc,bcIn) := block(
   return(storedNodesBC)
 )$
 
+calcMassWeighted(dim, basisType, pOrder, weight) := block(
+  /* Calculate unweighted nodal mass matrix. */
+  [basis_n,vars,massMod],
+  basis_n : getNodalBasis(basisType, dim, pOrder),
+  vars    : listofvars(basis_n),
+  massNod : calcMassMatrix(vars, weight, basis_n),
+  return(massNod)
+)$
+
 calcMassUnweighted(dim, basisType, pOrder) := block(
   /* Calculate unweighted nodal mass matrix. */
   [basis_n,vars,massMod],

@@ -303,7 +303,7 @@ writeCExprs1noPowers(lhs, rhs, qPow, alreadyDecl) := block(
      redefining the same variables.
   */
 
-  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 0, alreadyDecl), 
+  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 1, alreadyDecl), 
 
   expr : float(rhs),
   for i : 1 thru length(rhs) do (
@@ -389,7 +389,7 @@ writeCIncrExprsCollectnoPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
       ) else (
         outStr : ep
       ),
-      printf(fh, "  ~a += ~a; ~%", lhs[i-1], outStr)
+      printf(fh, "  ~a += ~a; ~%", lhs[i], outStr)
     )
   ),
   return(alreadyDecl)
