@@ -10,8 +10,10 @@ load(stringproc)$
 fpprec : 24$
 
 calcHamil(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [bC, bP, NC, NP, wv, dv, vi_sq, vi_sq_e, gxx_e, gxy_e, g02_e,
-   gyy_e, gyz_e, gzz_e, hamil_e, hamil_nodal_e],
+  [bC, bP, NC, NP, wv, dv, vi_sq, vi_sq_e, g00_e, g01_e, g02_e,
+   g11_e, g12_e, g22_e, v0_sq, v0_v1, v0_v2, v1_sq, v1_v2, v2_sq,
+   v0_sq_e, v0_v1_e, v0_v2_e, v1_sq_e, v1_v2_e, v2_sq_e,
+   hamil_e, hamil_nodal_e],
 
   let(w0^2, w0_sq),
   let(dv0^2, dv0_sq),
@@ -34,12 +36,11 @@ calcHamil(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NP : length(bP),
   varsV : makelist(varsP[i],i,cdim+1,cdim+vdim),
 
-  printf(fh, "#include <gkyl_gk_neut_hamil_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_dg_gk_neut_hamil_kernels.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *mass, const double *gij, double* GKYL_RESTRICT hamil) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *gij, double* GKYL_RESTRICT hamil) ~%{ ~%", funcNm),
   printf(fh, "  // w:        Cell-center coordinates.~%"),
   printf(fh, "  // dxv:      Cell spacing.~%"),
-  printf(fh, "  // mass:     Particle mass.~%"),
   printf(fh, "  // gij[~a]:  Contravariant components of metric tensor.~%", NC*6),
   printf(fh, "  // hamil:    Gk neut species Hamiltonian.~%"),
   printf(fh, " ~%"),
