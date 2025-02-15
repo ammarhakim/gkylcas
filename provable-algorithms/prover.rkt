@@ -1,11 +1,15 @@
 #lang racket
 
 (require racket/trace)
-(provide prove-lax-friedrichs-scalar-1d-stable
-         prove-lax-friedrichs-scalar-1d-tvd
-         prove-lax-friedrichs-scalar-1d-entropy
-	 symbolic-diff
-	 symbolic-simp-rule)
+(provide symbolic-diff
+         symbolic-simp-rule
+         symbolic-simp
+         symbolic-jacobian
+         symbolic-eigvals2
+         prove-lax-friedrichs-scalar-1d-cfl-stability
+         prove-lax-friedrichs-scalar-1d-local-lipschitz
+         prove-lax-friedrichs-vector2-1d-cfl-stability
+         prove-lax-friedrichs-vector2-1d-local-lipschitz)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -20,14 +24,17 @@
 
     ;; If expr is a sum of the form (+ expr1 expr2 ...), then it differentiates to a sum of derivatives (+ expr1' expr2' ...), by linearity.
     [`(+ . ,terms)
-     `(+ ,@(map (lambda(term) (symbolic-diff term var)) terms))]
+     `(+ ,@(map (lambda (term) (symbolic-diff term var)) terms))]
+    ;; Likewise for differences of the form (- expr1 expr2 ...), which differentiate to (- expr1' expr2' ...), by linearity.
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (symbolic-diff term var)) terms))]
 
     ;; If expr is a product of the form (* expr1 expr2 ...), then it differentiates to (+ (* expr1' expr2 ...) (* expr1 expr2' ...) ...), by the product rule.
     [`(* . ,terms)
      (define n (length terms))
      (define (mult xs) (cons '* xs)) ; Multiplication helper function.
 
-     ((lambda(sums) (cond
+     ((lambda (sums) (cond
                       [(null? (cdr sums)) (car sums)]
                       [else (cons '+ sums)]))
       (let loop ([i 0])
@@ -42,6 +49,10 @@
                         [(= j i) di]
                         [else (list-ref terms j)])))
               (loop (add1 i))))])))]
+
+    ;; If expr is a quotient of the form (/ expr1 expr2), then it differentiates to (/ (- (* expr2 expr1') (expr1 expr2') (* expr2 expr2)), by the quotient rule.
+    [`(/ ,x ,y)
+     `(/ (- (* ,y ,(symbolic-diff x var)) (* ,x ,(symbolic-diff y var))) (* ,y ,y))]
 
     ;; If expr is an absolute value of the form (abs expr1), then it differentiates to (sgn expr1').
     [`(abs ,arg)
@@ -64,7 +75,19 @@
 
     ;; If expr is of the form (0 * x) or (0.0 * x), then simplify to 0 or 0.0.
     [`(* 0 ,x) 0]
-    (`(* 0.0 ,x) 0.0)
+    [`(* 0.0 ,x) 0.0]
+
+    ;; If expr is of the form (x - 0) or (x - 0.0), then simplify to x.
+    [`(- ,x 0) `,x]
+    [`(- ,x 0.0) `,x]
+
+    ;; If expr is of the form (0 - x) or (0.0 - x), then simplify to (-1 * x) or (-1.0 * x).
+    [`(- 0 ,x) `(* -1 ,x)]
+    [`(- 0.0 ,x) `(* -1.0 ,x)]
+
+    ;; If expr is of the form (x / 1) or (x / 1.0), then simplify to x.
+    [`(/ ,x 1) `,x]
+    [`(/ ,x 1.0) `,x]
 
     ;; Enforce right associativity of addition: if expr is of the form ((x + y) + z) or (x + y + z), then simplify to (x + (y + z)).
     [`(+ (+ ,x ,y) ,z) `(+ ,x (+ ,y ,z))]
@@ -77,11 +100,16 @@
     ;; Enforce (reverse) distributive property: if expr is of the form ((a * x) + (b * x)), then simplify to ((a + b) * x).
     [`(+ (* ,a, x) (* ,b ,x)) `(* (+ ,a ,b) ,x)]
 
-    ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum.
+    ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum. Likewise for differences.
     [`(+ ,(and x (? number?)) ,(and y (? number?))) (+ x y)]
+    [`(- ,(and x (? number?)) ,(and y (? number?))) (- x y)]
 
-    ;; If expr is of the form (x * y) for numeric x and y, then just evaluate the product.
+    ;; If expr is of the form (x * y) for numeric x and y, then just evaluate the product. Likewise for quotients
     [`(* ,(and x (? number?)) ,(and y (? number?))) (* x y)]
+    [`(/ ,(and x (? number?)) ,(and y (? number?))) (/ x y)]
+
+    ;; If expr is of the form (x * (y * z)) for numeric numeric x and y, then evaluate the product of x and y.
+    [`(* ,(and x (? number?)) (* ,(and y (? number?)) ,z)) `(* ,(* x y) ,z)]
 
     ;; Move numbers to the left: if expr is of the form (x + y) for non-numeric x but numeric y, then simplify to (y + x).
     [`(+ ,(and x (not (? number?))) ,(and y (? number?))) `(+ ,y ,x)]
@@ -89,13 +117,45 @@
     ;; Move numbers to the left: if expr is of the form (x * y) for non-numeric x but numeric y, then simplify to (y * x).
     [`(* ,(and x (not (? number?))) ,(and y (? number?))) `(* ,y ,x)]
 
+    ;; If expr is of the form sqrt(x * x) or (sqrt(x) * sqrt(x)), then simplify to x.
+    [`(sqrt (* ,x ,x)) `,x]
+    [`(* sqrt(,x) sqrt(,x)) `,x]
+
+    ;; If expr is of the form sqrt(x * y), then simplify to (sqrt(x) * sqrt(y)).
+    [`(sqrt (* ,x ,y)) `(* (sqrt ,x) (sqrt ,y))]
+
+    ;; If expr if of the form sqrt(x) for numeric x, then just evaluate the square root.
+    [`(sqrt ,(and x (? number?))) (sqrt x)]
+
+    ;; If expr is of the form abs(-1 * x) or abs(-1.0 * x), then simplify to abs(x).
+    [`(abs (* -1 ,x)) `(abs ,x)]
+    [`(abs (* -1.0 ,x)) `(abs ,x)]
+
+    ;; If expr is of the form (0 - (x * y)) or (0.0 - (x * y)), then simplify to ((0 - x) * y) or ((0.0 - x) * y).
+    [`(- 0 (* ,x ,y)) `(* (- 0 ,x) ,y)]
+    [`(- 0.0 (* ,x ,y)) `(* (- 0.0 ,x) ,y)]
+
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
-     `(+ ,@(map (lambda(term) (symbolic-simp-rule term)) terms))]
+     `(+ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
+    ;; Likewise for differences.
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
 
     ;; If expr is a product of the form (x * y * ...), then apply symbolic simplification to each term x, y, ... in the product.
     [`(* . ,terms)
-     `(* ,@(map (lambda(term) (symbolic-simp-rule term)) terms))]
+     `(* ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
+    ;; Likewise for quotients.
+    [`(/ . ,terms)
+     `(/ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
+
+    ;; If expr is of the form sqrt(expr2), then apply symbolic simplification to the interior expr2.
+    [`(sqrt ,arg)
+     `(sqrt ,(symbolic-simp-rule arg))]
+
+    ;; If expr is of the form abs(expr2), then apply symbolic simplification to the interior expr2.
+    [`(abs ,arg)
+     `(abs ,(symbolic-simp-rule arg))]
 
     ;; Otherwise, return the expression.
     [else expr]))
@@ -108,18 +168,46 @@
     [else (symbolic-simp (symbolic-simp-rule expr))]))
 (trace symbolic-simp)
 
-;; ----------------------------------------------------------------------------------------------------------------
-;; Prove L-1/L-2/L-infinity stable convergence of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; ----------------------------------------------------------------------------------------------------------------
-(define (prove-lax-friedrichs-scalar-1d-stable pde
-                                               #:nx [nx 200]
-                                               #:x0 [x0 0.0]
-                                               #:x1 [x1 2.0]
-                                               #:t-final [t-final 1.0]
-                                               #:cfl [cfl 0.95]
-                                               #:init-func
-                                               [init-func "(x < 1.0) ? 1.0 : 0.0"])
-   "Prove that the Lax-Friedrichs finite-difference method converges with L-1/L-2/L-infinity stability for the 1D scalar PDE specified by `pde`. 
+;; Compute symbolic Jacobian matrix by mapping symbolic differentiation over exprs with respect to vars.
+(define (symbolic-jacobian exprs vars)
+  (map (lambda (expr)
+         (map (lambda (var)
+                (symbolic-diff expr var))
+              vars))
+       exprs))
+(trace symbolic-jacobian)
+
+(define (symbolic-gradient expr vars)
+  (map (lambda (var)
+       (symbolic-diff expr var))
+  vars))
+(trace symbolic-gradient)
+
+(define (symbolic-hessian expr vars)
+  (symbolic-jacobian (symbolic-gradient expr vars) vars))
+
+;; Compute symbolic eigenvalues of a 2x2 symbolic matrix via explicit solution of the characteristic polynomial.
+(define (symbolic-eigvals2 matrix)
+  (let ([a (list-ref (list-ref matrix 0) 0)]
+        [b (list-ref (list-ref matrix 0) 1)]
+        [c (list-ref (list-ref matrix 1) 0)]
+        [d (list-ref (list-ref matrix 1) 1)])
+    (list `(* 1/2 (+ (- ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
+          `(* 1/2 (+ (+ ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))))
+(trace symbolic-eigvals2)
+
+;; ----------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; ----------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-cfl-stability pde
+                                                      #:nx [nx 200]
+                                                      #:x0 [x0 0.0]
+                                                      #:x1 [x1 2.0]
+                                                      #:t-final [t-final 1.0]
+                                                      #:cfl [cfl 0.95]
+                                                      #:init-func
+                                                      [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -141,63 +229,25 @@
     [(< t-final 0) #f]
     
     ;; Check whether the absolute value of the derivative of the flux function is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
-    [(not (equal? `(abs ,(symbolic-simp (symbolic-diff flux-expr cons-expr)))
+    [(not (equal? (symbolic-simp `(abs ,(symbolic-diff flux-expr cons-expr)))
                   (symbolic-simp max-speed-expr))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
+(trace prove-lax-friedrichs-scalar-1d-cfl-stability)
 
-;; --------------------------------------------------------------------------------------------------------------------------
-;; Prove the total variation diminishing (TVD) property for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; --------------------------------------------------------------------------------------------------------------------------
-(define (prove-lax-friedrichs-scalar-1d-tvd pde
-                                            #:nx [nx 200]
-                                            #:x0 [x0 0.0]
-                                            #:x1 [x1 2.0]
-                                            #:t-final [t-final 1.0]
-                                            #:cfl [cfl 0.95]
-                                            #:init-func
-                                            [init-func "(x < 1.0) ? 1.0 : 0.0"])
-   "Prove that the Lax-Friedrichs finite-difference method satisfies the total variation diminishing (TVD) property for the 1D scalar PDE specified by `pde`. 
-  - `nx` : Number of spatial cells.
-  - `x0`, `x1` : Domain boundaries.
-  - `t-final`: Final time.
-  - `cfl`: CFL coefficient.
-  - `init-func`: C code for the initial condition, e.g. piecewise constant."
-
-  (define cons-expr (hash-ref pde 'cons-expr))
-  (define flux-expr (hash-ref pde 'flux-expr))
-  (define max-speed-expr (hash-ref pde 'max-speed-expr))
-
-  (cond
-    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
-    [(or (<= cfl 0) (> cfl 1)) #f]
-    
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
-    [(or (< nx 1) (>= x0 x1)) #f]
-    
-    ;; Check whether the final simulation time is non-negative (otherwise, return false).
-    [(< t-final 0) #f]
-    
-    ;; Check whether the absolute value of the derivative of the flux function is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
-    [(not (equal? `(abs ,(symbolic-simp (symbolic-diff flux-expr cons-expr)))
-                  (symbolic-simp max-speed-expr))) #f]
-
-    ;; Otherwise, return true.
-    [else #t]))
-
-;; ------------------------------------------------------------------------------------------------------------------------
-;; Prove the Lax entropy property (for weak solutions) of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; ------------------------------------------------------------------------------------------------------------------------
-(define (prove-lax-friedrichs-scalar-1d-entropy pde
-                                                #:nx [nx 200]
-                                                #:x0 [x0 0.0]
-                                                #:x1 [x1 2.0]
-                                                #:t-final [t-final 1.0]
-                                                #:cfl [cfl 0.95]
-                                                #:init-func
-                                                [init-func "(x < 1.0) ? 1.0 : 0.0"])
-   "Prove that the Lax-Friedrichs finite-difference method satisfies the Lax entropy property (for weak solutions) for the 1D scalar PDE specified by `pde`. 
+;; ------------------------------------------------------------------------------------------------------------------------------------
+;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; ------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-local-lipschitz pde
+                                                        #:nx [nx 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-func
+                                                        [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -224,3 +274,108 @@
     
     ;; Otherwise, return true.
     [else #t]))
+(trace prove-lax-friedrichs-scalar-1d-local-lipschitz)
+
+;; -------------------------------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; -------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system
+                                                       #:nx [nx 200]
+                                                       #:x0 [x0 0.0]
+                                                       #:x1 [x1 2.0]
+                                                       #:t-final [t-final 1.0]
+                                                       #:cfl [cfl 0.95]
+                                                       #:init-funcs
+                                                       [init-funcs (list "(x < 0.5) ? 3.0 : 1.0"
+                                                                         "(x < 0.5) ? 1.5 : 0.0")])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: C code for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define max-speed-exprs-simp (list
+                                (symbolic-simp (list-ref max-speed-exprs 0))
+                                (symbolic-simp (list-ref max-speed-exprs 1))))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 0)))
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 1)))))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+    
+    ;; Check whether the absolute eigenvalues of the flux Jacobian are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
+    [(or (equal? (member (list-ref flux-eigvals-simp 0) max-speed-exprs-simp) #f)
+         (equal? (member (list-ref flux-eigvals-simp 1) max-speed-exprs-simp) #f)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+(trace prove-lax-friedrichs-vector2-1d-cfl-stability)
+
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system
+                                                         #:nx [nx 200]
+                                                         #:x0 [x0 0.0]
+                                                         #:x1 [x1 2.0]
+                                                         #:t-final [t-final 1.0]
+                                                         #:cfl [cfl 0.95]
+                                                         #:init-funcs
+                                                         [init-funcs (list "(x < 0.5) ? 3.0 : 1.0"
+                                                                           "(x < 0.5) ? 1.5 : 0.0")])
+   "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: C code for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+
+  (define hessian-mats (list
+                        (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)
+                        (symbolic-hessian (list-ref flux-exprs 1) cons-exprs)))
+  (define hessian-eigvals (list
+                           (symbolic-eigvals2 (list-ref hessian-mats 0))
+                           (symbolic-eigvals2 (list-ref hessian-mats 1))))
+  (define hessian-eigvals-simp (list
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 0) 0))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 0) 1))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 0))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 1))))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+    
+    ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
+    [(or (not (number? (list-ref hessian-eigvals-simp 0))) (< (list-ref hessian-eigvals-simp 0) 0)
+         (not (number? (list-ref hessian-eigvals-simp 1))) (< (list-ref hessian-eigvals-simp 1) 0)
+         (not (number? (list-ref hessian-eigvals-simp 2))) (< (list-ref hessian-eigvals-simp 2) 0)
+         (not (number? (list-ref hessian-eigvals-simp 3))) (< (list-ref hessian-eigvals-simp 3) 0)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+(trace prove-lax-friedrichs-vector2-1d-local-lipschitz)

@@ -38,61 +38,41 @@
   (lambda ()
     (display code-inviscid-burgers-lf)))
 
-;; Attempt to prove L-1/L-2/L-infinity stable convergence of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
-(define proof-inviscid-burgers-lf-stable
-  (call-with-output-file "proof_inviscid_burgers_lf_stable.txt"
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-cfl-stability
+  (call-with-output-file "proof_inviscid_burgers_lf_cfl_stability.txt"
     (lambda (out)
-      (parameterize ([current-output-port out])
-        (prove-lax-friedrichs-scalar-1d-stable pde-inviscid-burgers
-                                               #:nx nx
-                                               #:x0 x0
-                                               #:x1 x1
-                                               #:t-final t-final
-                                               #:cfl cfl
-                                               #:init-func init-func)))
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-scalar-1d-cfl-stability pde-inviscid-burgers
+                                                      #:nx nx
+                                                      #:x0 x0
+                                                      #:x1 x1
+                                                      #:t-final t-final
+                                                      #:cfl cfl
+                                                      #:init-func init-func)))
     #:exists `replace))
 
-;; Show whether L-1/L-2/L-infinity stable convergence is satisfied.
-(display "L-1/L-2/L-infinity stable convergence: ")
-(display proof-inviscid-burgers-lf-stable)
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-inviscid-burgers-lf-cfl-stability)
 (display "\n")
 
-;; Attempt to prove the total variation diminishing (TVD) property of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
-(define proof-inviscid-burgers-lf-tvd
-  (call-with-output-file "proof_inviscid_burgers_lf_tvd.txt"
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-local-lipschitz
+  (call-with-output-file "proof_inviscid_burgers_lf_local_lipschitz.txt"
     (lambda (out)
-      (parameterize ([current-output-port out])
-        (prove-lax-friedrichs-scalar-1d-tvd pde-inviscid-burgers
-                                            #:nx nx
-                                            #:x0 x0
-                                            #:x1 x1
-                                            #:t-final t-final
-                                            #:cfl cfl
-                                            #:init-func init-func)))
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-scalar-1d-local-lipschitz pde-inviscid-burgers
+                                                        #:nx nx
+                                                        #:x0 x0
+                                                        #:x1 x1
+                                                        #:t-final t-final
+                                                        #:cfl cfl
+                                                        #:init-func init-func)))
     #:exists `replace))
 
 
-;; Show whether the total variation diminishing (TVD) property is satisfied.
-(display "Total variation diminishing (TVD): ")
-(display proof-inviscid-burgers-lf-tvd)
-(display "\n")
-
-;; Attempt to prove the Lax entropy property (for weak solutions) of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
-(define proof-inviscid-burgers-lf-entropy
-  (call-with-output-file "proof_inviscid_burgers_lf_entropy.txt"
-    (lambda (out)
-      (parameterize ([current-output-port out])
-        (prove-lax-friedrichs-scalar-1d-entropy pde-inviscid-burgers
-                                                #:nx nx
-                                                #:x0 x0
-                                                #:x1 x1
-                                                #:t-final t-final
-                                                #:cfl cfl
-                                                #:init-func init-func)))
-    #:exists `replace))
-
-
-;; Show whether the Lax entropy property (for weak solutions) is satisfied.
-(display "Lax entropy property (for weak solutions): ")
-(display proof-inviscid-burgers-lf-entropy)
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-inviscid-burgers-lf-local-lipschitz)
 (display "\n")
