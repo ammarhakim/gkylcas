@@ -5,7 +5,11 @@
          symbolic-simp-rule
          symbolic-simp
          symbolic-jacobian
+         symbolic-gradient
+         symbolic-hessian
          symbolic-eigvals2
+         is-real
+         prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
          prove-lax-friedrichs-vector2-1d-cfl-stability
@@ -172,19 +176,22 @@
 (define (symbolic-jacobian exprs vars)
   (map (lambda (expr)
          (map (lambda (var)
-                (symbolic-diff expr var))
+                (symbolic-simp (symbolic-diff expr var)))
               vars))
        exprs))
 (trace symbolic-jacobian)
 
+;; Compute symbolic gradient vector by applying symbolic differentiation to expr, mapped over vars.
 (define (symbolic-gradient expr vars)
   (map (lambda (var)
-       (symbolic-diff expr var))
+       (symbolic-simp (symbolic-diff expr var)))
   vars))
 (trace symbolic-gradient)
 
+;; Compute symbolic Hessian matrix by computing the symbolic Jacobian matrix of the symbolic gradient vector of expr with respect to vars.
 (define (symbolic-hessian expr vars)
   (symbolic-jacobian (symbolic-gradient expr vars) vars))
+(trace symbolic-hessian)
 
 ;; Compute symbolic eigenvalues of a 2x2 symbolic matrix via explicit solution of the characteristic polynomial.
 (define (symbolic-eigvals2 matrix)
@@ -195,6 +202,74 @@
     (list `(* 1/2 (+ (- ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
           `(* 1/2 (+ (+ ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))))
 (trace symbolic-eigvals2)
+
+;; Recursively determine whether an expression corresponds to a real number.
+(define (is-real expr cons-vars parameters)
+  (match expr
+    ;; Real numbers are trivially real.
+    [(? real?) #t]
+
+    ;; Conserved variables are assumed to be real (this is enforced elsewhere).
+    [(? (lambda (arg)
+          (not (equal? (member arg cons-vars) #f)))) #t]
+
+    ;; Simulation parameters are assumed to be real (this is enforced elsewhere).
+    [(? (lambda (arg)
+          (and (not (empty? parameters)) (equal? arg (list-ref parameters 1))))) #t]
+
+    ;; The outcome of a conditional operation is real if both branches yield real numbers.
+    [`(cond
+        [,cond1 ,expr1]
+        [else ,expr2])
+     (and (is-real expr1 cons-vars parameters) (is-real expr2 cons-vars parameters))]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; ----------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
+;; ----------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-1d-hyperbolicity pde
+                                                      #:nx [nx 200]
+                                                      #:x0 [x0 0.0]
+                                                      #:x1 [x1 2.0]
+                                                      #:t-final [t-final 1.0]
+                                                      #:cfl [cfl 0.95]
+                                                      #:init-func
+                                                      [init-func "(x < 1.0) ? 1.0 : 0.0"])
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D scalar PDE specified by `pde`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the derivative of the flux function is real (otherwise, return false).
+    [(not (is-real (symbolic-simp (symbolic-diff flux-expr cons-expr)) (list cons-expr) parameters)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+(trace prove-lax-friedrichs-scalar-1d-hyperbolicity)
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
@@ -217,6 +292,7 @@
   (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
   (define max-speed-expr (hash-ref pde 'max-speed-expr))
+  (define parameters (hash-ref pde 'parameters))
 
   (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -227,6 +303,12 @@
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
     
     ;; Check whether the absolute value of the derivative of the flux function is symbolically equivalent to the maximum wave-speed estimate (otherwise, return false).
     [(not (equal? (symbolic-simp `(abs ,(symbolic-diff flux-expr cons-expr)))
@@ -256,7 +338,7 @@
 
   (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
-  (define max-speed-expr (hash-ref pde 'max-speed-expr))
+  (define parameters (hash-ref pde 'parameters))
 
   (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -267,9 +349,15 @@
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
     
     ;; Check whether the flux function is convex, i.e. that the second derivative of the flux function is strictly non-negative (otherwise, return false).
-    [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-diff flux-expr cons-expr) cons-expr))])
+    [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr cons-expr)) cons-expr))])
        (or (not (number? deriv)) (< deriv 0))) #f]
     
     ;; Otherwise, return true.
@@ -346,7 +434,6 @@
 
   (define cons-exprs (hash-ref pde-system 'cons-exprs))
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
-  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
 
   (define hessian-mats (list
                         (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)

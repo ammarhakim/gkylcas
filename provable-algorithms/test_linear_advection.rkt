@@ -11,7 +11,7 @@
     'cons-expr `u                ; conserved variable: u
     'flux-expr `(* a u)          ; flux function: f(u) = a * u
     'max-speed-expr `(abs a)     ; local wave-speed: alpha = |a|
-    'parameters "a = 1.0"
+    'parameters `(define a 1.0)  ; advection speed: a = 1.0
     ))
 
 ;; Define simulation parameters.
@@ -20,7 +20,9 @@
 (define x1 2.0)
 (define t-final 0.5)
 (define cfl 0.95)
-(define init-func "(x < 1.0) ? 1.0 : 0.0")
+(define init-func `(cond
+                     [(< x 1.0) 1.0]
+                     [else 0.0]))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D linear advection equation.
 (define code-linear-advection-lf
@@ -37,6 +39,25 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lf)))
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lf-hyperbolicity
+  (call-with-output-file "proof_linear_advection_lf_hyperbolicity.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-scalar-1d-hyperbolicity pde-linear-advection
+                                                      #:nx nx
+                                                      #:x0 x0
+                                                      #:x1 x1
+                                                      #:t-final t-final
+                                                      #:cfl cfl
+                                                      #:init-func init-func)))
+    #:exists `replace))
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity: ")
+(display proof-linear-advection-lf-hyperbolicity)
+(display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D linear advection equation.
 (define proof-linear-advection-lf-cfl-stability

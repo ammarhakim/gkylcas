@@ -11,7 +11,7 @@
     'cons-expr `u             ; conserved variable: u
     'flux-expr `(* 0.5 u u)   ; flux function: f(u) = 0.5 * u^2
     'max-speed-expr `(abs u)  ; local wave-speed: alpha = |u|
-    'parameters ""
+    'parameters `()
     ))
 
 ;; Define simulation parameters.
@@ -20,7 +20,9 @@
 (define x1 1.0)
 (define t-final 0.5)
 (define cfl 0.95)
-(define init-func "(x < 0.0) ? 1.0 : 0.0")
+(define init-func `(cond
+                     [(< x 0.0) 1.0]
+                     [else 0.0]))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define code-inviscid-burgers-lf
@@ -37,6 +39,25 @@
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lf)))
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lf-hyperbolicity
+  (call-with-output-file "proof_inviscid_burgers_lf_hyperbolicity.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-scalar-1d-hyperbolicity pde-inviscid-burgers
+                                                      #:nx nx
+                                                      #:x0 x0
+                                                      #:x1 x1
+                                                      #:t-final t-final
+                                                      #:cfl cfl
+                                                      #:init-func init-func)))
+    #:exists `replace))
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity: ")
+(display proof-inviscid-burgers-lf-hyperbolicity)
+(display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-lf-cfl-stability

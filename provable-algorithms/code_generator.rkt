@@ -1,6 +1,8 @@
 #lang racket
 
-(provide generate-lax-friedrichs-scalar-1d
+(provide convert-expr
+         flux-substitute
+         generate-lax-friedrichs-scalar-1d
          generate-lax-friedrichs-vector2-1d)
 
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
@@ -30,7 +32,37 @@
 
     ;; If expr is an absolute value of the form (abs expr1), then convert it to "fabs(expr1)" in C.
     [`(abs ,arg)
-     (format "fabs(~a)" (convert-expr arg))]))
+     (format "fabs(~a)" (convert-expr arg))]
+
+    ;; If expr is a variable assignment of the form (define expr1 expr2), then convert it to "expr1 = expr2" in C.
+    [`(define ,arg1 ,arg2)
+     (format "~a = ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is a strict comparison of the form (< expr1 expr2), then convert it to "expr1 < expr2" in C.
+    [`(< ,arg1 ,arg2)
+     (format "~a < ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is a comparison of the form (<= expr1 expr2), then convert it to "expr1 <= expr2" in C.
+    [`(<= ,arg1 ,arg2)
+     (format "~a <= ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is a strict comparison of the form (> expr1 expr2), then convert it to "expr1 > expr2" in C.
+    [`(> ,arg1 ,arg2)
+     (format "~a > ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is a comparison of the form (>= expr1 expr2), then convert it to "expr1 >= expr2" in C.
+    [`(>= ,arg1 ,arg2)
+     (format "~a >= ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is an equality comparison of the form (equal? expr1 expr2), then convert it to "expr1 == expr2" in C.
+    [`(equal? ,arg1 ,arg2)
+     (format "~a == ~a" (convert-expr arg1) (convert-expr arg2))]
+
+    ;; If expr is a conditional of the form [(cond [cond1 expr1] [else expr2])], then convert it to the ternary operator "(cond1) ? expr1 : expr2" in C.
+    [`(cond
+        [,cond1 ,expr1]
+        [else ,expr2])
+     (format "(~a) ? ~a : ~a" (convert-expr cond1) (convert-expr expr1) (convert-expr expr2))]))
 
 (define (flux-substitute flux-expr cons-expr var-name)
   (string-replace flux-expr cons-expr var-name))
@@ -45,7 +77,9 @@
                                            #:t-final [t-final 1.0]
                                            #:cfl [cfl 0.95]
                                            #:init-func
-                                            [init-func "(x < 1.0) ? 1.0 : 0.0"])
+                                            [init-func `(cond
+                                                          [(< x 1.0) 1.0]
+                                                          [else 0.0])])
  "Generate C code that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
@@ -62,6 +96,7 @@
   (define cons-code (convert-expr cons-expr))
   (define flux-code (convert-expr flux-expr))
   (define max-speed-code (convert-expr max-speed-expr))
+  (define init-func-code (convert-expr init-func))
 
   (define flux-um (flux-substitute flux-code cons-code "um"))
   (define flux-ui (flux-substitute flux-code cons-code "ui"))
@@ -70,7 +105,7 @@
   (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
-    [(non-empty-string? parameters) (string-append "double " parameters ";")]
+    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
     [else ""]))
 
   (define code
@@ -196,7 +231,7 @@ int main() {
            ;; Final time.
            t-final
            ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
-           init-func
+           init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
            ;; Left flux f(u_{i - 1}).
