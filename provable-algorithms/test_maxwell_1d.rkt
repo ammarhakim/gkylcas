@@ -17,7 +17,7 @@
     'max-speed-exprs (list
                       `(abs c)
                       `(abs c))     ; local wave-speeds
-    'parameters "c = 1.0"
+    'parameters `(define c 1.0)     ; speed of light: c = 1.0
     ))
 
 ;; Define simulation parameters.
@@ -27,8 +27,10 @@
 (define t-final 1.0)
 (define cfl 0.95)
 (define init-funcs (list
-                    "0.0"
-                    "(x < 0.0) ? 0.5 : -0.5"))
+                    0.0
+                    `(cond
+                       [(< x 0.0) 0.5]
+                       [else -0.5])))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D Maxwell equations.
 (define code-maxwell-1d-lf
@@ -45,6 +47,44 @@
   #:exists 'replace
   (lambda ()
     (display code-maxwell-1d-lf)))
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
+(define proof-maxwell-1d-lf-hyperbolicity
+  (call-with-output-file "proof_maxwell_1d_lf_hyperbolicity.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-maxwell-1d
+                                                       #:nx nx
+                                                       #:x0 x0
+                                                       #:x1 x1
+                                                       #:t-final t-final
+                                                       #:cfl cfl
+                                                       #:init-funcs init-funcs)))
+    #:exists `replace))
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-maxwell-1d-lf-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
+(define proof-maxwell-1d-lf-strict-hyperbolicity
+  (call-with-output-file "proof_maxwell_1d_lf_strict_hyperbolicity.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d
+                                                              #:nx nx
+                                                              #:x0 x0
+                                                              #:x1 x1
+                                                              #:t-final t-final
+                                                              #:cfl cfl
+                                                              #:init-funcs init-funcs)))
+    #:exists `replace))
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-maxwell-1d-lf-strict-hyperbolicity)
+(display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D Maxwell equations.
 (define proof-maxwell-1d-lf-cfl-stability

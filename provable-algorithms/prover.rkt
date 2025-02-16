@@ -9,9 +9,13 @@
          symbolic-hessian
          symbolic-eigvals2
          is-real
+         is-non-zero
+         are-distinct
          prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
+         prove-lax-friedrichs-vector2-1d-hyperbolicity
+         prove-lax-friedrichs-vector2-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector2-1d-cfl-stability
          prove-lax-friedrichs-vector2-1d-local-lipschitz)
 
@@ -223,8 +227,46 @@
         [else ,expr2])
      (and (is-real expr1 cons-vars parameters) (is-real expr2 cons-vars parameters))]
 
+    ;; The sum, difference, product, or quotient of two real numbers is always real.
+    [`(+ ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+    [`(- ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+    [`(* ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+    [`(/ ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+
     ;; Otherwise, assume false.
     [else #f]))
+(trace is-real)
+
+;; Determine whether an expression is non-zero.
+(define (is-non-zero expr parameters)
+  (match expr
+    ;; A non-zero number is, trivially, non-zero.
+    [(? (lambda (arg)
+         (and (number? arg) (not (equal? arg 0))))) #t]
+
+    ;; Simulation parameters that are non-zero are, trivially, non-zero.
+    [(? (lambda (arg)
+        (and (not (empty? parameters)) (equal? arg (list-ref parameters 1)) (not (equal? (list-ref parameters 2) 0))))) #t]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+(trace is-non-zero)
+
+;; Recursively determine whether two expressions are distinct.
+(define (are-distinct expr parameters)
+  (match expr
+    ;; Two numbers that are unequal are, trivially, distinct.
+    [(? (lambda (arg)
+        (and (number? (list-ref arg 0)) (number? (list-ref arg 1)) (not (equal? (list-ref arg 0) (list-ref arg 1)))))) #t]
+
+    ;; Expressions of the form (expr, -expr) or (-expr, expr) are distinct, so long as expr is non-zero.
+    [`(,x (* -1 ,x)) (is-non-zero x parameters)]
+    [`(,x (* -1.0 ,x)) (is-non-zero x parameters)]
+    [`((* -1 ,x) ,x) (is-non-zero x parameters)]
+    [`((* -1.0 ,x) ,x) (is-non-zero x parameters)]
+    
+    [else #f]))
+(trace are-distinct)
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
@@ -235,14 +277,15 @@
                                                       #:x1 [x1 2.0]
                                                       #:t-final [t-final 1.0]
                                                       #:cfl [cfl 0.95]
-                                                      #:init-func
-                                                      [init-func "(x < 1.0) ? 1.0 : 0.0"])
+                                                      #:init-func [init-func `(cond
+                                                                                [(< x 1.0) 1.0]
+                                                                                [else 0.0])])
    "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
 
   (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
@@ -280,14 +323,15 @@
                                                       #:x1 [x1 2.0]
                                                       #:t-final [t-final 1.0]
                                                       #:cfl [cfl 0.95]
-                                                      #:init-func
-                                                      [init-func "(x < 1.0) ? 1.0 : 0.0"])
+                                                      #:init-func [init-func `(cond
+                                                                                [(< x 1.0) 1.0]
+                                                                                [else 0.0])])
    "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
 
   (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
@@ -327,14 +371,15 @@
                                                         #:x1 [x1 2.0]
                                                         #:t-final [t-final 1.0]
                                                         #:cfl [cfl 0.95]
-                                                        #:init-func
-                                                        [init-func "(x < 1.0) ? 1.0 : 0.0"])
+                                                        #:init-func [init-func `(cond
+                                                                                  [(< x 1.0) 1.0]
+                                                                                  [else 0.0])])
    "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 1D scalar PDE specified by `pde`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
 
   (define cons-expr (hash-ref pde 'cons-expr))
   (define flux-expr (hash-ref pde 'flux-expr))
@@ -365,6 +410,123 @@
 (trace prove-lax-friedrichs-scalar-1d-local-lipschitz)
 
 ;; -------------------------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; -------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system
+                                                       #:nx [nx 200]
+                                                       #:x0 [x0 0.0]
+                                                       #:x1 [x1 2.0]
+                                                       #:t-final [t-final 1.0]
+                                                       #:cfl [cfl 0.95]
+                                                       #:init-funcs [init-funcs (list
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 3.0]
+                                                                                    [else 1.0])
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 1.5]
+                                                                                    [else 0.0]))])
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp (list-ref flux-eigvals 0))
+                             (symbolic-simp (list-ref flux-eigvals 1))))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobian are all real (otherwise, return false).
+    [(or (not (is-real (list-ref flux-eigvals-simp 0) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp 1) cons-exprs parameters))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+(trace prove-lax-friedrichs-vector2-1d-hyperbolicity)
+
+;; --------------------------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; --------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system
+                                                              #:nx [nx 200]
+                                                              #:x0 [x0 0.0]
+                                                              #:x1 [x1 2.0]
+                                                              #:t-final [t-final 1.0]
+                                                              #:cfl [cfl 0.95]
+                                                              #:init-funcs [init-funcs (list
+                                                                                        `(cond
+                                                                                           [(< x 0.5) 3.0]
+                                                                                           [else 1.0])
+                                                                                        `(cond
+                                                                                           [(< x 0.5) 1.5]
+                                                                                           [else 0.0]))])
+   "Prove that the Lax-Friedrichs finite-difference method preserves strict hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp (list-ref flux-eigvals 0))
+                             (symbolic-simp (list-ref flux-eigvals 1))))
+
+  (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobian are all real (otherwise, return false).
+    [(or (not (is-real (list-ref flux-eigvals-simp 0) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp 1) cons-exprs parameters))) #f]
+
+    ;; Check whether the eigenvalues of the flux Jacobian are all distinct (otherwise, return false).
+    [(not (are-distinct flux-eigvals-simp parameters)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+(trace prove-lax-friedrichs-vector2-1d-strict-hyperbolicity)
+
+;; -------------------------------------------------------------------------------------------------------------
 ;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
 ;; -------------------------------------------------------------------------------------------------------------
 (define (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system
@@ -373,19 +535,24 @@
                                                        #:x1 [x1 2.0]
                                                        #:t-final [t-final 1.0]
                                                        #:cfl [cfl 0.95]
-                                                       #:init-funcs
-                                                       [init-funcs (list "(x < 0.5) ? 3.0 : 1.0"
-                                                                         "(x < 0.5) ? 1.5 : 0.0")])
+                                                       #:init-funcs [init-funcs (list
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 3.0]
+                                                                                    [else 1.0])
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 1.5]
+                                                                                    [else 0.0]))])
    "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-funcs`: C code for the initial conditions, e.g. piecewise constant."
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
 
   (define cons-exprs (hash-ref pde-system 'cons-exprs))
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
   (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
 
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define max-speed-exprs-simp (list
@@ -404,6 +571,13 @@
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
     
     ;; Check whether the absolute eigenvalues of the flux Jacobian are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
     [(or (equal? (member (list-ref flux-eigvals-simp 0) max-speed-exprs-simp) #f)
@@ -422,18 +596,23 @@
                                                          #:x1 [x1 2.0]
                                                          #:t-final [t-final 1.0]
                                                          #:cfl [cfl 0.95]
-                                                         #:init-funcs
-                                                         [init-funcs (list "(x < 0.5) ? 3.0 : 1.0"
-                                                                           "(x < 0.5) ? 1.5 : 0.0")])
+                                                         #:init-funcs [init-funcs (list
+                                                                                   `(cond
+                                                                                      [(< x 0.5) 3.0]
+                                                                                      [else 1.0])
+                                                                                   `(cond
+                                                                                      [(< x 0.5) 1.5]
+                                                                                      [else 0.0]))])
    "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-funcs`: C code for the initial conditions, e.g. piecewise constant."
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
 
   (define cons-exprs (hash-ref pde-system 'cons-exprs))
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
 
   (define hessian-mats (list
                         (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)
@@ -456,6 +635,13 @@
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
     
     ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
     [(or (not (number? (list-ref hessian-eigvals-simp 0))) (< (list-ref hessian-eigvals-simp 0) 0)

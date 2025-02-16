@@ -18,6 +18,7 @@
     [`(+ . ,terms)
      (let ([c-terms (map convert-expr terms)])
        (string-append "(" (string-join c-terms " + ") ")"))]
+    ;; Likewise for differences.
     [`(- . ,terms)
      (let ([c-terms (map convert-expr terms)])
        (string-append "(" (string-join c-terms " - ") ")"))]
@@ -26,6 +27,7 @@
     [`(* . ,terms)
      (let ([c-terms (map convert-expr terms)])
        (string-append "(" (string-join c-terms " * ") ")"))]
+    ;; Likewise for quotients.
     [`(/ . ,terms)
      (let ([c-terms (map convert-expr terms)])
        (string-append "(" (string-join c-terms " / ") ")"))]
@@ -76,16 +78,15 @@
                                            #:x1 [x1 2.0]
                                            #:t-final [t-final 1.0]
                                            #:cfl [cfl 0.95]
-                                           #:init-func
-                                            [init-func `(cond
-                                                          [(< x 1.0) 1.0]
-                                                          [else 0.0])])
+                                           #:init-func [init-func `(cond
+                                                                     [(< x 1.0) 1.0]
+                                                                     [else 0.0])])
  "Generate C code that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: C code for the initial condition, e.g. piecewise constant."
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
 
   (define name (hash-ref pde 'name))
   (define cons-expr (hash-ref pde 'cons-expr))
@@ -252,15 +253,19 @@ int main() {
                                             #:x1 [x1 2.0]
                                             #:t-final [t-final 1.0]
                                             #:cfl [cfl 0.95]
-                                            #:init-funcs
-                                            [init-funcs (list "(x < 0.5) ? 3.0 : 1.0"
-                                                              "(x < 0.5) ? 1.5 : 0.0")])
+                                            #:init-funcs [init-funcs (list
+                                                                      `(cond
+                                                                         [(< x 0.5) 3.0]
+                                                                         [else 1.0])
+                                                                      `(cond
+                                                                         [(< x 0.5) 1.5]
+                                                                         [else 0.0]))])
  "Generate C code that solves the 1D coupled vector system of 2 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-funcs`: C code for the initial conditions, e.g. piecewise constant."
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
 
   (define name (hash-ref pde-system 'name))
   (define cons-exprs (hash-ref pde-system 'cons-exprs))
@@ -274,6 +279,8 @@ int main() {
                             (convert-expr flux-expr)) flux-exprs))
   (define max-speed-codes (map (lambda (max-speed-expr)
                                  (convert-expr max-speed-expr)) max-speed-exprs))
+  (define init-func-codes (map (lambda (init-func-expr)
+                                 (convert-expr init-func-expr)) init-funcs))
 
   (define flux-ums (map (lambda (flux-code)
                           (flux-substitute (flux-substitute flux-code (list-ref cons-codes 0) "um[0]")
@@ -290,7 +297,7 @@ int main() {
                                                    (list-ref cons-codes 1) "u[(i * 2) + 1]")) max-speed-codes))
 
   (define parameter-code (cond
-    [(non-empty-string? parameters) (string-append "double " parameters ";")]
+    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
     [else ""]))
 
   (define code
@@ -461,8 +468,8 @@ int main() {
            ;; Final time.
            t-final
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
-           (list-ref init-funcs 0)
-           (list-ref init-funcs 1)
+           (list-ref init-func-codes 0)
+           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)

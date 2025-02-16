@@ -55,7 +55,7 @@
     #:exists `replace))
 
 ;; Show whether hyperbolicity is preserved.
-(display "Hyperbolicity: ")
+(display "Hyperbolicity preservation: ")
 (display proof-linear-advection-lf-hyperbolicity)
 (display "\n")
 
