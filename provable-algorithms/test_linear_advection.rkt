@@ -25,7 +25,7 @@
                      [else 0.0]))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D linear advection equation.
-(define code-linear-advection-lf
+(define code-linear-advection-lax
   (generate-lax-friedrichs-scalar-1d pde-linear-advection
                                      #:nx nx
                                      #:x0 x0
@@ -35,14 +35,16 @@
                                      #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "linear_advection_lf.c"
+(with-output-to-file "linear_advection_lax.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-lf)))
+    (display code-linear-advection-lax)))
+
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D linear advection equation.
-(define proof-linear-advection-lf-hyperbolicity
-  (call-with-output-file "proof_linear_advection_lf_hyperbolicity.txt"
+(define proof-linear-advection-lax-hyperbolicity
+  (call-with-output-file "proof_linear_advection_lax_hyperbolicity.txt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (prove-lax-friedrichs-scalar-1d-hyperbolicity pde-linear-advection
@@ -56,12 +58,12 @@
 
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
-(display proof-linear-advection-lf-hyperbolicity)
+(display proof-linear-advection-lax-hyperbolicity)
 (display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D linear advection equation.
-(define proof-linear-advection-lf-cfl-stability
-  (call-with-output-file "proof_linear_advection_lf_cfl_stability.txt"
+(define proof-linear-advection-lax-cfl-stability
+  (call-with-output-file "proof_linear_advection_lax_cfl_stability.txt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (prove-lax-friedrichs-scalar-1d-cfl-stability pde-linear-advection
@@ -75,12 +77,12 @@
 
 ;; Show whether CFL stability is satisfied.
 (display "CFL stability: ")
-(display proof-linear-advection-lf-cfl-stability)
+(display proof-linear-advection-lax-cfl-stability)
 (display "\n")
 
 ;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D linear advection equation.
-(define proof-linear-advection-lf-local-lipschitz
-  (call-with-output-file "proof_linear_advection_lf_local_lipschitz.txt"
+(define proof-linear-advection-lax-local-lipschitz
+  (call-with-output-file "proof_linear_advection_lax_local_lipschitz.txt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (prove-lax-friedrichs-scalar-1d-local-lipschitz pde-linear-advection
@@ -95,5 +97,42 @@
 
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
-(display proof-linear-advection-lf-local-lipschitz)
+(display proof-linear-advection-lax-local-lipschitz)
+(display "\n\n\n")
+
+;; Synthesize the code for a Roe solver for the 1D linear advection equation.
+(define code-linear-advection-roe
+  (generate-roe-scalar-1d pde-linear-advection
+                          #:nx nx
+                          #:x0 x0
+                          #:x1 x1
+                          #:t-final t-final
+                          #:cfl cfl
+                          #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "linear_advection_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe)))
+
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D linear advection equation.
+(define proof-linear-advection-roe-hyperbolicity
+  (call-with-output-file "proof_linear_advection_roe_hyperbolicity.txt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (prove-roe-scalar-1d-hyperbolicity pde-linear-advection
+                                           #:nx nx
+                                           #:x0 x0
+                                           #:x1 x1
+                                           #:t-final t-final
+                                           #:cfl cfl
+                                           #:init-func init-func)))
+    #:exists `replace))
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-linear-advection-roe-hyperbolicity)
 (display "\n")

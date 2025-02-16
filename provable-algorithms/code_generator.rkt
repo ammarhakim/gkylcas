@@ -1,8 +1,10 @@
 #lang racket
 
+(require "prover.rkt")
 (provide convert-expr
          flux-substitute
          generate-lax-friedrichs-scalar-1d
+         generate-roe-scalar-1d
          generate-lax-friedrichs-vector2-1d)
 
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
@@ -241,6 +243,201 @@ int main() {
            flux-ui
            ;; Right flux f(u_{i + 1}).
            flux-up
+           ))
+  code)
+
+;; ----------------------------------------------
+;; Roe (Finite-Volume) Solver for a 1D Scalar PDE
+;; ----------------------------------------------
+(define (generate-roe-scalar-1d pde
+                                #:nx [nx 200]
+                                #:x0 [x0 0.0]
+                                #:x1 [x1 2.0]
+                                #:t-final [t-final 1.0]
+                                #:cfl [cfl 0.95]
+                                #:init-func [init-func `(cond
+                                                          [(< x 1.0) 1.0]
+                                                          [else 0.0])])
+ "Generate C code that solves the 1D scalar PDE specified by `pde` using the Roe finite-volume method.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define name (hash-ref pde 'name))
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define max-speed-expr (hash-ref pde 'max-speed-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
+
+  (define cons-code (convert-expr cons-expr))
+  (define flux-code (convert-expr flux-expr))
+  (define flux-deriv-code (convert-expr flux-deriv))
+  (define max-speed-code (convert-expr max-speed-expr))
+  (define init-func-code (convert-expr init-func))
+
+  (define flux-um (flux-substitute flux-code cons-code "um"))
+  (define flux-ui (flux-substitute flux-code cons-code "ui"))
+  (define flux-up (flux-substitute flux-code cons-code "up"))
+
+  (define flux-deriv-um (flux-substitute flux-deriv-code cons-code "um"))
+  (define flux-deriv-ui (flux-substitute flux-deriv-code cons-code "ui"))
+  (define flux-deriv-up (flux-substitute flux-deriv-code cons-code "up"))
+
+  (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
+
+  (define parameter-code (cond
+    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+    [else ""]))
+
+  (define code
+    (format "
+// AUTO-GENERATED CODE FOR SCALAR PDE: ~a
+// Roe higher-order finite-volume solver for a scalar PDE in 1D.
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+
+// Additional PDE parameters (if any).
+~a
+
+int main() {
+  // Spatial domain setup.
+  const int nx = ~a;
+  const double x0 = ~a;
+  const double x1 = ~a;
+  const double L = (x1 - x0);
+  const double dx = L / nx;
+
+  // Time-stepper setup.
+  const double cfl = ~a;
+  const double t_final = ~a;
+
+  // Arrays for storing solution.
+  double *u = (double*) malloc((nx + 2) * sizeof(double));
+  double *un = (double*) malloc((nx + 2) * sizeof(double));
+
+  // Initialize grid and set initial conditions.
+  for (int i = 0; i <= nx + 1; i++) {
+    double x = x0 + (i + 0.5) * dx;
+    
+    u[i] = ~a; // init-func in C.
+  }
+
+  double t = 0.0;
+  while (t < t_final) {
+    // Determine global maximum wave-speed alpha (for stable dt).
+    // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
+    double alpha = 0.0;
+    
+    for (int i = 1; i <= nx; i++) {
+      double local_alpha = ~a; // max-speed-expr in C.
+      
+      if (local_alpha > alpha) {
+        alpha = local_alpha;
+      }
+    }
+
+    // Avoid division by zero.
+    if (alpha < 1e-14) {
+      alpha = 1e-14;
+    }
+
+    // Compute stable time step from alpha.
+    double dt = cfl * dx / alpha;
+
+    // If stepping beyond t_final, adjust dt accordingly.
+    if (t + dt > t_final) {
+      dt = t_final - t;
+    }
+
+    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable.
+    for (int i = 1; i <= nx; i++) {
+      double um = u[i - 1];
+      double ui = u[i];
+      double up = u[i + 1];
+
+      // Evaluate flux for each value of the conserved variable.
+      double f_um = ~a; // f(u_{i - 1}).
+      double f_ui = ~a; // f(u_i).
+      double f_up = ~a; // f(u_{i + 1}).
+
+      // Evaluate flux derivative for each value of the conserved variable.
+      double f_deriv_um = ~a; // f'(u_{i - 1}).
+      double f_deriv_ui = ~a; // f'(u_i).
+      double f_deriv_up = ~a; // f'(u_{i + 1}).
+
+      // Left interface flux: F_{i - 1/2} = 0.5 * (f(u_{i - 1}) + f(u_i)) - 0.5 * |aL_roe| * (u_i - u_{i - 1}).
+      double aL_roe = 0.5 * (f_deriv_um + f_deriv_ui);
+      double fluxL = 0.5 * (f_um + f_ui) - 0.5 * fabs(aL_roe) * (ui - um);
+
+      // Right interface flux: F_{i + 1/2} = 0.5 * (f(u_{u + 1}) + f(u_i)) - 0.5 * |aR_roe| * (u_{i + 1} - u_i).
+      double aR_roe = 0.5 * (f_deriv_ui + f_deriv_up);
+      double fluxR = 0.5 * (f_ui + f_up) - 0.5 * fabs(aR_roe) * (up - ui);
+
+      // Update the conserved variable.
+      un[i] = ui - (dt / dx) * (fluxR - fluxL);
+    }
+
+    // Copy un -> u (updated conserved variables to new conserved variables).
+    for (int i = 1; i <= nx; i++) {
+      u[i] = un[i];
+    }
+
+    // Apply simple boundary conditions (transmissive).
+    u[0] = u[1];
+    u[nx + 1] = u[nx];
+
+    // Increment time.
+    t += dt;
+  }
+
+  // Output solution to stdout.
+  for (int i = 0; i <= nx + 1; i++) {
+    double x = x0 + (i + 0.5) * dx;
+    printf(\"%g %g\\n\", x, u[i]);
+  }
+
+  free(u);
+  free(un);
+   
+  return 0;
+}
+"
+           ;; PDE name for code comments.
+           name
+           ;; Additional PDE parameters (e.g. a = 1.0 for linear advection).
+           parameter-code
+           ;; Number of cells.
+           nx
+           ;; Left boundary.
+           x0
+           ;; Right boundary.
+           x1
+           ;; CFL coefficient.
+           cfl
+           ;; Final time.
+           t-final
+           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
+           ;; Expression for local wave-speed estimate.
+           max-speed-local
+           ;; Left flux f(u_{i - 1}).
+           flux-um
+           ;; Middle flux f(u_i).
+           flux-ui
+           ;; Right flux f(u_{i + 1}).
+           flux-up
+           ;; Left flux derivative f'(u_{i - 1}).
+           flux-deriv-um
+           ;; Middle flux derivative f'(u_i).
+           flux-deriv-ui
+           ;; Right flux derivative f'(u_{i + 1}).
+           flux-deriv-up
            ))
   code)
 

@@ -11,9 +11,12 @@
          is-real
          is-non-zero
          are-distinct
+         flux-deriv-replace
+         roe-function
          prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
+         prove-roe-scalar-1d-hyperbolicity
          prove-lax-friedrichs-vector2-1d-hyperbolicity
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector2-1d-cfl-stability
@@ -68,7 +71,6 @@
     
     ;; Otherwise, return false.
     [else #f]))
-(trace symbolic-diff)
 
 ;; Lightweight symbolic simplification rules (simplifies expr using only correctness-preserving algebraic transformations).
 (define (symbolic-simp-rule expr)
@@ -197,14 +199,12 @@
 
     ;; Otherwise, return the expression.
     [else expr]))
-(trace symbolic-simp-rule)
 
 ;; Recursively apply the symbolic simplification rules until the expression stops changing (fixed point).
 (define (symbolic-simp expr)
   (cond
     [(equal? (symbolic-simp-rule expr) expr) expr]
     [else (symbolic-simp (symbolic-simp-rule expr))]))
-(trace symbolic-simp)
 
 ;; Compute symbolic Jacobian matrix by mapping symbolic differentiation over exprs with respect to vars.
 (define (symbolic-jacobian exprs vars)
@@ -213,19 +213,16 @@
                 (symbolic-simp (symbolic-diff expr var)))
               vars))
        exprs))
-(trace symbolic-jacobian)
 
 ;; Compute symbolic gradient vector by applying symbolic differentiation to expr, mapped over vars.
 (define (symbolic-gradient expr vars)
   (map (lambda (var)
        (symbolic-simp (symbolic-diff expr var)))
   vars))
-(trace symbolic-gradient)
 
 ;; Compute symbolic Hessian matrix by computing the symbolic Jacobian matrix of the symbolic gradient vector of expr with respect to vars.
 (define (symbolic-hessian expr vars)
   (symbolic-jacobian (symbolic-gradient expr vars) vars))
-(trace symbolic-hessian)
 
 ;; Compute symbolic eigenvalues of a 2x2 symbolic matrix via explicit solution of the characteristic polynomial.
 (define (symbolic-eigvals2 matrix)
@@ -235,7 +232,6 @@
         [d (list-ref (list-ref matrix 1) 1)])
     (list `(* 1/2 (+ (- ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
           `(* 1/2 (+ (+ ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))))
-(trace symbolic-eigvals2)
 
 ;; Recursively determine whether an expression corresponds to a real number.
 (define (is-real expr cons-vars parameters)
@@ -265,7 +261,6 @@
 
     ;; Otherwise, assume false.
     [else #f]))
-(trace is-real)
 
 ;; Determine whether an expression is non-zero.
 (define (is-non-zero expr parameters)
@@ -280,7 +275,6 @@
 
     ;; Otherwise, assume false.
     [else #f]))
-(trace is-non-zero)
 
 ;; Recursively determine whether two expressions are distinct.
 (define (are-distinct expr parameters)
@@ -298,9 +292,30 @@
     ;; Expressions of the form ((x + y), (x - y)) or ((x - y), (x + y)) are distinct, so long as y is non-zero.
     [`((+ ,x ,y) (- ,x ,y)) (is-non-zero y parameters)]
     [`((- ,x ,y) (+ ,x ,y)) (is-non-zero y parameters)]
-    
+
+    ;; Otherwise, assume false.
     [else #f]))
-(trace are-distinct)
+
+;; Recursively replace conserved variable expressions within the flux derivative expression (for Roe functions).
+(define (flux-deriv-replace flux-deriv-expr cons-expr new-cons-expr)
+  (match flux-deriv-expr
+    ;; If the flux derivative expression is just the conserved variable expression, then return the new conserved variable expression.
+    [(? (lambda (arg)
+          (equal? arg cons-expr))) new-cons-expr]
+
+    ;; If the flux derivative expression consists of a sum, difference, product, or quotient, then recursively apply replacement to each term.
+    [`(+ ,x ,y) `(+ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    [`(- ,x ,y) `(- ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    [`(* ,x ,y) `(* ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    [`(/ ,x ,y) `(/ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+
+    ;; Otherwise, return the flux derivative expression.
+    [else flux-deriv-expr]))
+
+;; Compute the Roe function (averaged flux derivative).
+(define (roe-function flux-deriv-expr cons-expr)
+  (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L"))))
+                     (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R")))))))
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
@@ -325,7 +340,12 @@
   (define flux-expr (hash-ref pde 'flux-expr))
   (define parameters (hash-ref pde 'parameters))
 
-  (cond
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -346,6 +366,13 @@
 
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  
+  out)
 (trace prove-lax-friedrichs-scalar-1d-hyperbolicity)
 
 ;; ----------------------------------------------------------------------------------------
@@ -372,7 +399,12 @@
   (define max-speed-expr (hash-ref pde 'max-speed-expr))
   (define parameters (hash-ref pde 'parameters))
 
-  (cond
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -394,6 +426,13 @@
 
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+
+  out)
 (trace prove-lax-friedrichs-scalar-1d-cfl-stability)
 
 ;; ------------------------------------------------------------------------------------------------------------------------------------
@@ -419,7 +458,12 @@
   (define flux-expr (hash-ref pde 'flux-expr))
   (define parameters (hash-ref pde 'parameters))
 
-  (cond
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -441,7 +485,80 @@
     
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+
+  out)
 (trace prove-lax-friedrichs-scalar-1d-local-lipschitz)
+
+;; -------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Scalar PDE
+;; -------------------------------------------------------------------------
+(define (prove-roe-scalar-1d-hyperbolicity pde
+                                           #:nx [nx 200]
+                                           #:x0 [x0 0.0]
+                                           #:x1 [x1 2.0]
+                                           #:t-final [t-final 1.0]
+                                           #:cfl [cfl 0.95]
+                                           #:init-func [init-func `(cond
+                                                                     [(< x 1.0) 1.0]
+                                                                     [else 0.0])])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 1D scalar PDE specified by `pde`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace roe-function)
+  (trace flux-deriv-replace)
+
+  (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the Roe function is real (otherwise, return false).
+    [(not (is-real (roe-function flux-deriv cons-expr) (list
+                                                        (string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                        (string->symbol (string-append (symbol->string cons-expr) "R"))) parameters)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace roe-function)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-scalar-1d-hyperbolicity)
 
 ;; -------------------------------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
