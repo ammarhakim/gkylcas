@@ -143,6 +143,36 @@
     [`(- 0 (* ,x ,y)) `(* (- 0 ,x) ,y)]
     [`(- 0.0 (* ,x ,y)) `(* (- 0.0 ,x) ,y)]
 
+    ;; If expr is of the form (x + x), thens implify to (2 * x).
+    [`(+ ,x ,x) `(* 2 ,x)]
+
+    ;; If expr is of the form ((x * y) / (x * z)), then simplify to (y / z).
+    [`(/ (* ,x ,y) (* ,x ,z)) `(/ ,y ,z)]
+
+    ;; If expr is of the form ((x / y) * (x / y)), then simplify to ((x * x) / (y * y)).
+    [`(* (/ ,x ,y) (/ ,x ,y)) `(/ (* ,x ,x) (* ,y ,y))]
+
+    ;; If expr is of the form (x * (y * z)) for numeric y and non-numeric x and z, then simplify to (y * (x * z)).
+    [`(* ,(and x (not (? number?))) (* ,(and y (? number?)) ,(and z (not (? number?))))) `(* ,y (* ,x ,z))]
+
+    ;; Enforce distributive property: if expr is of the form (x * (a + b)), then simplify to ((x * a) + (x * b)).
+    [`(* ,x (+ ,a ,b)) `(+ (* ,x ,a) (* ,x ,b))]
+
+    ;; If expr is of the form (x * (-y / z)), then simplify to (-x * (y / z)).
+    [`(* ,x (/ (* -1 ,y) ,z)) `(* (* -1 ,x) (/ ,y ,z))]
+    [`(* ,x (/ (* -1.0 ,y) ,z)) `(* (* -1.0 ,x ) (/ ,y ,z))]
+
+    ;; If expr is of the form ((x * y) / z) for numeric x, then simplify to (x * (y / z)).
+    [`(/ (* ,(and x (? number?)) ,y) ,z) `(* ,x (/ ,y ,z))]
+
+    ;; If expr is of the form ((a * x) + (y + (b * x))) for numeric a and b, then simplify to (((a + b) * x) + y).
+    [`(+ (* ,(and a (? number?)) ,x) (+ ,y (* ,(and b (? number?)) ,x))) `(+ (* (+ ,a ,b) ,x) ,y)]
+
+    ;; If expr is of the form (a + (x / y)) or (-a + (x / y)) for symbolic a, then simplify to ((x / y) + a) or ((x / y) - a).
+    [`(+ ,(and a (? symbol?)) (/ ,x ,y)) `(+ (/ ,x ,y) ,a)]
+    [`(+ (* -1 ,(and a (? symbol?))) (/ ,x ,y)) `(- (/ ,x ,y) ,a)]
+    [`(+ (* -1.0 ,(and a (? symbol?))) (/ ,x ,y)) `(- (/ ,x ,y) ,a)]
+
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
      `(+ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
@@ -264,6 +294,10 @@
     [`(,x (* -1.0 ,x)) (is-non-zero x parameters)]
     [`((* -1 ,x) ,x) (is-non-zero x parameters)]
     [`((* -1.0 ,x) ,x) (is-non-zero x parameters)]
+
+    ;; Expressions of the form ((x + y), (x - y)) or ((x - y), (x + y)) are distinct, so long as y is non-zero.
+    [`((+ ,x ,y) (- ,x ,y)) (is-non-zero y parameters)]
+    [`((- ,x ,y) (+ ,x ,y)) (is-non-zero y parameters)]
     
     [else #f]))
 (trace are-distinct)
