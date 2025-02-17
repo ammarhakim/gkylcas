@@ -56,6 +56,8 @@
   (lambda ()
     (display code-isothermal-euler-lax)))
 
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D isothermal Euler equations.
 (define proof-isothermal-euler-lax-hyperbolicity
   (call-with-output-file "proofs/proof_isothermal_euler_lax_hyperbolicity.rkt"
@@ -142,4 +144,44 @@
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-isothermal-euler-lax-local-lipschitz)
+(display "\n\n\n")
+
+;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations.
+(define code-isothermal-euler-roe
+  (generate-roe-vector2-1d pde-system-isothermal-euler
+                           #:nx nx
+                           #:x0 x0
+                           #:x1 x1
+                           #:t-final t-final
+                           #:cfl cfl
+                           #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe)))
+
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D isothermal Euler equations.
+(define proof-isothermal-euler-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-hyperbolicity pde-system-isothermal-euler
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-hyperbolicity)
 (display "\n")

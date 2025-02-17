@@ -54,6 +54,8 @@
   (lambda ()
     (display code-maxwell-1d-lax)))
 
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
 (define proof-maxwell-1d-lax-hyperbolicity
   (call-with-output-file "proofs/proof_maxwell_1d_lax_hyperbolicity.rkt"
@@ -140,4 +142,44 @@
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-maxwell-1d-lax-local-lipschitz)
+(display "\n\n\n")
+
+;; Synthesize the code for a Roe solver for the 1D Maxwell equations.
+(define code-maxwell-1d-roe
+  (generate-roe-vector2-1d pde-system-maxwell-1d
+                           #:nx nx
+                           #:x0 x0
+                           #:x1 x1
+                           #:t-final t-final
+                           #:cfl cfl
+                           #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/maxwell_1d_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-roe)))
+
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D Maxwell equations.
+(define proof-maxwell-1d-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_roe_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-hyperbolicity pde-system-maxwell-1d
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-maxwell-1d-roe-hyperbolicity)
 (display "\n")

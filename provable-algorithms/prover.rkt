@@ -15,7 +15,8 @@
          is-non-zero
          are-distinct
          flux-deriv-replace
-         roe-function
+         symbolic-roe-function
+         symbolic-roe-matrix
          prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
@@ -24,7 +25,8 @@
          prove-lax-friedrichs-vector2-1d-hyperbolicity
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector2-1d-cfl-stability
-         prove-lax-friedrichs-vector2-1d-local-lipschitz)
+         prove-lax-friedrichs-vector2-1d-local-lipschitz
+         prove-roe-vector2-1d-hyperbolicity)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -264,10 +266,14 @@
      (and (is-real expr1 cons-vars parameters) (is-real expr2 cons-vars parameters))]
 
     ;; The sum, difference, product, or quotient of two real numbers is always real.
-    [`(+ ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
-    [`(- ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
-    [`(* ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
-    [`(/ ,x ,y) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+    [`(+ . ,terms)
+     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+    [`(- . ,terms)
+     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+    [`(* . ,terms)
+     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+    [`(/ . ,terms)
+     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -322,18 +328,29 @@
      `(* ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
     [`(/ . ,terms)
      `(/ ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
-    ;[`(+ ,x ,y) `(+ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    ;[`(- ,x ,y) `(- ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    ;[`(* ,x ,y) `(* ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    ;[`(/ ,x ,y) `(/ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
 
     ;; Otherwise, return the flux derivative expression.
     [else flux-deriv-expr]))
 
-;; Compute the Roe function (averaged flux derivative).
-(define (roe-function flux-deriv-expr cons-expr)
+;; Compute the symbolic Roe function (averaged flux derivative).
+(define (symbolic-roe-function flux-deriv-expr cons-expr)
   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L"))))
                      (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R")))))))
+
+; Compute the symbolic Roe matrix (averaged flux Jacobian).
+(define (symbolic-roe-matrix flux-jacobian cons-exprs)
+  (map (lambda (row)
+         (map (lambda (column)
+                (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                               (list-ref cons-exprs 1)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
+                                   (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                               (list-ref cons-exprs 1)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+              row))
+       flux-jacobian))
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
@@ -539,7 +556,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
-  (trace roe-function)
+  (trace symbolic-roe-function)
   (trace flux-deriv-replace)
 
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
@@ -561,7 +578,7 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
     
     ;; Check whether the Roe function is real (otherwise, return false).
-    [(not (is-real (roe-function flux-deriv cons-expr) (list
+    [(not (is-real (symbolic-roe-function flux-deriv cons-expr) (list
                                                         (string->symbol (string-append (symbol->string cons-expr) "L"))
                                                         (string->symbol (string-append (symbol->string cons-expr) "R"))) parameters)) #f]
 
@@ -572,7 +589,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
-  (untrace roe-function)
+  (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
   
   out)
@@ -605,12 +622,12 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
-  (trace roe-function)
+  (trace symbolic-roe-function)
   (trace flux-deriv-replace)
 
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
 
-  (define roe-jump (symbolic-simp `(* ,(roe-function flux-deriv cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
+  (define roe-jump (symbolic-simp `(* ,(symbolic-roe-function flux-deriv cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
                                                                               ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
   (define flux-jump (symbolic-simp `(- ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L")))
                                        ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R"))))))
@@ -641,7 +658,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
-  (untrace roe-function)
+  (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
   
   out)
@@ -962,3 +979,88 @@
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz)
+
+;; ----------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs
+;; ----------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-hyperbolicity pde-system
+                                            #:nx [nx 200]
+                                            #:x0 [x0 0.0]
+                                            #:x1 [x1 2.0]
+                                            #:t-final [t-final 1.0]
+                                            #:cfl [cfl 0.95]
+                                            #:init-funcs [init-funcs (list
+                                                                      `(cond
+                                                                         [(< x 0.5) 3.0]
+                                                                         [else 1.0])
+                                                                      `(cond
+                                                                         [(< x 0.5) 1.5]
+                                                                         [else 0.0]))])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+
+  (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp (list
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 0))
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 1))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrix are all real (otherwise, return false).
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp 0) (list
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp 1) (list
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-vector2-1d-hyperbolicity)
