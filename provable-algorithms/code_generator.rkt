@@ -2,6 +2,8 @@
 
 (require "prover.rkt")
 (provide convert-expr
+         remove-bracketed-expressions
+         remove-bracketed-expressions-from-file
          flux-substitute
          generate-lax-friedrichs-scalar-1d
          generate-roe-scalar-1d
@@ -67,6 +69,22 @@
         [,cond1 ,expr1]
         [else ,expr2])
      (format "(~a) ? ~a : ~a" (convert-expr cond1) (convert-expr expr1) (convert-expr expr2))]))
+
+;; A simple boilerplate function for removing bracketed expressions from a string.
+(define (remove-bracketed-expressions str)
+  (regexp-replace* #rx"\\[.*?\\]" str ""))
+
+;; A simple boilerplate function for removing bracketed expressions from a file.
+(define (remove-bracketed-expressions-from-file output-file)
+  (define content
+    (with-input-from-file output-file
+      (lambda ()
+        (port->string (current-input-port)))))
+  (define cleaned
+    (remove-bracketed-expressions content))
+  (with-output-to-file output-file #:exists 'replace
+    (lambda ()
+      (display cleaned))))
 
 (define (flux-substitute flux-expr cons-expr var-name)
   (string-replace flux-expr cons-expr var-name))

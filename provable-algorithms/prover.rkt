@@ -1,6 +1,9 @@
 #lang racket
 
 (require racket/trace)
+(current-prefix-in "< ")
+(current-prefix-out "> ")
+
 (provide symbolic-diff
          symbolic-simp-rule
          symbolic-simp
@@ -17,6 +20,7 @@
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
          prove-roe-scalar-1d-hyperbolicity
+         prove-roe-scalar-1d-flux-conservation
          prove-lax-friedrichs-vector2-1d-hyperbolicity
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector2-1d-cfl-stability
@@ -175,6 +179,12 @@
     [`(+ (* -1 ,(and a (? symbol?))) (/ ,x ,y)) `(- (/ ,x ,y) ,a)]
     [`(+ (* -1.0 ,(and a (? symbol?))) (/ ,x ,y)) `(- (/ ,x ,y) ,a)]
 
+    ;; Enforce (reverse) distributive property: if expr is of the form ((a * x) - (a * y)), then simplify to (a * (x - y)).
+    [`(- (* ,a ,x) (* ,a ,y)) `(* ,a (- ,x ,y))]
+
+    ;; If expr is of the form (((a * x) + (a * y)) * (x - y)), then simplify to ((a * (x * x)) - (a * (y * y))).
+    [`(* (+ (* ,a ,x) (* ,a ,y)) (- ,x ,y)) `(- (* ,a (* ,x ,x)) (* ,a (* ,y ,y)))]
+
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
      `(+ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
@@ -304,10 +314,18 @@
           (equal? arg cons-expr))) new-cons-expr]
 
     ;; If the flux derivative expression consists of a sum, difference, product, or quotient, then recursively apply replacement to each term.
-    [`(+ ,x ,y) `(+ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    [`(- ,x ,y) `(- ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    [`(* ,x ,y) `(* ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
-    [`(/ ,x ,y) `(/ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    [`(+ . ,terms)
+     `(+ ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(* . ,terms)
+     `(* ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(/ . ,terms)
+     `(/ ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    ;[`(+ ,x ,y) `(+ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    ;[`(- ,x ,y) `(- ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    ;[`(* ,x ,y) `(* ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
+    ;[`(/ ,x ,y) `(/ ,(flux-deriv-replace x cons-expr new-cons-expr) ,(flux-deriv-replace y cons-expr new-cons-expr))]
 
     ;; Otherwise, return the flux derivative expression.
     [else flux-deriv-expr]))
@@ -560,6 +578,75 @@
   out)
 (trace prove-roe-scalar-1d-hyperbolicity)
 
+;; -----------------------------------------------------------------------------------------------
+;; Prove flux conservation (jump continuity) of the Roe (Finite-Volume) Solver for a 1D Scalar PDE
+;; -----------------------------------------------------------------------------------------------
+(define (prove-roe-scalar-1d-flux-conservation pde
+                                               #:nx [nx 200]
+                                               #:x0 [x0 0.0]
+                                               #:x1 [x1 2.0]
+                                               #:t-final [t-final 1.0]
+                                               #:cfl [cfl 0.95]
+                                               #:init-func [init-func `(cond
+                                                                         [(< x 1.0) 1.0]
+                                                                         [else 0.0])])
+   "Prove that the Roe finite-volume method preserves flux conservation (jump continuity) for the 1D scalar PDE specified by `pde`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace roe-function)
+  (trace flux-deriv-replace)
+
+  (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
+
+  (define roe-jump (symbolic-simp `(* ,(roe-function flux-deriv cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                                              ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  (define flux-jump (symbolic-simp `(- ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L")))
+                                       ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the jump in the flux function is equal to the product of the Roe function and the jump in the conserved variable (otherwise, return false).
+    [(not (equal? roe-jump flux-jump)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace roe-function)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-scalar-1d-flux-conservation)
+
 ;; -------------------------------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
 ;; -------------------------------------------------------------------------------------------------------------
@@ -587,12 +674,19 @@
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
   (define parameters (hash-ref pde-system 'parameters))
 
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define flux-eigvals-simp (list
                              (symbolic-simp (list-ref flux-eigvals 0))
                              (symbolic-simp (list-ref flux-eigvals 1))))
 
-  (cond
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -615,6 +709,15 @@
 
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  
+  out)
 (trace prove-lax-friedrichs-vector2-1d-hyperbolicity)
 
 ;; --------------------------------------------------------------------------------------------------------------------
@@ -644,12 +747,21 @@
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
   (define parameters (hash-ref pde-system 'parameters))
 
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace is-non-zero)
+  (trace are-distinct)
+
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define flux-eigvals-simp (list
                              (symbolic-simp (list-ref flux-eigvals 0))
                              (symbolic-simp (list-ref flux-eigvals 1))))
 
-  (cond
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -675,6 +787,17 @@
     
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace is-non-zero)
+  (untrace are-distinct)
+  
+  out)
 (trace prove-lax-friedrichs-vector2-1d-strict-hyperbolicity)
 
 ;; -------------------------------------------------------------------------------------------------------------
@@ -705,6 +828,13 @@
   (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
   (define parameters (hash-ref pde-system 'parameters))
 
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define max-speed-exprs-simp (list
                                 (symbolic-simp (list-ref max-speed-exprs 0))
@@ -713,7 +843,7 @@
                              (symbolic-simp `(abs ,(list-ref flux-eigvals 0)))
                              (symbolic-simp `(abs ,(list-ref flux-eigvals 1)))))
 
-  (cond
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -736,6 +866,15 @@
 
     ;; Otherwise, return true.
     [else #t]))
+  
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+
+  out)
 (trace prove-lax-friedrichs-vector2-1d-cfl-stability)
 
 ;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -765,6 +904,15 @@
   (define flux-exprs (hash-ref pde-system 'flux-exprs))
   (define parameters (hash-ref pde-system 'parameters))
 
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace symbolic-gradient)
+  (trace symbolic-hessian)
+
   (define hessian-mats (list
                         (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)
                         (symbolic-hessian (list-ref flux-exprs 1) cons-exprs)))
@@ -777,7 +925,7 @@
                                 (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 0))
                                 (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 1))))
 
-  (cond
+  (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
@@ -802,4 +950,15 @@
 
     ;; Otherwise, return true.
     [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace symbolic-gradient)
+  (untrace symbolic-hessian)
+  
+  out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz)

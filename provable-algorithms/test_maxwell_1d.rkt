@@ -4,6 +4,12 @@
 (require "prover.rkt")
 (provide (all-from-out "code_generator.rkt"))
 
+;; Construct /code and /proofs output directories if they do not already exist.
+(cond
+  [(not (directory-exists? "code")) (make-directory "code")])
+(cond
+  [(not (directory-exists? "proofs")) (make-directory "proofs")])
+
 ;; Define the 1D Maxwell equations.
 (define pde-system-maxwell-1d
   (hash
@@ -33,7 +39,7 @@
                        [else -0.5])))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D Maxwell equations.
-(define code-maxwell-1d-lf
+(define code-maxwell-1d-lax
   (generate-lax-friedrichs-vector2-1d pde-system-maxwell-1d
                                       #:nx nx
                                       #:x0 x0
@@ -43,16 +49,18 @@
                                       #:init-funcs init-funcs))
 
 ;; Output the code to a file.
-(with-output-to-file "maxwell_1d_lf.c"
+(with-output-to-file "code/maxwell_1d_lax.c"
   #:exists 'replace
   (lambda ()
-    (display code-maxwell-1d-lf)))
+    (display code-maxwell-1d-lax)))
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lf-hyperbolicity
-  (call-with-output-file "proof_maxwell_1d_lf_hyperbolicity.txt"
+(define proof-maxwell-1d-lax-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_lax_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-maxwell-1d
                                                        #:nx nx
                                                        #:x0 x0
@@ -61,17 +69,20 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_hyperbolicity.rkt")
 
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
-(display proof-maxwell-1d-lf-hyperbolicity)
+(display proof-maxwell-1d-lax-hyperbolicity)
 (display "\n")
 
 ;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lf-strict-hyperbolicity
-  (call-with-output-file "proof_maxwell_1d_lf_strict_hyperbolicity.txt"
+(define proof-maxwell-1d-lax-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_lax_strict_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d
                                                               #:nx nx
                                                               #:x0 x0
@@ -80,17 +91,20 @@
                                                               #:cfl cfl
                                                               #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_strict_hyperbolicity.rkt")
 
 ;; Show whether strict hyperbolicity is preserved.
 (display "Strict hyperbolicity preservation: ")
-(display proof-maxwell-1d-lf-strict-hyperbolicity)
+(display proof-maxwell-1d-lax-strict-hyperbolicity)
 (display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lf-cfl-stability
-  (call-with-output-file "proof_maxwell_1d_lf_cfl_stability.txt"
+(define proof-maxwell-1d-lax-cfl-stability
+  (call-with-output-file "proofs/proof_maxwell_1d_lax_cfl_stability.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system-maxwell-1d
                                                        #:nx nx
                                                        #:x0 x0
@@ -99,17 +113,20 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_cfl_stability.rkt")
 
 ;; Show whether CFL stability is satisfied.
 (display "CFL stability: ")
-(display proof-maxwell-1d-lf-cfl-stability)
+(display proof-maxwell-1d-lax-cfl-stability)
 (display "\n")
 
 ;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lf-local-lipschitz
-  (call-with-output-file "proof_maxwell_1d_lf_local_lipschitz.txt"
+(define proof-maxwell-1d-lax-local-lipschitz
+  (call-with-output-file "proofs/proof_maxwell_1d_lax_local_lipschitz.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system-maxwell-1d
                                                          #:nx nx
                                                          #:x0 x0
@@ -118,8 +135,9 @@
                                                          #:cfl cfl
                                                          #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_local_lipschitz.rkt")
 
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
-(display proof-maxwell-1d-lf-local-lipschitz)
+(display proof-maxwell-1d-lax-local-lipschitz)
 (display "\n")

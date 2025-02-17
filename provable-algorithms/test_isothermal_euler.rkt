@@ -4,6 +4,12 @@
 (require "prover.rkt")
 (provide (all-from-out "code_generator.rkt"))
 
+;; Construct /code and /proofs output directories if they do not already exist.
+(cond
+  [(not (directory-exists? "code")) (make-directory "code")])
+(cond
+  [(not (directory-exists? "proofs")) (make-directory "proofs")])
+
 ;; Define the 1D isothermal Euler equations.
 (define pde-system-isothermal-euler
   (hash
@@ -35,7 +41,7 @@
                        [else 0.0])))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations.
-(define code-isothermal-euler-lf
+(define code-isothermal-euler-lax
   (generate-lax-friedrichs-vector2-1d pde-system-isothermal-euler
                                       #:nx nx
                                       #:x0 x0
@@ -45,16 +51,18 @@
                                       #:init-funcs init-funcs))
 
 ;; Output the code to a file.
-(with-output-to-file "isothermal_euler_lf.c"
+(with-output-to-file "code/isothermal_euler_lax.c"
   #:exists 'replace
   (lambda ()
-    (display code-isothermal-euler-lf)))
+    (display code-isothermal-euler-lax)))
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D isothermal Euler equations.
-(define proof-isothermal-euler-lf-hyperbolicity
-  (call-with-output-file "proof_isothermal_euler_lf_hyperbolicity.txt"
+(define proof-isothermal-euler-lax-hyperbolicity
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-isothermal-euler
                                                        #:nx nx
                                                        #:x0 x0
@@ -63,17 +71,20 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_hyperbolicity.rkt")
 
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
-(display proof-isothermal-euler-lf-hyperbolicity)
+(display proof-isothermal-euler-lax-hyperbolicity)
 (display "\n")
 
 ;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D isothermal Euler equations.
-(define proof-isothermal-euler-lf-strict-hyperbolicity
-  (call-with-output-file "proof_isothermal_euler_lf_strict_hyperbolicity.txt"
+(define proof-isothermal-euler-lax-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_strict_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-isothermal-euler
                                                               #:nx nx
                                                               #:x0 x0
@@ -82,17 +93,20 @@
                                                               #:cfl cfl
                                                               #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_strict_hyperbolicity.rkt")
 
 ;; Show whether strict hyperbolicity is preserved.
 (display "Strict hyperbolicity preservation: ")
-(display proof-isothermal-euler-lf-strict-hyperbolicity)
+(display proof-isothermal-euler-lax-strict-hyperbolicity)
 (display "\n")
 
 ;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D isothermal Euler equations.
-(define proof-isothermal-euler-lf-cfl-stability
-  (call-with-output-file "proof_isothermal_euler_lf_cfl_stability.txt"
+(define proof-isothermal-euler-lax-cfl-stability
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_cfl_stability.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system-isothermal-euler
                                                        #:nx nx
                                                        #:x0 x0
@@ -101,17 +115,20 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_cfl_stability.rkt")
 
 ;; Show whether CFL stability is satisfied.
 (display "CFL stability: ")
-(display proof-isothermal-euler-lf-cfl-stability)
+(display proof-isothermal-euler-lax-cfl-stability)
 (display "\n")
 
 ;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D isothermal Euler equations.
-(define proof-isothermal-euler-lf-local-lipschitz
-  (call-with-output-file "proof_isothermal_euler_lf_local_lipschitz.txt"
+(define proof-isothermal-euler-lax-local-lipschitz
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_local_lipschitz.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system-isothermal-euler
                                                          #:nx nx
                                                          #:x0 x0
@@ -120,8 +137,9 @@
                                                          #:cfl cfl
                                                          #:init-funcs init-funcs)))
     #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_local_lipschitz.rkt")
 
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
-(display proof-isothermal-euler-lf-local-lipschitz)
+(display proof-isothermal-euler-lax-local-lipschitz)
 (display "\n")
