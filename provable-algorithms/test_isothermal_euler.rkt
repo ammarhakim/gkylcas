@@ -13,18 +13,18 @@
 ;; Define the 1D isothermal Euler equations.
 (define pde-system-isothermal-euler
   (hash
-    'name "isothermal-euler"
-    'cons-exprs (list
-                 `rho
-                 `mom)                                    ; conserved variables: density, momentum
-    'flux-exprs (list
-                 `mom
-                 `(+ (/ (* mom mom) rho) (* rho vt vt)))  ; flux vector
-    'max-speed-exprs (list
-                      `(abs (- (/ mom rho) vt))
-                      `(abs (+ (/ mom rho) vt)))          ; local wave-speeds
-    'parameters `(define vt 1.0)                          ; thermal velocity: vt = 1.0
-    ))
+   'name "isothermal-euler"
+   'cons-exprs (list
+                `rho
+                `mom)                                    ; conserved variables: density, momentum
+   'flux-exprs (list
+                `mom
+                `(+ (/ (* mom mom) rho) (* rho vt vt)))  ; flux vector
+   'max-speed-exprs (list
+                     `(abs (- (/ mom rho) vt))
+                     `(abs (+ (/ mom rho) vt)))          ; local wave-speeds
+   'parameters `(define vt 1.0)                          ; thermal velocity: vt = 1.0
+   ))
 
 ;; Define simulation parameters.
 (define nx 200)
@@ -184,4 +184,48 @@
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
 (display proof-isothermal-euler-roe-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D isothermal Euler equations.
+(define proof-isothermal-euler-roe-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-strict-hyperbolicity pde-system-isothermal-euler
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-strict-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations.
+(define proof-isothermal-euler-roe-flux-conservation
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_flux_conservation.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-flux-conservation pde-system-isothermal-euler
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_flux_conservation.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-isothermal-euler-roe-flux-conservation)
 (display "\n")

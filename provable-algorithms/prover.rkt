@@ -26,7 +26,9 @@
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector2-1d-cfl-stability
          prove-lax-friedrichs-vector2-1d-local-lipschitz
-         prove-roe-vector2-1d-hyperbolicity)
+         prove-roe-vector2-1d-hyperbolicity
+         prove-roe-vector2-1d-strict-hyperbolicity
+         prove-roe-vector2-1d-flux-conservation)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -628,7 +630,7 @@
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
 
   (define roe-jump (symbolic-simp `(* ,(symbolic-roe-function flux-deriv cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
-                                                                              ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
+                                                                                       ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
   (define flux-jump (symbolic-simp `(- ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L")))
                                        ,(flux-deriv-replace flux-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R"))))))
   
@@ -1064,3 +1066,192 @@
   
   out)
 (trace prove-roe-vector2-1d-hyperbolicity)
+
+;; -----------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs
+;; -----------------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-strict-hyperbolicity pde-system
+                                                   #:nx [nx 200]
+                                                   #:x0 [x0 0.0]
+                                                   #:x1 [x1 2.0]
+                                                   #:t-final [t-final 1.0]
+                                                   #:cfl [cfl 0.95]
+                                                   #:init-funcs [init-funcs (list
+                                                                             `(cond
+                                                                                [(< x 0.5) 3.0]
+                                                                                [else 1.0])
+                                                                             `(cond
+                                                                                [(< x 0.5) 1.5]
+                                                                                [else 0.0]))])
+   "Prove that the Roe finite-volume method preserves strict hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-zero)
+  (trace are-distinct)
+
+  (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp (list
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 0))
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 1))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrix are all real (otherwise, return false).
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp 0) (list
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp 1) (list
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                             (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters))) #f]
+
+    ;; Check whether the eigenvalues of the Roe matrix are all distinct (otherwise, return false).
+    [(not (are-distinct roe-matrix-eigvals-simp parameters)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-zero)
+  (untrace are-distinct)
+  
+  out)
+(trace prove-roe-vector2-1d-strict-hyperbolicity)
+
+;; --------------------------------------------------------------------------------------------------------------------
+;; Prove flux conservation (jump continuity) of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs
+;; --------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-flux-conservation pde-system
+                                                #:nx [nx 200]
+                                                #:x0 [x0 0.0]
+                                                #:x1 [x1 2.0]
+                                                #:t-final [t-final 1.0]
+                                                #:cfl [cfl 0.95]
+                                                #:init-funcs [init-funcs (list
+                                                                          `(cond
+                                                                             [(< x 0.5) 3.0]
+                                                                             [else 1.0])
+                                                                          `(cond
+                                                                             [(< x 0.5) 1.5]
+                                                                             [else 0.0]))])
+  "Prove that the Roe finite-volume method preserves flux conservation (jump continuity) for the 1D coupled vector system of 2 PDEs specified by `pde-system`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+
+  (define roe-matrix (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs))
+  (define cons-vect-jump (list (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                  ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))))
+                               (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                  ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))
+  
+  (define roe-jump (list (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix 0) 0) ,(list-ref cons-vect-jump 0))
+                                            (* ,(list-ref (list-ref roe-matrix 0) 1) ,(list-ref cons-vect-jump 1))))
+                         (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix 1) 0) ,(list-ref cons-vect-jump 0))
+                                            (* ,(list-ref (list-ref roe-matrix 1) 1) ,(list-ref cons-vect-jump 1))))))
+  (define flux-jump (list (symbolic-simp `(- ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 0) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                             ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 0) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))
+                          (symbolic-simp `(- ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 1) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                             ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 1) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+
+    ;; Check whether the jump in the flux vector is equal to the product of the Roe matrix and the jump in the conserved variable vector (otherwise, return false).
+    [(or (not (equal? (list-ref roe-jump 0) (list-ref flux-jump 0)))
+         (not (equal? (list-ref roe-jump 1) (list-ref flux-jump 1)))) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-vector2-1d-flux-conservation)

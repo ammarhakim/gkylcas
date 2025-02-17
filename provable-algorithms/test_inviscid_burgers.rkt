@@ -13,12 +13,12 @@
 ;; Define the 1D inviscid Burgers' equation: du/dt + u du/dx = 0.
 (define pde-inviscid-burgers
   (hash
-    'name "inviscid-burgers"
-    'cons-expr `u             ; conserved variable: u
-    'flux-expr `(* 0.5 u u)   ; flux function: f(u) = 0.5 * u^2
-    'max-speed-expr `(abs u)  ; local wave-speed: alpha = |u|
-    'parameters `()
-    ))
+   'name "inviscid-burgers"
+   'cons-expr `u             ; conserved variable: u
+   'flux-expr `(* 0.5 u u)   ; flux function: f(u) = 0.5 * u^2
+   'max-speed-expr `(abs u)  ; local wave-speed: alpha = |u|
+   'parameters `()
+   ))
 
 ;; Define simulation parameters.
 (define nx 200)

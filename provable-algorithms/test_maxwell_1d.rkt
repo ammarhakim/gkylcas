@@ -183,3 +183,47 @@
 (display "Hyperbolicity preservation: ")
 (display proof-maxwell-1d-roe-hyperbolicity)
 (display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D Maxwell equations.
+(define proof-maxwell-1d-roe-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_roe_strict_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_strict_hyperbolicity.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-maxwell-1d-roe-strict-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations.
+(define proof-maxwell-1d-roe-flux-conservation
+  (call-with-output-file "proofs/proof_maxwell_1d_roe_flux_conservation.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-vector2-1d-flux-conservation pde-system-maxwell-1d
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_flux_conservation.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-maxwell-1d-roe-flux-conservation)
+(display "\n")
