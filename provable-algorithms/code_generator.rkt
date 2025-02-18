@@ -127,8 +127,8 @@
   (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
-    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
-    [else ""]))
+                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [else ""]))
 
   (define code
     (format "
@@ -309,8 +309,8 @@ int main() {
   (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
-    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
-    [else ""]))
+                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [else ""]))
 
   (define code
     (format "
@@ -513,8 +513,8 @@ int main() {
                                                    (list-ref cons-codes 1) "u[(i * 2) + 1]")) max-speed-codes))
 
   (define parameter-code (cond
-    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
-    [else ""]))
+                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [else ""]))
 
   (define code
     (format "
@@ -773,9 +773,9 @@ int main() {
                                                    (list-ref cons-codes 1) "u[(i * 2) + 1]")) max-speed-codes))
 
   (define parameter-code (cond
-    [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
-    [else ""]))
-
+                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [else ""]))
+  
   (define code
     (format "
 // AUTO-GENERATED CODE FOR COUPLED VECTOR PDE SYSTEM: ~a

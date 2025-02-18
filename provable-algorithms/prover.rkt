@@ -1,8 +1,8 @@
 #lang racket
 
 (require racket/trace)
-(current-prefix-in "< ")
-(current-prefix-out "> ")
+(current-prefix-in " ")
+(current-prefix-out " ")
 
 (provide symbolic-diff
          symbolic-simp-rule
