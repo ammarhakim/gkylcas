@@ -78,6 +78,74 @@
   (lambda ()
     (display code-linear-advection-lax-source)))
 
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lax-hyperbolicity
+  (call-with-output-file "proofs/proof_linear_advection_lax_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-1d-hyperbolicity pde-linear-advection
+                                                      #:nx nx
+                                                      #:x0 x0
+                                                      #:x1 x1
+                                                      #:t-final t-final
+                                                      #:cfl cfl
+                                                      #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-linear-advection-lax-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lax-cfl-stability
+  (call-with-output-file "proofs/proof_linear_advection_lax_cfl_stability.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-1d-cfl-stability pde-linear-advection
+                                                      #:nx nx
+                                                      #:x0 x0
+                                                      #:x1 x1
+                                                      #:t-final t-final
+                                                      #:cfl cfl
+                                                      #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_cfl_stability.rkt")
+
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-linear-advection-lax-cfl-stability)
+(display "\n")
+
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D linear advection equation.
+(define proof-linear-advection-lax-local-lipschitz
+  (call-with-output-file "proofs/proof_linear_advection_lax_local_lipschitz.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-1d-local-lipschitz pde-linear-advection
+                                                        #:nx nx
+                                                        #:x0 x0
+                                                        #:x1 x1
+                                                        #:t-final t-final
+                                                        #:cfl cfl
+                                                        #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_local_lipschitz.rkt")
+
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-linear-advection-lax-local-lipschitz)
+(display "\n\n\n")
+
 ;; Synthesize the Gkeyll header code for a Roe solver for the 1D linear advection equation.
 (define code-linear-advection-roe-header
   (gkyl-generate-roe-scalar-1d-header pde-linear-advection
@@ -125,3 +193,47 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-roe-source)))
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D linear advection equation.
+(define proof-linear-advection-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_linear_advection_roe_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-scalar-1d-hyperbolicity pde-linear-advection
+                                           #:nx nx
+                                           #:x0 x0
+                                           #:x1 x1
+                                           #:t-final t-final
+                                           #:cfl cfl
+                                           #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_roe_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-linear-advection-roe-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D linear advection equation.
+(define proof-linear-advection-roe-flux-conservation
+  (call-with-output-file "proofs/proof_linear_advection_roe_flux_conservation.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-roe-scalar-1d-flux-conservation pde-linear-advection
+                                               #:nx nx
+                                               #:x0 x0
+                                               #:x1 x1
+                                               #:t-final t-final
+                                               #:cfl cfl
+                                               #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_roe_flux_conservation.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-linear-advection-roe-flux-conservation)
+(display "\n")

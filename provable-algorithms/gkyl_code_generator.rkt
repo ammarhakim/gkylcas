@@ -2,12 +2,30 @@
 
 (require "code_generator.rkt")
 (require "prover.rkt")
-(provide gkyl-generate-lax-friedrichs-scalar-1d-header
+(provide remove-bracketed-expressions
+         remove-bracketed-expressions-from-file
+         gkyl-generate-lax-friedrichs-scalar-1d-header
          gkyl-generate-lax-friedrichs-scalar-1d-priv-header
          gkyl-generate-lax-friedrichs-scalar-1d-source
          gkyl-generate-roe-scalar-1d-header
          gkyl-generate-roe-scalar-1d-priv-header
          gkyl-generate-roe-scalar-1d-source)
+
+;; A simple boilerplate function for removing bracketed expressions from strings.
+(define (remove-bracketed-expressions str)
+  (regexp-replace* #rx"\\[.*?\\]" str ""))
+
+;; A simple boilerplate function for removing bracketed expressions from files.
+(define (remove-bracketed-expressions-from-file output-file)
+  (define content
+    (with-input-from-file output-file
+      (lambda ()
+        (port->string (current-input-port)))))
+  (define cleaned
+    (remove-bracketed-expressions content))
+  (with-output-to-file output-file #:exists 'replace
+    (lambda ()
+      (display cleaned))))
 
 ;; -------------------------------------------------------------------------------
 ;; Header for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
