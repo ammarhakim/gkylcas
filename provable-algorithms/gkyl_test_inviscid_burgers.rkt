@@ -41,7 +41,7 @@
                                                  #:init-func init-func))
 
 ;; Output the header code to a file.
-(with-output-to-file "gkyl_code/gkyl_wv_burgers.h"
+(with-output-to-file "gkyl_code/gkyl_wv_burgers_lax.h"
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lax-header)))
@@ -57,7 +57,7 @@
                                                       #:init-func init-func))
 
 ;; Output the private header code to a file.
-(with-output-to-file "gkyl_code/gkyl_wv_burgers_priv.h"
+(with-output-to-file "gkyl_code/gkyl_wv_burgers_lax_priv.h"
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lax-priv-header)))
@@ -73,7 +73,55 @@
                                                  #:init-func init-func))
 
 ;; Output the source code to a file.
-(with-output-to-file "gkyl_code/wv_burgers.c"
+(with-output-to-file "gkyl_code/wv_burgers_lax.c"
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lax-source)))
+
+;; Synthesize the Gkeyll header code for a Roe solver for the 1D inviscid Burgers' equation.
+(define code-inviscid-burgers-roe-header
+  (gkyl-generate-roe-scalar-1d-header pde-inviscid-burgers
+                                      #:nx nx
+                                      #:x0 x0
+                                      #:x1 x1
+                                      #:t-final t-final
+                                      #:cfl cfl
+                                      #:init-func init-func))
+
+;; Output the header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_burgers_roe.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-header)))
+
+;; Synthesize the Gkeyll private header code for a Roe solver for the 1D inviscid Burgers' equation.
+(define code-inviscid-burgers-roe-priv-header
+  (gkyl-generate-roe-scalar-1d-priv-header pde-inviscid-burgers
+                                           #:nx nx
+                                           #:x0 x0
+                                           #:x1 x1
+                                           #:t-final t-final
+                                           #:cfl cfl
+                                           #:init-func init-func))
+
+;; Output the private header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_burgers_roe_priv.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-priv-header)))
+
+;; Synthesize the Gkeyll source code for a Roe solver for the 1D inviscid Burgers' equation.
+(define code-inviscid-burgers-roe-source
+  (gkyl-generate-roe-scalar-1d-source pde-inviscid-burgers
+                                      #:nx nx
+                                      #:x0 x0
+                                      #:x1 x1
+                                      #:t-final t-final
+                                      #:cfl cfl
+                                      #:init-func init-func))
+
+;; Output the source code to a file.
+(with-output-to-file "gkyl_code/wv_burgers_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-source)))

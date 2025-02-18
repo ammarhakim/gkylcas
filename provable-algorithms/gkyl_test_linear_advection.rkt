@@ -41,7 +41,7 @@
                                                  #:init-func init-func))
 
 ;; Output the header code to a file.
-(with-output-to-file "gkyl_code/gkyl_wv_advect.h"
+(with-output-to-file "gkyl_code/gkyl_wv_advect_lax.h"
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-header)))
@@ -57,7 +57,7 @@
                                                       #:init-func init-func))
 
 ;; Output the private header code to a file.
-(with-output-to-file "gkyl_code/gkyl_wv_advect_priv.h"
+(with-output-to-file "gkyl_code/gkyl_wv_advect_lax_priv.h"
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-priv-header)))
@@ -73,7 +73,55 @@
                                                  #:init-func init-func))
 
 ;; Output the source code to a file.
-(with-output-to-file "gkyl_code/wv_advect.c"
+(with-output-to-file "gkyl_code/wv_advect_lax.c"
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-source)))
+
+;; Synthesize the Gkeyll header code for a Roe solver for the 1D linear advection equation.
+(define code-linear-advection-roe-header
+  (gkyl-generate-roe-scalar-1d-header pde-linear-advection
+                                      #:nx nx
+                                      #:x0 x0
+                                      #:x1 x1
+                                      #:t-final t-final
+                                      #:cfl cfl
+                                      #:init-func init-func))
+
+;; Output the header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_advect_roe.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-header)))
+
+;; Synthesize the Gkeyll private header code for a Roe solver for the 1D linear advection equation.
+(define code-linear-advection-roe-priv-header
+  (gkyl-generate-roe-scalar-1d-priv-header pde-linear-advection
+                                           #:nx nx
+                                           #:x0 x0
+                                           #:x1 x1
+                                           #:t-final t-final
+                                           #:cfl cfl
+                                           #:init-func init-func))
+
+;; Output the private header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_advect_roe_priv.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-priv-header)))
+
+;; Synthesize the Gkeyll source code for a Roe solver for the 1D linear advection equation.
+(define code-linear-advection-roe-source
+  (gkyl-generate-roe-scalar-1d-source pde-linear-advection
+                                      #:nx nx
+                                      #:x0 x0
+                                      #:x1 x1
+                                      #:t-final t-final
+                                      #:cfl cfl
+                                      #:init-func init-func))
+
+;; Output the source code to a file.
+(with-output-to-file "gkyl_code/wv_advect_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-source)))
