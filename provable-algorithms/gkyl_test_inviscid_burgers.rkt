@@ -94,6 +94,8 @@
   (lambda ()
     (display code-inviscid-burgers-lax-regression)))
 
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-lax-hyperbolicity
   (call-with-output-file "proofs/proof_inviscid_burgers_lax_hyperbolicity.rkt"
@@ -207,6 +209,22 @@
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-roe-source)))
+
+;; Synthesize a Gkeyll C regression test for a Roe solver for the 1D inviscid Burgers' equation.
+(define code-inviscid-burgers-roe-regression
+  (gkyl-generate-roe-scalar-1d-regression pde-inviscid-burgers
+                                          #:nx nx
+                                          #:x0 x0
+                                          #:x1 x1
+                                          #:t-final t-final
+                                          #:cfl cfl
+                                          #:init-func init-func))
+
+;; Output the regression test to a file.
+(with-output-to-file "gkyl_code/rt_burgers_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-regression)))
 
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-roe-hyperbolicity

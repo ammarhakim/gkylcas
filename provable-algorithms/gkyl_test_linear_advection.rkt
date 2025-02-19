@@ -210,6 +210,22 @@
   (lambda ()
     (display code-linear-advection-roe-source)))
 
+;; Synthesize a Gkeyll C regression test for a Roe solver for the 1D linear advection equation.
+(define code-linear-advection-roe-regression
+  (gkyl-generate-roe-scalar-1d-regression pde-linear-advection
+                                          #:nx nx
+                                          #:x0 x0
+                                          #:x1 x1
+                                          #:t-final t-final
+                                          #:cfl cfl
+                                          #:init-func init-func))
+
+;; Output the regression test to a file.
+(with-output-to-file "gkyl_code/rt_advect_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-regression)))
+
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D linear advection equation.
 (define proof-linear-advection-roe-hyperbolicity
   (call-with-output-file "proofs/proof_linear_advection_roe_hyperbolicity.rkt"
