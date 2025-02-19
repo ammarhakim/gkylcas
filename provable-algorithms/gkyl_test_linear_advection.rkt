@@ -78,6 +78,22 @@
   (lambda ()
     (display code-linear-advection-lax-source)))
 
+;; Synthesize a Gkeyll C regression test for a Lax-Friedrichs solver for the 1D linear advection equation.
+(define code-linear-advection-lax-regression
+  (gkyl-generate-lax-friedrichs-scalar-1d-regression pde-linear-advection
+                                                     #:nx nx
+                                                     #:x0 x0
+                                                     #:x1 x1
+                                                     #:t-final t-final
+                                                     #:cfl cfl
+                                                     #:init-func init-func))
+
+;; Output the regression test to a file.
+(with-output-to-file "gkyl_code/rt_advect_lax.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-lax-regression)))
+
 (display "Lax-Friedrichs (finite-difference) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D linear advection equation.

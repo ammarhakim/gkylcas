@@ -22,13 +22,13 @@
 
 ;; Define simulation parameters.
 (define nx 200)
-(define x0 -1.0)
-(define x1 1.0)
+(define x0 -3.0)
+(define x1 3.0)
 (define t-final 0.5)
 (define cfl 0.95)
 (define init-func `(cond
-                     [(< x 0.0) 1.0]
-                     [else 0.0]))
+                     [(< (abs x) 1.0) 3.0]
+                     [else -1.0]))
 
 ;; Synthesize the Gkeyll header code for a Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define code-inviscid-burgers-lax-header
@@ -77,6 +77,22 @@
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lax-source)))
+
+;; Synthesize a Gkeyll C regression test for a Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
+(define code-inviscid-burgers-lax-regression
+  (gkyl-generate-lax-friedrichs-scalar-1d-regression pde-inviscid-burgers
+                                                     #:nx nx
+                                                     #:x0 x0
+                                                     #:x1 x1
+                                                     #:t-final t-final
+                                                     #:cfl cfl
+                                                     #:init-func init-func))
+
+;; Output the regression test to a file.
+(with-output-to-file "gkyl_code/rt_burgers_lax.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-regression)))
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-lax-hyperbolicity
