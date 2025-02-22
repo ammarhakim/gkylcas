@@ -50,15 +50,21 @@
 
   (define name (hash-ref pde 'name))
   (define parameters (hash-ref pde 'parameters))
-
+  
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-comment (cond
-                              [(not (empty? parameters)) (string-append "* @param " (convert-expr (list-ref parameters 1)) " Additional simulation parameter.")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "* @param " (convert-expr (list-ref parameter 1)) " Additional simulation parameter."))
+                                                                           parameters) "\n")]
                               [else "*"]))
 
   (define code
@@ -139,13 +145,19 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp);
   (define parameters (hash-ref pde 'parameters))
 
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-comment (cond
-                              [(not (empty? parameters)) (string-append "* @param " (convert-expr (list-ref parameters 1)) " Additional simulation parameter.")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "* @param " (convert-expr (list-ref parameter 1)) " Additional simulation parameter."))
+                                                                           parameters) "\n")]
                               [else "*"]))
 
   (define code
@@ -452,22 +464,32 @@ void gkyl_~a_free(const struct gkyl_ref_count* ref);
   (define flux-ui (flux-substitute flux-code cons-code "q[0]"))
   
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) " = "
-                                                                    name "->" (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) " = "
+                                                                                        name "->" (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-name (cond
-                           [(not (empty? parameters)) (string-append (convert-expr (list-ref parameters 1)) ",")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append (convert-expr (list-ref parameter 1)) ","))
+                                                                        parameters))]
                            [else ""]))
   (define parameter-field (cond
-                            [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = "
-                                                                      (convert-expr (list-ref parameters 1)) ",")]
+                            [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                           (string-append "." (convert-expr (list-ref parameter 1)) " = "
+                                                                                          (convert-expr (list-ref parameter 1)) ","))
+                                                                         parameters) "\n")]
                             [else ""]))
   (define parameter-field-set (cond
-                                [(not (empty? parameters)) (string-append name "->" (convert-expr (list-ref parameters 1))
-                                                                          " = inp->" (convert-expr (list-ref parameters 1)) ";")]
+                                [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                               (string-append name "->" (convert-expr (list-ref parameter 1))
+                                                                                              " = inp->" (convert-expr (list-ref parameter 1)) ";"))
+                                                                             parameters) "\n")]
                                 [else ""]))
 
   (define code
@@ -821,19 +843,27 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
   (define init-func-code (convert-expr init-func))
 
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-assign (cond
-                             [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) " = "
-                                                                       (convert-expr (list-ref parameters 2))"; // Additional simulation parameter.")]
+                             [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                            (string-append "double " (convert-expr (list-ref parameter 1)) " = "
+                                                                                           (convert-expr (list-ref parameter 2))"; // Additional simulation parameter."))
+                                                                          parameters) "\n")]
                              [else ""]))
   (define parameter-ctx-set (cond
-                              [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = "
-                                                                        (convert-expr (list-ref parameters 1)) ",")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "." (convert-expr (list-ref parameter 1)) " = "
+                                                                                            (convert-expr (list-ref parameter 1)) ","))
+                                                                           parameters) "\n")]
                               [else ""]))
   (define parameter-ctx (cond
-                          [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = ctx."
-                                                                    (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "." (convert-expr (list-ref parameter 1)) " = ctx."
+                                                                                        (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters) "\n")]
                           [else ""]))
 
   (define code
@@ -1251,13 +1281,19 @@ mpifinalize:
   (define parameters (hash-ref pde 'parameters))
 
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-comment (cond
-                              [(not (empty? parameters)) (string-append "* @param " (convert-expr (list-ref parameters 1)) " Additional simulation parameter.")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "* @param " (convert-expr (list-ref parameter 1)) " Additional simulation parameter."))
+                                                                           parameters) "\n")]
                               [else "*"]))
 
   (define code
@@ -1338,13 +1374,19 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp);
   (define parameters (hash-ref pde 'parameters))
 
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-comment (cond
-                              [(not (empty? parameters)) (string-append "* @param " (convert-expr (list-ref parameters 1)) " Additional simulation parameter.")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "* @param " (convert-expr (list-ref parameter 1)) " Additional simulation parameter."))
+                                                                           parameters) "\n")]
                               [else "*"]))
 
   (define code
@@ -1669,22 +1711,32 @@ void gkyl_~a_free(const struct gkyl_ref_count* ref);
   (define flux-deriv-ui (flux-substitute flux-deriv-code cons-code "q[0]"))
   
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) " = "
-                                                                    name "->" (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) " = "
+                                                                                        name "->" (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-sig (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters))]
                           [else ""]))
   (define parameter-name (cond
-                           [(not (empty? parameters)) (string-append (convert-expr (list-ref parameters 1)) ",")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append (convert-expr (list-ref parameter 1)) ","))
+                                                                        parameters))]
                            [else ""]))
   (define parameter-field (cond
-                            [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = "
-                                                                      (convert-expr (list-ref parameters 1)) ",")]
+                            [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                           (string-append "." (convert-expr (list-ref parameter 1)) " = "
+                                                                                          (convert-expr (list-ref parameter 1)) ","))
+                                                                         parameters) "\n")]
                             [else ""]))
   (define parameter-field-set (cond
-                                [(not (empty? parameters)) (string-append name "->" (convert-expr (list-ref parameters 1))
-                                                                          " = inp->" (convert-expr (list-ref parameters 1)) ";")]
+                                [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                               (string-append name "->" (convert-expr (list-ref parameter 1))
+                                                                                              " = inp->" (convert-expr (list-ref parameter 1)) ";"))
+                                                                             parameters) "\n")]
                                 [else ""]))
 
   (define code
@@ -2043,19 +2095,27 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
   (define init-func-code (convert-expr init-func))
 
   (define parameter-def (cond
-                          [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) "; // Additional simulation parameter.")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
+                                                                       parameters) "\n")]
                           [else ""]))
   (define parameter-assign (cond
-                             [(not (empty? parameters)) (string-append "double " (convert-expr (list-ref parameters 1)) " = "
-                                                                       (convert-expr (list-ref parameters 2))"; // Additional simulation parameter.")]
+                             [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                            (string-append "double " (convert-expr (list-ref parameter 1)) " = "
+                                                                                           (convert-expr (list-ref parameter 2))"; // Additional simulation parameter."))
+                                                                          parameters) "\n")]
                              [else ""]))
   (define parameter-ctx-set (cond
-                              [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = "
-                                                                        (convert-expr (list-ref parameters 1)) ",")]
+                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                             (string-append "." (convert-expr (list-ref parameter 1)) " = "
+                                                                                            (convert-expr (list-ref parameter 1)) ","))
+                                                                           parameters) "\n")]
                               [else ""]))
   (define parameter-ctx (cond
-                          [(not (empty? parameters)) (string-append "." (convert-expr (list-ref parameters 1)) " = ctx."
-                                                                    (convert-expr (list-ref parameters 1)) ",")]
+                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                         (string-append "." (convert-expr (list-ref parameter 1)) " = ctx."
+                                                                                        (convert-expr (list-ref parameter 1)) ","))
+                                                                       parameters) "\n")]
                           [else ""]))
 
   (define code

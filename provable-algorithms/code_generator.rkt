@@ -127,7 +127,8 @@
   (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
-                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
                            [else ""]))
 
   (define code
@@ -309,7 +310,8 @@ int main() {
   (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
 
   (define parameter-code (cond
-                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
                            [else ""]))
 
   (define code
@@ -513,7 +515,8 @@ int main() {
                                                    (list-ref cons-codes 1) "u[(i * 2) + 1]")) max-speed-codes))
 
   (define parameter-code (cond
-                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
                            [else ""]))
 
   (define code
@@ -773,7 +776,8 @@ int main() {
                                                    (list-ref cons-codes 1) "u[(i * 2) + 1]")) max-speed-codes))
 
   (define parameter-code (cond
-                           [(not (empty? parameters)) (string-append "double " (convert-expr parameters) ";")]
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
                            [else ""]))
   
   (define code

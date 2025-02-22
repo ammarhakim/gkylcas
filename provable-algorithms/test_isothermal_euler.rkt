@@ -23,7 +23,8 @@
    'max-speed-exprs (list
                      `(abs (- (/ mom rho) vt))
                      `(abs (+ (/ mom rho) vt)))          ; local wave-speeds
-   'parameters `(define vt 1.0)                          ; thermal velocity: vt = 1.0
+   'parameters (list
+                `(define vt 1.0))                          ; thermal velocity: vt = 1.0
    ))
 
 ;; Define simulation parameters.

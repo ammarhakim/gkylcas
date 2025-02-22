@@ -18,6 +18,22 @@
 
 (display "Minmod flux limiter properties: \n\n")
 
+;; Attempt to prove symmetry (equivalent action on forward and backward gradients) of the minmod flux limiter.
+(define proof-limiter-minmod-symmetry
+  (call-with-output-file "proofs/proof_limiter_minmod_symmetry.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-flux-limiter-symmetry limiter-minmod)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_limiter_minmod_symmetry.rkt")
+
+;; Show whether the symmetry (equivalent action on forward and backward gradients) property is satisfied.
+(display "Symmetric (equivalent action on forward and backward gradients): ")
+(display proof-limiter-minmod-symmetry)
+(display "\n")
+
 ;; Attempt to prove second-order TVD (total variation diminishing) of the minmod flux limiter.
 (define proof-limiter-minmod-tvd
   (call-with-output-file "proofs/proof_limiter_minmod_tvd.rkt"
@@ -43,6 +59,22 @@
    ))
 
 (display "Superbee flux limiter properties: \n\n")
+
+;; Attempt to prove symmetry (equivalent action on forward and backward gradients) of the superbee flux limiter.
+(define proof-limiter-superbee-symmetry
+  (call-with-output-file "proofs/proof_limiter_superbee_symmetry.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-flux-limiter-symmetry limiter-superbee)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_limiter_superbee_symmetry.rkt")
+
+;; Show whether the symmetry (equivalent action on forward and backward gradients) property is satisfied.
+(display "Symmetric (equivalent action on forward and backward gradients): ")
+(display proof-limiter-superbee-symmetry)
+(display "\n")
 
 ;; Attempt to prove second-order TVD (total variation diminishing) of the superbee flux limiter.
 (define proof-limiter-superbee-tvd
@@ -70,6 +102,22 @@
 
 (display "Monotonized-centered flux limiter properties: \n\n")
 
+;; Attempt to prove symmetry (equivalent action on forward and backward gradients) of the monotonized-centered flux limiter.
+(define proof-limiter-monotonized-centered-symmetry
+  (call-with-output-file "proofs/proof_limiter_monotonized_centered_symmetry.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-flux-limiter-symmetry limiter-monotonized-centered)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_limiter_monotonized_centered_symmetry.rkt")
+
+;; Show whether the symmetry (equivalent action on forward and backward gradients) property is satisfied.
+(display "Symmetric (equivalent action on forward and backward gradients): ")
+(display proof-limiter-monotonized-centered-symmetry)
+(display "\n")
+
 ;; Attempt to prove second-order TVD (total variation diminishing) of the monotonized-centered flux limiter.
 (define proof-limiter-monotonized-centered-tvd
   (call-with-output-file "proofs/proof_limiter_monotonized_centered_tvd.rkt"
@@ -84,4 +132,46 @@
 ;; Show whether the second-order TVD (total variation diminishing) property is satisfied.
 (display "Second-order TVD (total variation diminishing): ")
 (display proof-limiter-monotonized-centered-tvd)
+(display "\n\n\n")
+
+;; Define the van Leer flux limiter.
+(define limiter-van-leer
+  (hash
+   'name "van-leer"
+   'limiter-expr `(/ (+ r (abs r)) (+ 1.0 (abs r)))
+   'limiter-ratio `r
+   ))
+
+(display "Van Leer flux limiter properties: \n\n")
+
+;; Attempt to prove symmetry (equivalent action on forward and backward gradients) of the van Leer flux limiter.
+(define proof-limiter-van-leer-symmetry
+  (call-with-output-file "proofs/proof_limiter_van_leer_symmetry.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-flux-limiter-symmetry limiter-van-leer)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_limiter_van_leer_symmetry.rkt")
+
+;; Show whether the symmetry (equivalent action on forward and backward gradients) property is satisfied.
+(display "Symmetric (equivalent action on forward and backward gradients): ")
+(display proof-limiter-van-leer-symmetry)
+(display "\n")
+
+;; Attempt to prove second-order TVD (total variation diminishing) of the van Leer flux limiter.
+(define proof-limiter-van-leer-tvd
+  (call-with-output-file "proofs/proof_limiter_van_leer_tvd.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-flux-limiter-tvd limiter-van-leer)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_limiter_van_leer_tvd.rkt")
+
+;; Show whether the second-order TVD (total variation diminishing) property is satisfied.
+(display "Second-order TVD (total variation diminishing): ")
+(display proof-limiter-van-leer-tvd)
 (display "\n\n\n")

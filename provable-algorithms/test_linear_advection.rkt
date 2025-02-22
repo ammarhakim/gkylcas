@@ -14,10 +14,11 @@
 (define pde-linear-advection
   (hash
    'name "linear-advection"
-   'cons-expr `u                ; conserved variable: u
-   'flux-expr `(* a u)          ; flux function: f(u) = a * u
-   'max-speed-expr `(abs a)     ; local wave-speed: alpha = |a|
-   'parameters `(define a 1.0)  ; advection speed: a = 1.0
+   'cons-expr `u                 ; conserved variable: u
+   'flux-expr `(* a u)           ; flux function: f(u) = a * u
+   'max-speed-expr `(abs a)      ; local wave-speed: alpha = |a|
+   'parameters (list
+                `(define a 1.0)) ; advection speed: a = 1.0
    ))
 
 ;; Define simulation parameters.

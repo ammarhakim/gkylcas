@@ -23,7 +23,8 @@
     'max-speed-exprs (list
                       `(abs c)
                       `(abs c))     ; local wave-speeds
-    'parameters `(define c 1.0)     ; speed of light: c = 1.0
+    'parameters (list
+                 `(define c 1.0))   ; speed of light: c = 1.0
     ))
 
 ;; Define simulation parameters.

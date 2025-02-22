@@ -213,6 +213,18 @@
     ;; If expr is of the form (x / x), then simplify to 1.0
     [`(/ ,x ,x) 1.0]
 
+    ;; If expr is of the form (x * (y / z)) for numeric x and y, then evaluate the product to yield ((x * y) / z).
+    [`(* ,(and x (? number?)) (/ ,(and y (? number?)) ,z)) `(/ ,(* x y) ,z)]
+    ;; Likewise, if expr is of the form ((x / y) / z) for numeric x and z, then evaluate the quotient to yield ((x / z) / y).
+    [`(/ (/ ,(and x (? number?)) ,y) ,(and z (? number?))) `(/ ,(/ x z) ,y)]
+
+    ;; If expr is of the form ((x / y) / x), then simplify to (1.0 / y).
+    [`(/ (/ ,x ,y) ,x) `(/ 1.0 ,y)]
+
+    ;; If expr is of the form ((x / y) / (z + (x / y))), or ((x / y) / ((x / y) + z), then simplify to (x / ((z * y) + x)) or (x / (x + (z * y))).
+    [`(/ (/ ,x ,y) (+ ,z (/ ,x ,y))) `(/ ,x (+ (* ,z ,y) ,x))]
+    [`(/ (/ ,x ,y) (+ (/ ,x ,y) ,z)) `(/ ,x (+ ,x (* ,z ,y)))]
+
     ;; If expr is of the form ((x + y) / z) or ((x - y) / z), then simplify to ((x / z) + (y / z)) or ((x / z) - (y / z)).
     [`(/ (+ ,x ,y) ,z) `(+ (/ ,x ,z) (/ ,y ,z))]
     [`(/ (- ,x ,y) ,z) `(- (/ ,x ,z) (/ ,y ,z))]
@@ -297,7 +309,8 @@
 
     ;; Simulation parameters are assumed to be real (this is enforced elsewhere).
     [(? (lambda (arg)
-          (and (not (empty? parameters)) (equal? arg (list-ref parameters 1))))) #t]
+          (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                  (equal? arg (list-ref parameter 1))) parameters)))) #t]
 
     ;; The outcome of a conditional operation is real if both branches yield real numbers.
     [`(cond
@@ -327,7 +340,10 @@
 
     ;; Simulation parameters that are non-zero are, trivially, non-zero.
     [(? (lambda (arg)
-        (and (not (empty? parameters)) (equal? arg (list-ref parameters 1)) (not (equal? (list-ref parameters 2) 0))))) #t]
+        (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                 (and (equal? arg (list-ref parameter 1))
+                                                      (or (not (equal? (list-ref parameter 2) 0))
+                                                          (not (equal? (list-ref parameter 2) 0.0))))) parameters)))) #t]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -424,6 +440,17 @@
     ;; If expr is of the form abs(expr1), then apply symbolic simplification to the interior expr1.
     [`(abs ,x)
      `(abs ,(symbolic-simp-positive-rule x pos-var))]
+
+    [`(/ (max ,x ,y) ,pos-var) `(max (/ ,y ,pos-var) (/ ,x ,pos-var))]
+    [`(/ (min ,x ,y) ,pos-var) `(min (/ ,y ,pos-var) (/ ,x ,pos-var))]
+
+    [`(/ (max ,x ,y ,z) ,pos-var) `(max (/ ,z ,pos-var) (/ ,y ,pos-var) (/ ,x ,pos-var))]
+    [`(/ (min ,x ,y, z) ,pos-var) `(min (/ ,z ,pos-var) (/ ,y ,pos-var) (/ ,x ,pos-var))]
+
+    [`(max . ,terms)
+     `(max ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
+    [`(min . ,terms)
+     `(min ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
 
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
@@ -545,7 +572,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
@@ -604,7 +632,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
@@ -663,7 +692,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
@@ -726,7 +756,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
@@ -797,7 +828,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) (list cons-expr) parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
@@ -868,7 +900,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -943,7 +976,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1025,7 +1059,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1107,7 +1142,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1186,7 +1222,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1273,7 +1310,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1384,7 +1422,8 @@
     [(< t-final 0) #f]
 
     ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
-    [(not (or (empty? parameters) (is-real (list-ref parameters 2) cons-exprs parameters))) #f]
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
 
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
@@ -1426,9 +1465,10 @@
   (define out (cond
     ;; Check whether the symmetry property phi(r) / r = phi(1 / r) holds (otherwise, return false).
     [(not (equal? (symbolic-simp
-                   (symbolic-simp-positive (symbolic-simp `(/ ,limiter-expr ,limiter-ratio)) limiter-ratio))
+                   (symbolic-simp-positive (symbolic-simp (symbolic-simp-positive `(/ ,limiter-expr ,limiter-ratio) limiter-ratio)) limiter-ratio))
                   (symbolic-simp
-                   (symbolic-simp-positive (symbolic-simp (variable-transform limiter-expr limiter-ratio `(/ 1.0 ,limiter-ratio))) limiter-ratio)))) #f]
+                   (symbolic-simp-positive (symbolic-simp (symbolic-simp-positive (variable-transform limiter-expr limiter-ratio `(/ 1.0 ,limiter-ratio))
+                                                                                  limiter-ratio)) limiter-ratio)))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
