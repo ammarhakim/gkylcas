@@ -29,6 +29,9 @@ for bInd : 1 thru 1 do (
       fh : openw(fName),
       printf(fh, "#include \"gkyl_tok_calc_derived_geo_kernels.h\"~%~%"),
       calcDerivedGeo(fh, cD, bName[bInd], polyOrder),
+      if (polyOrder = 1) then (
+        calcDerivedGeo_quad(fh, cD, bName[bInd], polyOrder)
+      ),
       close(fh)
     )
   )

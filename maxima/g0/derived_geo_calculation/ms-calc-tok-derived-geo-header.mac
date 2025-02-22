@@ -30,7 +30,10 @@ for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
       disp(printf(false,sconcat("Creating header entry for derived_geo_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-      printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2); ~%", cD, bName[bInd], polyOrder)
+      printf(fh, "GKYL_CU_DH void tok_derived_geo_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2); ~%", cD, bName[bInd], polyOrder),
+      if (polyOrder = 1) then (
+        printf(fh, "GKYL_CU_DH void tok_derived_geo_quad_~ax_~a_p~a(const double *gij, const double *bmag, const double *J, double *Jinv, double *grij, double *bi, double *cmag, double *Jtot, double *Jtotinv, double *gxxJ, double *gxyJ, double *gyyJ, double *gxzJ, double *eps2); ~%", cD, bName[bInd], polyOrder)
+      )
     )
   )
 );
