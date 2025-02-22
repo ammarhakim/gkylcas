@@ -17,6 +17,11 @@
          flux-deriv-replace
          symbolic-roe-function
          symbolic-roe-matrix
+         variable-transform
+         symbolic-simp-positive-rule
+         symbolic-simp-positive
+         evaluate-limit-rule
+         evaluate-limit
          prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
@@ -28,18 +33,20 @@
          prove-lax-friedrichs-vector2-1d-local-lipschitz
          prove-roe-vector2-1d-hyperbolicity
          prove-roe-vector2-1d-strict-hyperbolicity
-         prove-roe-vector2-1d-flux-conservation)
+         prove-roe-vector2-1d-flux-conservation
+         prove-flux-limiter-symmetry
+         prove-flux-limiter-tvd)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
   (match expr
     ;; If expr is a symbol, then it either differentiates to 1 (if it's equal to var), or 0 otherwise.
     [(? symbol? symb) (cond
-                        [(eq? symb var) 1]
-                        [else 0])]
+                        [(eq? symb var) 1.0]
+                        [else 0.0])]
 
     ;; If expr is a numerical constant, then it differentiates to 0.
-    [(? number?) 0]
+    [(? number?) 0.0]
 
     ;; If expr is a sum of the form (+ expr1 expr2 ...), then it differentiates to a sum of derivatives (+ expr1' expr2' ...), by linearity.
     [`(+ . ,terms)
@@ -76,6 +83,9 @@
     ;; If expr is an absolute value of the form (abs expr1), then it differentiates to (sgn expr1').
     [`(abs ,arg)
      `(* (sgn ,arg) ,(symbolic-diff arg var))]
+
+    ;; If expr is a sign function of the form (sgn expr1), then it differentiates to 0.0.
+    [`(sgn ,arg) 0.0]
     
     ;; Otherwise, return false.
     [else #f]))
@@ -145,6 +155,13 @@
     ;; If expr if of the form sqrt(x) for numeric x, then just evaluate the square root.
     [`(sqrt ,(and x (? number?))) (sqrt x)]
 
+    ;; If expr is of the form max(x, y) or min(x, y) for numeric x and y, then just evaluate the maximum/minimum.
+    [`(max ,(and x (? number?)) ,(and y (? number?))) (max x y)]
+    [`(min ,(and x (? number?)) ,(and y (? number?))) (min x y)]
+
+    ;; If expr is of the form abs(x) for numeric x, then just evaluate the absolute value.,
+    [`(abs ,(and x (? number?))) (abs x)]
+
     ;; If expr is of the form abs(-1 * x) or abs(-1.0 * x), then simplify to abs(x).
     [`(abs (* -1 ,x)) `(abs ,x)]
     [`(abs (* -1.0 ,x)) `(abs ,x)]
@@ -153,8 +170,8 @@
     [`(- 0 (* ,x ,y)) `(* (- 0 ,x) ,y)]
     [`(- 0.0 (* ,x ,y)) `(* (- 0.0 ,x) ,y)]
 
-    ;; If expr is of the form (x + x), thens implify to (2 * x).
-    [`(+ ,x ,x) `(* 2 ,x)]
+    ;; If expr is of the form (x + x), thens implify to (2.0 * x).
+    [`(+ ,x ,x) `(* 2.0 ,x)]
 
     ;; If expr is of the form ((x * y) / (x * z)), then simplify to (y / z).
     [`(/ (* ,x ,y) (* ,x ,z)) `(/ ,y ,z)]
@@ -189,6 +206,17 @@
     ;; If expr is of the form (((a * x) + (a * y)) * (x - y)), then simplify to ((a * (x * x)) - (a * (y * y))).
     [`(* (+ (* ,a ,x) (* ,a ,y)) (- ,x ,y)) `(- (* ,a (* ,x ,x)) (* ,a (* ,y ,y)))]
 
+    ;; If expr is of the form (0 / x) or (0.0 / x), then simplify to 0 or 0.0.
+    [`(/ 0 ,x) 0]
+    [`(/ 0.0 ,x) 0.0]
+
+    ;; If expr is of the form (x / x), then simplify to 1.0
+    [`(/ ,x ,x) 1.0]
+
+    ;; If expr is of the form ((x + y) / z) or ((x - y) / z), then simplify to ((x / z) + (y / z)) or ((x / z) - (y / z)).
+    [`(/ (+ ,x ,y) ,z) `(+ (/ ,x ,z) (/ ,y ,z))]
+    [`(/ (- ,x ,y) ,z) `(- (/ ,x ,z) (/ ,y ,z))]
+
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
      `(+ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
@@ -203,13 +231,23 @@
     [`(/ . ,terms)
      `(/ ,@(map (lambda (term) (symbolic-simp-rule term)) terms))]
 
-    ;; If expr is of the form sqrt(expr2), then apply symbolic simplification to the interior expr2.
+    ;; If expr is of the form sqrt(expr1), then apply symbolic simplification to the interior expr1.
     [`(sqrt ,arg)
      `(sqrt ,(symbolic-simp-rule arg))]
 
-    ;; If expr is of the form abs(expr2), then apply symbolic simplification to the interior expr2.
+    ;; If expr is of the form abs(expr1), then apply symbolic simplification to the interior expr1.
     [`(abs ,arg)
      `(abs ,(symbolic-simp-rule arg))]
+
+    ;; If expr is of the form max(x, y, z) or min(x, y, z), then simplify to max(max(x, y), z) or min(min(x, y), z).
+    [`(max ,x ,y ,z) `(max (max ,x ,y) ,z)]
+    [`(min ,x ,y ,z) `(min (min ,x ,y) ,z)]
+
+    ;; If expr is of the form max(x, y), then simplify to ((0.5 * (x + y)) + (0.5 * abs(x - y))).
+    [`(max ,x ,y) `(+ (* 0.5 (+ ,x ,y)) (* 0.5 (abs (- ,x ,y))))]
+
+    ;; If expr is of the form min(x, y), then simplify to ((0.5 * (x + y)) - (0.5 * abs(x - y))).
+    [`(min ,x ,y) `(- (* 0.5 (+ ,x ,y)) (* 0.5 (abs (- ,x ,y))))]
 
     ;; Otherwise, return the expression.
     [else expr]))
@@ -244,8 +282,8 @@
         [b (list-ref (list-ref matrix 0) 1)]
         [c (list-ref (list-ref matrix 1) 0)]
         [d (list-ref (list-ref matrix 1) 1)])
-    (list `(* 1/2 (+ (- ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
-          `(* 1/2 (+ (+ ,a (sqrt (+ (* 4 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))))
+    (list `(* 0.5 (+ (- ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
+          `(* 0.5 (+ (+ ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))))
 
 ;; Recursively determine whether an expression corresponds to a real number.
 (define (is-real expr cons-vars parameters)
@@ -353,6 +391,120 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
               row))
        flux-jacobian))
+
+;; Recursively ransform all occurrences of a given variable within an expression to a new variable.
+(define (variable-transform expr var new-var)
+  (cond
+    ;; Replace any occurrence of var in expr with new-var.
+    [(symbol? expr) (cond
+                      [(equal? expr var) new-var]
+                      [else expr])]
+
+    ;; Recursively apply variable-transform to all subexpressions.
+    [(pair? expr) (map (lambda (subexpr)
+                         (variable-transform subexpr var new-var)) expr)]
+
+    ;; Otherwise, return the expression.
+    [else expr]))
+
+;; Lightweight symbolic simplification rules, assuming strict positivity of pos-var.
+(define (symbolic-simp-positive-rule expr pos-var)
+  (match expr
+    ;; If expr is of the form (abs(x) / y), with y strictly positive, then simplify to abs(x / y).
+    [`(/ (abs ,x) ,pos-var) `(abs (/ ,x ,pos-var))]
+
+    ;; If expr is of the form abs(x), abs(1 / x) or abs(1.0 / x), with x strictly positive, then simplify to x, (1 / x) or (1.0 / x).
+    [`(abs ,pos-var) pos-var]
+    [`(abs (/ 1 ,pos-var)) `(/ 1 ,pos-var)]
+    [`(abs (/ 1.0 ,pos-var)) `(/ 1.0 ,pos-var)]
+
+    ;; If expr is of the form sgn(x), with x strictly positive, then simplify to 1.0.
+    [`(sgn ,pos-var) 1.0]
+
+    ;; If expr is of the form abs(expr1), then apply symbolic simplification to the interior expr1.
+    [`(abs ,x)
+     `(abs ,(symbolic-simp-positive-rule x pos-var))]
+
+    ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
+    [`(+ . ,terms)
+     `(+ ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
+    ;; Likewise for differences.
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
+
+    ;; If expr is a product of the form (x * y * ...), then apply symbolic simplification to each term x, y, ... in the product.
+    [`(* . ,terms)
+     `(* ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
+    ;; Likewise for quotients.
+    [`(/ . ,terms)
+     `(/ ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
+
+    ;; Otherwise, return the expression.
+    [else expr]))
+
+;; Recursively apply the symbolic simplification rules (assuming strict positivity of pos-var) until the expression stops changing (fixed point).
+(define (symbolic-simp-positive expr pos-var)
+  (cond
+    [(equal? (symbolic-simp-positive-rule expr pos-var) expr) expr]
+    [else (symbolic-simp-positive (symbolic-simp-positive-rule expr pos-var) pos-var)]))
+
+;; Lightweight symbolic limit evaluation rules (computes limit of expr as var approaches lim).
+(define (evaluate-limit-rule expr var lim)
+  (match expr
+    ;; If expr is of the form max(x, y) for numeric x and y, then just evaluate the maximum of the pair. Likewise for minima.
+    [`(max ,(and x (? number?)) ,(and y (? number?))) (max x y)]
+    [`(min ,(and x (? number?)) ,(and y (? number?))) (min x y)]
+
+    ;; If expr is of the form max(x, y, z) for numeric x, y and z, then just evaluate the maximum of the triple. Likewise for minima.
+    [`(max ,(and x (? number?)) ,(and y (? number?)) ,(and z (? number?))) (max x y z)]
+    [`(min ,(and x (? number?)) ,(and y (? number?)) ,(and z (? number?))) (min x y z)]
+
+    ;; If expr is of the form abs(x) for numeric x, then just evaluate the absolute value.
+    [`(abs ,(and x (? number?))) (abs x)]
+
+    ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum. Likewise for differences.
+    [`(+ ,(and x (? number?)) ,(and y (? number?))) (+ x y)]
+    [`(- ,(and x (? number?)) ,(and y (? number?))) (- x y)]
+
+    ;; If expr is of the form (x * y) for numeric x and y, then just evaluate the product. Likewise for quotients.
+    [`(* ,(and x (? number?)) ,(and y (? number?))) (* x y)]
+    [`(/ ,(and x (? number?)) ,(and y (? number?))) (/ x y)]
+
+    ;; If expr is of the form max(expr1, expr2), then evaluate the limits of the interior expr1 and expr2. Likewise for minima.
+    [`(max ,x ,y) `(max ,(evaluate-limit-rule x var lim) ,(evaluate-limit-rule y var lim))]
+    [`(min ,x ,y) `(min ,(evaluate-limit-rule x var lim) ,(evaluate-limit-rule y var lim))]
+
+    ;; If expr is of the form max(expr1, expr2, expr3), then evaluate the limits of the interior expr1, expr2 and expr3. Likewise for minima.
+    [`(max ,x ,y ,z) `(max ,(evaluate-limit-rule x var lim) ,(evaluate-limit-rule y var lim) ,(evaluate-limit-rule z var lim))]
+    [`(min ,x ,y ,z) `(min ,(evaluate-limit-rule x var lim) ,(evaluate-limit-rule y var lim) ,(evaluate-limit-rule z var lim))]
+
+    ;; If expr is of the form abs(expr1), then evaluate the limit of the interior expr1.
+    [`(abs ,x) `(abs ,(evaluate-limit-rule x var lim))]
+
+    ;; If expr is a sum of the form (x + y + ...), then evaluate the limits each term x, y, ... in the sum.
+    [`(+ . ,terms)
+     `(+ ,@(map (lambda (term) (evaluate-limit-rule term var lim)) terms))]
+    ;; Likewise for differences.
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (evaluate-limit-rule term var lim)) terms))]
+
+    ;; If expr is a product of the form (x * y * ...), then evaluate the limits each term x, y, ... in the product.
+    [`(* . ,terms)
+     `(* ,@(map (lambda (term) (evaluate-limit-rule term var lim)) terms))]
+    ;; Likewise for quotients.
+    [`(/ . ,terms)
+     `(/ ,@(map (lambda (term) (evaluate-limit-rule term var lim)) terms))]
+
+    ;; Otherwise, return the expression.
+    [else expr]))
+
+;; Recursively apply the limit evaluation rules until the expression stops changing (fixed point).
+(define (evaluate-limit expr var limit)
+  (define limit-val (variable-transform expr var limit))
+  
+  (cond
+    [(equal? (evaluate-limit-rule limit-val var limit) expr) expr]
+    [else (evaluate-limit (evaluate-limit-rule limit-val var limit) var limit)]))
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
@@ -1255,3 +1407,93 @@
   
   out)
 (trace prove-roe-vector2-1d-flux-conservation)
+
+;; -------------------------------------------------
+;; Prove symmetry for a High-Resolution Flux Limiter
+;; -------------------------------------------------
+(define (prove-flux-limiter-symmetry limiter)
+   "Prove that the high-resolution flux limiter specified by `limiter-code` acts symmetrically on forward and backward gradients."
+
+  (define limiter-expr (hash-ref limiter 'limiter-expr))
+  (define limiter-ratio (hash-ref limiter 'limiter-ratio))
+
+  (trace variable-transform)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp-positive)
+  (trace symbolic-simp-positive-rule)
+  
+  (define out (cond
+    ;; Check whether the symmetry property phi(r) / r = phi(1 / r) holds (otherwise, return false).
+    [(not (equal? (symbolic-simp
+                   (symbolic-simp-positive (symbolic-simp `(/ ,limiter-expr ,limiter-ratio)) limiter-ratio))
+                  (symbolic-simp
+                   (symbolic-simp-positive (symbolic-simp (variable-transform limiter-expr limiter-ratio `(/ 1.0 ,limiter-ratio))) limiter-ratio)))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace variable-transform)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp-positive)
+  (untrace symbolic-simp-positive-rule)
+  
+  out)
+(trace prove-flux-limiter-symmetry)
+
+;; ---------------------------------------------------------------------------------------
+;; Prove second-order TVD (total variation diminishing) for a High-Resolution Flux Limiter
+;; ---------------------------------------------------------------------------------------
+(define (prove-flux-limiter-tvd limiter)
+   "Prove that the high-resolution flux limiter specified by `limiter-code` is second-order TVD (total variation diminishing)."
+
+  (define limiter-expr (hash-ref limiter 'limiter-expr))
+  (define limiter-ratio (hash-ref limiter 'limiter-ratio))
+
+  (trace variable-transform)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp-positive)
+  (trace symbolic-simp-positive-rule)
+  (trace evaluate-limit)
+  (trace evaluate-limit-rule)
+
+  (define limiter-convexity (symbolic-simp (symbolic-diff (symbolic-simp-positive (symbolic-simp (symbolic-diff
+                                                                                                  (symbolic-simp-positive
+                                                                                                   (symbolic-simp limiter-expr) limiter-ratio) limiter-ratio))
+                                                                                  limiter-ratio) limiter-ratio)))
+  (define limiter-mid (evaluate-limit limiter-expr limiter-ratio 1.0))
+  (define limiter-boundary-left (evaluate-limit limiter-expr limiter-ratio 0.0))
+  (define limiter-boundary-right (evaluate-limit limiter-expr limiter-ratio 2.0))
+  (define limiter-infinity (evaluate-limit limiter-expr limiter-ratio +inf.0))
+  
+  (define out (cond
+    ;; Check whether the limiter function is concave, i.e. that the second derivative of the limiter function is negative (otherwise, return false).
+    [(or (not (number? limiter-convexity)) (> limiter-convexity 0.0)) #f]
+
+    ;; Check whether the limiter function limits to 1.0 at the midpoint r = 1.0 (otherwise, return false).
+    [(or (not (number? limiter-mid)) (not (equal? limiter-mid 1.0))) #f]
+
+    ;; Check whether the limiter function limits to between 0.0 and 1.0 inclusive at the left (r = 0.0) boundary (otherwise, return false).
+    [(or (not (number? limiter-boundary-left)) (> limiter-boundary-left 1.0) (< limiter-boundary-left 0.0)) #f]
+
+    ;; Check whether the limiter function limits to between 1.0 and 2.0 inclusive at the right (r = 2.0) boundary (otherwise, return false).
+    [(or (not (number? limiter-boundary-right)) (> limiter-boundary-right 2.0) (< limiter-boundary-right 1.0)) #f]
+
+    ;; Check whether the limiter function limits to less than 2.0 inclusive as r approaches +infinity (otherwise, return false).
+    [(or (not (number? limiter-infinity)) (> limiter-infinity 2.0)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace variable-transform)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp-positive)
+  (untrace symbolic-simp-positive-rule)
+  (untrace evaluate-limit)
+  (untrace evaluate-limit-rule)
+  
+  out)
+(trace prove-flux-limiter-tvd)

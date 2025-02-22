@@ -226,6 +226,8 @@
   (lambda ()
     (display code-linear-advection-roe-regression)))
 
+(display "Roe (finite-volume) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D linear advection equation.
 (define proof-linear-advection-roe-hyperbolicity
   (call-with-output-file "proofs/proof_linear_advection_roe_hyperbolicity.rkt"

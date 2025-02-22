@@ -226,6 +226,8 @@
   (lambda ()
     (display code-inviscid-burgers-roe-regression)))
 
+(display "Roe (finite-volume) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-roe-hyperbolicity
   (call-with-output-file "proofs/proof_inviscid_burgers_roe_hyperbolicity.rkt"
