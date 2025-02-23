@@ -1,8 +1,7 @@
-load("canonical_pb/canonical-pressure-vars")$
+load("canonical_pb/canonical-u-covariant-vars")$
 load(stringproc)$
 /* This script calls the functions which generate the kernels for calculating the
-   scalar pressure (times dimension, d, and volume element, Jv)  
-   d*P*Jv = h^{ij}*M2_{ij} - n*h^{ij}*u_i*u_j.
+   the covariant components of u either from M1i (Jnu^i) or u^i
 
 */
 /* ...... USER INPUTS........ */
@@ -41,10 +40,10 @@ for bInd : 1 thru length(bName) do (
         if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
 
           disp(printf(false,sconcat("Creating canonical_pb vars funcs ",bName[bInd]," ~ax~avp~a"),c,v,polyOrder)),
-          fname : sconcat("~/max-out/canonical_pb_vars_pressure_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fname : sconcat("~/max-out/canonical_pb_vars_m1i_contra_to_cov_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("canonical_pb_vars_pressure_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcCanonicalPbPressure(fh, funcName, c, v, bName[bInd], polyOrder),
+          funcName : sconcat("canonical_pb_vars_m1i_contra_to_cov_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcCanonicalPbUCovariant(fh, funcName, c, v, bName[bInd], polyOrder),
           close(fh)
 
         )
