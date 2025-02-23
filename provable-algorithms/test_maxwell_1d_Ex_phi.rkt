@@ -10,21 +10,23 @@
 (cond
   [(not (directory-exists? "proofs")) (make-directory "proofs")])
 
-;; Define the 1D Maxwell equations.
-(define pde-system-maxwell-1d
+;; Define the 1D Maxwell equations (Ex and phi components).
+(define pde-system-maxwell-1d-Ex-phi
   (hash
-    'name "maxwell-1d"
+    'name "maxwell-1d-Ex-phi"
     'cons-exprs (list
-                 `Ey
-                 `Bz)               ; conserved variables: electric field (y-component), magnetic field (z-component)
+                 `Ex
+                 `phi)                        ; conserved variables: electric field (x-component), electric field correction potential (phi).
     'flux-exprs (list
-                 `(* (* c c) Bz)
-                 `Ey)               ; flux vector
+                 `(* e_fact (* (* c c) phi))
+                 `(* e_fact Ex))              ; flux vector
     'max-speed-exprs (list
-                      `(abs c)
-                      `(abs c))     ; local wave-speeds
+                      `(abs (* c e_fact))
+                      `(abs (* c e_fact)))    ; local wave-speeds
     'parameters (list
-                 `(define c 1.0))   ; speed of light: c = 1.0
+                 `(define c 1.0)              ; speed of light: c = 1.0
+                 `(define e_fact 1.0)         ; electric field divergence error propagation: e_fact = 1.0
+                 `(define b_fact 1.0))        ; magnetic field divergence error propagation: b_fact = 1.0
     ))
 
 ;; Define simulation parameters.
@@ -39,9 +41,9 @@
                        [(< x 0.0) 0.5]
                        [else -0.5])))
 
-;; Synthesize the code for a Lax-Friedrichs solver for the 1D Maxwell equations.
-(define code-maxwell-1d-lax
-  (generate-lax-friedrichs-vector2-1d pde-system-maxwell-1d
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-lax
+  (generate-lax-friedrichs-vector2-1d pde-system-maxwell-1d-Ex-phi
                                       #:nx nx
                                       #:x0 x0
                                       #:x1 x1
@@ -50,21 +52,21 @@
                                       #:init-funcs init-funcs))
 
 ;; Output the code to a file.
-(with-output-to-file "code/maxwell_1d_lax.c"
+(with-output-to-file "code/maxwell_1d_Ex_phi_lax.c"
   #:exists 'replace
   (lambda ()
-    (display code-maxwell-1d-lax)))
+    (display code-maxwell-1d-Ex-phi-lax)))
 
 (display "Lax-Friedrichs (finite-difference) properties: \n\n")
 
-;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lax-hyperbolicity
-  (call-with-output-file "proofs/proof_maxwell_1d_lax_hyperbolicity.rkt"
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-lax-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_lax_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-maxwell-1d
+        (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-maxwell-1d-Ex-phi
                                                        #:nx nx
                                                        #:x0 x0
                                                        #:x1 x1
@@ -72,21 +74,21 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_hyperbolicity.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_lax_hyperbolicity.rkt")
 
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
-(display proof-maxwell-1d-lax-hyperbolicity)
+(display proof-maxwell-1d-Ex-phi-lax-hyperbolicity)
 (display "\n")
 
-;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lax-strict-hyperbolicity
-  (call-with-output-file "proofs/proof_maxwell_1d_lax_strict_hyperbolicity.rkt"
+;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-lax-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_lax_strict_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d
+        (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d-Ex-phi
                                                               #:nx nx
                                                               #:x0 x0
                                                               #:x1 x1
@@ -94,21 +96,21 @@
                                                               #:cfl cfl
                                                               #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_strict_hyperbolicity.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_lax_strict_hyperbolicity.rkt")
 
 ;; Show whether strict hyperbolicity is preserved.
 (display "Strict hyperbolicity preservation: ")
-(display proof-maxwell-1d-lax-strict-hyperbolicity)
+(display proof-maxwell-1d-Ex-phi-lax-strict-hyperbolicity)
 (display "\n")
 
-;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lax-cfl-stability
-  (call-with-output-file "proofs/proof_maxwell_1d_lax_cfl_stability.rkt"
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-lax-cfl-stability
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_lax_cfl_stability.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system-maxwell-1d
+        (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system-maxwell-1d-Ex-phi
                                                        #:nx nx
                                                        #:x0 x0
                                                        #:x1 x1
@@ -116,21 +118,21 @@
                                                        #:cfl cfl
                                                        #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_cfl_stability.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_lax_cfl_stability.rkt")
 
 ;; Show whether CFL stability is satisfied.
 (display "CFL stability: ")
-(display proof-maxwell-1d-lax-cfl-stability)
+(display proof-maxwell-1d-Ex-phi-lax-cfl-stability)
 (display "\n")
 
-;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-lax-local-lipschitz
-  (call-with-output-file "proofs/proof_maxwell_1d_lax_local_lipschitz.rkt"
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components)
+(define proof-maxwell-1d-Ex-phi-lax-local-lipschitz
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_lax_local_lipschitz.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system-maxwell-1d
+        (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system-maxwell-1d-Ex-phi
                                                          #:nx nx
                                                          #:x0 x0
                                                          #:x1 x1
@@ -138,16 +140,16 @@
                                                          #:cfl cfl
                                                          #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_lax_local_lipschitz.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_lax_local_lipschitz.rkt")
 
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
-(display proof-maxwell-1d-lax-local-lipschitz)
+(display proof-maxwell-1d-Ex-phi-lax-local-lipschitz)
 (display "\n\n\n")
 
-;; Synthesize the code for a Roe solver for the 1D Maxwell equations.
-(define code-maxwell-1d-roe
-  (generate-roe-vector2-1d pde-system-maxwell-1d
+;; Synthesize the code for a Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-roe
+  (generate-roe-vector2-1d pde-system-maxwell-1d-Ex-phi
                            #:nx nx
                            #:x0 x0
                            #:x1 x1
@@ -156,21 +158,21 @@
                            #:init-funcs init-funcs))
 
 ;; Output the code to a file.
-(with-output-to-file "code/maxwell_1d_roe.c"
+(with-output-to-file "code/maxwell_1d_Ex_phi_roe.c"
   #:exists 'replace
   (lambda ()
-    (display code-maxwell-1d-roe)))
+    (display code-maxwell-1d-Ex-phi-roe)))
 
 (display "Roe (finite-volume) properties: \n\n")
 
-;; Attempt to prove hyperbolicity of the Roe solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-roe-hyperbolicity
-  (call-with-output-file "proofs/proof_maxwell_1d_roe_hyperbolicity.rkt"
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-roe-vector2-1d-hyperbolicity pde-system-maxwell-1d
+        (prove-roe-vector2-1d-hyperbolicity pde-system-maxwell-1d-Ex-phi
                                             #:nx nx
                                             #:x0 x0
                                             #:x1 x1
@@ -178,21 +180,21 @@
                                             #:cfl cfl
                                             #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_hyperbolicity.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_hyperbolicity.rkt")
 
 ;; Show whether hyperbolicity is preserved.
 (display "Hyperbolicity preservation: ")
-(display proof-maxwell-1d-roe-hyperbolicity)
+(display proof-maxwell-1d-Ex-phi-roe-hyperbolicity)
 (display "\n")
 
-;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-roe-strict-hyperbolicity
-  (call-with-output-file "proofs/proof_maxwell_1d_roe_strict_hyperbolicity.rkt"
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_strict_hyperbolicity.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-roe-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d
+        (prove-roe-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d-Ex-phi
                                                    #:nx nx
                                                    #:x0 x0
                                                    #:x1 x1
@@ -200,21 +202,21 @@
                                                    #:cfl cfl
                                                    #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_strict_hyperbolicity.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_strict_hyperbolicity.rkt")
 
 ;; Show whether strict hyperbolicity is preserved.
 (display "Strict hyperbolicity preservation: ")
-(display proof-maxwell-1d-roe-strict-hyperbolicity)
+(display proof-maxwell-1d-Ex-phi-roe-strict-hyperbolicity)
 (display "\n")
 
-;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations.
-(define proof-maxwell-1d-roe-flux-conservation
-  (call-with-output-file "proofs/proof_maxwell_1d_roe_flux_conservation.rkt"
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-flux-conservation
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_flux_conservation.rkt"
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
         (display "(require \"../prover.rkt\")\n\n")
-        (prove-roe-vector2-1d-flux-conservation pde-system-maxwell-1d
+        (prove-roe-vector2-1d-flux-conservation pde-system-maxwell-1d-Ex-phi
                                                 #:nx nx
                                                 #:x0 x0
                                                 #:x1 x1
@@ -222,9 +224,9 @@
                                                 #:cfl cfl
                                                 #:init-funcs init-funcs)))
     #:exists `replace))
-(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_roe_flux_conservation.rkt")
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_flux_conservation.rkt")
 
 ;; Show whether flux conservation (jump continuity) is preserved.
 (display "Flux conservation (jump continuity): ")
-(display proof-maxwell-1d-roe-flux-conservation)
+(display proof-maxwell-1d-Ex-phi-roe-flux-conservation)
 (display "\n")

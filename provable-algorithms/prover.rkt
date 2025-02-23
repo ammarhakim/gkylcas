@@ -92,10 +92,11 @@
 
 ;; Lightweight symbolic simplification rules (simplifies expr using only correctness-preserving algebraic transformations).
 (define (symbolic-simp-rule expr)
-  (match expr
+  (match expr    
     ;; If expr is of the form (0 + x) or (0.0 + x), then simplify to x.
     [`(+ 0 ,x) `,x]
     [`(+ 0.0 ,x) `,x]
+    [`(+ -0.0 ,x) `,x]
 
     ;; If expr is of the form (1 * x) or (1.0 * x), then simplify to x.
     [`(* 1 ,x) `,x]
@@ -104,14 +105,17 @@
     ;; If expr is of the form (0 * x) or (0.0 * x), then simplify to 0 or 0.0.
     [`(* 0 ,x) 0]
     [`(* 0.0 ,x) 0.0]
+    [`(* -0.0 ,x) 0.0]
 
     ;; If expr is of the form (x - 0) or (x - 0.0), then simplify to x.
     [`(- ,x 0) `,x]
     [`(- ,x 0.0) `,x]
+    [`(- ,x -0.0) `,x]
 
     ;; If expr is of the form (0 - x) or (0.0 - x), then simplify to (-1 * x) or (-1.0 * x).
     [`(- 0 ,x) `(* -1 ,x)]
     [`(- 0.0 ,x) `(* -1.0 ,x)]
+    [`(- -0.0 ,x) `(* -1.0 ,x)]
 
     ;; If expr is of the form (x / 1) or (x / 1.0), then simplify to x.
     [`(/ ,x 1) `,x]
@@ -125,9 +129,6 @@
     [`(* (* ,x ,y) ,z) `(* ,x (* ,y ,z))]
     [`(* ,x ,y ,z) `(* (* ,x ,y) ,z)]
 
-    ;; Enforce (reverse) distributive property: if expr is of the form ((a * x) + (b * x)), then simplify to ((a + b) * x).
-    [`(+ (* ,a, x) (* ,b ,x)) `(* (+ ,a ,b) ,x)]
-
     ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum. Likewise for differences.
     [`(+ ,(and x (? number?)) ,(and y (? number?))) (+ x y)]
     [`(- ,(and x (? number?)) ,(and y (? number?))) (- x y)]
@@ -135,6 +136,12 @@
     ;; If expr is of the form (x * y) for numeric x and y, then just evaluate the product. Likewise for quotients
     [`(* ,(and x (? number?)) ,(and y (? number?))) (* x y)]
     [`(/ ,(and x (? number?)) ,(and y (? number?))) (/ x y)]
+
+    ;; If expr is of the form (x * (y + z)) for numeric x, y and z, then just evaluate the product and sum.
+    [`(* ,(and x (? number?)) (+ ,(and y (? number?)) ,(and z (? number?)))) (* x (+ y z))]
+
+    ;; Enforce (reverse) distributive property: if expr is of the form ((a * x) + (b * x)), then simplify to ((a + b) * x).
+    [`(+ (* ,a, x) (* ,b ,x)) `(* (+ ,a ,b) ,x)]
 
     ;; If expr is of the form (x * (y * z)) for numeric numeric x and y, then evaluate the product of x and y.
     [`(* ,(and x (? number?)) (* ,(and y (? number?)) ,z)) `(* ,(* x y) ,z)]
@@ -147,7 +154,12 @@
 
     ;; If expr is of the form sqrt(x * x) or (sqrt(x) * sqrt(x)), then simplify to x.
     [`(sqrt (* ,x ,x)) `,x]
-    [`(* sqrt(,x) sqrt(,x)) `,x]
+    [`(* (sqrt ,x) (sqrt ,x)) `,x]
+
+    ;; If expr is of the form (sqrt(x) * (y * sqrt(x))), then simplify to (y * x).
+    [`(* (sqrt,x) (* ,y (sqrt ,x))) `(* ,y ,x)]
+    ;; Likewise, if expr is of the form (sqrt(x) * (sqrt(x) * y)), then simplify to (x * y).
+    [`(* (sqrt,x) (* (sqrt ,x) ,y)) `(* ,x ,y)]
 
     ;; If expr is of the form sqrt(x * y), then simplify to (sqrt(x) * sqrt(y)).
     [`(sqrt (* ,x ,y)) `(* (sqrt ,x) (sqrt ,y))]
@@ -169,6 +181,7 @@
     ;; If expr is of the form (0 - (x * y)) or (0.0 - (x * y)), then simplify to ((0 - x) * y) or ((0.0 - x) * y).
     [`(- 0 (* ,x ,y)) `(* (- 0 ,x) ,y)]
     [`(- 0.0 (* ,x ,y)) `(* (- 0.0 ,x) ,y)]
+    [`(- -0.0 (* ,x ,y)) `(* (- 0.0 ,x) ,y)]
 
     ;; If expr is of the form (x + x), thens implify to (2.0 * x).
     [`(+ ,x ,x) `(* 2.0 ,x)]
@@ -209,6 +222,7 @@
     ;; If expr is of the form (0 / x) or (0.0 / x), then simplify to 0 or 0.0.
     [`(/ 0 ,x) 0]
     [`(/ 0.0 ,x) 0.0]
+    [`(/ -0.0 ,x) 0.0]
 
     ;; If expr is of the form (x / x), then simplify to 1.0
     [`(/ ,x ,x) 1.0]
@@ -260,6 +274,12 @@
 
     ;; If expr is of the form min(x, y), then simplify to ((0.5 * (x + y)) - (0.5 * abs(x - y))).
     [`(min ,x ,y) `(- (* 0.5 (+ ,x ,y)) (* 0.5 (abs (- ,x ,y))))]
+
+    ;; If expr is a complex number whose imaginary part is equal to 0.0 or -0.0, then simplify to Re(expr).
+    [(? (lambda (arg)
+         (and (number? arg) (not (real? arg )) (equal? (imag-part arg) 0.0)))) (real-part expr)]
+    [(? (lambda (arg)
+         (and (number? arg) (not (real? arg )) (equal? (imag-part arg) -0.0)))) (real-part expr)]
 
     ;; Otherwise, return the expression.
     [else expr]))
@@ -344,6 +364,9 @@
                                                  (and (equal? arg (list-ref parameter 1))
                                                       (or (not (equal? (list-ref parameter 2) 0))
                                                           (not (equal? (list-ref parameter 2) 0.0))))) parameters)))) #t]
+
+    ;; The product of two non-zero numbers is always non-zero.
+    [`(* ,x ,y) (and (is-non-zero x parameters) (is-non-zero y parameters))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -441,12 +464,15 @@
     [`(abs ,x)
      `(abs ,(symbolic-simp-positive-rule x pos-var))]
 
+    ;; If expr is of the form (max(x, y) / z) or (min(x, y) / z), with z strictly positive, then simplify to max((x / z), (y / z)) or min((x / z), (y / z)).
     [`(/ (max ,x ,y) ,pos-var) `(max (/ ,y ,pos-var) (/ ,x ,pos-var))]
     [`(/ (min ,x ,y) ,pos-var) `(min (/ ,y ,pos-var) (/ ,x ,pos-var))]
 
+    ;; If expr is of the form (max(x, y, z) / w) or (min(x, y, z) / w), with w strictly positive, then simplify to max((x / w), (y / w), (z / w)) or min((x / w), (y / w), (z / w)).
     [`(/ (max ,x ,y ,z) ,pos-var) `(max (/ ,z ,pos-var) (/ ,y ,pos-var) (/ ,x ,pos-var))]
     [`(/ (min ,x ,y, z) ,pos-var) `(min (/ ,z ,pos-var) (/ ,y ,pos-var) (/ ,x ,pos-var))]
 
+    ;; If expr is a max or a min of the form max(x, y, ...) or min(x, y, ...), then apply symbolic simplification to each term x, y, ... in the function.
     [`(max . ,terms)
      `(max ,@(map (lambda (term) (symbolic-simp-positive-rule term pos-var)) terms))]
     [`(min . ,terms)
