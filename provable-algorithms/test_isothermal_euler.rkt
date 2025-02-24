@@ -209,7 +209,7 @@
 (display proof-isothermal-euler-roe-strict-hyperbolicity)
 (display "\n")
 
-;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations.
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D isothermal Euler equations.
 (define proof-isothermal-euler-roe-flux-conservation
   (call-with-output-file "proofs/proof_isothermal_euler_roe_flux_conservation.rkt"
     (lambda (out)
@@ -230,3 +230,27 @@
 (display "Flux conservation (jump continuity): ")
 (display proof-isothermal-euler-roe-flux-conservation)
 (display "\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-isothermal-euler-lax-minmod
+  (generate-lax-friedrichs-vector2-1d-second-order pde-system-isothermal-euler limiter-minmod
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-minmod)))

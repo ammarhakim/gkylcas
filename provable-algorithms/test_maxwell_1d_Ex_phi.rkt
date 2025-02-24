@@ -230,3 +230,27 @@
 (display "Flux conservation (jump continuity): ")
 (display proof-maxwell-1d-Ex-phi-roe-flux-conservation)
 (display "\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D Maxwell equations (Ex and phi components, with a second-order flux extrapolation using the minmod flux limiter).
+(define code-maxwell-1d-Ex-phi-lax-minmod
+  (generate-lax-friedrichs-vector2-1d-second-order pde-system-maxwell-1d-Ex-phi limiter-minmod
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/maxwell_1d_Ex_phi_lax_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-Ex-phi-lax-minmod)))
