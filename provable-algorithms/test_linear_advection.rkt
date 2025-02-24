@@ -200,3 +200,19 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-minmod)))
+
+;; Synthesize the code for a Roe solver for the 1D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-linear-advection-roe-minmod
+  (generate-roe-scalar-1d-second-order pde-linear-advection limiter-minmod
+                                       #:nx nx
+                                       #:x0 x0
+                                       #:x1 x1
+                                       #:t-final t-final
+                                       #:cfl cfl
+                                       #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_roe_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-minmod)))
