@@ -24,7 +24,7 @@
                      `(abs (- (/ mom rho) vt))
                      `(abs (+ (/ mom rho) vt)))          ; local wave-speeds
    'parameters (list
-                `(define vt 1.0))                          ; thermal velocity: vt = 1.0
+                `(define vt 1.0))                        ; thermal velocity: vt = 1.0
    ))
 
 ;; Define simulation parameters.
@@ -254,3 +254,19 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-minmod)))
+
+;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-isothermal-euler-roe-minmod
+  (generate-roe-vector2-1d-second-order pde-system-isothermal-euler limiter-minmod
+                                        #:nx nx
+                                        #:x0 x0
+                                        #:x1 x1
+                                        #:t-final t-final
+                                        #:cfl cfl
+                                        #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe-minmod)))
