@@ -175,3 +175,27 @@
 (display "Flux conservation (jump continuity): ")
 (display proof-inviscid-burgers-roe-flux-conservation)
 (display "\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-inviscid-burgers-lax-minmod
+  (generate-lax-friedrichs-scalar-1d-second-order pde-inviscid-burgers limiter-minmod
+                                                  #:nx nx
+                                                  #:x0 x0
+                                                  #:x1 x1
+                                                  #:t-final t-final
+                                                  #:cfl cfl
+                                                  #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_lax_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-minmod)))

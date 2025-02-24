@@ -176,3 +176,27 @@
 (display "Flux conservation (jump continuity): ")
 (display proof-linear-advection-roe-flux-conservation)
 (display "\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-linear-advection-lax-minmod
+  (generate-lax-friedrichs-scalar-1d-second-order pde-linear-advection limiter-minmod
+                                                  #:nx nx
+                                                  #:x0 x0
+                                                  #:x1 x1
+                                                  #:t-final t-final
+                                                  #:cfl cfl
+                                                  #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_lax_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-lax-minmod)))
