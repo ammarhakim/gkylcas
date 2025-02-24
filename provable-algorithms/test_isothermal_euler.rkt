@@ -1,8 +1,11 @@
 #lang racket
 
-(require "code_generator.rkt")
-(require "prover.rkt")
-(provide (all-from-out "code_generator.rkt"))
+(require "code_generator_core.rkt")
+(require "code_generator_vector.rkt")
+(require "prover_core.rkt")
+(require "prover_vector.rkt")
+(provide (all-from-out "code_generator_core.rkt"))
+(provide (all-from-out "code_generator_vector.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond

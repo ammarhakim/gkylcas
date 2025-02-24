@@ -1,8 +1,10 @@
 #lang racket
 
-(require "gkyl_code_generator.rkt")
-(require "prover.rkt")
-(provide (all-from-out "gkyl_code_generator.rkt"))
+(require "gkyl_code_generator_lax.rkt")
+(require "gkyl_code_generator_roe.rkt")
+(require "prover_core.rkt")
+(provide (all-from-out "gkyl_code_generator_lax.rkt"))
+(provide (all-from-out "gkyl_code_generator_roe.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond
