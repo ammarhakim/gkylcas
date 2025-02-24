@@ -68,7 +68,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-hyperbolicity pde-system-maxwell-1d-Bx-psi
                                                        #:nx nx
                                                        #:x0 x0
@@ -90,7 +91,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d-Bx-psi
                                                               #:nx nx
                                                               #:x0 x0
@@ -112,7 +114,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-cfl-stability pde-system-maxwell-1d-Bx-psi
                                                        #:nx nx
                                                        #:x0 x0
@@ -134,7 +137,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-local-lipschitz pde-system-maxwell-1d-Bx-psi
                                                          #:nx nx
                                                          #:x0 x0
@@ -174,7 +178,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-roe-vector2-1d-hyperbolicity pde-system-maxwell-1d-Bx-psi
                                             #:nx nx
                                             #:x0 x0
@@ -196,7 +201,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-roe-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d-Bx-psi
                                                    #:nx nx
                                                    #:x0 x0
@@ -218,7 +224,8 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
         (prove-roe-vector2-1d-flux-conservation pde-system-maxwell-1d-Bx-psi
                                                 #:nx nx
                                                 #:x0 x0

@@ -54,7 +54,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
         (prove-lax-friedrichs-scalar-1d-hyperbolicity pde-inviscid-burgers
                                                       #:nx nx
                                                       #:x0 x0
@@ -76,7 +76,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
         (prove-lax-friedrichs-scalar-1d-cfl-stability pde-inviscid-burgers
                                                       #:nx nx
                                                       #:x0 x0
@@ -98,7 +98,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
         (prove-lax-friedrichs-scalar-1d-local-lipschitz pde-inviscid-burgers
                                                         #:nx nx
                                                         #:x0 x0
@@ -138,7 +138,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
         (prove-roe-scalar-1d-hyperbolicity pde-inviscid-burgers
                                            #:nx nx
                                            #:x0 x0
@@ -160,7 +160,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
-        (display "(require \"../prover.rkt\")\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
         (prove-roe-scalar-1d-flux-conservation pde-inviscid-burgers
                                                #:nx nx
                                                #:x0 x0
