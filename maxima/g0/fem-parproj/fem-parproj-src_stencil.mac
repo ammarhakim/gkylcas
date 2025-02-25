@@ -11,7 +11,7 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block(
+generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax, isweighted) := block(
   [varsC,basis,coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,sI,bcCombos,bcI,currBC,
    stencilStr,polyOrder,bN,numB,vars,nodes,numNodes,massM,mod2nod,massMod2nod,
    rho_c,src,src_c,insertVal,phiBC_m,phiBC_c,dir,dirichletNodesI,k,opStr],
@@ -62,9 +62,10 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
 
       for polyOrder : pMin thru pMax do (
     
-        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *weight, const double *rho, const double *phiBC, long nodeOff, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // rho: right side source.~%"),
-        printf(fh, "  // phiBC: Dirichlet boundary potential, given as a DG expansion in the ghost cell (volume).~%"),
+        printf(fh, "  // weight: Weight in the projection operation.~%"),
+        printf(fh, "  // phiBC: Dirichlet boundary potential, given as a DG (volume) expansion in the skin cell.~%"),
         printf(fh, "  // nodeOff: node offset (prob idx * global number of nodes).~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // bsrc: global right side source vector.~%"),
@@ -73,12 +74,22 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
         bN   : getNodalBasis(basisFun, dim, polyOrder),
         numB : length(bN),
         vars : listofvars(bN),
-    
+
         nodes    : args(getNodes(basisFun, dim, polyOrder)),
         numNodes : length(nodes),
     
-        massM   : calcMassUnweighted(dim, basisFun, polyOrder),
         mod2nod : calcModToNod(basisFun, dim, polyOrder),
+
+        if (isweighted) then (
+          wgt_c : makelist(weight[k-1],k,1,numB),
+          wgt_c : mod2nod . wgt_c,
+          wgt_c : makelist(fullratsimp(wgt_c[i][1]),i,1,numB),
+          wgt_e : doExpand(wgt_c, bN),
+      
+          massM : calcMassWeighted(dim, basisFun, polyOrder, wgt_e)
+        ) else (
+          massM : calcMassUnweighted(dim, basisFun, polyOrder)
+        ),
     
         massMod2nod : massM . mod2nod,
     
@@ -99,7 +110,7 @@ generate_fem_parproj_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax) := block
           dirichletNodes  : sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           dirichletNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletNodesI) do (
-            /* Evalaute phiBC at +1/-1 when at the lower/upper boundary.*/
+            /* Evaluate phiBC at +1/-1 when at the lower/upper boundary.*/
             bcNode : copylist(dirichletNodes[k]),
             bcNode[dir] : bcNode[dir],
             bcNodeI : sublist_indices(nodes,lambda([x],x=bcNode))[1],

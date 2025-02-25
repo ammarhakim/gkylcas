@@ -21,6 +21,7 @@ maxCdim_Tensor : 0$
 /* ...... END OF USER INPUTS........ */
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
+vlasovVdims : [[1,2,3],[2,3],[3]]$
 gkVdims : [[1,2], [2], [2]]$
 
 /* To generate other bases, just add corresponding column to arrays below. */
@@ -30,7 +31,52 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-/* Generate kernels of selected types. */
+/* Generate configuration-space kernels. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      fname : sconcat("~/max-out/dg_interpolate_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+    
+      disp(printf(false,"Creating file: ~a",fname)),
+    
+      fh : openw(fname),
+      printf(fh, "#include <gkyl_dg_interpolate_kernels.h> ~%"),
+      printf(fh, " ~%"),
+      
+      funcName : sconcat("dg_interpolate_", c, "x_", bName[bInd], "_p", polyOrder),
+      gen_dg_interp_kern(fh, funcName, c, 0, bName[bInd], polyOrder, false),
+      close(fh)
+    )
+  )
+)$
+
+/* Generate Vlasov kernels. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for vI : 1 thru length(vlasovVdims[c]) do (
+      v : vlasovVdims[c][vI],
+
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        fname : sconcat("~/max-out/dg_interpolate_vlasov_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      
+        disp(printf(false,"Creating file: ~a",fname)),
+      
+        fh : openw(fname),
+        printf(fh, "#include <gkyl_dg_interpolate_kernels.h> ~%"),
+        printf(fh, " ~%"),
+        
+        funcName : sconcat("dg_interpolate_vlasov_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        gen_dg_interp_kern(fh, funcName, c, v, bName[bInd], polyOrder, false),
+        close(fh)
+      )
+    )
+  )
+)$
+
+/* Generate gyrokinetic kernels. */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for gkV : 1 thru length(gkVdims[c]) do (
@@ -40,7 +86,7 @@ for bInd : 1 thru length(bName) do (
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
 
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        fname : sconcat("~/max-out/dg_interpolate_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/dg_interpolate_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
       
         disp(printf(false,"Creating file: ~a",fname)),
       
@@ -49,7 +95,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, " ~%"),
         
         funcName : sconcat("dg_interpolate_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        gen_dg_interp_gk_kern(fh, funcName, c, v, bName[bInd], polyOrder),
+        gen_dg_interp_kern(fh, funcName, c, v, bName[bInd], polyOrder, true),
         close(fh)
       )
     )

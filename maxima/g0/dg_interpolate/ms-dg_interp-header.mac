@@ -22,6 +22,7 @@ maxCdim_Tensor : 0$
 /* ...... END OF USER INPUTS........ */
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
+vlasovVdims : [[1,2,3],[2,3],[3]]$
 gkVdims : [[1,2], [2], [2]]$
 
 /* To generate other bases, just add corresponding column to arrays below. */
@@ -32,9 +33,48 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPrototypes(fh) := block(
-  [bInd,c,gkV,v,maxPolyOrderB,polyOrder],
+  [bInd,c,gkV,v,vI,maxPolyOrderB,polyOrder],
 
   for bInd : 1 thru length(bName) do (
+
+    /* Conf-space kernels. */
+    for c : minCdim[bInd] thru maxCdim[bInd] do (
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+
+        [varsP,jnk] : loadBasis(bName[bInd], c, polyOrder),
+
+        /* Generate a kernel for interpolating along each direction. */
+        for dir : 1 thru c do (
+          printf(fh, "GKYL_CU_DH void dg_interpolate_~ax_~a_p~a_~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar);~%", c, bName[bInd], polyOrder, varsP[dir])
+        ),
+        printf(fh, "~%")
+      )
+    ),
+    printf(fh, "~%"),
+
+    /* Vlasov kernels. */
+    for c : minCdim[bInd] thru maxCdim[bInd] do (
+      for vI : 1 thru length(vlasovVdims[c]) do (
+        v : vlasovVdims[c][vI],
+
+        maxPolyOrderB : maxPolyOrder[bInd],
+        if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+        for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+
+          [jnk,jnk,varsP,jnk] : loadPhaseBasis(bName[bInd], c, v, polyOrder),
+
+          /* Generate a kernel for interpolating along each direction. */
+          for dir : 1 thru c+v do (
+            printf(fh, "GKYL_CU_DH void dg_interpolate_vlasov_~ax~av_~a_p~a_~a(const double *wDo, const double *wTar, const double *dxDo, const double *dxTar, const double *fldDo, double *fldTar);~%", c, v, bName[bInd], polyOrder, varsP[dir])
+          ),
+          printf(fh, "~%")
+
+        )
+      )
+    ),
+    printf(fh, "~%"),
+
+    /* Gyrokinetic kernels. */
     for c : minCdim[bInd] thru maxCdim[bInd] do (
       for gkV : 1 thru length(gkVdims[c]) do (
         v : gkVdims[c][gkV],
@@ -56,7 +96,6 @@ printPrototypes(fh) := block(
     ),
     printf(fh, "~%")
   )
-
 )$
 
 fh : openw("~/max-out/gkyl_dg_interpolate_kernels.h")$
