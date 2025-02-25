@@ -55,3 +55,55 @@ deflateGeo(fh, basisName, polyOrder) := block(
 
 
 )$
+
+
+/* These kernels take 2d DG fields (intended to be geometric quantities
+and deflate them to either 1d DG fields.
+*/
+
+deflateGeoSurf(fh, basisName, polyOrder) := block(
+  [vars, basis, numCoeffs, varsNoZ, removeVarsList, i,
+   removeVars, vars_deflated, removeStr, ndim, basis_deflated, 
+   numCoeffs_deflated, fld_zl, fld_e, sublist, fld_deflated_e, fld_deflated_c],
+
+  /* get the full 3d basis*/
+  [vars,basis] : loadBasis(basisName, 2, polyOrder),
+  numCoeffs : length(basis),
+
+  /* We can never remove z*/
+  removeVarsList : vars,
+
+
+  for i : 1 thru length(removeVarsList) do(
+    removeVars : removeVarsList[i],
+    vars_deflated : delete(removeVars, vars),
+    removeStr : "surf",
+    removeStr : sconcat(removeStr,removeVars),
+
+    ndim : length(vars_deflated),
+    basis_deflated : basisFromVars(basisName, vars_deflated, polyOrder) ,
+    numCoeffs_deflated : length(basis_deflated),
+
+    mkzlist(S,N) := makelist(S[i],i,0,N-1),
+
+    fld_zl : mkzlist(fld, numCoeffs),
+    fld_e : doExpand(fld_zl, basis),
+
+    sublist : makelist(removeVars = 0,k,1,1),
+
+    fld_deflated_e : subst(sublist, fld_e),
+    fld_deflated_c : calcInnerProdList(vars_deflated,1,basis_deflated,fld_deflated_e),
+
+
+    printf(fh, "GKYL_CU_DH void deflate_geo_~a_~ax_~a_p~a(const double *fld, double *fld_deflated) ~%{ ~%", removeStr, ndim+1, basisName, polyOrder),
+
+    writeCExprs1(fld_deflated, fld_deflated_c),
+
+    printf(fh, " ~%"),
+    printf(fh, "}~%")
+  )
+
+
+
+
+)$
