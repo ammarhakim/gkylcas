@@ -74,7 +74,7 @@
 
 ;; Lightweight symbolic simplification rules (simplifies expr using only correctness-preserving algebraic transformations).
 (define (symbolic-simp-rule expr)
-  (match expr    
+  (match expr
     ;; If expr is of the form (0 + x) or (0.0 + x), then simplify to x.
     [`(+ 0 ,x) `,x]
     [`(+ 0.0 ,x) `,x]
@@ -295,13 +295,13 @@
 
     ;; The sum, difference, product, or quotient of two real numbers is always real.
     [`(+ . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(- . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(* . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(/ . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -358,7 +358,7 @@
   (match expr
     ;; A non-zero number is, trivially, non-zero.
     [(? (lambda (arg)
-         (and (number? arg) (not (equal? arg 0))))) #t]
+         (and (number? arg) (not (equal? arg 0)) (not (equal? arg 0.0))))) #t]
 
     ;; Simulation parameters that are non-zero are, trivially, non-zero.
     [(? (lambda (arg)
@@ -369,7 +369,7 @@
 
     ;; The product of two non-zero numbers is always non-zero.
     [`(* ,x ,y) (and (is-non-zero x parameters) (is-non-zero y parameters))]
-
+    
     ;; Otherwise, assume false.
     [else #f]))
 
@@ -393,7 +393,7 @@
     ;; Otherwise, assume false.
     [else #f]))
 
-; Compute the symbolic Roe matrix (averaged flux Jacobian).
+;; Compute the symbolic Roe matrix (averaged flux Jacobian).
 (define (symbolic-roe-matrix flux-jacobian cons-exprs)
   (map (lambda (row)
          (map (lambda (column)
@@ -407,6 +407,28 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
               row))
        flux-jacobian))
+
+;; Determine whether an expression is non-negative.
+(define (is-non-negative expr parameters)
+  (match expr
+    ;; A non-negative number is, trivially, non-negative.
+    [(? (lambda (arg)
+          (and (number? arg) (or (>= arg 0) (>= arg 0.0))))) #t]
+
+    ;; Simulation parameters that are non-negative are, trivially, non-negative.
+    [(? (lambda (arg)
+          (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                  (and (equal? arg (list-ref parameter 1))
+                                                       (or (>= (list-ref parameter 2) 0)
+                                                           (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
+
+    ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
+    [`(+ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(* ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(/ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+
+    ;; Otherwise, assume false.
+    [else #f]))
 
 ;; -------------------------------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
@@ -676,6 +698,7 @@
   (trace symbolic-eigvals2)
   (trace symbolic-gradient)
   (trace symbolic-hessian)
+  (trace is-non-negative)
 
   (define hessian-mats (list
                         (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)
@@ -708,10 +731,8 @@
          (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
     
     ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
-    [(or (not (number? (list-ref hessian-eigvals-simp 0))) (< (list-ref hessian-eigvals-simp 0) 0)
-         (not (number? (list-ref hessian-eigvals-simp 1))) (< (list-ref hessian-eigvals-simp 1) 0)
-         (not (number? (list-ref hessian-eigvals-simp 2))) (< (list-ref hessian-eigvals-simp 2) 0)
-         (not (number? (list-ref hessian-eigvals-simp 3))) (< (list-ref hessian-eigvals-simp 3) 0)) #f]
+    [(or (not (is-non-negative (list-ref hessian-eigvals-simp 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp 1) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp 3) parameters))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
@@ -724,6 +745,7 @@
   (untrace symbolic-eigvals2)
   (untrace symbolic-gradient)
   (untrace symbolic-hessian)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz)

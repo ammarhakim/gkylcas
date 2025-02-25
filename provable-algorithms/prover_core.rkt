@@ -10,6 +10,7 @@
          is-real
          flux-deriv-replace
          symbolic-roe-function
+         is-non-negative
          variable-transform
          symbolic-simp-positive-rule
          symbolic-simp-positive
@@ -299,13 +300,13 @@
 
     ;; The sum, difference, product, or quotient of two real numbers is always real.
     [`(+ . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(- . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(* . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
     [`(/ . ,terms)
-     `(and ,@(map (lambda (term) (is-real term cons-vars parameters)) terms))]
+     (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -334,6 +335,28 @@
 (define (symbolic-roe-function flux-deriv-expr cons-expr)
   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "L"))))
                      (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R")))))))
+
+;; Determine whether an expression is non-negative.
+(define (is-non-negative expr parameters)
+  (match expr
+    ;; A non-negative number is, trivially, non-negative.
+    [(? (lambda (arg)
+          (and (number? arg) (or (>= arg 0) (>= arg 0.0))))) #t]
+
+    ;; Simulation parameters that are non-negative are, trivially, non-negative.
+    [(? (lambda (arg)
+          (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                  (and (equal? arg (list-ref parameter 1))
+                                                       (or (>= (list-ref parameter 2) 0)
+                                                           (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
+
+    ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
+    [`(+ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(* ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(/ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+
+    ;; Otherwise, assume false.
+    [else #f]))
 
 ;; Recursively ransform all occurrences of a given variable within an expression to a new variable.
 (define (variable-transform expr var new-var)
@@ -610,6 +633,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
+  (trace is-non-negative)
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -630,7 +654,7 @@
     
     ;; Check whether the flux function is convex, i.e. that the second derivative of the flux function is strictly non-negative (otherwise, return false).
     [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr cons-expr)) cons-expr))])
-       (or (not (number? deriv)) (< deriv 0))) #f]
+       (not (is-non-negative deriv parameters))) #f]
     
     ;; Otherwise, return true.
     [else #t]))
@@ -639,6 +663,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
+  (untrace is-non-negative)
 
   out)
 (trace prove-lax-friedrichs-scalar-1d-local-lipschitz)
