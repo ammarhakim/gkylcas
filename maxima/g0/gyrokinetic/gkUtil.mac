@@ -6,6 +6,38 @@ load("nodal_operations/nodal_functions")$
 load("nodal_operations/quadrature_functions")$
 load("utilities_gyrokinetic")$
 
+expandInputGeoFields(bC,bmagBasis) := block(
+  [bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
+
+  /* Expand background magnetic field and other geo quantities. */
+  bmag_e : doExpand1(bmag, bmagBasis),
+  cmag_e : doExpand1(cmag, bmagBasis),
+  b_x_e : doExpand1(b_x, bmagBasis),
+  b_y_e : doExpand1(b_y, bmagBasis),
+  b_z_e : doExpand1(b_z, bmagBasis),
+  jacobTotInv_e : doExpand1(jacobtot_inv, bmagBasis),
+
+  expOut : [bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
+
+  return(expOut)
+)$
+
+expandInputGeoFieldsSurf(bC,bmagBasis) := block(
+  [bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
+
+  /* Expand background magnetic field and other geo quantities. */
+  bmag_e : doExpand1(bmag_surf, bmagBasis),
+  cmag_e : doExpand1(cmag_surf, bmagBasis),
+  b_x_e : doExpand1(b_x_surf, bmagBasis),
+  b_y_e : doExpand1(b_y_surf, bmagBasis),
+  b_z_e : doExpand1(b_z_surf, bmagBasis),
+  jacobTotInv_e : doExpand1(jacobtot_inv_surf, bmagBasis),
+
+  expOut : [bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e],
+
+  return(expOut)
+)$
+
 expandInputFields(bC,bP,dxv,bmagBasis) := block(
   [varsP,pdim,cdim,vdim,bmag_e,bmagInv_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,
    AparL_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,BdriftX_e,BdriftY_e,jnk,
@@ -16,8 +48,7 @@ expandInputFields(bC,bP,dxv,bmagBasis) := block(
   cdim : length(listofvars(bC)),
   vdim : pdim-cdim,
 
-  /* Expand background magnetic field and potentials. */
-  bmag_e    : doExpand1(bmag,bmagBasis),
+  /* Expand potentials. */
   phi_e     : doExpand1(phi,bC),
   Apar_e        : doExpand1(apar,bC),
   dApardt_e     : doExpand1(apardot,bC),
@@ -27,12 +58,7 @@ expandInputFields(bC,bP,dxv,bmagBasis) := block(
      does not involve Apar. Since Apar is continuous in the other directions,
      it does not matter if we use the right or left value. */
 
-  cmag_e : doExpand1(cmag,bmagBasis),
-
-  b_x_e : doExpand1(b_x, bmagBasis),
-  b_y_e : doExpand1(b_y, bmagBasis),
-  b_z_e : doExpand1(b_z, bmagBasis),
-  jacobTotInv_e : doExpand1(jacobtot_inv, bmagBasis),
+  [bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e] : expandInputGeoFields(bC, bmagBasis),
 
   /* Basis for the velocity space mapping. */
   [jnk,vmapBasis] : loadBasis("Ser", 1, 1),  [jnk,vmapSqBasis] : loadBasis("Ser", 1, 2),
@@ -89,6 +115,70 @@ calcAndWrite_HamilES(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr) := block(
   hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
+
+  return(hamil_e)
+)$
+
+calcAndWrite_HamilESSurf(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr,surfDir,polyOrder) := block(
+  [varsP,numP,pDim,vdim,bmag_e,phi_e,hamil_e,hamil_c,replaceList,hamilNoZero_c],
+  /* Expand the surface Hamiltonian, and write them out. */
+
+  varsP : listofvars(bP),
+  numP  : length(bP),
+  pDim  : length(varsP),
+  vdim  : 1,
+  if isInList(mu,varsP) then vdim : 2,
+
+  surfVar     : varsP[surfDir],         /* Surface variable. */
+  surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisType,surfIntVars,polyOrder)
+  ),
+  numSurf : length(bSurf),
+
+  /* Extract magnetic field and electrostatic potential. */
+  bmag_e   : inFlds[1],
+  phi_e    : inFlds[3],
+  vmap_e   : inFlds[11],
+  vmapSq_e : inFlds[12],
+
+  if (surfDir > cdim) then (
+    hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
+    if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmag_e ),
+  
+    /* Project Hamiltonian onto basis functions */
+    hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
+
+    numBasis : numP,
+    basis : bP
+  ) else (
+    if sideStr="L" then (evPoint : -1)
+    elseif sideStr="R" then (evPoint : 1),
+
+    /* Project a surface Hamiltonian. */
+    hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
+    if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmag_e ),
+  
+    /* Project Hamiltonian onto basis functions */
+    hamil_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,hamil_e)),
+
+    numBasis : numSurf,
+    basis : bSurf
+  ),
+
+  /* Write Hamiltonian. */
+  printf(fh, "  double hamil[~a] = {0.}; ~%", numBasis),
+  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
+  writeCExprsNoExpand1(hamil, gcfac(float(expand(subst(replaceList, hamil_c))))),
+  printf(fH, "~%"),
+  flush_output(fH),
+
+  hamilNoZero_c : makelistNoZeros1(hamil_c, hamil),
+  /* Expand projected Hamiltonian on basis. */
+  hamil_e : hamilNoZero_c . basis,
 
   return(hamil_e)
 )$
@@ -286,6 +376,65 @@ poissonBracket(f,g,mass,charge,rdx2V,rdv2V,pbFacs,no_by) := block(
   return(pb_e)
 )$
 
+calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
+                   inFlds,hamil_e,BstardBmag_e,sideStr,no_by,isStep2) := block(
+  [varsP,varLabel,dirLabel,wSurf,rdSurfVar2,surfVar,surfIntVars,b_x_e,b_y_e,b_z_e,
+   jacobTotInv_e,vmap_e,vmap_prime_e,pbAuxFlds,cdim,surfVar_phys,alpha_e,bSurf,
+   numSurf,evPoint,alpha_c,alphaCvar,clst,alphaNoZero_c],
+  /* Calculate phase space velocity alpha in direction of surfVar. */
+  /* We assume alpha.n is continuous across boundary, although H may not be. */
+  /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
+     determine upwind direction. */
+
+  varsP    : listofvars(bP),
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  wSurf      : eval_string(sconcat("w",dirLabel)),
+  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
+
+  surfVar     : varsP[surfDir],         /* Surface variable. */
+  surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
+
+  b_x_e         : inFlds[7],   b_y_e : inFlds[8],  b_z_e : inFlds[9],
+  jacobTotInv_e : inFlds[10],  vmap_e : inFlds[11],  vmap_prime_e : inFlds[13],
+
+  pbAuxFlds : [BstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
+
+  cdim : length(rdx2V),
+  surfVar_phys : wSurf+surfVar/rdSurfVar2,
+  if (surfDir > cdim) then ( surfVar_phys : vmap_e[surfDir-cdim] ),
+
+  alpha_e : poissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
+
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    bSurf : basisFromVars(basisType,surfIntVars,polyOrder)
+  ),
+  numSurf : length(bSurf),
+
+  if sideStr="L" then (evPoint : -1)
+  elseif sideStr="R" then (evPoint : 1),
+
+  dvparSimp : makelist(dxv[i-1]=2/eval_string(sconcat("rd",varLabel[i],"2")),i,1,pDim),
+
+  /* Project full alpha expression evaluated at interior surface
+     onto surface basis and print to C variable alpha. */
+  alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha_e)),
+  alpha_c : subst(dvparSimp, alpha_c),
+  clst : [rdx2vec, rdv2vec, m_, q_, wvpar, rdvpar2Sq,
+          makelist(dxv[i-1],i,1,pDim), makelist(vmap[i-1],i,1,2*length(vmap_e[1]))],
+  alphaCvar : eval_string(sconcat("alpha",sideStr)),
+  writeCExprsCollect1(alphaCvar, alpha_c, clst),
+  printf(fh, "~%"),
+  flush_output(fh),
+  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
+  alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
+
+  return(alphaSurf_e)
+)$
+
 calcAndWrite_alphaEM(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
                    inFlds,hamil_e,BstardBmag_e,sideStr,isStep2) := block(
   [varsP,varLabel,dirLabel,wSurf,rdSurfVar2,surfVar,surfIntVars,pbAuxFlds,bmagInv_e,b_x_e,
@@ -345,65 +494,6 @@ calcAndWrite_alphaEM(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   alphaUpSurf_e : alphaSurf_e,
 
   return([alphaUp_e,alphaSurf_e,alphaUpSurf_e])
-)$
-
-calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
-                   inFlds,hamil_e,BstardBmag_e,sideStr,no_by,isStep2) := block(
-  [varsP,varLabel,dirLabel,wSurf,rdSurfVar2,surfVar,surfIntVars,b_x_e,b_y_e,b_z_e,
-   jacobTotInv_e,vmap_e,vmap_prime_e,pbAuxFlds,cdim,surfVar_phys,alpha_e,bSurf,
-   numSurf,evPoint,alpha_c,alphaCvar,clst,alphaNoZero_c],
-  /* Calculate phase space velocity alpha in direction of surfVar. */
-  /* We assume alpha.n is continuous across boundary, although H may not be. */
-  /* Distinguish between alpha and alphaUp, where alphaUp is the one used to
-     determine upwind direction. */
-
-  varsP    : listofvars(bP),
-  varLabel : makelist(string(varsP[d]),d,1,pDim),
-  dirLabel : varLabel[surfDir],
-
-  wSurf      : eval_string(sconcat("w",dirLabel)),
-  rdSurfVar2 : eval_string(sconcat("rd",dirLabel,"2")),
-
-  surfVar     : varsP[surfDir],         /* Surface variable. */
-  surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
-
-  b_x_e         : inFlds[7],   b_y_e : inFlds[8],  b_z_e : inFlds[9],
-  jacobTotInv_e : inFlds[10],  vmap_e : inFlds[11],  vmap_prime_e : inFlds[13],
-
-  pbAuxFlds : [BstardBmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_prime_e],
-
-  cdim : length(rdx2V),
-  surfVar_phys : wSurf+surfVar/rdSurfVar2,
-  if (surfDir > cdim) then ( surfVar_phys : vmap_e[surfDir-cdim] ),
-
-  alpha_e : poissonBracket(surfVar_phys,hamil_e,mass,charge,rdx2V,rdv2V,pbAuxFlds,no_by),
-
-  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
-    bSurf : basisFromVars("gkhyb",surfIntVars,polyOrder)
-  ) else (
-    bSurf : basisFromVars(basisType,surfIntVars,polyOrder)
-  ),
-  numSurf : length(bSurf),
-
-  if sideStr="L" then (evPoint : -1)
-  elseif sideStr="R" then (evPoint : 1),
-
-  dvparSimp : makelist(dxv[i-1]=2/eval_string(sconcat("rd",varLabel[i],"2")),i,1,pDim),
-
-  /* Project full alpha expression evaluated at interior surface
-     onto surface basis and print to C variable alpha. */
-  alpha_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,alpha_e)),
-  alpha_c : subst(dvparSimp, alpha_c),
-  clst : [rdx2vec, rdv2vec, m_, q_, wvpar, rdvpar2Sq,
-          makelist(dxv[i-1],i,1,pDim), makelist(vmap[i-1],i,1,2*length(vmap_e[1]))],
-  alphaCvar : eval_string(sconcat("alpha",sideStr)),
-  writeCExprsCollect1(alphaCvar, alpha_c, clst),
-  printf(fh, "~%"),
-  flush_output(fh),
-  alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
-  alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
-
-  return(alphaSurf_e)
 )$
 
 calc_alpha_no_write(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
@@ -922,9 +1012,10 @@ calcAndWrite_GKfUpwind(file_handle,cdim,surfDir,surfVar,surfIntVars,bSurf,fl_e,f
 
 /* Determine the upwinded distribution function in gyrokinetics */
 calcAndWrite_sgn_alpha(file_handle,surfIntVars,surfNodes,numNodes,alphaSurf_e,sideStr) := block(
-  [alphaOrd_n],
+  [alphaOrd_n,i],
   /* Determine sign(alpha_surf) for upwinding at each surface quadrature node. */
 
+print("surfIntVars = ",surfIntVars),
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. */
   alphaOrd_n : gcfac(float(evAtNodes(alphaSurf_e,surfNodes,surfIntVars))),
