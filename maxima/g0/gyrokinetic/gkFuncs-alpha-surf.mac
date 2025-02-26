@@ -26,7 +26,7 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
    surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
    BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,alphaSurf_e],
 
   kill(varsC,varsP,bC,bP),
@@ -81,9 +81,10 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
-    const double q_, const double m_, const double *bmag, const double *jacobtot_inv,
-    const double *cmag, const double *b_i, const double *phi, double* GKYL_RESTRICT alpha_surf,
-    double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
+    const double q_, const double m_,
+    const double *bmag, const double *jacobtot_inv, const double *cmag, const double *b_i, 
+    const double *bmag_surf, const double *jacobtot_inv_surf, const double *cmag_surf, const double *b_i_surf, 
+    const double *phi, double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
   printf(fh, "  // vmap: velocity space mapping.~%"),
@@ -94,6 +95,10 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
   printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
+  printf(fh, "  // bmag_surf: bmag represented on the surface.~%"),
+  printf(fh, "  // jacobtot_inv_surf: jacobtot_inv represented on the surface.~%"),
+  printf(fh, "  // cmag_surf: cmag represented on the surface.~%"),
+  printf(fh, "  // b_i_surf: b_i represented on the surface.~%"),
   printf(fh, "  // alpha_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
   printf(fh, "  //             Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "  // sgn_alpha_surf: output sign(alpha_surf) in each direction at quadrature points (cdim + 1 components).~%"),
@@ -112,23 +117,31 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1)),
+    printf(fh, "  const double *b_~a_surf = &b_i_surf[~a];~%", allVarLabelsC[d], numC*(d-1))
   ),
   printf(fh, "~%"),
 
   /* Axisymmetric basis (independent of y). */
   bmagBasis : getAxisymmetricConfBasis(bC),
+  if (surfDir > cdim) then (
+    bmagSurfBasis : getAxisymmetricConfBasis(bC)
+  ) else (
+    bmagSurfBasis : getAxisymmetricConfBasis(bSurf)
+  ),
 
-  inFlds_e : expandInputFields(bC,bP,dxv,bmagBasis),
+  
+  [bmag_e,cmag_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_x_e,b_y_e,b_z_e,
+    jacobTotInv_e,vmap_e,vmapSq_e,vmap_prime_e] : expandInputFields(bC,bP,dxv,bmagBasis),
+  if (surfDir > cdim) then (
+    [bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e] : expandInputGeoFields(bC,bmagBasis)
+  ) else (
+    [bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e] : expandInputGeoFieldsSurf(bSurf,bmagSurfBasis)
+  ),
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
-  vmap_e : inFlds_e[11],  vmap_prime_e : inFlds_e[13],
   vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
-  inFlds_e[13] : vmap_prime_e,
 
-  cmag_e : inFlds_e[2],
-  b_x_e  : inFlds_e[7],  b_y_e : inFlds_e[8],  b_z_e : inFlds_e[9],
-  jacobTotInv_e : inFlds_e[10],
   /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
   if (no_by or cdim = 1) then (b_y_e : 0),
   BstardBmag_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_y_e,z))*jacobTotInv_e,
@@ -136,12 +149,32 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
                   (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
   BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
 
+  /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
+  if (no_by or cdim = 1) then (b_ySurf_e : 0),
+  BstardBmagSurf_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_ySurf_e,z))*jacobTotInvSurf_e,
+                      (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_zSurf_e,x) - rdz2*diff(b_xSurf_e,z)))*jacobTotInvSurf_e,
+                      (cmagSurf_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_ySurf_e,x))*jacobTotInvSurf_e],
+  BstardBmagSurf_e : append(makelist(BstardBmagSurf_e[i],i,1,cdim-1),[BstardBmagSurf_e[3]]),
+
   /* Compute electrostatic Hamiltonian and write it out. */
-  hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,""),
+  if (surfDir > cdim) then (
+    /* Project a volume Hamiltonian. */
+    inFlds_e : [bmag_e,cmag_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_x_e,b_y_e,b_z_e,
+                jacobTotInv_e,vmap_e,vmapSq_e,vmap_prime_e,vmap_prime_e],
+    hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,"")
+  ) else (
+    inFlds_e : [bmagSurf_e,cmagSurf_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,
+                jacobTotInvSurf_e,vmap_e,vmapSq_e,vmap_prime_e]
+  ),
 
   /* Calculate and write phase space velocity alpha in direction surfDir. */
   /* We assume alpha.n is continuous across boundary, although H may not be. */
   if (edge = true) then (
+    if (surfDir <= cdim) then (
+      /* Project a surface Hamiltonian. */
+      hamil_e : calcAndWrite_HamilESSurf(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,"R",surfDir,polyOrder)
+    ),
+
     /* alpha_surf owns the *lower* edge surface expansion, so write out a separate
        set of kernels if we are on the edge so we also can evaluate the correct 
        alpha_surf at the upper configuration space boundary without evaluating
@@ -152,6 +185,11 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
       m_,q_,rdx2vec,rdv2vec,inFlds_e,hamil_e,BstardBmag_e,"R",no_by,false),
     calcAndWrite_sgn_alpha(fh,nodeVars,surfNodes,numNodes,alphaSurf_e,"R")
   ) else (
+    if (surfDir <= cdim) then (
+      /* Project a surface Hamiltonian. */
+      hamil_e : calcAndWrite_HamilESSurf(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,"L",surfDir,polyOrder)
+    ),
+
     printf(fh, "  double *alphaL = &alpha_surf[~a];~%", (surfDir-1)*NSurfIndexing),
     printf(fh, "  double *sgn_alpha_surfL = &sgn_alpha_surf[~a];~%", (surfDir-1)*numNodesIndexing),
     alphaSurf_e : calcAndWrite_alpha(fh,surfDir,bP,polyOrder,basisFun,
