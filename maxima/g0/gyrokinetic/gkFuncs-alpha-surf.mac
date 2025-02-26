@@ -122,7 +122,7 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
     printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1)),
-    printf(fh, "  const double *b_~a_surf = &b_i_surf[~a];~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *b_~a_surf = &b_i_surf[~a];~%", allVarLabelsC[d], length(bSurfC)*(d-1))
   ),
   printf(fh, "~%"),
 
