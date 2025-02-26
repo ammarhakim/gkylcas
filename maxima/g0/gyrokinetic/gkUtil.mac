@@ -158,18 +158,12 @@ calcAndWrite_HamilESSurf(fH,charge,mass,wv,rdv2,bP,inFlds,sideStr,surfDir,polyOr
     if sideStr="L" then (evPoint : -1)
     elseif sideStr="R" then (evPoint : 1),
 
-    phiSurf_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,phi_e)),
-    phiSurf_e : doExpand(phiSurf_c,bSurf),
-
-    bmagSurf_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,bmag_e)),
-    bmagSurf_e : doExpand(bmagSurf_c,bSurf),
-
     /* Project a surface Hamiltonian. */
-    hamil_e : charge*phiSurf_e + (1/2)*mass*vmapSq_e[1],
-    if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmagSurf_e ),
+    hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
+    if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmag_e ),
   
     /* Project Hamiltonian onto basis functions */
-    hamil_c : calcInnerProdList(surfIntVars, 1, bSurf, hamil_e),
+    hamil_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,hamil_e)),
 
     numBasis : numSurf,
     basis : bSurf
@@ -437,7 +431,6 @@ calcAndWrite_alpha(fH,surfDir,bP,polyOrder,basisType,mass,charge,rdx2V,rdv2V,
   flush_output(fh),
   alphaNoZero_c : makelistNoZeros1(alpha_c, alphaCvar),
   alphaSurf_e   : doExpand(alphaNoZero_c, bSurf),
-  print(alphaSurf_e),
 
   return(alphaSurf_e)
 )$
@@ -1022,6 +1015,7 @@ calcAndWrite_sgn_alpha(file_handle,surfIntVars,surfNodes,numNodes,alphaSurf_e,si
   [alphaOrd_n,i],
   /* Determine sign(alpha_surf) for upwinding at each surface quadrature node. */
 
+print("surfIntVars = ",surfIntVars),
   /* Evaluate alpha at ordinates.
      Note: alphaSurf_e is already a surface expansion. */
   alphaOrd_n : gcfac(float(evAtNodes(alphaSurf_e,surfNodes,surfIntVars))),

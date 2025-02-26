@@ -64,6 +64,10 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   ),
   NSurf    : length(bSurf),
   numNodes : length(surfNodes),
+
+  surfIntVarsC : delete(surfVar,varsC), 
+  bSurfC       : basisFromVars(basisFun,surfIntVarsC,polyOrder),
+
   /* if polyOrder = 1, we need to be careful about
      indexing input arrays since the surface hybrid basis has a different size in the
      vparallel surfaces and/or we are more directly exploiting the sparsity of 
@@ -127,16 +131,15 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   if (surfDir > cdim) then (
     bmagSurfBasis : getAxisymmetricConfBasis(bC)
   ) else (
-    bmagSurfBasis : getAxisymmetricConfBasis(bSurf)
+    bmagSurfBasis : getAxisymmetricConfBasis(bSurfC)
   ),
-
   
   [bmag_e,cmag_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_x_e,b_y_e,b_z_e,
     jacobTotInv_e,vmap_e,vmapSq_e,vmap_prime_e] : expandInputFields(bC,bP,dxv,bmagBasis),
   if (surfDir > cdim) then (
     [bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e] : expandInputGeoFields(bC,bmagBasis)
   ) else (
-    [bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e] : expandInputGeoFieldsSurf(bSurf,bmagSurfBasis)
+    [bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e] : expandInputGeoFieldsSurf(bSurfC,bmagSurfBasis)
   ),
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
