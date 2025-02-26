@@ -23,10 +23,11 @@ fpprec : 24$
 
 buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
   [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,NSurf,numNodes,
+   surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
    BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,alphaSurf_e],
 
   kill(varsC,varsP,bC,bP),
@@ -146,18 +147,18 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
-  if (no_by or cdim = 1) then (b_y_e : 0),
-  BstardBmag_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_y_e,z))*jacobTotInv_e,
-                  (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
-                  (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e],
+  if (surfDir > cdim) then (
+    if (no_by or cdim = 1) then (b_y_e : 0),
+    BstardBmag_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_y_e,z))*jacobTotInv_e,
+                    (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_z_e,x) - rdz2*diff(b_x_e,z)))*jacobTotInv_e,
+                    (cmag_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_y_e,x))*jacobTotInv_e]
+  ) else (
+    if (no_by or cdim = 1) then (b_ySurf_e : 0),
+    BstardBmag_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_ySurf_e,z))*jacobTotInvSurf_e,
+                    (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_zSurf_e,x) - rdz2*diff(b_xSurf_e,z)))*jacobTotInvSurf_e,
+                    (cmagSurf_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_ySurf_e,x))*jacobTotInvSurf_e]
+  ),
   BstardBmag_e : append(makelist(BstardBmag_e[i],i,1,cdim-1),[BstardBmag_e[3]]),
-
-  /* Expand BstarX/Bmag, BstarY/Bmag, BstarZ/Bmag on basis. */
-  if (no_by or cdim = 1) then (b_ySurf_e : 0),
-  BstardBmagSurf_e : [(-((m_/q_)*vmap_e[1])*rdz2*diff(b_ySurf_e,z))*jacobTotInvSurf_e,
-                      (-((m_/q_)*vmap_e[1])*(rdx2*diff(b_zSurf_e,x) - rdz2*diff(b_xSurf_e,z)))*jacobTotInvSurf_e,
-                      (cmagSurf_e + ((m_/q_)*vmap_e[1])*rdx2*diff(b_ySurf_e,x))*jacobTotInvSurf_e],
-  BstardBmagSurf_e : append(makelist(BstardBmagSurf_e[i],i,1,cdim-1),[BstardBmagSurf_e[3]]),
 
   /* Compute electrostatic Hamiltonian and write it out. */
   if (surfDir > cdim) then (
