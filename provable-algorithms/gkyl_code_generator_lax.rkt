@@ -494,8 +494,8 @@ void gkyl_~a_free(const struct gkyl_ref_count* ref);
 
 #include <gkyl_alloc.h>
 #include <gkyl_alloc_flags_priv.h>
-#include <gkyl_wv_~a.h>
-#include <gkyl_wv_~a_priv.h>
+#include <gkyl_wv_~a_lax.h>
+#include <gkyl_wv_~a_lax_priv.h>
 
 static inline double
 gkyl_~a_max_abs_speed(~a const double* q)
@@ -871,7 +871,7 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
 #include <gkyl_alloc.h>
 #include <gkyl_moment.h>
 #include <gkyl_util.h>
-#include <gkyl_wv_~a.h>
+#include <gkyl_wv_~a_lax.h>
 
 #include <gkyl_null_comm.h>
 
