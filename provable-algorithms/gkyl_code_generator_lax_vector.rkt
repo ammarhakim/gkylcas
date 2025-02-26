@@ -3,10 +3,9 @@
 (require "code_generator_core.rkt")
 (provide remove-bracketed-expressions
          remove-bracketed-expressions-from-file
-         gkyl-generate-lax-friedrichs-scalar-1d-header
-         gkyl-generate-lax-friedrichs-scalar-1d-priv-header
-         gkyl-generate-lax-friedrichs-scalar-1d-source
-         gkyl-generate-lax-friedrichs-scalar-1d-regression)
+         gkyl-generate-lax-friedrichs-vector2-1d-header
+         gkyl-generate-lax-friedrichs-vector2-1d-priv-header
+         gkyl-generate-lax-friedrichs-vector2-1d-source)
 
 ;; A simple boilerplate function for removing bracketed expressions from strings.
 (define (remove-bracketed-expressions str)
@@ -24,27 +23,31 @@
     (lambda ()
       (display cleaned))))
 
-;; -------------------------------------------------------------------------------
-;; Header for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; -------------------------------------------------------------------------------
-(define (gkyl-generate-lax-friedrichs-scalar-1d-header pde
-                                                       #:nx [nx 200]
-                                                       #:x0 [x0 0.0]
-                                                       #:x1 [x1 2.0]
-                                                       #:t-final [t-final 1.0]
-                                                       #:cfl [cfl 0.95]
-                                                       #:init-func [init-func `(cond
-                                                                                 [(< x 1.0) 1.0]
-                                                                                 [else 0.0])])
- "Generate Gkeyll C header code that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
+;; ----------------------------------------------------------------------------------------------------
+;; Header for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; ----------------------------------------------------------------------------------------------------
+(define (gkyl-generate-lax-friedrichs-vector2-1d-header pde-system
+                                                        #:nx [nx 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-funcs [init-funcs (list
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 3.0]
+                                                                                     [else 1.0])
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 1.5]
+                                                                                     [else 0.0]))])
+ "Generate Gkeyll C header code that solves the 1D coupled vector system of 2 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+  - `init-funcs`: Racket expression for the initial conditions, e.g. piecewise constant."
 
-  (define name (hash-ref pde 'name))
-  (define parameters (hash-ref pde 'parameters))
+  (define name (hash-ref pde-system 'name))
+  (define parameters (hash-ref pde-system 'parameters))
   
   (define parameter-def (cond
                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
@@ -82,20 +85,20 @@ struct gkyl_wv_~a_inp {
 };
 
 /**
-* Create a new ~a equation object.
+* Create a new ~a equations object.
 *
 ~a
 * @param use_gpu Whether the wave equation object is on the host (false) or the device (true).
-* @return Pointer to the ~a equation object.
+* @return Pointer to the ~a equations object.
 */
 struct gkyl_wv_eqn*
 gkyl_wv_~a_new(~a bool use_gpu);
 
 /**
-* Create a new ~a equation object, from an input context struct.
+* Create a new ~a equations object, from an input context struct.
 *
 * @param inp Input context struct.
-* @return Pointer to the ~a equation object.
+* @return Pointer to the ~a equations object.
 */
 struct gkyl_wv_eqn*
 gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp);
@@ -117,27 +120,31 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp);
            ))
   code)
 
-;; ---------------------------------------------------------------------------------------
-;; Private Header for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; ---------------------------------------------------------------------------------------
-(define (gkyl-generate-lax-friedrichs-scalar-1d-priv-header pde
-                                                            #:nx [nx 200]
-                                                            #:x0 [x0 0.0]
-                                                            #:x1 [x1 2.0]
-                                                            #:t-final [t-final 1.0]
-                                                            #:cfl [cfl 0.95]
-                                                            #:init-func [init-func `(cond
-                                                                                      [(< x 1.0) 1.0]
-                                                                                      [else 0.0])])
- "Generate Gkeyll C private header code that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
+;; ------------------------------------------------------------------------------------------------------------
+;; Private Header for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; ------------------------------------------------------------------------------------------------------------
+(define (gkyl-generate-lax-friedrichs-vector2-1d-priv-header pde-system
+                                                             #:nx [nx 200]
+                                                             #:x0 [x0 0.0]
+                                                             #:x1 [x1 2.0]
+                                                             #:t-final [t-final 1.0]
+                                                             #:cfl [cfl 0.95]
+                                                             #:init-funcs [init-funcs (list
+                                                                                       `(cond
+                                                                                          [(< x 0.5) 3.0]
+                                                                                          [else 1.0])
+                                                                                       `(cond
+                                                                                          [(< x 0.5) 1.5]
+                                                                                          [else 0.0]))])
+ "Generate Gkeyll C private header code that solves the 1D coupled vector system of 2 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+  - `init-funcs`: Racket expression for the initial conditions, e.g. piecewise constant."
 
-  (define name (hash-ref pde 'name))
-  (define parameters (hash-ref pde 'parameters))
+  (define name (hash-ref pde-system 'name))
+  (define parameters (hash-ref pde-system 'parameters))
 
   (define parameter-def (cond
                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
@@ -220,7 +227,7 @@ static inline void
 riem_to_cons(const struct gkyl_wv_eqn* eqn, const double* qstate, const double* win, double *qout);
 
 /**
-* Boundary condition function for applying wall boundary conditions for the ~a equation.
+* Boundary condition function for applying wall boundary conditions for the ~a equations.
 *
 * @param eqn Base equation object.
 * @param t Current simulation time.
@@ -234,7 +241,7 @@ static void
 ~a_wall(const struct gkyl_wv_eqn* eqn, double t, int nc, const double* skin, double* GKYL_RESTRICT ghost, void* ctx);
 
 /**
-* Boundary condition function for applying no-slip boundary conditions for the ~a equation.
+* Boundary condition function for applying no-slip boundary conditions for the ~a equations.
 *
 * @param eqn Base equation object.
 * @param t Current simulation time.
@@ -354,7 +361,7 @@ static double
 flux_jump(const struct gkyl_wv_eqn* eqn, const double* ql, const double* qr, double* flux_jump);
 
 /**
-* Determine whether invariant domain of the ~a equation is satisfied.
+* Determine whether invariant domain of the ~a equations is satisfied.
 *
 * @param eqn Base equation object.
 * @param q Conserved variable vector.
@@ -398,9 +405,9 @@ static inline void
 ~a_source(const struct gkyl_wv_eqn* eqn, const double* qin, double* sout);
 
 /**
-* Free ~a equation object.
+* Free ~a equations object.
 *
-* @param ref Reference counter for ~a equation.
+* @param ref Reference counter for ~a equations.
 */
 void gkyl_~a_free(const struct gkyl_ref_count* ref);
 "
@@ -425,38 +432,50 @@ void gkyl_~a_free(const struct gkyl_ref_count* ref);
            ))
   code)
 
-;; -------------------------------------------------------------------------------
-;; Source for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; -------------------------------------------------------------------------------
-(define (gkyl-generate-lax-friedrichs-scalar-1d-source pde
-                                                       #:nx [nx 200]
-                                                       #:x0 [x0 0.0]
-                                                       #:x1 [x1 2.0]
-                                                       #:t-final [t-final 1.0]
-                                                       #:cfl [cfl 0.95]
-                                                       #:init-func [init-func `(cond
-                                                                                 [(< x 1.0) 1.0]
-                                                                                 [else 0.0])])
- "Generate Gkeyll C source code that solves the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
+;; ----------------------------------------------------------------------------------------------------
+;; Source for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
+;; ----------------------------------------------------------------------------------------------------
+(define (gkyl-generate-lax-friedrichs-vector2-1d-source pde-system
+                                                        #:nx [nx 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-funcs [init-funcs (list
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 3.0]
+                                                                                     [else 1.0])
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 1.5]
+                                                                                     [else 0.0]))])
+ "Generate Gkeyll C source code that solves the 1D coupled vector system of 2 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+  - `init-funcs`: Racket expression for the initial conditions, e.g. piecewise constant."
 
-  (define name (hash-ref pde 'name))
-  (define cons-expr (hash-ref pde 'cons-expr))
-  (define flux-expr (hash-ref pde 'flux-expr))
-  (define max-speed-expr (hash-ref pde 'max-speed-expr))
-  (define parameters (hash-ref pde 'parameters))
+  (define name (hash-ref pde-system 'name))
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
 
-  (define cons-code (convert-expr cons-expr))
-  (define flux-code (convert-expr flux-expr))
-  (define max-speed-code (convert-expr max-speed-expr))
-  (define init-func-code (convert-expr init-func))
+  (define cons-codes (map (lambda (cons-expr)
+                            (convert-expr cons-expr)) cons-exprs))
+  (define flux-codes (map (lambda (flux-expr)
+                            (convert-expr flux-expr)) flux-exprs))
+  (define max-speed-codes (map (lambda (max-speed-expr)
+                                 (convert-expr max-speed-expr)) max-speed-exprs))
+  (define init-func-codes (map (lambda (init-func-expr)
+                                 (convert-expr init-func-expr)) init-funcs))
 
-  (define max-speed-local (flux-substitute max-speed-code cons-code "q[0]"))
-  (define flux-ui (flux-substitute flux-code cons-code "q[0]"))
+  (define max-speed-locals (map (lambda (max-speed-code)
+                                  (flux-substitute (flux-substitute max-speed-code (list-ref cons-codes 0) "q[0]")
+                                                   (list-ref cons-codes 1) "q[1]")) max-speed-codes))
+  (define flux-uis (map (lambda (flux-code)
+                          (flux-substitute (flux-substitute flux-code (list-ref cons-codes 0) "q[0]")
+                                           (list-ref cons-codes 1) "q[1]")) flux-codes))
   
   (define parameter-def (cond
                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
@@ -500,53 +519,66 @@ void gkyl_~a_free(const struct gkyl_ref_count* ref);
 static inline double
 gkyl_~a_max_abs_speed(~a const double* q)
 {
-  return ~a;
+  return fmax(~a, ~a);
 }
 
 void
 gkyl_~a_flux(~a const double* q, double* flux)
 {
   flux[0] = ~a;
+  flux[1] = ~a;
 }
 
 static inline void
 cons_to_riem(const struct gkyl_wv_eqn* eqn, const double* qstate, const double* qin, double* wout)
 {
   // TODO: This should use a proper L matrix.
-  wout[0] = qin[0];
+  for (int i = 0; i < 2; i++) {
+    wout[i] = qin[i];
+  }
 }
 
 static inline void
 riem_to_cons(const struct gkyl_wv_eqn* eqn, const double* qstate, const double* win, double* qout)
 {
   // TODO: This should use a proper L matrix.
-  qout[0] = win[0];
+  for (int i = 0; i < 2; i++) {
+    qout[i] = win[i];
+  }
 }
 
 static void
 ~a_wall(const struct gkyl_wv_eqn* eqn, double t, int nc, const double* skin, double* GKYL_RESTRICT ghost, void* ctx)
 {
-  ghost[0] = skin[0];
+  for (int i = 0; i < 2; i++) {
+    ghost[i] = skin[i];
+  }
 }
 
 static void
 ~a_no_slip(const struct gkyl_wv_eqn* eqn, double t, int nc, const double* skin, double* GKYL_RESTRICT ghost, void* ctx)
 {
-  ghost[0] = skin[0];
+  for (int i = 0; i < 2; i++) {
+    ghost[i] = skin[i];
+  }
 }
 
 static inline void
 rot_to_local(const struct gkyl_wv_eqn* eqn, const double* tau1, const double* tau2, const double* norm, const double* GKYL_RESTRICT qglobal,
   double* GKYL_RESTRICT qlocal)
 {
-  qlocal[0] = qglobal[0];
+  for (int i = 0; i < 2; i++) {
+    qlocal[i] = qglobal[i];
+  }
 }
 
 static inline void
 rot_to_global(const struct gkyl_wv_eqn* eqn, const double* tau1, const double* tau2, const double* norm, const double* GKYL_RESTRICT qlocal,
   double* GKYL_RESTRICT qglobal)
 {
-  qglobal[0] = qlocal[0];
+  for (int i = 0; i < 2; i++) {
+    qglobal[i] = qlocal[i];
+  }
 }
 
 static double
@@ -559,14 +591,16 @@ wave_lax(const struct gkyl_wv_eqn* eqn, const double* delta, const double* ql, c
   double sr = gkyl_~a_max_abs_speed(~a qr);
   double amax = fmax(sl, sr);
 
-  double *fl = gkyl_malloc(sizeof(double));
-  double *fr = gkyl_malloc(sizeof(double));
+  double *fl = gkyl_malloc(sizeof(double) * 2);
+  double *fr = gkyl_malloc(sizeof(double) * 2);
   gkyl_~a_flux(~a ql, fl);
   gkyl_~a_flux(~a qr, fr);
 
-  double *w0 = &waves[0], *w1 = &waves[1];
-  w0[0] = 0.5 * ((qr[0] - ql[0]) - (fr[0] - fl[0]) / amax);
-  w1[0] = 0.5 * ((qr[0] - ql[0]) + (fr[0] - fl[0]) / amax);
+  double *w0 = &waves[0], *w1 = &waves[2];
+  for (int i = 0; i < 2; i++) {
+    w0[i] = 0.5 * ((qr[i] - ql[i]) - (fr[i] - fl[i]) / amax);
+    w1[i] = 0.5 * ((qr[i] - ql[i]) + (fr[i] - fl[i]) / amax);
+  }
 
   s[0] = -amax;
   s[1] = amax;
@@ -580,12 +614,14 @@ wave_lax(const struct gkyl_wv_eqn* eqn, const double* delta, const double* ql, c
 static void
 qfluct_lax(const struct gkyl_wv_eqn* eqn, const double* ql, const double* qr, const double* waves, const double* s, double* amdq, double* apdq)
 {
-  const double *w0 = &waves[0], *w1 = &waves[1];
+  const double *w0 = &waves[0], *w1 = &waves[2];
   double s0m = fmin(0.0, s[0]), s1m = fmin(0.0, s[1]);
   double s0p = fmax(0.0, s[0]), s1p = fmax(0.0, s[1]);
 
-  amdq[0] = (s0m * w0[0]) + (s1m * w1[0]);
-  apdq[0] = (s0p * w0[0]) + (s1p * w1[0]);
+  for (int i = 0; i < 2; i++) {
+    amdq[i] = (s0m * w0[i]) + (s1m * w1[i]);
+    apdq[i] = (s0p * w0[i]) + (s1p * w1[i]);
+  }
 }
 
 static double
@@ -607,12 +643,14 @@ flux_jump(const struct gkyl_wv_eqn* eqn, const double* ql, const double* qr, dou
   const struct wv_~a *~a = container_of(eqn, struct wv_~a, eqn);
   ~a
 
-  double *fr = gkyl_malloc(sizeof(double));
-  double *fl = gkyl_malloc(sizeof(double));
+  double *fr = gkyl_malloc(sizeof(double) * 2);
+  double *fl = gkyl_malloc(sizeof(double) * 2);
   gkyl_~a_flux(~a ql, fl);
   gkyl_~a_flux(~a qr, fr);
 
-  flux_jump[0] = fr[0] - fl[0];
+  for (int i = 0; i < 2; i++) {
+    flux_jump[i] = fr[i] - fl[i];
+  }
 
   double amaxl = gkyl_~a_max_abs_speed(~a ql);
   double amaxr = gkyl_~a_max_abs_speed(~a qr);
@@ -641,13 +679,17 @@ max_speed(const struct gkyl_wv_eqn* eqn, const double* q)
 static inline void
 ~a_cons_to_diag(const struct gkyl_wv_eqn* eqn, const double* qin, double* diag)
 {
-  diag[0] = qin[0];
+  for (int i = 0; i < 2; i++) {
+    diag[i] = qin[i];
+  }
 }
 
 static inline void
 ~a_source(const struct gkyl_wv_eqn* eqn, const double* qin, double* sout)
 {
-  sout[0] = 0.0;
+  for (int i = 0; i < 2; i++) {
+    sout[i] = 0.0;
+  }
 }
 
 void
@@ -682,8 +724,8 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
   struct wv_~a *~a = gkyl_malloc(sizeof(struct wv_~a));
 
   ~a->eqn.type = GKYL_EQN_~a;
-  ~a->eqn.num_equations = 1;
-  ~a->eqn.num_diag = 1;
+  ~a->eqn.num_equations = 2;
+  ~a->eqn.num_diag = 2;
 
   ~a
 
@@ -721,10 +763,10 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
            name
            name
            parameter-sig
-           max-speed-local
+           (list-ref max-speed-locals 0) (list-ref max-speed-locals 1)
            name
            parameter-sig
-           flux-ui
+           (list-ref flux-uis 0) (list-ref flux-uis 1)
            name
            name
            name
@@ -809,446 +851,6 @@ gkyl_wv_~a_inew(const struct gkyl_wv_~a_inp* inp)
            name
            name
            name
-           name
-           ))
-  code)
-
-;; ------------------------------------------------------------------------------------------
-;; C Regression Test for Gkeyll Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE
-;; ------------------------------------------------------------------------------------------
-(define (gkyl-generate-lax-friedrichs-scalar-1d-regression pde
-                                                           #:nx [nx 200]
-                                                           #:x0 [x0 0.0]
-                                                           #:x1 [x1 2.0]
-                                                           #:t-final [t-final 1.0]
-                                                           #:cfl [cfl 0.95]
-                                                           #:init-func [init-func `(cond
-                                                                                     [(< x 1.0) 1.0]
-                                                                                     [else 0.0])])
- "Generate a Gkeyll C regression test for the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
-  - `nx` : Number of spatial cells.
-  - `x0`, `x1` : Domain boundaries.
-  - `t-final`: Final time.
-  - `cfl`: CFL coefficient.
-  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
-
-  (define name (hash-ref pde 'name))
-  (define parameters (hash-ref pde 'parameters))
-
-  (define init-func-code (convert-expr init-func))
-
-  (define parameter-def (cond
-                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
-                                                                         (string-append "double " (convert-expr (list-ref parameter 1)) "; // Additional simulation parameter."))
-                                                                       parameters) "\n")]
-                          [else ""]))
-  (define parameter-assign (cond
-                             [(not (empty? parameters)) (string-join (map (lambda (parameter)
-                                                                            (string-append "double " (convert-expr (list-ref parameter 1)) " = "
-                                                                                           (convert-expr (list-ref parameter 2))"; // Additional simulation parameter."))
-                                                                          parameters) "\n")]
-                             [else ""]))
-  (define parameter-ctx-set (cond
-                              [(not (empty? parameters)) (string-join (map (lambda (parameter)
-                                                                             (string-append "." (convert-expr (list-ref parameter 1)) " = "
-                                                                                            (convert-expr (list-ref parameter 1)) ","))
-                                                                           parameters) "\n")]
-                              [else ""]))
-  (define parameter-ctx (cond
-                          [(not (empty? parameters)) (string-join (map (lambda (parameter)
-                                                                         (string-append "." (convert-expr (list-ref parameter 1)) " = ctx."
-                                                                                        (convert-expr (list-ref parameter 1)) ","))
-                                                                       parameters) "\n")]
-                          [else ""]))
-
-  (define code
-    (format "
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
-
-#include <gkyl_alloc.h>
-#include <gkyl_moment.h>
-#include <gkyl_util.h>
-#include <gkyl_wv_~a.h>
-
-#include <gkyl_null_comm.h>
-
-#ifdef GKYL_HAVE_MPI
-#include <mpi.h>
-#include <gkyl_mpi_comm.h>
-#endif
-
-#include <rt_arg_parse.h>
-
-struct ~a_lax_ctx
-{
-  // Simulation parameters.
-  int Nx; // Cell count (x-direction).
-  double Lx; // Domain size (x-direction).
-  ~a
-  double cfl_frac; // CFL coefficient.
-
-  double t_end; // Final simulation time.
-  int num_frames; // Number of output frames.
-  int field_energy_calcs; // Number of times to calculate field energy.
-  int integrated_mom_calcs; // Number of times to calculate integrated moments.
-  double dt_failure_tol; // Minimum allowable fraction of initial time-step.
-  int num_failures_max; // Maximum allowable number of consecutive small time-steps.
-};
-
-struct ~a_lax_ctx
-create_ctx(void)
-{
-  // Simulation parameters.
-  int Nx = ~a; // Cell count (x-direction).
-  double Lx = ~a; // Domain size (x-direction).
-  ~a
-  double cfl_frac = ~a; // CFL coefficient.
-
-  double t_end = ~a; // Final simulation time.
-  int num_frames = 1; // Number of output frames.
-  int field_energy_calcs = INT_MAX; // Number of times to calculate field energy.
-  int integrated_mom_calcs = INT_MAX; // Number of times to calculate integrated moments.
-  double dt_failure_tol = 1.0e-4; // Minimum allowable fraction of initial time-step.
-  int num_failures_max = 20; // Maximum allowable number of consecutive small time-steps.
-
-  struct ~a_lax_ctx ctx = {
-    .Nx = Nx,
-    .Lx = Lx,
-    ~a
-    .cfl_frac = cfl_frac,
-    .t_end = t_end,
-    .num_frames = num_frames,
-    .field_energy_calcs = field_energy_calcs,
-    .integrated_mom_calcs = integrated_mom_calcs,
-    .dt_failure_tol = dt_failure_tol,
-    .num_failures_max = num_failures_max,
-  };
-
-  return ctx;
-}
-
-void
-eval~aInit(double t, const double* GKYL_RESTRICT xn, double* GKYL_RESTRICT fout, void* ctx)
-{
-  double x = xn[0];
-  
-  // Set conserved quantity.
-  fout[0] = ~a;
-}
-
-void
-write_data(struct gkyl_tm_trigger* iot, gkyl_moment_app* app, double t_curr, bool force_write)
-{
-  if (gkyl_tm_trigger_check_and_bump(iot, t_curr) || force_write) {
-    int frame = iot->curr - 1;
-    if (force_write) {
-      frame = iot->curr;
-    }
-
-    gkyl_moment_app_write(app, t_curr, frame);
-    gkyl_moment_app_write_field_energy(app);
-    gkyl_moment_app_write_integrated_mom(app);
-  }
-}
-
-void
-calc_field_energy(struct gkyl_tm_trigger* fet, gkyl_moment_app* app, double t_curr, bool force_calc)
-{
-  if (gkyl_tm_trigger_check_and_bump(fet, t_curr) || force_calc) {
-    gkyl_moment_app_calc_field_energy(app, t_curr);
-  }
-}
-
-void
-calc_integrated_mom(struct gkyl_tm_trigger* imt, gkyl_moment_app* app, double t_curr, bool force_calc)
-{
-  if (gkyl_tm_trigger_check_and_bump(imt, t_curr) || force_calc) {
-    gkyl_moment_app_calc_integrated_mom(app, t_curr);
-  }
-}
-
-int
-main(int argc, char **argv)
-{
-  struct gkyl_app_args app_args = parse_app_args(argc, argv);
-
-#ifdef GKYL_HAVE_MPI
-  if (app_args.use_mpi) {
-    MPI_Init(&argc, &argv);
-  }
-#endif
-
-  if (app_args.trace_mem) {
-    gkyl_cu_dev_mem_debug_set(true);
-    gkyl_mem_debug_set(true);
-  }
-
-  struct ~a_lax_ctx ctx = create_ctx(); // Context for initialization functions.
-
-  int NX = APP_ARGS_CHOOSE(app_args.xcells[0], ctx.Nx);
-
-  // ~a equation.
-  struct gkyl_wv_eqn *~a = gkyl_wv_~a_inew(&(struct gkyl_wv_~a_inp) {
-      ~a
-      .rp_type = WV_~a_RP_LAX,
-      .use_gpu = app_args.use_gpu,
-    }
-  );
-
-  struct gkyl_moment_species fluid = {
-    .name = \"~a\",
-    .equation = ~a,
-    .evolve = true,
-    .init = eval~aInit,
-    .ctx = &ctx,
-  };
-
-  int nrank = 1; // Number of processes in simulation.
-#ifdef GKYL_HAVE_MPI
-  if (app_args.use_mpi) {
-    MPI_Comm_size(MPI_COMM_WORLD, &nrank);
-  }
-#endif
-
-  // Create global range.
-  int cells[] = { NX };
-  int dim = sizeof(cells) / sizeof(cells[0]);
-
-  int cuts[dim];
-#ifdef GKYL_HAVE_MPI
-  for (int d = 0; d < dim; d++) {
-    if (app_args.use_mpi) {
-      cuts[d] = app_args.cuts[d];
-    }
-    else {
-      cuts[d] = 1;
-    }
-  }
-#else
-  for (int d = 0; d < dim; d++) {
-    cuts[d] = 1;
-  }
-#endif
-
-  // Construct communicator for use in app.
-  struct gkyl_comm *comm;
-#ifdef GKYL_HAVE_MPI
-  if (app_args.use_mpi) {
-    comm = gkyl_mpi_comm_new( &(struct gkyl_mpi_comm_inp) {
-        .mpi_comm = MPI_COMM_WORLD,
-      }
-    );
-  }
-  else {
-    comm = gkyl_null_comm_inew( &(struct gkyl_null_comm_inp) {
-        .use_gpu = app_args.use_gpu
-      }
-    );
-  }
-#else
-  comm = gkyl_null_comm_inew( &(struct gkyl_null_comm_inp) {
-      .use_gpu = app_args.use_gpu
-    }
-  );
-#endif
-
-  int my_rank;
-  gkyl_comm_get_rank(comm, &my_rank);
-  int comm_size;
-  gkyl_comm_get_size(comm, &comm_size);
-
-  int ncuts = 1;
-  for (int d = 0; d < dim; d++) {
-    ncuts *= cuts[d];
-  }
-
-  if (ncuts != comm_size) {
-    if (my_rank == 0) {
-      fprintf(stderr, \"*** Number of ranks, %d, does not match total cuts, %d!\\n\", comm_size, ncuts);
-    }
-    goto mpifinalize;
-  }
-
-  // Moment app.
-  struct gkyl_moment app_inp = {
-    .name = \"~a_lax\",
-
-    .ndim = 1,
-    .lower = { ~a },
-    .upper = { ~a + ctx.Lx }, 
-    .cells = { NX },
-
-    .num_periodic_dir = 0,
-    .periodic_dirs = { },
-    .cfl_frac = ctx.cfl_frac,
-
-    .num_species = 1,
-    .species = { fluid },
-
-    .parallelism = {
-      .use_gpu = app_args.use_gpu,
-      .cuts = { app_args.cuts[0] },
-      .comm = comm,
-    },
-  };
-
-  // Create app object.
-  gkyl_moment_app *app = gkyl_moment_app_new(&app_inp);
-
-  // Initial and final simulation times.
-  double t_curr = 0.0, t_end = ctx.t_end;
-
-  // Initialize simulation.
-  int frame_curr = 0;
-  if (app_args.is_restart) {
-    struct gkyl_app_restart_status status = gkyl_moment_app_read_from_frame(app, app_args.restart_frame);
-
-    if (status.io_status != GKYL_ARRAY_RIO_SUCCESS) {
-      gkyl_moment_app_cout(app, stderr, \"*** Failed to read restart file! (%s)\\n\", gkyl_array_rio_status_msg(status.io_status));
-      goto freeresources;
-    }
-
-    frame_curr = status.frame;
-    t_curr = status.stime;
-
-    gkyl_moment_app_cout(app, stdout, \"Restarting from frame %d\", frame_curr);
-    gkyl_moment_app_cout(app, stdout, \" at time = %g\\n\", t_curr);
-  }
-  else {
-    gkyl_moment_app_apply_ic(app, t_curr);
-  }
-
-  // Create trigger for field energy.
-  int field_energy_calcs = ctx.field_energy_calcs;
-  struct gkyl_tm_trigger fe_trig = { .dt = t_end / field_energy_calcs, .tcurr = t_curr, .curr = frame_curr };
-
-  calc_field_energy(&fe_trig, app, t_curr, false);
-
-  // Create trigger for integrated moments.
-  int integrated_mom_calcs = ctx.integrated_mom_calcs;
-  struct gkyl_tm_trigger im_trig = { .dt = t_end / integrated_mom_calcs, .tcurr = t_curr, .curr = frame_curr };
-
-  calc_integrated_mom(&im_trig, app, t_curr, false);
-
-  // Create trigger for IO.
-  int num_frames = ctx.num_frames;
-  struct gkyl_tm_trigger io_trig = { .dt = t_end / num_frames, .tcurr = t_curr, .curr = frame_curr };
-
-  write_data(&io_trig, app, t_curr, false);
-
-  // Compute initial guess of maximum stable time-step.
-  double dt = t_end - t_curr;
-
-  // Initialize small time-step check.
-  double dt_init = -1.0, dt_failure_tol = ctx.dt_failure_tol;
-  int num_failures = 0, num_failures_max = ctx.num_failures_max;
-
-  long step = 1;
-  while ((t_curr < t_end) && (step <= app_args.num_steps)) {
-    gkyl_moment_app_cout(app, stdout, \"Taking time-step %ld at t = %g ...\", step, t_curr);
-    struct gkyl_update_status status = gkyl_moment_update(app, dt);
-    gkyl_moment_app_cout(app, stdout, \" dt = %g\\n\", status.dt_actual);
-    
-    if (!status.success) {
-      gkyl_moment_app_cout(app, stdout, \"** Update method failed! Aborting simulation ....\\n\");
-      break;
-    }
-
-    t_curr += status.dt_actual;
-    dt = status.dt_suggested;
-
-    calc_field_energy(&fe_trig, app, t_curr, false);
-    calc_integrated_mom(&im_trig, app, t_curr, false);
-    write_data(&io_trig, app, t_curr, false);
-
-    if (dt_init < 0.0) {
-      dt_init = status.dt_actual;
-    }
-    else if (status.dt_actual < dt_failure_tol * dt_init) {
-      num_failures += 1;
-
-      gkyl_moment_app_cout(app, stdout, \"WARNING: Time-step dt = %g\", status.dt_actual);
-      gkyl_moment_app_cout(app, stdout, \" is below %g*dt_init ...\", dt_failure_tol);
-      gkyl_moment_app_cout(app, stdout, \" num_failures = %d\\n\", num_failures);
-      if (num_failures >= num_failures_max) {
-        gkyl_moment_app_cout(app, stdout, \"ERROR: Time-step was below %g*dt_init \", dt_failure_tol);
-        gkyl_moment_app_cout(app, stdout, \"%d consecutive times. Aborting simulation ....\\n\", num_failures_max);
-
-        calc_field_energy(&fe_trig, app, t_curr, true);
-        calc_integrated_mom(&im_trig, app, t_curr, true);
-        write_data(&io_trig, app, t_curr, true);
-
-        break;
-      }
-    }
-    else {
-      num_failures = 0;
-    }
-
-    step += 1;
-  }
-
-  calc_field_energy(&fe_trig, app, t_curr, false);
-  calc_integrated_mom(&im_trig, app, t_curr, false);
-  write_data(&io_trig, app, t_curr, false);
-  gkyl_moment_app_stat_write(app);
-
-  struct gkyl_moment_stat stat = gkyl_moment_app_stat(app);
-
-  gkyl_moment_app_cout(app, stdout, \"\\n\");
-  gkyl_moment_app_cout(app, stdout, \"Number of update calls %ld\\n\", stat.nup);
-  gkyl_moment_app_cout(app, stdout, \"Number of failed time-steps %ld\\n\", stat.nfail);
-  gkyl_moment_app_cout(app, stdout, \"Species updates took %g secs\\n\", stat.species_tm);
-  gkyl_moment_app_cout(app, stdout, \"Field updates took %g secs\\n\", stat.field_tm);
-  gkyl_moment_app_cout(app, stdout, \"Source updates took %g secs\\n\", stat.sources_tm);
-  gkyl_moment_app_cout(app, stdout, \"Total updates took %g secs\\n\", stat.total_tm);
-
-freeresources:
-  // Free resources after simulation completion.
-  gkyl_wv_eqn_release(~a);
-  gkyl_comm_release(comm);
-  gkyl_moment_app_release(app);  
-  
-mpifinalize:
-#ifdef GKYL_HAVE_MPI
-  if (app_args.use_mpi) {
-    MPI_Finalize();
-  }
-#endif
-  
-  return 0;
-}
-
-"
-           name
-           name
-           parameter-def
-           name
-           nx
-           (- x1 x0)
-           parameter-assign
-           cfl
-           t-final
-           name
-           parameter-ctx-set
-           (string-titlecase name)
-           init-func-code
-           name
-           name
-           name
-           name
-           name
-           parameter-ctx
-           (string-upcase name)
-           name
-           name
-           (string-titlecase name)
-           name
-           x0
-           x0
            name
            ))
   code)
