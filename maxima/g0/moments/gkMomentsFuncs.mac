@@ -404,7 +404,7 @@ calcGkHamiltonianMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   mM1 : calcInnerProdList(varsP, vmap_e[1], bC, m_*f_e),
   mM1 : map(letsimp, mM1),
 
-  HamPar : calcInnerProdList(varsP, (m_/2)*(vmap_e[1])^2+q_*phi_e, bC, f_e),
+  HamPar : calcInnerProdList(varsP, (m_/2)*(vmap_e[1])^2, bC, f_e),
   HamPar : map(letsimp, HamPar),
 
   HamPot : calcInnerProdList(varsP, q_*phi_e, bC, f_e),
