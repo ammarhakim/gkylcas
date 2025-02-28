@@ -47,7 +47,7 @@
 
     ;; If expr is a maximum of the form (max expr1 expr2 expr2), then convert it to "fmax(expr1, expr2, expr3)" in C.
     [`(max ,arg1 ,arg2 ,arg3)
-     (format "fmax(~a, ~a, ~a)" (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
+     (format "fmax3(~a, ~a, ~a)" (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
 
     ;; If expr is a minimum of the form (max expr1 expr2), then convert it to "fmin(expr1, expr2)" in C.
     [`(min ,arg1 ,arg2)
@@ -55,7 +55,7 @@
 
     ;; If expr is a minimum of the form (max expr1 expr2 expr2), then convert it to "fmin(expr1, expr2, expr3)" in C.
     [`(min ,arg1 ,arg2 ,arg3)
-     (format "fmin(~a, ~a, ~a)" (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
+     (format "fmin3(~a, ~a, ~a)" (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
 
     ;; If expr is a variable assignment of the form (define expr1 expr2), then convert it to "expr1 = expr2" in C.
     [`(define ,arg1 ,arg2)

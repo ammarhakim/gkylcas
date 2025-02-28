@@ -6,7 +6,8 @@
          gkyl-generate-lax-friedrichs-scalar-1d-header
          gkyl-generate-lax-friedrichs-scalar-1d-priv-header
          gkyl-generate-lax-friedrichs-scalar-1d-source
-         gkyl-generate-lax-friedrichs-scalar-1d-regression)
+         gkyl-generate-lax-friedrichs-scalar-1d-regression
+         gkyl-generate-flux-limiter)
 
 ;; A simple boilerplate function for removing bracketed expressions from strings.
 (define (remove-bracketed-expressions str)
@@ -1251,4 +1252,30 @@ mpifinalize:
            x0
            name
            ))
+  code)
+
+;; -------------------------------------------------------------
+;; Code for Gkeyll flux limiter (to be plugged into wave_prop.c)
+;; -------------------------------------------------------------
+(define (gkyl-generate-flux-limiter limiter)
+ "Generate Gkeyll C code (to be inserted into wave_prop.c) for flux limiter `limiter`, to be used for second-order flux extrapolation."
+
+  (define limiter-name (hash-ref limiter 'name))
+  (define limiter-expr (hash-ref limiter 'limiter-expr))
+  (define limiter-ratio (hash-ref limiter 'limiter-ratio))
+
+  (define limiter-code (convert-expr limiter-expr))
+  (define limiter-ratio-code (convert-expr limiter-ratio))
+
+  (define limiter-r (flux-substitute limiter-code limiter-ratio-code "r"))
+
+  (define code
+    (format "
+    case GKYL_~a:
+      theta = ~a;
+      break;
+"
+            (string-upcase limiter-name)
+            limiter-r
+            ))
   code)

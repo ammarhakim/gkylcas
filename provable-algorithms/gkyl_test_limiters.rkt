@@ -1,20 +1,32 @@
 #lang racket
 
-(require "code_generator_core.rkt")
+(require "gkyl_code_generator_lax.rkt")
 (require "prover_core.rkt")
-(provide (all-from-out "code_generator_core.rkt"))
+(provide (all-from-out "gkyl_code_generator_lax.rkt"))
 
-;; Construct /proofs output directory if it does not already exist.
+;; Construct /code and /proofs output directories if they do not already exist.
+(cond
+  [(not (directory-exists? "gkyl_code")) (make-directory "gkyl_code")])
 (cond
   [(not (directory-exists? "proofs")) (make-directory "proofs")])
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod
   (hash
-   'name "minmod"
+   'name "min_mod"
    'limiter-expr `(max 0.0 (min 1.0 r))
    'limiter-ratio `r
    ))
+
+;; Synthesize Gkeyll code (to be plugged into wave_prop.c) for the minmod flux limiter.
+(define code-limiter-minmod
+  (gkyl-generate-flux-limiter limiter-minmod))
+
+;; Output the flux limiter code to a file.
+(with-output-to-file "gkyl_code/minmod_flux_limiter.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-limiter-minmod)))
 
 (display "Minmod flux limiter properties: \n\n")
 
@@ -58,6 +70,16 @@
    'limiter-ratio `r
    ))
 
+;; Synthesize Gkeyll code (to be plugged into wave_prop.c) for the superbee flux limiter.
+(define code-limiter-superbee
+  (gkyl-generate-flux-limiter limiter-superbee))
+
+;; Output the flux limiter code to a file.
+(with-output-to-file "gkyl_code/superbee_flux_limiter.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-limiter-superbee)))
+
 (display "Superbee flux limiter properties: \n\n")
 
 ;; Attempt to prove symmetry (equivalent action on forward and backward gradients) of the superbee flux limiter.
@@ -95,10 +117,20 @@
 ;; Define the monotonized-centered flux limiter.
 (define limiter-monotonized-centered
   (hash
-   'name "monotonized-centered"
+   'name "monotonized_centered"
    'limiter-expr `(max 0.0 (min (* 2.0 r) (/ (+ 1.0 r) 2.0) 2.0))
    'limiter-ratio `r
    ))
+
+;; Synthesize Gkeyll code (to be plugged into wave_prop.c) for the monotonized-centered flux limiter.
+(define code-limiter-monotonized-centered
+  (gkyl-generate-flux-limiter limiter-monotonized-centered))
+
+;; Output the flux limiter code to a file.
+(with-output-to-file "gkyl_code/monotonized_centered_flux_limiter.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-limiter-monotonized-centered)))
 
 (display "Monotonized-centered flux limiter properties: \n\n")
 
@@ -137,10 +169,20 @@
 ;; Define the van Leer flux limiter.
 (define limiter-van-leer
   (hash
-   'name "van-leer"
+   'name "van_leer"
    'limiter-expr `(/ (+ r (abs r)) (+ 1.0 (abs r)))
    'limiter-ratio `r
    ))
+
+;; Synthesize Gkeyll code (to be plugged into wave_prop.c) for the van Leer flux limiter.
+(define code-limiter-van-leer
+  (gkyl-generate-flux-limiter limiter-van-leer))
+
+;; Output the flux limiter code to a file.
+(with-output-to-file "gkyl_code/van_leer_flux_limiter.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-limiter-van-leer)))
 
 (display "Van Leer flux limiter properties: \n\n")
 
