@@ -1,9 +1,11 @@
 #lang racket
 
 (require "gkyl_code_generator_lax_vector.rkt")
+(require "gkyl_code_generator_roe_vector.rkt")
 (require "prover_core.rkt")
 (require "prover_vector.rkt")
 (provide (all-from-out "gkyl_code_generator_lax_vector.rkt"))
+(provide (all-from-out "gkyl_code_generator_roe_vector.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond
@@ -199,3 +201,139 @@
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-maxwell-1d-Ex-phi-lax-local-lipschitz)
 (display "\n\n\n")
+
+;; Synthesize the Gkeyll header code for a Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-roe-header
+  (gkyl-generate-roe-vector2-1d-header pde-system-maxwell-1d-Ex-phi
+                                       #:nx nx
+                                       #:x0 x0
+                                       #:x1 x1
+                                       #:t-final t-final
+                                       #:cfl cfl
+                                       #:init-funcs init-funcs))
+
+;; Output the header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_maxwell_Exphi_roe.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-Ex-phi-roe-header)))
+
+;; Synthesize the Gkeyll private header code for a Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-roe-priv-header
+  (gkyl-generate-roe-vector2-1d-priv-header pde-system-maxwell-1d-Ex-phi
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-funcs init-funcs))
+
+;; Output the private header code to a file.
+(with-output-to-file "gkyl_code/gkyl_wv_maxwell_Exphi_roe_priv.h"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-Ex-phi-roe-priv-header)))
+
+;; Synthesize the Gkeyll source code for a Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-roe-source
+  (gkyl-generate-roe-vector2-1d-source pde-system-maxwell-1d-Ex-phi
+                                       #:nx nx
+                                       #:x0 x0
+                                       #:x1 x1
+                                       #:t-final t-final
+                                       #:cfl cfl
+                                       #:init-funcs init-funcs))
+
+;; Output the source code to a file.
+(with-output-to-file "gkyl_code/wv_maxwell_Exphi_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-Ex-phi-roe-source)))
+
+;; Synthesize a Gkeyll C regression test for a Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define code-maxwell-1d-Ex-phi-roe-regression
+  (gkyl-generate-roe-vector2-1d-regression pde-system-maxwell-1d-Ex-phi
+                                           #:nx nx
+                                           #:x0 x0
+                                           #:x1 x1
+                                           #:t-final t-final
+                                           #:cfl cfl
+                                           #:init-funcs init-funcs))
+
+;; Output the regression test to a file.
+(with-output-to-file "gkyl_code/rt_maxwell_Exphi_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-maxwell-1d-Ex-phi-roe-regression)))
+
+
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector2-1d-hyperbolicity pde-system-maxwell-1d-Ex-phi
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-maxwell-1d-Ex-phi-roe-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_strict_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector2-1d-strict-hyperbolicity pde-system-maxwell-1d-Ex-phi
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_strict_hyperbolicity.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-maxwell-1d-Ex-phi-roe-strict-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Maxwell equations (Ex and phi components).
+(define proof-maxwell-1d-Ex-phi-roe-flux-conservation
+  (call-with-output-file "proofs/proof_maxwell_1d_Ex_phi_roe_flux_conservation.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector2-1d-flux-conservation pde-system-maxwell-1d-Ex-phi
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_maxwell_1d_Ex_phi_roe_flux_conservation.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-maxwell-1d-Ex-phi-roe-flux-conservation)
+(display "\n")

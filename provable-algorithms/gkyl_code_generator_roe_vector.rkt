@@ -619,8 +619,8 @@ wave_roe(const struct gkyl_wv_eqn* eqn, const double* delta, const double* ql, c
 
   double *w0 = &waves[0], *w1 = &waves[2];
   for (int i = 0; i < 2; i++) {
-    w0[i] = 0.5 * ((qr[i] - ql[i]) + (fr[i] - fl[i]) / a_roe[0]);
-    w1[i] = 0.5 * ((qr[i] - ql[i]) + (fr[i] - fl[i]) / a_roe[1]);
+    w0[i] = 0.5 * ((qr[i] - ql[i]) - (fr[i] - fl[i]) / fmax(a_roe[0], a_roe[1]));
+    w1[i] = 0.5 * ((qr[i] - ql[i]) + (fr[i] - fl[i]) / fmax(a_roe[0], a_roe[1]));
   }
 
   for (int i = 0; i < 2; i++) {
