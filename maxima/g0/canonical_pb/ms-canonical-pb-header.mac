@@ -74,6 +74,40 @@ printPrototypes() := block([],
   )
 )$
 
+printFluidPrototypes() := block([],
+  for bInd : 1 thru length(bName) do (
+    for c : 2 thru 2 do ( /* only support dimensionality = 2 for now */
+      minPolyOrderB : minPolyOrder[bInd], 
+      if (bName[bInd] = "tensor") then minPolyOrderB : 2, /* For fluids, Serendipity p=1 and Tensor p=1 are equivalent */
+      for polyOrder : minPolyOrderB thru maxPolyOrder[bInd] do (
+        printf(fh, "GKYL_CU_DH double canonical_pb_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, const double *fin, double* GKYL_RESTRICT out); ~%", c, bName[bInd], polyOrder),
+        printf(fh, "GKYL_CU_DH double canonical_pb_two_fluid_vol_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, const double *fin, double* GKYL_RESTRICT out); ~%", c, bName[bInd], polyOrder),
+        printf(fh, "GKYL_CU_DH void canonical_pb_fluid_hasegawa_mima_source_~ax_~a_p~a(const double *dxv, double alpha, const double *phi, const double *n0, const double *adiabatic_coupling_phi_n, double* GKYL_RESTRICT out); ~%", c, bName[bInd], polyOrder),
+        printf(fh, "GKYL_CU_DH void canonical_pb_fluid_hasegawa_wakatani_source_~ax_~a_p~a(const double *dxv, double alpha, const double *phi, const double *n0, const double *adiabatic_coupling_phi_n, double* GKYL_RESTRICT out); ~%", c, bName[bInd], polyOrder),
+        printf(fh, "GKYL_CU_DH void canonical_pb_fluid_subtract_zonal_~ax_~a_p~a(const double *phi_zonal, const double *n_zonal, double* GKYL_RESTRICT adiabatic_coupling_phi_n); ~%", c, bName[bInd], polyOrder),
+
+        for surfDir : 1 thru c do ( /* Iterate over each phase space coordinate */
+          dirlabel : clabels[surfDir],
+          printf(fh, "GKYL_CU_DH int canonical_pb_alpha_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, bName[bInd], polyOrder),
+          printf(fh, "GKYL_CU_DH int canonical_pb_alpha_edge_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf); ~%", dirlabel, c, bName[bInd], polyOrder), 
+          printf(fh, "GKYL_CU_DH double canonical_pb_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, 
+          const double *alpha_surf_l, const double *alpha_surf_r, 
+          const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
+          const int *const_sgn_alpha_l, const int *const_sgn_alpha_r, 
+          const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", dirlabel, c, bName[bInd], polyOrder), 
+          printf(fh, "GKYL_CU_DH double canonical_pb_two_fluid_surf~a_~ax_~a_p~a(const double *w, const double *dxv, const double *phi, 
+          const double *alpha_surf_l, const double *alpha_surf_r, 
+          const double *sgn_alpha_surf_l, const double *sgn_alpha_surf_r, 
+          const int *const_sgn_alpha_l, const int *const_sgn_alpha_r, 
+          const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", dirlabel, c, bName[bInd], polyOrder)
+        ), 
+        printf(fh, "~%")
+      )
+    )
+  ), 
+  printf(fh, "GKYL_CU_DH void canonical_pb_fluid_default_source(const double *dxv, double alpha, const double *phi, const double *n0, const double *f, double* GKYL_RESTRICT out); ~%")  
+)$
+
 fh : openw("~/max-out/gkyl_canonical_pb_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
@@ -83,6 +117,7 @@ printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG~%")$
 printf(fh, "~%")$
 printPrototypes()$
+printFluidPrototypes()$
 printf(fh, "~%")$
 printf(fh, "EXTERN_C_END~%")$
 close(fh)$
