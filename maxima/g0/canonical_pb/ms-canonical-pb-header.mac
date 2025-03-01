@@ -42,6 +42,10 @@ printPrototypes() := block([],
             printf(fh, "GKYL_CU_DH double canonical_pb_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *hamil,  
               const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
 
+            /* Only make one contravariant to covaraint bulk momentum kernel header line */
+            funcNm : sconcat("canonical_pb_vars_m1i_contra_to_cov_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            printf(fh, "GKYL_CU_DH void ~a(const double *h_ij, const double *v_j, const double *nv_i, double* GKYL_RESTRICT v_j_cov, double* GKYL_RESTRICT nv_i_cov);~%", funcNm, polyOrder),
+
             /* Only make one pressure kernel header line */
             funcNm : sconcat("canonical_pb_vars_pressure_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *MEnergy, const double *v_j, 
