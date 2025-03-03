@@ -41,6 +41,10 @@
     [`(abs ,arg)
      (format "fabs(~a)" (convert-expr arg))]
 
+    ;; If expr is a square root of the form (sqrt expr1), then convert it to "sqrt(expr1)" in C.
+    [`(sqrt ,arg)
+     (format "sqrt(~a)" (convert-expr arg))]
+
     ;; If expr is a maximum of the form (max expr1 expr2), then convert it to "fmax(expr1, expr2)" in C.
     [`(max ,arg1 ,arg2)
      (format "fmax(~a, ~a)" (convert-expr arg1) (convert-expr arg2))]

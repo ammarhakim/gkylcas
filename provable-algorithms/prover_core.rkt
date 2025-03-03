@@ -127,8 +127,25 @@
     ;; If expr is of the form (x * (y + z)) for numeric x, y and z, then just evaluate the product and sum.
     [`(* ,(and x (? number?)) (+ ,(and y (? number?)) ,(and z (? number?)))) (* x (+ y z))]
 
-    ;; Enforce (reverse) distributive property: if expr is of the form ((a * x) + (b * x)), then simplify to ((a + b) * x).
+    ;; If expr is of the form ((x - y) * (x - y)), then simplify to (((x * x) + (y * y)) - (2 * (x * y))).
+    [`(* (- ,x ,y) (- ,x ,y)) `(- (+ (* ,x ,x) (* ,y ,y)) (* 2.0 (* ,x ,y)))]
+
+    ;; If expr is of the form ((a / b) * (c / d)), then simplify to ((a * c) / (b * d)).
+    [`(* (/ ,a ,b) (/ ,c ,d)) `(/ (* ,a ,c) (* ,b ,d))]
+
+    ;; If expr is of the form ((a * (b * c)) / (c * d)), then simplify to ((a * b) / d).
+    [`(/ (* ,a (* ,b ,c)) (* ,c ,d)) `(/ (* ,a ,b) ,d)]
+
+    ;; If expr is of the form ((a * b) + (c - (d * b))), then simplify to (((a - d) * b) + c).
+    [`(+ (* ,a ,b) (- ,c (* ,d ,b))) `(+ (* (- ,a ,d) ,b) ,c)]
+
+    ;; If expr is of the form ((a - b) * x) for symbolic x, then simplify to (x * (a - b)).
+    [`(* (- ,a ,b) ,(and x (? symbol?))) `(* ,x (- ,a ,b))]
+
+    ;; Enforce (reverse) distributive property: if expr is a sum of the form ((a * x) + (b * x)), then simplify to ((a + b) * x).
     [`(+ (* ,a, x) (* ,b ,x)) `(* (+ ,a ,b) ,x)]
+    ;; Likewise for differences.
+    [`(- (* ,a, x) (* ,b ,x)) `(* (- ,a ,b) ,x)]
 
     ;; If expr is of the form (x * (y * z)) for numeric numeric x and y, then evaluate the product of x and y.
     [`(* ,(and x (? number?)) (* ,(and y (? number?)) ,z)) `(* ,(* x y) ,z)]
