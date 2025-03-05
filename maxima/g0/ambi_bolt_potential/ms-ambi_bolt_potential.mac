@@ -8,7 +8,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
-minDim_Ser : 1$
+minDim_Ser : 3$
 maxDim_Ser : 1$
 
 /* Tensor basis. */
@@ -30,7 +30,7 @@ for bInd : 1 thru length(bName) do (
 
     for polyOrder : 1 thru maxPolyOrderB do (
 
-      disp(printf(false,sconcat("Creating asheath_potential_ ~ax p~a ",bName[bInd]),cD,polyOrder)),
+      disp(printf(false,sconcat("Creating a sheath_potential_ ~ax p~a ",bName[bInd]),cD,polyOrder)),
 
       fname : sconcat("~/max-out/ambi_bolt_potential_", cD, "x_p", polyOrder, "_", bName[bInd], ".c"),
       fh : openw(fname),

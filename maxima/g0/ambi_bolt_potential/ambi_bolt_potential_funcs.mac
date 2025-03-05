@@ -28,7 +28,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
 
   /* Load a basis of one fewer dimension for projecting onto sheath surface. */
   if dim>1 then (
-    [basisLowD, varsLowD] : loadBasis(basisNm, dim-1, polyOrder),
+    [varsLowD, basisLowD] : loadBasis(basisNm, dim-1, polyOrder),
     subList   : makelist(varsLowD[i]=sheathSurfVars[i],i,1,dim-1),
     varsLowD  : psubst(subList, varsLowD),
     basisLowD : psubst(subList, basisLowD)
@@ -120,7 +120,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
       printf(fh,"  double phiS_qp[~a];~%", ordNum),
       phiS_n : makelist(0,i,1,ordNum),
       for i : 1 thru ordNum do (
-        phiS_n[i] : (T_e/q_e)**log(sqrt(2*%pi)*GammaJacIonB_n[i]/(m0JacIonB_n[i]*sqrt(T_e/m_e))),
+        phiS_n[i] : (T_e/q_e)*log(sqrt(2*%pi)*GammaJacIonB_n[i]/(m0JacIonB_n[i]*sqrt(T_e/m_e))),
         printf(fh,"  if ((isfinite(~a)) && (~a>0.) && (~a>0.)) {~%",GammaJacIonB_n[i],GammaJacIonB_n[i],m0JacIonB_n[i]),
         printf(fh,"    phiS_qp[~a] = ~a;~%",i-1,float(expand(phiS_n[i]))),
         printf(fh,"  } else {~%"),
