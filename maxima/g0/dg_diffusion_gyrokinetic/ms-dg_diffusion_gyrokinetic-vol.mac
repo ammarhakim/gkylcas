@@ -10,7 +10,7 @@ load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-vol")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -22,40 +22,42 @@ maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
+vDims : [[1,2], [2], [2]]$
+
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
-minCdim      : [minCdim_Ser, minCdim_Tensor]$
-maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+minCdim      : [minCdim_Ser     , minCdim_Tensor     ]$
+maxCdim      : [maxCdim_Ser     , maxCdim_Tensor     ]$
 
 for bInd : 1 thru length(bName) do (
-  for d : minCdim[bInd] thru maxCdim[bInd] do (
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    for cdim : minCdim[bInd] thru maxCdim[bInd] do (
+      for vdim in vDims[cdim] do (
 
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order2_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("dg_diffusion_gyrokinetic_order2_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 2),
-      close(fh),
-
-      disp(printf(false,sconcat("Creating volume hyper 4th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order4_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("dg_diffusion_gyrokinetic_order4_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 4),
-      close(fh),
-
-      if polyOrder > 1 then (
-        disp(printf(false,sconcat("Creating volume hyper 6th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-        fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order6_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~ax ~av p~a"),cdim,vdim,polyOrder)),
+        fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order2_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("dg_diffusion_gyrokinetic_order6_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-        genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 6),
-        close(fh)
+        funcName : sconcat("dg_diffusion_gyrokinetic_order2_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+        genDGdiffGyrokineticKernelVol(fh, funcName, cdim, vdim, bName[bInd], polyOrder, 2),
+        close(fh),
+  
+        disp(printf(false,sconcat("Creating volume hyper 4th order diffusion",bName[bInd]," ~ax ~av p~a"),cdim,vdim,polyOrder)),
+        fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order4_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("dg_diffusion_gyrokinetic_order4_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+        genDGdiffGyrokineticKernelVol(fh, funcName, cdim, vdim, bName[bInd], polyOrder, 4),
+        close(fh),
+  
+        if polyOrder > 1 then (
+          disp(printf(false,sconcat("Creating volume hyper 6th order diffusion",bName[bInd]," ~ax ~av p~a"),cdim,vdim,polyOrder)),
+          fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order6_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("dg_diffusion_gyrokinetic_order6_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+          genDGdiffGyrokineticKernelVol(fh, funcName, cdim, vdim, bName[bInd], polyOrder, 6),
+          close(fh)
+        )
       )
     )
   )

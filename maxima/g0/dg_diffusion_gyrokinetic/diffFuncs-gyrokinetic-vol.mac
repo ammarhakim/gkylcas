@@ -9,13 +9,13 @@ fpprec : 24$
    Supports diffusion types: d^(n/2)(D_i(x)* d^(n/2)(f)/dx_i^n)dx_i^(n/2) (summation
    implied) for n=2,4,6. */
 
-genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
-  [vars,basis,numB,jacobgeo_inv_e,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
+genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
+  [varsV,basisC,vars,basis,vSub,numB,jacobgeo_inv_e,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
 
-  [vars, basis] : loadBasis(basisType, cdim, polyOrder),
+  [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
   numB : length(basis),
 
-  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basis),
+  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
 
   if constCoeff then (
     coeffType : "const",
@@ -54,16 +54,17 @@ getDirCombos(varsIn) := block([pss,ps,combos],
   return(combos)
 )$
 
-genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, basisType, polyOrder, diffOrder) := block(
-  [vars,basis,diffDirCombos,cI,dir,diffDirs,diffDirNum,diffDirInP,diffDirsStr,dI],
+genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder) := block(
+  [varsC,basisC,vars,basis,vSub,diffDirCombos,cI,dir,diffDirs,diffDirNum,diffDirInP,diffDirsStr,dI],
 
   printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_kernels.h>~%"),
   printf(fh, "~%"),
 
-  [vars, basis] : loadBasis(basisType, cdim, polyOrder),
+  [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  numBasis : length(basis),
 
   /* Combinations of directions in which to apply diffusion. */
-  diffDirCombos : getDirCombos(vars),
+  diffDirCombos : getDirCombos(varsC),
 
   diffCoeffType : [true, false],
   /* Let's not generate inhomogeneous hyperdiff for now. */
@@ -79,7 +80,7 @@ genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, basisType, polyOrder, diffOrder)
 
     /* Print functions with volume contribution from each direction. */
     for dir : 1 thru cdim do (
-      genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffOrder, dir, cI),
+      genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder, dir, cI),
       printf(fh, "~%")
     ),
     

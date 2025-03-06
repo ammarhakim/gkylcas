@@ -29,10 +29,8 @@ genDGdiffGyrokineticKernelSurf(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
       coeffType : "var",
       /* Here we assume diffusion coefficient only depends on position space,
          but it coule be easily changed to vary with velocity space too. */
-      if vdim=0 then basisC : basis,
-      numBasisC : length(basisC),
-      coeff_c : makelist(coeff[(dir-1)*numBasisC+i-1],i,1,numBasisC),
-      coeff_e : doExpand(coeff_c, basisC)
+      coeff_c : makelist(coeff[(dir-1)*numBasis+i-1],i,1,numBasis),
+      coeff_e : doExpand(coeff_c, basis)
     ),
   
     printf(fh, "GKYL_CU_DH double ~a_~acoeff(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *ql, const double *qc, const double *qr, double* GKYL_RESTRICT out) ~%", funcNm, coeffType),
