@@ -1,6 +1,6 @@
 /* Generate kernels that compute the integrated moments of the distribution function. */
 
-load("moments/vlasovIntMomentsFuncs-C")$
+load("moments/vlasovIntMomentsFuncs")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -14,13 +14,12 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 3$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */

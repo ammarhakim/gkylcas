@@ -34,14 +34,14 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
-  printf(fh, "~adouble vlasov_sr_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~adouble vlasov_sr_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_sr_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_sr_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~adouble vlasov_sr_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_sr_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   for si : 1 thru vi do (
-    printf(fh, "~adouble vlasov_sr_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_sr_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *p_over_gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_sr_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_sr_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
 
   printf(fh, "~%")

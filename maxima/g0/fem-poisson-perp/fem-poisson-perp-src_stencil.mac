@@ -25,7 +25,7 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
    massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,domSurfs,phi_e,surf_c,insertVal,dirichletDirs,opStr,dir,
    dirichletNodesI,dirVar,surfVars,off3,k0,bcValues,eps_dphidnBC,sI,fh,d,bcsInDir,i,bcI,polyOrder,dI,k],
 
-  dimPerp : 2,
+  dimPerp : dim-1,
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -62,7 +62,7 @@ generate_fem_poisson_perp_src_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
                       assoc(stencilLoc[sI][d],coordVarS)[d])
     ),
 
-    fname : sconcat("~/max-out/fem_poisson_perp_src_stencil",stencilLocStr,"_",basisFun,".c"),
+    fname : sconcat("~/max-out/fem_poisson_perp_src_stencil",stencilLocStr,"_",dim,"x_",basisFun,".c"),
     fh    : openw(fname),
     printf(fh, "#include <gkyl_fem_poisson_perp_kernels.h> ~%"),
     printf(fh, " ~%"),

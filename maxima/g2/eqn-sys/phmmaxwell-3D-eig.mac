@@ -39,9 +39,11 @@ Evs : (Evs : [], for i from 1 thru length(vals[1])
 
 /** Jump in Q */
 jump : makelist(qr[i]-ql[i],i,0,7)$
+delta_h : makelist(delta[i],i,0,7)$
 
 /** Split it */
 alpha : Lev . jump$
+alpha_h : Lev . delta$
 
 Waves : (Waves : matrix([]), for i from 1 thru 8 
   do (Waves : addcol(Waves, alpha[i][1]*col(Rev, i))), Waves)$
@@ -61,6 +63,9 @@ Am : (Am : zeromatrix(8,1), for i from 1 thru 8
   do (Am : Am + sm[1][i]*col(Waves, i)),
   Am)$
 
+isZeros : fullratsimp(
+  Ap+Am - A.jump
+  )$
 
 fh : openw("~/max-out/qfluct.c")$
 for i : 1 thru 8 do (

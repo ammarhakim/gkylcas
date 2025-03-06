@@ -32,13 +32,23 @@ maxGkVdim      : [maxVdim_Ser]$
 printPrototypeVlasov(deco, ci, vi, bStr, pi) := block([si],
   /* Primitive vars for vlasov objects. */
   printf(fh, "~avoid vlasov_prim_vars_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%")  
+  printf(fh, "~avoid vlasov_prim_vars_u_i_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_prim_vars_vtSq_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%"),
+  printf(fh, "~avoid transform_prim_vars_vlasov_~ax~av_~a_p~a(const double *b_i, const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid transform_u_par_i_~ax~av_~a_p~a(const double *b_i, const double *moms, double* u_par_i); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")
 )$
 
 printPrototypeGK(deco, ci, vi, bStr, pi) := block([si],
-  /* Primitive vars for vlasov objects. */
+  /* Primitive vars for GK objects. */
   printf(fh, "~avoid gyrokinetic_prim_vars_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%") 
+  printf(fh, "~avoid gyrokinetic_prim_vars_upar_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid gyrokinetic_prim_vars_vtSq_~ax~av_~a_p~a(const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%"), 
+  printf(fh, "~avoid transform_prim_vars_gk_~ax~av_~a_p~a(const double *b_i, const double *moms, double* prim_vars); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid transform_u_par_~ax~av_~a_p~a(const double *b_i, const double *moms, double* u_par); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")					 
 )$
 
 fh : openw("~/max-out/gkyl_dg_prim_vars_kernels.h")$
@@ -64,6 +74,7 @@ for bInd : 1 thru length(bName) do (
     )
   )
 );
+
 printf(fh, "~%")$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -73,7 +84,7 @@ for bInd : 1 thru length(bName) do (
       for vgk : minGkVdim[bInd] thru maxGkVdim[bInd] do (
         for polyOrder : minPolyOrderB thru maxPolyOrderB do (
           printPrototypeGK(decorator, c, vgk, bName[bInd], polyOrder)
-	)
+	      )
       )
     ),
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (

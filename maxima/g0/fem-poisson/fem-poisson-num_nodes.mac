@@ -49,7 +49,7 @@ generate_fem_poisson_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
     for polyOrder : 1 thru pMax do (
 
       printf(fh, "long ~a_p~a~a(const int *numCells) ~%{ ~%", funcNm, polyOrder, stencilStr),
-      printf(fh, "  // numCells:       number of cells in each direction.~%"),
+      printf(fh, "  // numCells: number of cells in each direction.~%"),
       printf(fh, "~%"),
 
       bN   : getNodalBasis(basisFun, dim, polyOrder),

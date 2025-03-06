@@ -1,7 +1,7 @@
 /* Generate kernels that compute the moments of the gyrocenter distribution function
-     for use by the gyrokinetic solver. */
+   for use by the gyrokinetic solver. */
 
-load("moments/gkMomentsFuncs-C")$
+load("moments/gkMomentsFuncs")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -18,7 +18,7 @@ maxCdim_Ser : 3$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 0$
 
 /* Vdim possibilities for each of Cdim=[1,2,3]. */
 gkVdims : [[1,2], [2], [2]]$
@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 2,
+      if (c+v>4 and maxPolyOrderB > 2) then maxPolyOrderB : 1,
 
       /* gyrokinetic moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (

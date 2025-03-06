@@ -15,11 +15,6 @@ dx11 : [dx10, dx11, dx12]$
 statevec : [rhou0, rhou1, rhou2, energy]$
 lhs : [outrhou0, outrhou1, outrhou2, outenergy]$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 /* 1D Euler special since only involves evaluations */
 calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,NC,cid,cv,surfVars,
@@ -761,10 +756,10 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of Ghat_l which are empty. */
-  Ghat_rhoux_l_e : doExpandLst(doMakeExprLst(Ghat_rhoux_l_c, Ghat_rhoux_l), bSurf),
-  Ghat_rhouy_l_e : doExpandLst(doMakeExprLst(Ghat_rhouy_l_c, Ghat_rhouy_l), bSurf),
-  Ghat_rhouz_l_e : doExpandLst(doMakeExprLst(Ghat_rhouz_l_c, Ghat_rhouz_l), bSurf),
-  Ghat_energy_l_e : doExpandLst(doMakeExprLst(Ghat_energy_l_c, Ghat_energy_l), bSurf),
+  Ghat_rhoux_l_e : doExpand(makelistNoZeros1(Ghat_rhoux_l_c, Ghat_rhoux_l), bSurf),
+  Ghat_rhouy_l_e : doExpand(makelistNoZeros1(Ghat_rhouy_l_c, Ghat_rhouy_l), bSurf),
+  Ghat_rhouz_l_e : doExpand(makelistNoZeros1(Ghat_rhouz_l_c, Ghat_rhouz_l), bSurf),
+  Ghat_energy_l_e : doExpand(makelistNoZeros1(Ghat_energy_l_c, Ghat_energy_l), bSurf),
 
   writeCExprs1(Ghat_rhoux_r, Ghat_rhoux_r_c),
   printf(fh, "~%"),
@@ -783,10 +778,10 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of Ghat_r which are empty. */
-  Ghat_rhoux_r_e : doExpandLst(doMakeExprLst(Ghat_rhoux_r_c, Ghat_rhoux_r), bSurf),
-  Ghat_rhouy_r_e : doExpandLst(doMakeExprLst(Ghat_rhouy_r_c, Ghat_rhouy_r), bSurf),
-  Ghat_rhouz_r_e : doExpandLst(doMakeExprLst(Ghat_rhouz_r_c, Ghat_rhouz_r), bSurf),
-  Ghat_energy_r_e : doExpandLst(doMakeExprLst(Ghat_energy_r_c, Ghat_energy_r), bSurf),
+  Ghat_rhoux_r_e : doExpand(makelistNoZeros1(Ghat_rhoux_r_c, Ghat_rhoux_r), bSurf),
+  Ghat_rhouy_r_e : doExpand(makelistNoZeros1(Ghat_rhouy_r_c, Ghat_rhouy_r), bSurf),
+  Ghat_rhouz_r_e : doExpand(makelistNoZeros1(Ghat_rhouz_r_c, Ghat_rhouz_r), bSurf),
+  Ghat_energy_r_e : doExpand(makelistNoZeros1(Ghat_energy_r_c, Ghat_energy_r), bSurf),
 
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), Ghat_rhoux_l_e),
   incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), Ghat_rhoux_r_e),
