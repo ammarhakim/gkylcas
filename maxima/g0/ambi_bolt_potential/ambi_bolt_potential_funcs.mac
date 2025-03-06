@@ -121,7 +121,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
       phiS_n : makelist(0,i,1,ordNum),
       for i : 1 thru ordNum do (
         phiS_n[i] : (T_e/q_e)*log(sqrt(2*%pi)*GammaJacIonB_n[i]/(m0JacIonB_n[i]*sqrt(T_e/m_e))),
-        printf(fh,"  if ((isfinite(~a)) && (~a>0.) && (~a>0.)) {~%",GammaJacIonB_n[i],GammaJacIonB_n[i],m0JacIonB_n[i]),
+        printf(fh,"  if ((isfinite(~a)) && (~a>0.) && (~a>0.)) {~%",float(GammaJacIonB_n[i]),float(GammaJacIonB_n[i]),float(m0JacIonB_n[i])),
         printf(fh,"    phiS_qp[~a] = ~a;~%",i-1,float(expand(phiS_n[i]))),
         printf(fh,"  } else {~%"),
         printf(fh,"    phiS_qp[~a] = 0.0;~%",i-1),
@@ -137,9 +137,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
           phiSlowD_c[k] : phiSlowD_c[k]+weights[i]*subst(makelist(varsLowD[d]=nOrd[d],d,1,dim-1),basisLowD[k])*phiS_qp[i-1]
         )
       ),
-      writeCExprsNoExpand1(phiSlowD, phiSlowD_c),
-      phiSlowD_e : doExpand(phiSlowD_c, basisLowD),
-      printf(fh,"~%")
+      phiSlowD_e : doExpand(phiSlowD_c, basisLowD)
     ),
 
     phiS_c : calcInnerProdList(vars, 1, basis, phiSlowD_e),

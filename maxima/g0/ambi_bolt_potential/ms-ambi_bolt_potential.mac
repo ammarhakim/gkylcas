@@ -8,8 +8,8 @@ load(stringproc)$
 
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
-minDim_Ser : 3$
-maxDim_Ser : 1$
+minDim_Ser : 1$
+maxDim_Ser : 3$
 
 /* Tensor basis. */
 maxPolyOrder_Tensor : 2$
