@@ -16,7 +16,7 @@
 ;; Define the 1D Maxwell equations (Bx and psi components).
 (define pde-system-maxwell-1d-Bx-psi
   (hash
-    'name "maxwell-1d-Bx-psi"
+    'name "maxwell_Bxpsi"
     'cons-exprs (list
                  `Bx
                  `psi)                        ; conserved variables: magnetic field (x-component), magnetic field correction potential (psi).

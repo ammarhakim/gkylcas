@@ -290,9 +290,11 @@
 
 ;; Recursively apply the symbolic simplification rules until the expression stops changing (fixed point).
 (define (symbolic-simp expr)
+  (define simp-expr (symbolic-simp-rule expr))
+  
   (cond
-    [(equal? (symbolic-simp-rule expr) expr) expr]
-    [else (symbolic-simp (symbolic-simp-rule expr))]))
+    [(equal? simp-expr expr) expr]
+    [else (symbolic-simp simp-expr)]))
 
 ;; Recursively determine whether an expression corresponds to a real number.
 (define (is-real expr cons-vars parameters)
@@ -441,9 +443,11 @@
 
 ;; Recursively apply the symbolic simplification rules (assuming strict positivity of pos-var) until the expression stops changing (fixed point).
 (define (symbolic-simp-positive expr pos-var)
+  (define simp-pos-expr (symbolic-simp-positive-rule expr pos-var))
+  
   (cond
-    [(equal? (symbolic-simp-positive-rule expr pos-var) expr) expr]
-    [else (symbolic-simp-positive (symbolic-simp-positive-rule expr pos-var) pos-var)]))
+    [(equal? simp-pos-expr expr) expr]
+    [else (symbolic-simp-positive simp-pos-expr pos-var)]))
 
 ;; Lightweight symbolic limit evaluation rules (computes limit of expr as var approaches lim).
 (define (evaluate-limit-rule expr var lim)
@@ -498,10 +502,11 @@
 ;; Recursively apply the limit evaluation rules until the expression stops changing (fixed point).
 (define (evaluate-limit expr var limit)
   (define limit-val (variable-transform expr var limit))
+  (define limit-expr (evaluate-limit-rule limit-val var limit))
   
   (cond
-    [(equal? (evaluate-limit-rule limit-val var limit) expr) expr]
-    [else (evaluate-limit (evaluate-limit-rule limit-val var limit) var limit)]))
+    [(equal? limit-expr expr) expr]
+    [else (evaluate-limit limit-expr var limit)]))
 
 ;; ----------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Scalar PDE

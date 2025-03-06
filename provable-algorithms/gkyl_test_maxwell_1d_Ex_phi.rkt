@@ -16,7 +16,7 @@
 ;; Define the 1D Maxwell equations (Ex and phi components).
 (define pde-system-maxwell-1d-Ex-phi
   (hash
-    'name "maxwell-1d-Ex-phi"
+    'name "maxwell_Exphi"
     'cons-exprs (list
                  `Ex
                  `phi)                        ; conserved variables: electric field (x-component), electric field correction potential (phi).

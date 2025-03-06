@@ -285,9 +285,11 @@
 
 ;; Recursively apply the symbolic simplification rules until the expression stops changing (fixed point).
 (define (symbolic-simp expr)
+  (define simp-expr (symbolic-simp-rule expr))
+  
   (cond
-    [(equal? (symbolic-simp-rule expr) expr) expr]
-    [else (symbolic-simp (symbolic-simp-rule expr))]))
+    [(equal? simp-expr expr) expr]
+    [else (symbolic-simp simp-expr)]))
 
 ;; Recursively determine whether an expression corresponds to a real number.
 (define (is-real expr cons-vars parameters)
