@@ -1,0 +1,51 @@
+kill(all)$
+load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-projC")$
+
+/* Generate kernels to project the diffusion coefficient of the gyrokinetic
+   diffusion operator. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 1$
+minCdim_Ser : 1$
+maxCdim_Ser : 2$
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+vDims : [[1,2], [2], [2]]$
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser     , minCdim_Tensor     ]$
+maxCdim      : [maxCdim_Ser     , maxCdim_Tensor     ]$
+
+for bInd : 1 thru length(bName) do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    for cdim : minCdim[bInd] thru maxCdim[bInd] do (
+
+      pss : listify(powerset(setify(makelist(i,i,1,cdim)))),
+      diffDirs : makelist(listify(pss[i]),i,2,length(pss)),
+
+      for vdim in vDims[cdim] do (
+
+        disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~ax ~av p~a"),cdim,vdim,polyOrder)),
+        fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_proj_coeff_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("dg_diffusion_gyrokinetic_proj_coeff_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+        gen_gk_diff_projC_kernel(fh, funcName, cdim, vdim, bName[bInd], polyOrder, diffDirs),
+        close(fh)
+
+      )
+    )
+  )
+)$

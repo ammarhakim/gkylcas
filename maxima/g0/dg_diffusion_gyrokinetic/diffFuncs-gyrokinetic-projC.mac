@@ -1,0 +1,122 @@
+/**
+ * Create kernels which project the diffusion coefficient
+ *  g^{ij}*J*nu_i*(1+xi_i*v^2/v_t^2)
+ * onto the phase basis.
+ *
+ */
+load("modal-basis")$
+load("out-scripts")$
+load("gyrokinetic/gkUtil")$
+fpprec : 24$
+
+gen_gk_diff_projC_kernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, diffDirCombos) := block(
+  [vdim_low,polyOrder_low,varsC,bC,varsP,bP,vSub,cdim_low,varsC_low,
+   bC_low,varsP_low,bP_low,vSub_low,flow_e,fout_c],
+
+  /* Get desired basis. */
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numBP : length(bP),
+  numBC : length(bC),
+
+  printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_proj_coeff_kernels.h>~%"),
+  printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", basisFun, cdim, polyOrder),
+  printf(fh, "~%"),
+
+  for diffDirs in diffDirCombos do (
+
+    diffDirsStr : "",
+    for dI in diffDirs do (diffDirsStr : sconcat(diffDirsStr,string(varsC[dI]))),
+
+    printf(fh, "GKYL_CU_DH void ~a_diffdirs~a(const double *xc, const double *dx, const double *nu, const double *xi, double mass, double vtsq_min, const double *gijJ, const double *bmag, const double *vtsq, const double *vmap, const double *vmapSq, double *out) ~%{ ~%", funcNm, diffDirsStr),
+    printf(fh, "  // xc: cell center coordinates.~%"),
+    printf(fh, "  // dx: cell length in each direction.~%"),
+    printf(fh, "  // nu: overall multiplicative factor in the coefficient.~%"),
+    printf(fh, "  // xi: factor multiplying v^2 in the coefficient.~%"),
+    printf(fh, "  // mass: species mass.~%"),
+    printf(fh, "  // vtsq_min: Minimum thermal speed supported by the grid (squared).~%"),
+    printf(fh, "  // gijJ: contravariant metric multiplied by the Jacobian.~%"),
+    printf(fh, "  // bmag: magnetic field amplitude .~%"),
+    printf(fh, "  // vtsq: thermal speed squared.~%"),
+    printf(fh, "  // vmap: velocity space mapping.~%"),
+    printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
+    printf(fh, "  // out: DG coefficients of the diffusion coefficent.~%"),
+    printf(fh, "~%"),
+
+    /* Expand the velocity mapping arrays. */
+    [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+
+    /* Expand the magnetic field and geometric quantities in axisymmetric basis. */
+    bmagBasis : getAxisymmetricConfBasis(bC),
+    bmag_e    : doExpand1(bmag, bmagBasis),
+
+    /*
+      Compute 1/vtsq, flooring vtsq at nodes by the value of vtsq_min.
+    */
+    nodes : gaussOrd(polyOrder+1, cdim),
+    numNodes : length(nodes),
+
+    /* Evaluate vtsq at nodes. */
+    vtsq_e : doExpand1(vtsq, bC),
+    vtsq_n : evAtNodes(vtsq_e, nodes, varsC),
+    printf(fh, "  double vtsq_nod[~a];~%",numNodes),
+    writeCExprs1(vtsq_nod, vtsq_n),
+    printf(fh, "~%"),
+
+    /* Loop over the nodes, and if vtsq at that node is <vtsq_min, set it to vtsq_min. */
+    printf(fh, "  // If vtsq < 0. at nodes, set it to vtsq_min.~%"),
+    for i : 1 thru numNodes do (
+      printf(fh, "  vtsq_nod[~a] = fmax(vtsq_min, vtsq_nod[~a]);~%", i-1, i-1)
+    ),
+    printf(fh, "~%"),
+    vtsq_n : makelist(vtsq_nod[i-1],i,1,numNodes),
+    nodToMod : calcNodToModWithNodes(basisFun, cdim, polyOrder, nodes),
+
+    /* Convert nodal values to modal and write out the new vtsq. */
+    vtsq_c : nodToMod . vtsq_n,
+    vtsq_c : makelist(fullratsimp(vtsq_c[i][1]),i,1,numBC),
+    printf(fh, "  double vtsq_floored[~a];~%",numBC),
+    writeCExprs1(vtsq_floored, vtsq_c),
+    printf(fh, "~%"),
+
+    /* Invert vtsq and write it out. */
+    printf(fh, "  double vtsq_inv[~a] = {0.0};~%", numBC),
+    printf(fh, "  ~a_~ax_p~a_inv(vtsq_floored, vtsq_inv); ~%", basisFun, cdim, polyOrder),
+    printf(fh, "~%"),
+    vtsq_inv_e : doExpand1(vtsq_inv, bC),
+
+    /* Compute v^2. */
+    if (vdim = 1) then (
+      vsq_c : calcInnerProdList(varsP,1,bP,vmapSq_e[1])
+    ) else (
+      vsq_c : calcInnerProdList(varsP,1,bP,vmapSq_e[1] + 2*vmap_e[2]*bmag_e/mass)
+    ),
+    vsq_e : doExpand1(vsq, bP),
+    printf(fh, "  double vsq[~a] = {0.0}; ~%", numBP),
+    writeCExprs1(vsq, vsq_c),
+    printf(fh, "~%"),
+
+    for dir in diffDirs do (
+      /* Pick the component in gijJ so we use giiJ, assuming the ordering gxx,
+         gxy, gxz, gyy, gyz, gzz. */
+      gijOff : 2*dir-1,
+      if (dir = 1) then ( gijOff : 0 ),
+
+      gijJ_c : makelist(gijJ[gijOff*numBC+i-1],i,1,numBC),
+      gijJ_e : doExpand(gijJ_c, bmagBasis),
+
+      /* Project the diffusion coefficient. */
+      out_c : calcInnerProdList(varsP,1,bP,gijJ_e*nu[dir-1]*(1+xi[dir-1]*vsq_e*vtsq_inv_e)),
+    
+      expr : float(expand(out_c)),
+      for i : 1 thru length(expr) do (
+        if expr[i] # 0.0 then printf(fh, "  ~a = ~a; ~%", out[(dir-1)*numBP+i-1], expr[i])
+      ),
+      printf(fh, "~%")
+    ),
+
+    printf(fh, "}~%"),
+    printf(fh, "~%")
+
+  )
+
+)$
