@@ -13,7 +13,7 @@
 (cond
   [(not (directory-exists? "proofs")) (make-directory "proofs")])
 
-;; Define the 1D isothermal Euler equations.
+;; Define the 1D isothermal Euler equations (y- and z-momentum components).
 (define pde-system-isothermal-euler-mom-yz
   (hash
    'name "isothermal-euler-mom-yz"
