@@ -405,7 +405,8 @@ static inline void
 *
 * @param ref Reference counter for ~a equations.
 */
-void gkyl_~a_free(const struct gkyl_ref_count* ref);
+void
+gkyl_~a_free(const struct gkyl_ref_count* ref);
 "
            name
            parameter-def
