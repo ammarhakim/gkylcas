@@ -1,10 +1,10 @@
 /*
-  Generate kernels for the updates from the surface term
-  contributions from the drag portion of the 
+  Generate kernels for the updates from the volume term
+  contributions from the diffusion portion of the 
   Rosenbluth/Fokker-Planck Operator
 */
 
-load("fpo/funcs-fpo-vlasov-drag-surf")$
+load("fpo/funcs-fpo-vlasov-diff-vol")$
 
 /* ...... USER INPUTS........ */
 
@@ -36,22 +36,15 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-dirs : [vx, vy, vz]$
-
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for vidx : 1 thru length(dirs) do (
-      minPolyOrderB : minPolyOrder[bInd],
-      maxPolyOrderB : maxPolyOrder[bInd],
-      if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
-
-      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        pv : dirs[vidx],
-        fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
-          c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
-        funcNm : sconcat("fpo_vlasov_drag_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragSurf(fname, funcNm, c, bName[bInd], polyOrder, pv)
-      )
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      fname : sconcat("~/max-out/fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
+      funcNm : sconcat("fpo_vlasov_diff_vol_",c,"x3v_",bName[bInd],"_p",polyOrder),
+      generateFpoVlasovDiffVol(fname, funcNm, c, bName[bInd], polyOrder)
     )
   )
 )$

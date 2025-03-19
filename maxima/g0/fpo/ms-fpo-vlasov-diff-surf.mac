@@ -1,10 +1,10 @@
 /*
   Generate kernels for the updates from the surface term
-  contributions from the drag portion of the 
+  contributions from the diffusion portion of the 
   Rosenbluth/Fokker-Planck Operator
 */
 
-load("fpo/funcs-fpo-vlasov-drag-surf")$
+load("fpo/funcs-fpo-vlasov-diff-surf")$
 
 /* ...... USER INPUTS........ */
 
@@ -37,20 +37,33 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 dirs : [vx, vy, vz]$
+dirCombos : listify(cartesian_product(setify(dirs), setify(dirs)))$
+
+dirNums : [[vx, 1], [vy, 2], [vz, 3]]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for vidx : 1 thru length(dirs) do (
+    for vidx : 1 thru length(dirCombos) do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        pv : dirs[vidx],
-        fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
+        pv1 : dirCombos[vidx][1],
+        pv2 : dirCombos[vidx][2],
+        pvdir1 : assoc(pv1,dirNums),
+        pvdir2 : assoc(pv2,dirNums),
+
+        fname : sconcat("~/max-out/fpo_vlasov_diff_surf",pv1,pv2,"_",
           c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
-        funcNm : sconcat("fpo_vlasov_drag_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragSurf(fname, funcNm, c, bName[bInd], polyOrder, pv)
+        funcNm : sconcat("fpo_vlasov_diff_surf",pv1,pv2,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
+
+        if (pvdir1 = pvdir2) then (
+          generateFpoVlasovDiffSurfDiag(fname, funcNm, c, bName[bInd], polyOrder, pv1)
+        )
+        else (
+          generateFpoVlasovDiffSurfCross(fname, funcNm, c, bName[bInd], polyOrder, pv1, pv2)
+        )
       )
     )
   )
