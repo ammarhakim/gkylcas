@@ -67,7 +67,7 @@ calcGKCrossPrimMomsBGK(fh, funcNm, cdim, vgk, basisFun, polyOrder) := block(
   printf(fh, "  double T2[~a] = {0.0}; ~%", NC), 
   printf(fh, "  double T3[~a] = {0.0}; ~%", NC), 
   printf(fh, "  double cVtsq[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double prod = 1.0; ~%"),
+  printf(fh, "  bool negative_cross_temp = false; ~%"),
   printf(fh, "~%"),
 
   /* Caculate alphaE. */
@@ -130,9 +130,9 @@ calcGKCrossPrimMomsBGK(fh, funcNm, cdim, vgk, basisFun, polyOrder) := block(
   vtsq_sr_e : doExpand1(vtsq_sr,bC),
   vtsq_sr_corners : gcfac(float(fullratsimp( evAtNodes(vtsq_sr_e,nodes,varsC) ))),
   for i : 1 thru length(nodes) do (
-    printf(fh, "  prod *= ~a; ~%", vtsq_sr_corners[i])
+    printf(fh, "  if (~a < 0.0) negative_cross_temp = true; ~%", vtsq_sr_corners[i])
   ),
-  printf(fh, "  if (prod <= 0) { ~%"),
+  printf(fh, "  if (negative_cross_temp) { ~%"),
   for j : 1 thru NC do (
     printf(fh, "    upar_sr[~a] = upar_s[~a]; ~%", j-1, j-1),
     printf(fh, "    vtsq_sr[~a] = vtsq_s[~a]; ~%", j-1, j-1)
