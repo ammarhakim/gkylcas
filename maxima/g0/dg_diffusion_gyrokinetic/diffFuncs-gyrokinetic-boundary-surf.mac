@@ -154,15 +154,15 @@ genDGdiffGyrokineticKernelBoundarySurf(fh, funcNm, cdim, vdim, basisType, polyOr
     writeCExprs1(boundSurf_incr, boundSurf_incr_c),
     printf(fh, "~%"),
 
+    printf(fh, "  }~%"),
+    printf(fh, "~%"),
+
     vol_out  : makelist(vol_incr[i-1],i,1,numBasis),
     diff_out : makelist(edgeSurf_incr[i-1],i,1,numBasis),
     edge_out : makelist(boundSurf_incr[i-1],i,1,numBasis),
     writeCIncrExprsNoExpand1(out, ((-1)^(diffOrder/2+1))*rdx2Sq*(diff_out + edge_out + vol_out)),
     printf(fh, "~%"),
   
-    printf(fh, "  }~%"),
-    printf(fh, "~%"),
-
     printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
     printf(fh, "}~%~%")
   )
