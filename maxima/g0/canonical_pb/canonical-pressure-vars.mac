@@ -24,6 +24,11 @@ calcCanonicalPbPressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
+  /* For p2 tensor, choose tensor, otherwise just use ser */
+  if not(basisFun = "tensor" and polyOrder = 2 and cdim > 1) then (
+    basisFun : "ser"
+  ),
+
   /* printf(fh, "#include <gkyl_euler_canonical_pb_kernels.h> ~%"), */
   printf(fh, "#include <gkyl_canonical_pb_kernels.h>  ~%"),
   printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),

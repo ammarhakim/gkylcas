@@ -47,7 +47,7 @@ for bInd : 1 thru length(bName) do (
         disp(printf(false,sconcat("Creating Integrated Gyrokinetic Moments ~ax ~av p~a ", bName[bInd]),c,v,polyOrder)),
         fname : sconcat("~/max-out/gyrokinetic_int_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("gyrokinetic_int_mom"),
+        funcName : sconcat("gyrokinetic"),
         calcIntMoments(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
