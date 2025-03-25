@@ -395,7 +395,11 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   numNodes : length(surfNodes),
 
   surfIntVarsC : delete(surfVar,varsC), 
-  bSurfC : basisFromVars(basisFun,surfIntVarsC,polyOrder),
+  if cdim>1 then (
+    bSurfC : basisFromVars(basisFun,surfIntVarsC,polyOrder)
+  ) else (
+    bSurfC : [1/innerProd(surfIntVarsC,1,1,1)]
+  ),
 
   /* if polyOrder = 1 and we're doing the vpar update, we need to be careful about
      indexing input arrays since the surface hybrid basis has a different size at the
@@ -487,8 +491,8 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   fSkin_e : doExpand1(fskin, bP)/vmap_prime_fac_skin,
 
   fluxDir : surfDir,
-  if (cdim = 2 and surfDir=2) then (fluxDir : 3),
-  dualmag_c : makelist(dualmag[(surfDir-1)*numC+i-1],i,1,numC),
+  if (surfDir=cdim) then (fluxDir : 3),
+  dualmag_c : makelist(dualmag[(fluxDir-1)*numC+i-1],i,1,numC),
   dualmag_e : doExpand(dualmag_c, bC),
 
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */

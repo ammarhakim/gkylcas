@@ -6,19 +6,21 @@ load("bvp_utilities/bvp-util")$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
+minCdim_Ser : 2$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 0$
+minCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
 
-cdim : 3$
-dimPerp : 2$
+cdimMax : 3$
 
 /* Types of boundary conditions for which to generate kernels.
      =0 periodic
@@ -66,6 +68,8 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
        posDependent: indicate if kernel is position dependent (true/false).
        inloOnly: differentiate between upper and other locations in the grid (=true), or between lower, interior and upper (=false).
   */
+
+  dimPerp : dim-1,
 
   load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
 
@@ -125,26 +129,29 @@ findCombos(fhIn, funcTypeStr, funcNameStr, funcArgsStr, basisFun, dim, polyOrder
 
 for bInd : 1 thru length(bName) do (
 
-  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+  for cdim : minCdim[bInd] thru cdimMax do (
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
 
-    /* Compute the number of nodes in the whole domain. */
-    findCombos(fh, "long", "fem_poisson_perp_num_nodes_global", "const int *numCells", bName[bInd], cdim, polyOrder, bcKeyNP, false, true),
-    printf(fh, "~%"),
+      /* Compute the number of nodes in the whole domain. */
+      findCombos(fh, "long", "fem_poisson_perp_num_nodes_global", "const int *numCells", bName[bInd], cdim, polyOrder, bcKeyNP, false, true),
+      printf(fh, "~%"),
 
-    /* Create the local to global map for the nodes in a single cell. */
-    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], cdim, polyOrder, bcKeyNP, true, true),
-    printf(fh, "~%"),
+      /* Create the local to global map for the nodes in a single cell. */
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_local_to_global", "const int *numCells, const int *idx, long *globalIdxs", bName[bInd], cdim, polyOrder, bcKeyNP, true, true),
+      printf(fh, "~%"),
 
-    /* LHS stencil kernels to populate the global matrix. */
-    findCombos(fh, "void", "fem_poisson_perp_lhs_stencil", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
-    printf(fh, "~%"),
+      /* LHS stencil kernels to populate the global matrix. */
+      findCombos(fh, "void", "fem_poisson_perp_lhs_stencil", "const double *epsilon, const double *kSq, const double *dx, const double *bcVals, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
+      printf(fh, "~%"),
 
-    /* RHS source stencil kernels to populate the right side vector. */
-    findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
-    printf(fh, "~%"),
+      /* RHS source stencil kernels to populate the right side vector. */
+      findCombos(fh, "GKYL_CU_DH void", "fem_poisson_perp_src_stencil", "const double *epsilon, const double *dx, const double *rho, const double *bcVals, long perpOff, const long *globalIdxs, double *bsrc", bName[bInd], cdim, polyOrder, bcKeyFEM, true, false),
+      printf(fh, "~%"),
 
-    /* Solution stencil kernels. */
-    printf(fh, "GKYL_CU_DH void fem_poisson_perp_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long perpOff, const long *globalIdxs, double *sol_modal_local);~%", cdim, bName[bInd], polyOrder),
+      /* Solution stencil kernels. */
+      printf(fh, "GKYL_CU_DH void fem_poisson_perp_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long perpOff, const long *globalIdxs, double *sol_modal_local);~%", cdim, bName[bInd], polyOrder),
+      printf(fh, "~%")
+    ),
     printf(fh, "~%")
   )
 

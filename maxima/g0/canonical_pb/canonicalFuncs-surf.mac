@@ -176,7 +176,11 @@ calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOr
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  pOrderCFL : pOrderV,
+  if (surfDir <= cdim) then (
+    pOrderCFL : polyOrder
+  ) else (
+    pOrderCFL : pOrderV
+  ),
   printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
@@ -367,7 +371,11 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  pOrderCFL : pOrderV,
+  if (surfDir <= cdim) then (
+    pOrderCFL : polyOrder
+  ) else (
+    pOrderCFL : pOrderV
+  ),
   printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]), fabs(alphaR[0])); ~%"),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
