@@ -45,36 +45,12 @@ calcHamil(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  // hamil:    Gk neut species Hamiltonian.~%"),
   printf(fh, " ~%"),
 
-  if cdim = 3 then (
-    printf(fh, "  const double *g00 = &gij[~a]; ~%", NC*0),
-    printf(fh, "  const double *g01 = &gij[~a]; ~%", NC*1),
-    printf(fh, "  const double *g02 = &gij[~a]; ~%", NC*2),
-    printf(fh, "  const double *g11 = &gij[~a]; ~%", NC*3),
-    printf(fh, "  const double *g12 = &gij[~a]; ~%", NC*4),
-    printf(fh, "  const double *g22 = &gij[~a]; ~%", NC*5)
-  )
-  /* Changing order for 2x3v (vx, vz, vy) */
-  /* g01_can = g02_gk, g02_can = g01_gk   */
-  /* g11_can = g22_gk, g22_can = g11_gk   */  
-  else if cdim = 2 then ( 
-    printf(fh, "  const double *g00 = &gij[~a]; ~%", NC*0),
-    printf(fh, "  const double *g01 = &gij[~a]; ~%", NC*2),
-    printf(fh, "  const double *g02 = &gij[~a]; ~%", NC*1),
-    printf(fh, "  const double *g11 = &gij[~a]; ~%", NC*5),
-    printf(fh, "  const double *g12 = &gij[~a]; ~%", NC*4),
-    printf(fh, "  const double *g22 = &gij[~a]; ~%", NC*3)
-  )
-  /* Changing order for 1x3v (vx, vz, vy)                 */
-  /* g00_can = g22_gk, g01_can = g02_gk, g02_can = g12_gk */
-  /* g11_can = g00_gk, g12_can = g01_gk, g22_can = g11_gk */ 
-  else if cdim = 1 then ( /* Changing order for 1x3v (vz, vx, vy) */
-    printf(fh, "  const double *g00 = &gij[~a]; ~%", NC*5),
-    printf(fh, "  const double *g01 = &gij[~a]; ~%", NC*2),
-    printf(fh, "  const double *g02 = &gij[~a]; ~%", NC*4),
-    printf(fh, "  const double *g11 = &gij[~a]; ~%", NC*0),
-    printf(fh, "  const double *g12 = &gij[~a]; ~%", NC*1),
-    printf(fh, "  const double *g22 = &gij[~a]; ~%", NC*3)
-  ),
+  printf(fh, "  const double *g00 = &gij[~a]; ~%", NC*0),
+  printf(fh, "  const double *g01 = &gij[~a]; ~%", NC*1),
+  printf(fh, "  const double *g02 = &gij[~a]; ~%", NC*2),
+  printf(fh, "  const double *g11 = &gij[~a]; ~%", NC*3),
+  printf(fh, "  const double *g12 = &gij[~a]; ~%", NC*4),
+  printf(fh, "  const double *g22 = &gij[~a]; ~%", NC*5),
 
   g00_e : doExpand1(g00, bC),
   g01_e : doExpand1(g01, bC),
