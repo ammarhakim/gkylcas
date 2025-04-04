@@ -308,7 +308,7 @@ loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
   kill(varsC, varsP, basisC, basisP),
   if vdim>0 then (
     if cdim>0 then (
-      if pOrder = 1 then  /* Forcing p=1 to hybrid. */
+      if pOrder = 1 and bType = "Ser" then  /* Forcing p=1 to hybrid. */
         modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
       else
         modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
