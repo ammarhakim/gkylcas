@@ -6,7 +6,7 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
-genPosShiftGKConfPosCheckKernel(fh, funcName, cdim, basisType, polyOrder, nodeType) := block(
+genPosShiftVlasovConfPosCheckKernel(fh, funcName, cdim, basisType, polyOrder, nodeType) := block(
   [varsC,bC,numC,fld_c,fld_e,nodes,numNodes,fld_n,i],
 
   printf(fh, "GKYL_CU_DH bool ~a(const double *fld) ~%{ ~%", funcName),
@@ -51,8 +51,8 @@ genPosShiftGKConfPosCheckKernel(fh, funcName, cdim, basisType, polyOrder, nodeTy
   printf(fh, "}~%")
 )$
 
-genPosShiftGKPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) := block(
-  [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,nodes,cvars,vvars,numNodes,f_n,i,nodToMod,fnew_c],
+genPosShiftVlasovPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) := block(
+  [pdim,use_hybrid_basis,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,nodes,cvars,vvars,numNodes,f_n,i,nodToMod,fnew_c],
 
   printf(fh, "GKYL_CU_DH bool ~a(double ffloor, double *distf) ~%{ ~%", funcName),
   printf(fh, "  // ffloor: Distribution function floor to shift to when f<0.~%"),
@@ -62,24 +62,37 @@ genPosShiftGKPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, no
   kill(varsC,varsP,bC,bP),
   pdim : cdim+vdim,
 
-  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  use_hybrid_basis : false,
+  if polyOrder = 1 and (basisType = "Ser" or basisType = "ser") then (  /* Force p=1 to use hybrid basis. */
+    use_hybrid_basis : true
+  ),
+
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisType, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP),
   varsV : makelist(varsP[i+cdim],i,1,vdim),
 
   if nodeType = "positivity" then (
     /* Construct a set of nodes that are positivity control points (PCPs)+ 0 in vpar,
        and PCPs in other dimensions. */ 
-    nodes : (1/3) * getNodesGkHyb(cdim, vdim)
+    if use_hybrid_basis then (  /* Force p=1 to use hybrid basis. */
+      nodes : (1/3) * getNodesHyb(cdim, vdim)
+    ) else (
+      nodes : (1/3) * getNodes(basisType, cdim, vdim)
+    )
   ) elseif nodeType = "gauss_legendre" then (
-    if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    if use_hybrid_basis then (  /* Force p=1 to use hybrid basis. */
       cvars : makelist(varsP[i],i,1,cdim),
       vvars : makelist(varsP[cdim+i],i,1,vdim),
-      nodes : gaussOrdGkHyb(polyOrder+1, cvars, vvars)
+      nodes : gaussOrdHyb(polyOrder+1, cdim, vdim)
     ) else (
       nodes : gaussOrd(polyOrder+1, pdim)
     )
   ) elseif nodeType = "gauss_lobatto" then (
-    nodes : getNodesGkHyb(cdim, vdim)
+    if use_hybrid_basis then (  /* Force p=1 to use hybrid basis. */
+      nodes : getNodesHyb(cdim, vdim)
+    ) else (
+      nodes : getNodes(basisType, cdim, vdim)
+    )
   ),
   numNodes : length(nodes),
 
@@ -106,7 +119,11 @@ genPosShiftGKPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, no
   printf(fh, "~%"),
 
   f_n : makelist(fnod[i-1],i,1,numNodes),
-  nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, nodes),
+  if use_hybrid_basis then (
+    nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, nodes)
+  ) else (
+    nodToMod : calcNodToModWithNodes(basisType, pdim, polyOrder, nodes)
+  ),
 
   fnew_c : nodToMod . f_n,
   fnew_c : makelist(fullratsimp(fnew_c[i][1]),i,1,numP),
@@ -123,7 +140,7 @@ genPosShiftGKPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, no
 
 )$
 
-genPosShiftGKPhaseMRSKernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) := block(
+genPosShiftVlasovPhaseMRSKernel(fh, funcName, cdim, vdim, basisType, polyOrder, nodeType) := block(
   [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varsV,f_c,f_e,nodes,cvars,vvars,numNodes,f_n,i,nodToMod,fnew_c],
 
   printf(fh, "GKYL_CU_DH bool ~a(double ffloor, double *distf) ~%{ ~%", funcName),
@@ -134,24 +151,37 @@ genPosShiftGKPhaseMRSKernel(fh, funcName, cdim, vdim, basisType, polyOrder, node
   kill(varsC,varsP,bC,bP),
   pdim : cdim+vdim,
 
-  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  use_hybrid_basis : false,
+  if polyOrder = 1 and (basisType = "Ser" or basisType = "ser") then (  /* Force p=1 to use hybrid basis. */
+    use_hybrid_basis : true
+  ),
+
+  [varsC,bC,varsP,bP] : loadPhaseBasis(basisType, cdim, vdim, polyOrder),
   numC : length(bC),  numP : length(bP),
   varsV : makelist(varsP[i+cdim],i,1,vdim),
 
   if nodeType = "positivity" then (
     /* Construct a set of nodes that are positivity control points (PCPs)+ 0 in vpar,
        and PCPs in other dimensions. */ 
-    nodes : (1/3) * getNodesGkHyb(cdim, vdim)
+    if use_hybrid_basis then (
+      nodes : (1/3) * getNodesHyb(cdim, vdim)
+    ) else (
+      nodes : (1/3) * getNodes(basisType, cdim, vdim)
+    )
   ) elseif nodeType = "gauss_legendre" then (
-    if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    if use_hybrid_basis then (
       cvars : makelist(varsP[i],i,1,cdim),
       vvars : makelist(varsP[cdim+i],i,1,vdim),
-      nodes : gaussOrdGkHyb(polyOrder+1, cvars, vvars)
+      nodes : gaussOrdHyb(polyOrder+1, cvars, vvars)
     ) else (
       nodes : gaussOrd(polyOrder+1, pdim)
     )
   ) elseif nodeType = "gauss_lobatto" then (
-    nodes : getNodesGkHyb(cdim, vdim)
+    if use_hybrid_basis then (
+      nodes : getNodesHyb(cdim, vdim)
+    ) else (
+      nodes : getNodes(basisType, cdim, vdim)
+    )
   ),
   numNodes : length(nodes),
 
@@ -199,7 +229,11 @@ genPosShiftGKPhaseMRSKernel(fh, funcName, cdim, vdim, basisType, polyOrder, node
   printf(fh, "~%"),
 
   f_n : makelist(fnod[i-1],i,1,numNodes),
-  nodToMod : calcNodToModWithNodesHyb("gkhyb", cdim, vdim, nodes),
+  if use_hybrid_basis then (
+    nodToMod : calcNodToModWithNodesHyb("hyb", cdim, vdim, nodes)
+  ) else (
+    nodToMod : calcNodToModWithNodes(basisType, pdim, polyOrder, nodes)
+  ),
 
   fnew_c : nodToMod . f_n,
   fnew_c : makelist(fullratsimp(fnew_c[i][1]),i,1,numP),
