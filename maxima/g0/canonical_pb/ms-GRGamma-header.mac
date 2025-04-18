@@ -20,8 +20,8 @@ maxVdim_Ser : 3$
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -40,9 +40,7 @@ vlabels : ["vx","vy","vz"]$
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid gr_vars_n_set_~ax~av_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *M0, const double *M1i); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid gr_vars_n_copy_~ax~av_~a_p~a(int count, const double *h_ij_inv, struct gkyl_nmat *x, const double *M0, double* GKYL_RESTRICT n); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid gr_vars_GammaV_~ax~av_~a_p~a(const double *h_ij_inv, const double *u_i, double* GKYL_RESTRICT u_i_sq, double* GKYL_RESTRICT GammaV, double* GKYL_RESTRICT GammaV_sq); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid gr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *h_ij_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT gr_pressure); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%") 
+  printf(fh, "~avoid gr_vars_GammaV_~ax~av_~a_p~a(const double *h_ij_inv, const double *u_i, double* GKYL_RESTRICT u_i_sq, double* GKYL_RESTRICT GammaV, double* GKYL_RESTRICT GammaV_sq); ~%", deco, ci, vi, bStr, pi)
 )$
 
 fh : openw("~/max-out/gkyl_canonical_pb_gr_Gamma_kernels.h")$
@@ -61,7 +59,16 @@ for bInd : 1 thru length(bName) do (
       if (c=3) then maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x3v */
       for polyOrder : 1 thru maxPolyOrderB do (
         if not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
-          printPrototype(decorator, c, v, bName[bInd], polyOrder)
+          if not(bName[bInd] = "tensor") then (
+            printPrototype(decorator, c, v, bName[bInd], polyOrder),
+            if not(c = 3 and bName[bInd] = "ser") then (
+              printf(fh, "~avoid gr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *h_ij_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT gr_pressure); ~%", decorator, c, v, bName[bInd], polyOrder)
+            )
+          )
+          else (
+            printf(fh, "~avoid gr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *h_ij_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT gr_pressure); ~%", decorator, c, v, bName[bInd], polyOrder)
+          ),
+          printf(fh, "~%") 
         )
       )
     )

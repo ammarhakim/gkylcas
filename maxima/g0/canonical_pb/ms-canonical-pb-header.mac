@@ -76,6 +76,14 @@ printPrototypes() := block([],
               const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", dirlabel, c, v, bName[bInd], polyOrder)
             ), 
             printf(fh, "~%")
+          ) 
+          else if (not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2)) then (
+
+            /* Only make one dot product kernel header line */
+            funcNm : sconcat("canonical_pb_vars_util_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *v_i, const double *u_j,
+             double* GKYL_RESTRICT u_dot_v);~%", funcNm, polyOrder),
+            printf(fh, "~%")
           )
         )
       )
