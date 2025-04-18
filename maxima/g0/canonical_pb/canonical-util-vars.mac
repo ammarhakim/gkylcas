@@ -1,0 +1,140 @@
+/* This script generates the kernels for calculating the product: 
+
+    // Solve for v_dot_u = h^{ij}*v_i*u_j.
+   
+*/
+
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+fpprec : 24$
+
+calcCanonicalPbDot(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC, bC, NC],
+
+  kill(varsC, bC),
+
+  /* Load basis of dimensionality requested. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Number of basis monomials. */
+  NC : length(bC),
+
+  /* For p2 tensor, choose tensor, otherwise just use ser */
+  if not(basisFun = "tensor" and polyOrder = 2 and cdim > 1) then (
+    basisFun : "ser"
+  ),
+
+  /* printf(fh, "#include <gkyl_euler_canonical_pb_kernels.h> ~%"), */
+  printf(fh, "#include <gkyl_canonical_pb_kernels.h>  ~%"),
+  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *v_i, const double *u_j, double* GKYL_RESTRICT v_dot_u) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "  // h_ij_inv:         Input volume expansion of the inverse metric tensor.~%"),
+  printf(fh, "  //                   [Hxx, Hxy, Hxz, ~%"),
+  printf(fh, "  //                     - , Hyy, Hyz, ~%"),
+  printf(fh, "  //                     - ,  - , Hzz] ~%"),
+  printf(fh, "  // v_i:              Input volume expansion of v.~%"),
+  printf(fh, "  //                   [vx, vy, vz] ~%"),
+  printf(fh, "  // u_j:              Input volume expansion of u.~%"),
+  printf(fh, "  //                   [ux, uy, uz] ~%"),
+  printf(fh, "  // v_dot_u:           Output volume expansion of v_dot_u = h^{ij}*v_i*u_j .~%"),
+  printf(fh, "~%"),
+
+
+  printf(fh, "  const double *Vx = &v_i[~a]; ~%", 0*NC),
+  if (vdim > 1) then (
+    printf(fh, "  const double *Vy = &v_i[~a]; ~%", 1*NC)
+  ),
+  if (vdim > 2) then (
+  printf(fh, "  const double *Vz = &v_i[~a]; ~%", 2*NC)
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "  const double *Ux = &u_j[~a]; ~%", 0*NC),
+  if (vdim > 1) then (
+    printf(fh, "  const double *Uy = &u_j[~a]; ~%", 1*NC)
+  ),
+  if (vdim > 2) then (
+  printf(fh, "  const double *Uz = &u_j[~a]; ~%", 2*NC)
+  ),
+  printf(fh, "~%"),
+
+
+  if (vdim = 1) then (
+    printf(fh, "  const double *Hxx = &h_ij_inv[~a]; ~%", 0*NC)
+  ),
+  if (vdim = 2) then (
+    printf(fh, "  const double *Hxx = &h_ij_inv[~a]; ~%", 0*NC),
+    printf(fh, "  const double *Hxy = &h_ij_inv[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Hyy = &h_ij_inv[~a]; ~%", 2*NC)
+  ),
+  if (vdim = 3) then (
+    printf(fh, "  const double *Hxx = &h_ij_inv[~a]; ~%", 0*NC),
+    printf(fh, "  const double *Hxy = &h_ij_inv[~a]; ~%", 1*NC),
+    printf(fh, "  const double *Hxz = &h_ij_inv[~a]; ~%", 2*NC),
+    printf(fh, "  const double *Hyy = &h_ij_inv[~a]; ~%", 3*NC),
+    printf(fh, "  const double *Hyz = &h_ij_inv[~a]; ~%", 4*NC),
+    printf(fh, "  const double *Hzz = &h_ij_inv[~a]; ~%", 5*NC)
+  ),
+  printf(fh, "~%"),
+
+
+  /* Second construct the expansion of h^{ij}*v_i*u_j */
+  printf(fh, "  // h^{ij}*v_i*u_j ~%"),
+  printf(fh, "  double Hxx_Vx[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double Hxx_Vx_Ux[~a] = {0.0}; ~%", NC),
+  printf(fh, "  binop_mul_~ad_~a_p~a(Hxx, Vx, Hxx_Vx); ~%", cdim, basisFun, polyOrder),
+  printf(fh, "  binop_mul_~ad_~a_p~a(Hxx_Vx, Ux, Hxx_Vx_Ux); ~%", cdim, basisFun, polyOrder),
+  printf(fh, " ~%"),
+
+  if (vdim > 1) then (
+    printf(fh, "  double Hxy_Vx[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double Hxy_Vx_Uy[~a] = {0.0}; ~%", NC),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hxy, Vx, Hxy_Vx); ~%", cdim, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hxy_Vx, Uy, Hxy_Vx_Uy); ~%", cdim, basisFun, polyOrder),
+    printf(fh, " ~%"),
+
+    printf(fh, "  double Hyy_Vy[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double Hyy_Vy_Uy[~a] = {0.0}; ~%", NC),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hyy, Vy, Hyy_Vy); ~%", cdim, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hyy_Vy, Uy, Hyy_Vy_Uy); ~%", cdim, basisFun, polyOrder),
+    printf(fh, " ~%")
+  ),
+
+  if (vdim > 2) then (
+    printf(fh, "  double Hxz_Vx[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double Hxz_Vx_Uz[~a] = {0.0}; ~%", NC),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hxz, Vx, Hxz_Vx); ~%", cdim, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hxz_Vx, Uz, Hxz_Vx_Uz); ~%", cdim, basisFun, polyOrder),
+    printf(fh, " ~%"),
+
+    printf(fh, "  double Hyz_Vy[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double Hyz_Vy_Uz[~a] = {0.0}; ~%", NC),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hyz, Vy, Hyz_Vy); ~%", cdim, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hyz_Vy, Uz, Hyz_Vy_Uz); ~%", cdim, basisFun, polyOrder),
+    printf(fh, " ~%"),
+
+    printf(fh, "  double Hzz_Vz[~a] = {0.0}; ~%", NC),
+    printf(fh, "  double Hzz_Vz_Uz[~a] = {0.0}; ~%", NC),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hzz, Vz, Hzz_Vz); ~%", cdim, basisFun, polyOrder),
+    printf(fh, "  binop_mul_~ad_~a_p~a(Hzz_Vz, Uz, Hzz_Vz_Uz); ~%", cdim, basisFun, polyOrder),
+    printf(fh, " ~%")
+  ),
+
+  for i : 1 thru NC do (
+    printf(fh, "  v_dot_u[~a] = 0.0; ~%", i-1),
+    printf(fh, "  v_dot_u[~a] += Hxx_Vx_Ux[~a]; ~%", i-1, i-1),
+    if (vdim > 1) then (
+    printf(fh, "  v_dot_u[~a] += (Hxy_Vx_Uy[~a])*2.0; ~%", i-1, i-1),
+    printf(fh, "  v_dot_u[~a] +=  Hyy_Vy_Uy[~a]; ~%", i-1, i-1)
+    ),
+    if (vdim > 2) then (
+      printf(fh, "  v_dot_u[~a] += (Hxz_Vx_Uz[~a])*2.0; ~%", i-1, i-1),
+      printf(fh, "  v_dot_u[~a] += (Hyz_Vy_Uz[~a])*2.0; ~%", i-1, i-1),
+      printf(fh, "  v_dot_u[~a] +=  Hzz_Vz_Uz[~a]; ~%", i-1, i-1)
+    )
+  ),
+  printf(fh, " ~%"),
+  printf(fh, "} ~%")
+)$

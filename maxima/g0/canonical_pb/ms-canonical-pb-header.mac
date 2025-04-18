@@ -50,6 +50,11 @@ printPrototypes() := block([],
             funcNm : sconcat("canonical_pb_vars_pressure_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *MEnergy, const double *v_j, 
             const double *nv_i, double* GKYL_RESTRICT d_Jv_P);~%", funcNm, polyOrder),
+
+            /* Only make one dot product kernel header line */
+            funcNm : sconcat("canonical_pb_vars_util_",  c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            printf(fh, "GKYL_CU_DH void ~a(const double *h_ij_inv, const double *v_i, const double *u_j,
+             double* GKYL_RESTRICT u_dot_v);~%", funcNm, polyOrder),
             
             for surfDir : 1 thru c+v do ( /* Iterate over each phase space coordinate */
               if surfDir<=c then (dirlabel : clabels[surfDir]) else (dirlabel : vlabels[surfDir-c]),

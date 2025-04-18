@@ -1,0 +1,72 @@
+/* Generate the header file for the relativistic auxiliary variables
+   1. Computing the rest-frame density n = GammaV_inv*M0 where 
+      GammaV_inv = sqrt(1 - |V_drift|^2)
+   2. Computing the bulk four-velocity (GammaV, GammaV*V_drift) using weak division
+      of the lab-frame moments M0, M1i and the rest-frame density n. 
+   3. Computing the rest-frame pressure = n*T as a velocity moment
+   4. Computing the particle Lorentz boost factors gamma = sqrt(1 + p^2) and its inverse. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
+
+/* Tensor product basis. */
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
+
+
+printPrototype(deco, ci, vi, bStr, pi) := block([si],
+  printf(fh, "~avoid gr_vars_n_set_~ax~av_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *M0, const double *M1i); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid gr_vars_n_copy_~ax~av_~a_p~a(int count, const double *h_ij_inv, struct gkyl_nmat *x, const double *M0, double* GKYL_RESTRICT n); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid gr_vars_GammaV_~ax~av_~a_p~a(const double *h_ij_inv, const double *u_i, double* GKYL_RESTRICT u_i_sq, double* GKYL_RESTRICT GammaV, double* GKYL_RESTRICT GammaV_sq); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid gr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *h_ij_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT gr_pressure); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%") 
+)$
+
+fh : openw("~/max-out/gkyl_canonical_pb_gr_Gamma_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3) then maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x3v */
+      for polyOrder : 1 thru maxPolyOrderB do (
+        if not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
+          printPrototype(decorator, c, v, bName[bInd], polyOrder)
+        )
+      )
+    )
+  )
+);
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
+/* ............ Finished writing out the C header file ............ */
