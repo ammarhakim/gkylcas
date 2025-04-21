@@ -1,10 +1,11 @@
-/*
-  Generate kernels for the updates from the surface term
-  contributions from the drag portion of the 
-  Rosenbluth/Fokker-Planck Operator
+/* 
+  Generate kernels for the drag coefficient for the Rosenbluth/Fokker-Planck Operator,
+  a_i = d H / dv_i, and sign information at interface for flux calculation.
 */
 
-load("fpo/funcs-fpo-vlasov-drag-surf")$
+load(stringproc);
+load("fpo/funcs-fpo-drag-coeff_stencil");
+
 
 /* ...... USER INPUTS........ */
 
@@ -41,16 +42,19 @@ dirs : [vx, vy, vz]$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for vidx : 1 thru length(dirs) do (
+      dir : dirs[vidx],
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c>1 and bName[bInd] = "ser") then maxPolyOrderB : 1, 
-
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        pv : dirs[vidx],
-        fname : sconcat("~/max-out/fpo_vlasov_drag_surf",pv,"_",
-          c,"x3v_",bName[bInd],"_p",polyOrder,".c"),
-        funcNm : sconcat("fpo_vlasov_drag_surf",pv,"_",c,"x3v_",bName[bInd],"_p",polyOrder),
-        generateFpoVlasovDragSurf(fname, funcNm, c, bName[bInd], polyOrder, pv)
+        /* Generate stencil kernels */
+        fname : sconcat("~/max-out/fpo_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
+        funcNm : sconcat("fpo_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
+        generateFpoDragCoeffStencil(fname, funcNm, c, bName[bInd], polyOrder, dir),
+        /* Generate kernel to compute sign information */
+        fname : sconcat("~/max-out/fpo_sgn_drag_coeff_",c,"x3v_",bName[bInd],"_p",polyOrder,"_",dir),
+        funcNm : sconcat("fpo_sgn_drag_coeff_",c,"x3v_",dir, "_", bName[bInd]),
+        generateFpoSgnDragCoeff(fname, funcNm, c, bName[bInd], polyOrder, dir)
       )
     )
   )
