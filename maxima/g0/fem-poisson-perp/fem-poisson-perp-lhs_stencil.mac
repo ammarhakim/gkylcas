@@ -25,7 +25,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
    dirichletDirs,vals_k,triplesStr,val,dir,dirichletBoundaryNodes,dirichletBoundaryNodesI,
    dirVar,surfVars,off3,k0,bcValues,eps_dphidnBC,sI,fh,d,i,bcI,polyOrder,bcsInDir,dI,k,m],
 
-  dimPerp : 2,
+  dimPerp : dim-1,
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -62,7 +62,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
                       assoc(stencilLoc[sI][d],coordVarS)[d])
     ),
   
-    fname : sconcat("~/max-out/fem_poisson_perp_lhs_stencil",stencilLocStr,"_",basisFun,".c"),
+    fname : sconcat("~/max-out/fem_poisson_perp_lhs_stencil",stencilLocStr,"_",dim,"x_",basisFun,".c"),
     fh    : openw(fname),
     printf(fh, "#include <gkyl_fem_poisson_perp_kernels.h> ~%"),
     printf(fh, " ~%"),
@@ -167,8 +167,6 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
           )
         ),
 
-        mod2nod : calcModToNod(basisFun, dim, polyOrder),
-
         kSq_c      : makelist(kSq[k-1],k,1,numB),
         kSqNodal_c : mod2nod . kSq_c,
         kSqNodal_c : makelist(fullratsimp(kSqNodal_c[i][1]),i,1,numB),
@@ -240,7 +238,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
             ** digits gave the wrong answer, but 18 sig. digits gave the correct answer.
             ** One way to fix this is by expanding so that 5/3*3. gets written
             ** as 5. */
-            printf(fh, "  gkyl_mat_triples_~a(tri, globalIdxs[~a], globalIdxs[~a], ~a);~%",triplesStr,k-1,m-1,expand(float(fullratsimp(val))))
+            printf(fh, "  gkyl_mat_triples_~a(tri, globalIdxs[~a], globalIdxs[~a], ~a);~%",triplesStr,k-1,m-1,expand(float(val)))
           )
         ),
         printf(fh, "~%"),

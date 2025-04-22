@@ -14,7 +14,7 @@ generate_fem_poisson_perp_local_to_global(fh, funcNm, dim, basisFun, pMin, pMax)
    locToNumStoredNodes,numPS,newS,newNodes,cellMemOffFac,upbDirs,nodeMemOff,currNode,cellIdx,nodeUpDirs,
    newNode,nodeIdx,isOnBoundary,checkCoords,ifStr,newLoc,newCellIdx,condStr,boundCellOffFac,newNodeIdx],
 
-  dimPerp : 2,
+  dimPerp : dim-1,
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -31,7 +31,7 @@ generate_fem_poisson_perp_local_to_global(fh, funcNm, dim, basisFun, pMin, pMax)
   /* Only need stencils that include all the nodes in the parallel direction.
      This is effectively upper z-boundary stencils, so remove all stencil
      locations not on the upper z-boundary. */
-  stencilLoc : sublist(stencilLoc, lambda([x], x[3]=1)),
+  stencilLoc : sublist(stencilLoc, lambda([x], x[dim]=1)),
 
   /* Types of boundary conditions for which to generate kernels.
        =0 periodic

@@ -13,7 +13,7 @@ generate_fem_poisson_perp_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := bl
   [dimPerp,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,d,i,bcI,currBC,stencilStr,polyOrder,
    numCellsProb,bN,numB,numNodes,storedNodes,numNodesOut,sI,numStoredNodes,numBoundCells],
 
-  dimPerp : 2,
+  dimPerp : dim-1,
 
   kill(varsC, varsP, basisC, basisP),
 

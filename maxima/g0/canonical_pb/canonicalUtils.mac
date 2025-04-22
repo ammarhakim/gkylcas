@@ -96,7 +96,6 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V
   surfVar     : varsP[surfDir],         /* Surface variable. */
   surfIntVars : delete(surfVar,varsP),  /* Surface integral variables. */
 
-
   /* Calculate phase space velocity alpha_d = {z[d], H} = dz[d]/dt. */
   rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
   rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
@@ -125,7 +124,7 @@ calc_canonical_pb_alpha_no_write(fH,surfDir,bP,varsP,bSurf,basisType,rdx2V,rdv2V
 
 /* Determine the upwinded distribution function in canonical pb */
 calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fr_e,basisStr,sideStr,
-                    cdim, vdim, polyOrder,basisFun) := block(
+                    cdim, vdim, polyOrder, basisFun, conf_only) := block(
   [fstrL, fstrR, fLNm, fRNm, fUpNm, sgn_alpha_surfNm, sgn_alphaUpNm, fSurfl_c, fSurfr_c, 
    fSurfl_e, fSurfr_e, sgn_alphaUp_e, fUp_c],
    
@@ -172,7 +171,8 @@ calcAndWrite_CanonicalPBfUpwind(file_handle,surfDir,surfVar,surfIntVars,bSurf,NS
     
     /*printf(file_handle, "  ~a_upwind_quad_to_modal(~a, ~a); ~%", basisStr, sgn_alpha_surfNm, sgn_alphaUpNm),*/
     printf(file_handle, "  // Project tensor nodal quadrature basis back onto modal basis. ~%"),
-    if (polyOrder=1 and basisFun="ser") then (  /* Force p=1 Serendipity to use hybrid basis. */
+    if (polyOrder=1 and basisFun="ser" and (not conf_only)) then ( 
+      /* Force p=1 Serendipity for kinetic equations to use hybrid basis. */
       if (surfDir - cdim > 0) then ( 
         /* Velocity space */
         printf(file_handle, "  hyb_~ax~av_p1_vdir_upwind_quad_to_modal(~a, ~a); ~%", cdim, vdim, sgn_alpha_surfNm, sgn_alphaUpNm)
