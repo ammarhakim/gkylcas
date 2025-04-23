@@ -19,9 +19,9 @@
                 `(Z psi theta))                                  ; z-coordinate: Z
    'coords (list `psi `theta `alpha)                             ; field-line-following coordinates: psi, theta, alpha
    'func-exprs (list
-                `(R psi theta)                                   ; R (function of psi and theta)
-                `(phi psi theta alpha)                           ; phi (function of psi, theta, and alpha)
-                `(Z psi theta))))                                ; Z (function of psi and theta)
+                `(define (R psi theta) (sqrt (* 4.0 psi)))       ; R (function of psi and theta)
+                `(define (phi psi theta alpha) (* -1.0 alpha))   ; phi (function of psi, theta, and alpha)
+                `(define (Z psi theta) (/ theta pi)))))          ; Z (function of psi and theta)
 
 ;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry.
 (define code-gk-cylindrical-tangent-vectors

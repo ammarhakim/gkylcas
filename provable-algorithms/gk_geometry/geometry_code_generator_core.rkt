@@ -8,6 +8,9 @@
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
 (define (convert-expr expr)
   (match expr
+    ;; If expr is of the form "pi", then convert it to "M_PI" in C.
+    [`pi "M_PI"]
+    
     ;; If expr is a symbol, then convert it directly to a string.
     [(? symbol? symb) (symbol->string symb)]
 
@@ -104,23 +107,30 @@
 
   (define deriv-exprs (append* (map (lambda (func-expr)
                                       (map (lambda (coord)
-                                             (symbolic-diff func-expr coord))
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
                                            coords))
                                     func-exprs)))
   (define deriv-exprs-filtered (filter (lambda (deriv-expr)
-                                         (and (list? deriv-expr)
-                                              (not (null? deriv-expr))
-                                              (eq? (car deriv-expr) `D)))
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
                                        deriv-exprs))
 
   (define func-code (cond
                       [(not (empty? func-exprs)) (string-join (map (lambda (func-expr)
-                                                                     (string-append "double " (convert-expr-params func-expr) " { return 0.0; }"))
+                                                                     (string-append "double " (convert-expr-params (list-ref func-expr 1)) "
+{
+  return " (convert-expr (list-ref func-expr 2)) ";
+}"))
                                                                    func-exprs) "\n")]
                       [else ""]))
   (define deriv-code (cond
                        [(not (empty? deriv-exprs-filtered)) (string-join (map (lambda (deriv-expr)
-                                                                                (string-append "double " (convert-expr-params deriv-expr) " { return 0.0; }"))
+                                                                                (string-append "double " (convert-expr-params (list-ref deriv-expr 1)) "
+{
+  return " (convert-expr (list-ref deriv-expr 2)) ";
+}"))
                                                                               deriv-exprs-filtered) "\n")]
                        [else ""]))
 
@@ -142,10 +152,10 @@
 #include <math.h>
 #include <stdlib.h>
 
-// Geometry function placeholders (if any).
+// Geometry function definitions (if any).
 ~a
 
-// Geometry derivative placeholders (if any).
+// Geometry derivative definitions (if any).
 ~a
 
 void compute_tangent_vector1(~a, double tangent_vector1[~a]) {

@@ -49,6 +49,14 @@
                         [else (list-ref terms j)])))
               (loop (add1 i))))])))]
 
+    ;; If expr is a quotient of the form (/ expr1 expr2), then it differentiates to (/ (- (* expr2 expr1') (expr1 expr2') (* expr2 expr2)), by the quotient rule.
+    [`(/ ,x ,y)
+     `(/ (- (* ,y ,(symbolic-diff x var)) (* ,x ,(symbolic-diff y var))) (* ,y ,y))]
+
+    ;; If expr is a square root of the form (sqrt expr1), then it differentiates to (/ expr1 (* 2.0 (sqrt expr1))).
+    [`(sqrt ,arg)
+     `(/ ,(symbolic-diff arg var) (* 2.0 (sqrt ,arg)))]
+
     ;; If expr is a sine function of the form (sin expr1), then it differentiates to (* (cos expr1) expr1').
     [`(sin ,arg)
      `(* (cos ,arg) ,(symbolic-diff arg var))]
@@ -85,14 +93,28 @@
     [`(+ 0.0 ,x) `,x]
     [`(+ -0.0 ,x) `,x]
 
+    ;; If expr is of the form (x + 0) or (x + 0.0), then simplify to x.
+    [`(+ ,x 0) `,x]
+    [`(+ ,x 0.0) `,x]
+    [`(+ ,x -0.0) `,x]
+
     ;; If expr is of the form (1 * x) or (1.0 * x), then simplify to x.
     [`(* 1 ,x) `,x]
     [`(* 1.0 ,x) `,x]
+
+    ;; If expr is of the form (x * 1) or (x * 1.0), then simplify to x.
+    [`(* ,x 1) `,x]
+    [`(* ,x 1.0) `,x]
 
     ;; If expr is of the form (0 * x) or (0.0 * x), then simplify to 0 or 0.0.
     [`(* 0 ,x) 0]
     [`(* 0.0 ,x) 0.0]
     [`(* -0.0 ,x) 0.0]
+
+    ;; If expr is of the form (x * 0) or (x * 0.0), then simplify to 0 or 0.0.
+    [`(* ,x 0) 0]
+    [`(* ,x 0.0) 0.0]
+    [`(* ,x -0.0) 0.0]
 
     ;; If expr is of the form (x - 0) or (x - 0.0), then simplify to x.
     [`(- ,x 0) `,x]
@@ -104,6 +126,18 @@
     [`(- 0.0 ,x) `(* -1.0 ,x)]
     [`(- -0.0 ,x) `(* -1.0 ,x)]
 
+    ;; If expr is of the form (0 / x) or (0.0 / x), then simplify to 0 or 0.0.
+    [`(/ 0 ,x) 0]
+    [`(/ 0.0 ,x) 0.0]
+    [`(/ -0.0 ,x) 0.0]
+
+    ;; If expr is of the form (x / x), then simplify to 1.0
+    [`(/ ,x ,x) 1.0]
+
+    ;; If expr is of the form (x / (x * y)) or (x / (y * x)), then simplify to (1.0 / y).
+    [`(/ ,x (* ,x ,y)) `(/ 1.0 ,y)]
+    [`(/ ,x (* ,y ,x)) `(/ 1.0 ,y)]
+
     ;; Enforce right associativity of addition: if expr is of the form ((x + y) + z) or (x + y + z), then simplify to (x + (y + z)).
     [`(+ (+ ,x ,y) ,z) `(+ ,x (+ ,y ,z))]
     [`(+ ,x ,y ,z) `(+ (+ ,x ,y) ,z)]
@@ -111,6 +145,17 @@
     ;; Enforce right associativity of multiplication: if expr is of the form ((x * y) * z) or (x * y * z), then simplify to (x * (y * z)).
     [`(* (* ,x ,y) ,z) `(* ,x (* ,y ,z))]
     [`(* ,x ,y ,z) `(* (* ,x ,y) ,z)]
+
+    ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum. Likewise for differences.
+    [`(+ ,(and x (? number?)) ,(and y (? number?))) (+ x y)]
+    [`(- ,(and x (? number?)) ,(and y (? number?))) (- x y)]
+
+    ;; If expr is of the form (x * y) for numeric x and y, then just evaluate the product. Likewise for quotients
+    [`(* ,(and x (? number?)) ,(and y (? number?))) (* x y)]
+    [`(/ ,(and x (? number?)) ,(and y (? number?))) (/ x y)]
+
+    ;; If expr is of the form (x * (y * z)) for numeric numeric x and y, then evaluate the product of x and y.
+    [`(* ,(and x (? number?)) (* ,(and y (? number?)) ,z)) `(* ,(* x y) ,z)]
 
     ;; Move numbers to the left: if expr is of the form (x + y) for non-numeric x but numeric y, then simplify to (y + x).
     [`(+ ,(and x (not (? number?))) ,(and y (? number?))) `(+ ,y ,x)]
@@ -121,8 +166,15 @@
     ;; If expr is of the form (x * (y * z)) for numeric y and non-numeric x and z, then simplify to (y * (x * z)).
     [`(* ,(and x (not (? number?))) (* ,(and y (? number?)) ,(and z (not (? number?))))) `(* ,y (* ,x ,z))]
 
+    ;; If expr is of the form (x + (-1 * y)) or (x + (-1.0 * y)), then simplify to (x - y).
     [`(+ ,x (* -1 ,y)) `(- ,x ,y)]
     [`(+ ,x (* -1.0 ,y)) `(- ,x ,y)]
+
+    ;; If expr is of the form sqrt(x * y), then simplify to (sqrt(x) * sqrt(y)).
+    [`(sqrt (* ,x ,y)) `(* (sqrt ,x) (sqrt ,y))]
+
+    ;; If expr if of the form sqrt(x) for numeric x, then just evaluate the square root.
+    [`(sqrt ,(and x (? number?))) (sqrt x)]
 
     ;; If expr is a sum of the form (x + y + ...), then apply symbolic simplification to each term x, y, ... in the sum.
     [`(+ . ,terms)
@@ -163,10 +215,11 @@
     ;; A finite expression is, trivially, finite.
     [(? (lambda (arg)
           (and (not (empty? finite-exprs)) (ormap (lambda (finite-expr)
-                                                    (equal? arg finite-expr)))))) #t]
+                                                    (equal? arg finite-expr)) finite-exprs)))) #t]
 
-    ;; The sum of two finite expressions is always finite.
+    ;; The sum or difference of two finite expressions is always finite.
     [`(+ ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
+    [`(- ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
 
     ;; The product of two finite expressions is always finite.
     [`(* ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
