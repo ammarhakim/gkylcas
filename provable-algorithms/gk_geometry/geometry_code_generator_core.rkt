@@ -40,45 +40,63 @@
     [`(cos ,arg)
      (format "cos(~a)" (convert-expr arg))]
 
+    ;; If expr is a unary function derivative of the form (D (func expr1) var), then convert it to "func_diff_var(expr1)" in C.
     [`(D (,func ,arg) ,var)
      (format "~a_diff_~a(~a)" func (convert-expr var) (convert-expr arg))]
 
+    ;; If expr is a binary function derivative of the form (D (func expr1 expr2) var), then convert it to "func_diff_var(expr1, expr2)" in C.
     [`(D (,func ,arg1 ,arg2) ,var)
      (format "~a_diff_~a(~a, ~a)" func (convert-expr var) (convert-expr arg1) (convert-expr arg2))]
 
+    ;; If expr is a ternary function derivative of the form (D (func expr1 expr2 expr3) var), then convert it to "func_diff_var(expr1, expr2, expr3)" in C.
     [`(D (,func ,arg1 ,arg2 ,arg3) ,var)
      (format "~a_diff_~a(~a, ~a, ~a)" func (convert-expr var) (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
 
+    ;; If expr is a unary function of the form (func expr1), then convert it to "func(expr1)" in C.
     [`(,func ,arg)
      (format "~a(~a)" func (convert-expr arg))]
 
+    ;; If expr is a binary function of the form (func expr1 expr2), then convert it to "func(expr1, expr2)" in C.
     [`(,func ,arg1 ,arg2)
      (format "~a(~a, ~a)" func (convert-expr arg1) (convert-expr arg2))]
 
+    ;; If expr is a ternary function of the form (func expr1 expr2 expr3), then convert it to "func(expr1, expr2, expr3)" in C.
     [`(,func ,arg1 ,arg2 ,arg3)
      (format "~a(~a, ~a, ~a)" func (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]))
 
+;; Lightweight converter from Racket function signature expressions (expr) into strings representing equivalent C function signatures.
 (define (convert-expr-params expr)
   (match expr
+    ;; If expr is a unary function derivative of the form (D (func expr1) var), then convert it to "func_diff_var(double expr1)" in C.
     [`(D (,func ,arg) ,var)
      (format "~a_diff_~a(double ~a)" func (convert-expr var) (convert-expr arg))]
 
+    ;; If expr is a binary function derivative of the form (D (func expr1 expr2) var), then convert it to "func_diff_var(double expr1, double expr2)" in C.
     [`(D (,func ,arg1 ,arg2) ,var)
      (format "~a_diff_~a(double ~a, double ~a)" func (convert-expr var) (convert-expr arg1) (convert-expr arg2))]
 
+    ;; If expr is a ternary function derivative of the form (D (func expr1 expr2 expr3) var), then convert it to "func_diff_var(double expr1, double expr2, double expr3" in C.
     [`(D (,func ,arg1 ,arg2 ,arg3) ,var)
      (format "~a_diff_~a(double ~a, double ~a, double ~a)" func (convert-expr var) (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]
-    
+
+    ;; If expr is a unary function of the form (func expr1), then convert it to "func(double expr1)" in C.
     [`(,func ,arg)
      (format "~a(double ~a)" func (convert-expr arg))]
 
+    ;; If expr is a binary function of the form (func expr1 expr2), then convert it to "func(double expr1, double expr2)" in C.
     [`(,func ,arg1 ,arg2)
      (format "~a(double ~a, double ~a)" func (convert-expr arg1) (convert-expr arg2))]
 
+    ;; If expr is a ternary function of the form (func expr1 expr2 expr3), then convert it to "func(double expr1, double expr2, double expr3)" in C.
     [`(,func ,arg1 ,arg2 ,arg3)
      (format "~a(double ~a, double ~a, double ~a)" func (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]))
 
+;; -----------------------------------------------
+;; 3D Tangent Vector Computation for a GK Geometry
+;; -----------------------------------------------
 (define (generate-tangent-vectors-3d geometry)
+  "Generate C code that computes the 3D tangent vectors for the GK geometry specified by `geometry` using automatic differentiation."
+  
   (define name (hash-ref geometry 'name))
   (define exprs (hash-ref geometry 'exprs))
   (define coords (hash-ref geometry 'coords))
@@ -130,53 +148,53 @@
 // Geometry derivative placeholders (if any).
 ~a
 
-double* compute_tangent_vector1(~a) {
-  double *tangent_vector1 = (double*) malloc(~a * sizeof(double));
-
+void compute_tangent_vector1(~a, double tangent_vector1[~a]) {
   tangent_vector1[0] = ~a;
   tangent_vector1[1] = ~a;
   tangent_vector1[2] = ~a;
-
-  return tangent_vector1;
 }
 
-double* compute_tangent_vector2(~a) {
-  double *tangent_vector2 = (double*) malloc(~a * sizeof(double));
-
+void compute_tangent_vector2(~a, double tangent_vector2[~a]) {
   tangent_vector2[0] = ~a;
   tangent_vector2[1] = ~a;
   tangent_vector2[2] = ~a;
-
-  return tangent_vector2;
 }
 
-double* compute_tangent_vector3(~a) {
-  double *tangent_vector3 = (double*) malloc(~a * sizeof(double));
-
+void compute_tangent_vector3(~a, double tangent_vector3[~a]) {
   tangent_vector3[0] = ~a;
   tangent_vector3[1] = ~a;
   tangent_vector3[2] = ~a;
-
-  return tangent_vector3;
 }
 
 int main() { }
 "
+            ;; GK geometry name for code comments.
             name
+            ;; Additional geometry functions (e.g. R, phi, Z for cylindrical geometries).
             func-code
+            ;; Additional geometry derivative functions (e.g. psi, theta, alpha derivatives of R, phi, Z).
             deriv-code
+            ;; Coordinate parameters for function signatures.
             coord-params-filtered
+            ;; Number of coordinates.
             (length coords)
+            ;; First tangent vector e_1.
             (convert-expr (list-ref tangent1-exprs 0))
             (convert-expr (list-ref tangent1-exprs 1))
             (convert-expr (list-ref tangent1-exprs 2))
+            ;; Coordinate parameters for function signatures.
             coord-params-filtered
+            ;; Number of coordinates.
             (length coords)
+            ;; Second tangent vector e_2.
             (convert-expr (list-ref tangent2-exprs 0))
             (convert-expr (list-ref tangent2-exprs 1))
             (convert-expr (list-ref tangent2-exprs 2))
+            ;; Coordinate parameters for function signatures.
             coord-params-filtered
+            ;; Number of coordinates.
             (length coords)
+            ;; Third tangent vector e_3.
             (convert-expr (list-ref tangent3-exprs 0))
             (convert-expr (list-ref tangent3-exprs 1))
             (convert-expr (list-ref tangent3-exprs 2))))
