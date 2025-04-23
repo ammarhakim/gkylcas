@@ -8,7 +8,9 @@
          symbolic-simp-rule
          symbolic-simp
          symbolic-tangents
-         is-finite)
+         is-finite
+         is-finite-non-zero
+         prove-tangent-vectors-3d-finite)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -210,19 +212,143 @@
        coords))
 
 ;; Recursively determine whether an expression is finite.
-(define (is-finite expr finite-exprs)
+(define (is-finite expr func-exprs deriv-exprs)
   (match expr
-    ;; A finite expression is, trivially, finite.
+    ;; A non-infinite number is, trivially, finite.
     [(? (lambda (arg)
-          (and (not (empty? finite-exprs)) (ormap (lambda (finite-expr)
-                                                    (equal? arg finite-expr)) finite-exprs)))) #t]
+          (and (number? arg) (not (equal? arg +inf.0)) (not (equal? arg -inf.0))))) #t]
+
+    ;; Geometry functions whose definitions are finite are, trivially, finite.
+    [(? (lambda (arg)
+          (and (not (empty? func-exprs)) (ormap (lambda (func-expr)
+                                                  (and (equal? arg (list-ref func-expr 1)) (is-finite (list-ref func-expr 2) func-exprs deriv-exprs)))
+                                                func-exprs)))) #t]
+    
+    ;; Geometry function derivatives whose definitions are finite are, trivially, finite.
+    [(? (lambda (arg)
+          (and (not (empty? deriv-exprs)) (ormap (lambda (deriv-expr)
+                                                   (and (equal? arg (list-ref deriv-expr 1)) (is-finite (list-ref deriv-expr 2) func-exprs deriv-exprs)))
+                                                 deriv-exprs)))) #t]
 
     ;; The sum or difference of two finite expressions is always finite.
-    [`(+ ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
-    [`(- ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
+    [`(+ ,x ,y) (and (is-finite x func-exprs deriv-exprs) (is-finite y func-exprs deriv-exprs))]
+    [`(- ,x ,y) (and (is-finite x func-exprs deriv-exprs) (is-finite y func-exprs deriv-exprs))]
 
     ;; The product of two finite expressions is always finite.
-    [`(* ,x ,y) (and (is-finite x finite-exprs) (is-finite y finite-exprs))]
+    [`(* ,x ,y) (and (is-finite x func-exprs deriv-exprs) (is-finite y func-exprs deriv-exprs))]
 
     ;; Otherwise, assume false.
     [else #f]))
+
+;; Recursively determine whether an expression is finite, assuming that certain quantities are strictly non-zero.
+(define (is-finite-non-zero expr non-zero func-exprs deriv-exprs)
+  (match expr
+    ;; A non-infinite number is, trivially, finite.
+    [(? (lambda (arg)
+          (and (number? arg) (not (equal? arg +inf.0)) (not (equal? arg -inf.0))))) #t]
+
+    ;; Geometry functions whose definitions are finite are, trivially, finite.
+    [(? (lambda (arg)
+          (and (not (empty? func-exprs)) (ormap (lambda (func-expr)
+                                                  (and (equal? arg (list-ref func-expr 1)) (is-finite-non-zero (list-ref func-expr 2) non-zero func-exprs deriv-exprs)))
+                                                func-exprs)))) #t]
+
+    ;; Geometry function derivatives whose definitions are finite are, trivially, finite.
+    [(? (lambda (arg)
+          (and (not (empty? deriv-exprs)) (ormap (lambda (deriv-expr)
+                                                   (and (equal? arg (list-ref deriv-expr 1)) (is-finite-non-zero (list-ref deriv-expr 2) non-zero func-exprs deriv-exprs)))
+                                                 deriv-exprs)))) #t]
+
+    ;; The sum or difference of two finite expressions is always finite.
+    [`(+ ,x ,y) (and (is-finite-non-zero x non-zero func-exprs deriv-exprs) (is-finite-non-zero y non-zero func-exprs deriv-exprs))]
+    [`(- ,x ,y) (and (is-finite-non-zero x non-zero func-exprs deriv-exprs) (is-finite-non-zero y non-zero func-exprs deriv-exprs))]
+
+    ;; The product of two finite expressions is always finite.
+    [`(* ,x ,y) (and (is-finite-non-zero x non-zero func-exprs deriv-exprs) (is-finite-non-zero y non-zero func-exprs deriv-exprs))]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; ---------------------------------------------------------------------------------------------
+;; Prove Finiteness of the 3D Tangent Vectors for a GK Geometry, using Automatic Differentiation
+;; ---------------------------------------------------------------------------------------------
+(define (prove-tangent-vectors-3d-finite geometry
+                                         #:nx [nx 100]
+                                         #:x0 [x0 0.0]
+                                         #:x1 [x1 1.0]
+                                         #:ny [ny 100]
+                                         #:y0 [y0 0.0]
+                                         #:y1 [y1 1.0]
+                                         #:nz [nz 100]
+                                         #:z0 [z0 0.0]
+                                         #:z1 [z1 1.0])
+  "Prove that the 3D tangent vectors remain finite everywhere for the GK geometry specified by `geometry` using automatic differentiation.
+  - `nx`: Number of cells in the x-direction.
+  - `x0`, `x1`: Domain boundaries in the x-direction.
+  - `ny`: Number of cells in the y-direction.
+  - `y0`, `y1`: Domain boundaries in the y-direction.
+  - `nz`: Number of cells in the z-direction.
+  - `z0`, `z1`: Domain boundaries in the z-direction."
+
+  (define exprs (hash-ref geometry 'exprs))
+  (define coords (hash-ref geometry 'coords))
+  (define func-exprs (hash-ref geometry 'func-exprs))
+
+  (trace symbolic-diff)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp)
+  (trace symbolic-tangents)
+  (trace is-finite)
+
+  (define deriv-exprs (append* (map (lambda (func-expr)
+                                      (map (lambda (coord)
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
+                                           coords))
+                                    func-exprs)))
+  (define deriv-exprs-filtered (filter (lambda (deriv-expr)
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
+                                       deriv-exprs))
+  
+  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
+  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
+  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+
+  (define out (cond
+                ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nx 1) (>= x0 x1)) #f]
+
+                ;; Check whether the number of y-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< ny 1) (>= y0 y1)) #f]
+
+                ;; Check whether the number of z-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nz 1) (>= z0 z1)) #f]
+
+                ;; Check whether the components of the first tangent vector e_1 are all finite (otherwise, return false).
+                [(or (not (is-finite (list-ref tangent1-exprs 0) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent1-exprs 1) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent1-exprs 2) func-exprs deriv-exprs-filtered))) #f]
+
+                ;; Check whether the components of the second tangent vector e_2 are all finite (otherwise, return false).
+                [(or (not (is-finite (list-ref tangent2-exprs 0) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent2-exprs 1) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent2-exprs 2) func-exprs deriv-exprs-filtered))) #f]
+
+                ;; Check whether the components of the third tangent vector e_3 are all finite (otherwise, return false).
+                [(or (not (is-finite (list-ref tangent3-exprs 0) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent3-exprs 1) func-exprs deriv-exprs-filtered))
+                     (not (is-finite (list-ref tangent3-exprs 2) func-exprs deriv-exprs-filtered))) #f]
+
+                ;; Otherwise, return true.
+                [else #t]))
+
+  (untrace symbolic-diff)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp)
+  (untrace symbolic-tangents)
+  (untrace is-finite)
+  
+  out)
+(trace prove-tangent-vectors-3d-finite)

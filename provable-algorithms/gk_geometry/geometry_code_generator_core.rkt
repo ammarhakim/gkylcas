@@ -3,6 +3,8 @@
 (require "geometry_prover_core.rkt")
 (provide convert-expr
          convert-expr-params
+         remove-bracketed-expressions
+         remove-bracketed-expressions-from-file
          generate-tangent-vectors-3d)
 
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
@@ -93,6 +95,25 @@
     ;; If expr is a ternary function of the form (func expr1 expr2 expr3), then convert it to "func(double expr1, double expr2, double expr3)" in C.
     [`(,func ,arg1 ,arg2 ,arg3)
      (format "~a(double ~a, double ~a, double ~a)" func (convert-expr arg1) (convert-expr arg2) (convert-expr arg3))]))
+
+;; A simple boilerplate function for removing bracketed expressions from strings.
+(define (remove-bracketed-expressions str)
+  (regexp-replace* #rx"\\[.*?\\]" str ""))
+
+;; A simple boilerplate function for removing bracketed expressions from files.
+(define (remove-bracketed-expressions-from-file output-file)
+  (define content
+    (with-input-from-file output-file
+      (lambda ()
+        (port->string (current-input-port)))))
+  (define cleaned
+    (remove-bracketed-expressions content))
+  (with-output-to-file output-file #:exists 'replace
+    (lambda ()
+      (display cleaned))))
+
+(define (flux-substitute flux-expr cons-expr var-name)
+  (string-replace flux-expr cons-expr var-name))
 
 ;; -----------------------------------------------
 ;; 3D Tangent Vector Computation for a GK Geometry
@@ -353,6 +374,5 @@ int main() {
             (convert-expr (list-ref coords 2))
             (convert-expr (list-ref coords 0))
             (convert-expr (list-ref coords 1))
-            (convert-expr (list-ref coords 2))
-            ))
+            (convert-expr (list-ref coords 2))))
   code)

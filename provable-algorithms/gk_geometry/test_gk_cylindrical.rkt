@@ -26,16 +26,17 @@
 ;; Define domain parameters.
 (define nx 8)
 (define x0 0.1)
-(define x1 0.2)
+(define x1 0.2)          ;; psi ranges between 0.1 and 0.2 (8 cells).
 (define ny 8)
 (define y0 (* -1.0 pi))
-(define y1 pi)
+(define y1 pi)           ;; theta ranges between -pi and pi (8 cells).
 (define nz 8)
 (define z0 (* -1.0 pi))
-(define z1 pi)
+(define z1 pi)           ;; alpha ranges between -pi and pi (8 cells).
 
-;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry.
-(define code-gk-cylindrical-tangent-vectors
+;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry, using automatic
+
+(define code-gk-cylindrical-tangent-vector
   (generate-tangent-vectors-3d geometry-cylindrical
                                #:nx nx
                                #:x0 x0
@@ -51,4 +52,31 @@
 (with-output-to-file "code/gk_cylindrical_tangent_vectors.c"
   #:exists 'replace
   (lambda ()
-    (display code-gk-cylindrical-tangent-vectors)))
+    (display code-gk-cylindrical-tangent-vector)))
+
+(display "3D tangent vector (automatic differentiation) properties:\n\n")
+
+;; Attempt to prove finiteness of the 3D tangent vectors in a cylindrical GK geometry, using automatic differentiation.
+(define proof-gk-cylindrical-tangent-vectors-3d-finite
+  (call-with-output-file "proofs/gk_cylindrical_tangent_vectors_3d_finite.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-tangent-vectors-3d-finite geometry-cylindrical
+                                         #:nx nx
+                                         #:x0 x0
+                                         #:x1 x1
+                                         #:ny ny
+                                         #:y0 y0
+                                         #:y1 y1
+                                         #:nz nz
+                                         #:z0 z0
+                                         #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_tangent_vectors_3d_finite.rkt")
+
+;; Show whether 3D tangent vectors are finite.
+(display "Tangent vectors finite: ")
+(display proof-gk-cylindrical-tangent-vectors-3d-finite)
+(display "\n")
