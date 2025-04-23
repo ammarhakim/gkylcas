@@ -23,9 +23,29 @@
                 `(define (phi psi theta alpha) (* -1.0 alpha))   ; phi (function of psi, theta, and alpha)
                 `(define (Z psi theta) (/ theta pi)))))          ; Z (function of psi and theta)
 
+;; Define domain parameters.
+(define nx 8)
+(define x0 0.1)
+(define x1 0.2)
+(define ny 8)
+(define y0 (* -1.0 pi))
+(define y1 pi)
+(define nz 8)
+(define z0 (* -1.0 pi))
+(define z1 pi)
+
 ;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry.
 (define code-gk-cylindrical-tangent-vectors
-  (generate-tangent-vectors-3d geometry-cylindrical))
+  (generate-tangent-vectors-3d geometry-cylindrical
+                               #:nx nx
+                               #:x0 x0
+                               #:x1 x1
+                               #:ny ny
+                               #:y0 y0
+                               #:y1 y1
+                               #:nz nz
+                               #:z0 z0
+                               #:z1 z1))
 
 ;; Output the code to a file.
 (with-output-to-file "code/gk_cylindrical_tangent_vectors.c"
