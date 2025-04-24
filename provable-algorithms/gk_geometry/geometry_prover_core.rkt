@@ -487,10 +487,11 @@
                                               (not (null? (list-ref deriv-expr 1)))
                                               (eq? (car (list-ref deriv-expr 1)) `D)))
                                        deriv-exprs))
-  
-  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
-  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
-  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (define tangent1-exprs (list-ref tangent-vectors 0))
+  (define tangent2-exprs (list-ref tangent-vectors 1))
+  (define tangent3-exprs (list-ref tangent-vectors 2))
 
   (define out (cond
                 ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
@@ -595,9 +596,10 @@
                                               (eq? (car (list-ref deriv-expr 1)) `D)))
                                        deriv-exprs))
   
-  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
-  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
-  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (define tangent1-exprs (list-ref tangent-vectors 0))
+  (define tangent2-exprs (list-ref tangent-vectors 1))
+  (define tangent3-exprs (list-ref tangent-vectors 2))
 
   (define out (cond
                 ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
@@ -702,9 +704,10 @@
                                               (eq? (car (list-ref deriv-expr 1)) `D)))
                                        deriv-exprs))
   
-  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
-  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
-  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (define tangent1-exprs (list-ref tangent-vectors 0))
+  (define tangent2-exprs (list-ref tangent-vectors 1))
+  (define tangent3-exprs (list-ref tangent-vectors 2))
 
   (define out (cond
                 ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
@@ -808,9 +811,10 @@
                                               (eq? (car (list-ref deriv-expr 1)) `D)))
                                        deriv-exprs))
   
-  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
-  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
-  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (define tangent1-exprs (list-ref tangent-vectors 0))
+  (define tangent2-exprs (list-ref tangent-vectors 1))
+  (define tangent3-exprs (list-ref tangent-vectors 2))
 
   (define out (cond
                 ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
