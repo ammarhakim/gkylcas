@@ -1,6 +1,7 @@
 #lang racket
 
 (require "geometry_prover_core.rkt")
+(require "geometry_prover_metric.rkt")
 (provide convert-expr
          convert-expr-params
          remove-bracketed-expressions
