@@ -153,7 +153,7 @@
 ;; Show whether 3D tangent vectors are real (from the X-point outwards).
 (display "Tangent vectors real (X-point outwards): ")
 (display proof-gk-cylindrical-tangent-vectors-3d-real-x-point)
-(display "\n")
+(display "\n\n\n")
 
 ;; Synthesize the code for 3D metric tensor computation in a cylindrical GK geometry, using automatic differentiation.
 (define code-gk-cylindrical-metric-tensor
@@ -173,3 +173,55 @@
   #:exists 'replace
   (lambda ()
     (display code-gk-cylindrical-metric-tensor)))
+
+(display "3D metric tensor (automatic differentiation) properties:\n\n")
+
+;; Attempt to prove finiteness of the 3D metric tensor in a cylindrical GK geometry, using automatic differentiation.
+(define proof-gk-cylindrical-metric-tensor-3d-finite
+  (call-with-output-file "proofs/gk_cylindrical_metric_tensor_3d_finite.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-metric-tensor-3d-finite geometry-cylindrical
+                                       #:nx nx
+                                       #:x0 x0
+                                       #:x1 x1
+                                       #:ny ny
+                                       #:y0 y0
+                                       #:y1 y1
+                                       #:nz nz
+                                       #:z0 z0
+                                       #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_metric_tensor_3d_finite.rkt")
+
+;; Show whether 3D metric tensor is finite.
+(display "Metric tensor finite: ")
+(display proof-gk-cylindrical-metric-tensor-3d-finite)
+(display "\n")
+
+;; Attempt to prove finiteness of the 3D metric tensor in a cylindrical GK geometry (excluding the X-point), using automatic differentiation.
+(define proof-gk-cylindrical-metric-tensor-3d-finite-x-point
+  (call-with-output-file "proofs/gk_cylindrical_metric_tensor_3d_finite_x_point.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-metric-tensor-3d-finite-x-point geometry-cylindrical `psi
+                                               #:nx nx
+                                               #:x0 x0
+                                               #:x1 x1
+                                               #:ny ny
+                                               #:y0 y0
+                                               #:y1 y1
+                                               #:nz nz
+                                               #:z0 z0
+                                               #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_metric_tensor_3d_finite_x_point.rkt")
+
+;; Show whether 3D metric tensor is finite (excluding the X-point).
+(display "Metric tensor finite (excluding X-point): ")
+(display proof-gk-cylindrical-metric-tensor-3d-finite-x-point)
+(display "\n")

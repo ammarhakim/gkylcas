@@ -18,7 +18,9 @@
          prove-tangent-vectors-3d-finite
          prove-tangent-vectors-3d-finite-x-point
          prove-tangent-vectors-3d-real
-         prove-tangent-vectors-3d-real-x-point)
+         prove-tangent-vectors-3d-real-x-point
+         prove-metric-tensor-3d-finite
+         prove-metric-tensor-3d-finite-x-point)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -882,3 +884,209 @@
   
   out)
 (trace prove-tangent-vectors-3d-real-x-point)
+
+;; -------------------------------------------------------------------------------------------
+;; Prove Finiteness of the 3D Metric Tensor for a GK Geometry, using Automatic Differentiation
+;; -------------------------------------------------------------------------------------------
+(define (prove-metric-tensor-3d-finite geometry
+                                       #:nx [nx 100]
+                                       #:x0 [x0 0.0]
+                                       #:x1 [x1 1.0]
+                                       #:ny [ny 100]
+                                       #:y0 [y0 0.0]
+                                       #:y1 [y1 1.0]
+                                       #:nz [nz 100]
+                                       #:z0 [z0 0.0]
+                                       #:z1 [z1 1.0])
+  "Prove that the 3D metric tensor remains finite everywhere for the GK geometry specified by `geometry` using automatic differentiation.
+  - `nx`: Number of cells in the x-direction.
+  - `x0`, `x1`: Domain boundaries in the x-direction.
+  - `ny`: Number of cells in the y-direction.
+  - `y0`, `y1`: Domain boundaries in the y-direction.
+  - `nz`: Number of cells in the z-direction.
+  - `z0`, `z1`: Domain boundaries in the z-direction."
+
+  (define exprs (hash-ref geometry 'exprs))
+  (define coords (hash-ref geometry 'coords))
+  (define func-exprs (hash-ref geometry 'func-exprs))
+
+  (trace symbolic-diff)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp)
+  (trace symbolic-tangents)
+  (trace symbolic-metric)
+  (trace is-non-negative)
+  (trace is-real)
+  (trace is-non-zero)
+  (trace is-finite)
+
+  (define deriv-exprs (append* (map (lambda (func-expr)
+                                      (map (lambda (coord)
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
+                                           coords))
+                                    func-exprs)))
+  (define deriv-exprs-filtered (filter (lambda (deriv-expr)
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
+                                       deriv-exprs))
+
+  (define metric-tensor (symbolic-metric exprs coords))
+
+  (define out (cond
+                ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nx 1) (>= x0 x1)) #f]
+
+                ;; Check whether the number of y-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< ny 1) (>= y0 y1)) #f]
+
+                ;; Check whether the number of z-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nz 1) (>= z0 z1)) #f]
+
+                ;; Check whether the domain boundaries, any hence the coordinates, correspond to real numbers (otherwise, return false).
+                [(or (not (is-real x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the domain boundaries, and hence the coordinates, are finite (otherwise, return false).
+                [(or (not (is-finite x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the components of the metric tensor g_{i j} are all finite (otherwise, return false).
+                [(or (not (is-finite (list-ref (list-ref metric-tensor 0) 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 0) 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 0) 2) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 1) 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 1) 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 1) 2) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 2) 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 2) 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite (list-ref (list-ref metric-tensor 2) 2) func-exprs deriv-exprs-filtered coords))) #f]
+
+                ;; Otherwise, return true.
+                [else #t]))
+
+  (untrace symbolic-diff)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp)
+  (untrace symbolic-tangents)
+  (untrace symbolic-metric)
+  (untrace is-non-negative)
+  (untrace is-real)
+  (untrace is-non-zero)
+  (untrace is-finite)
+  
+  out)
+(trace prove-metric-tensor-3d-finite)
+
+;; -------------------------------------------------------------------------------------------------------------------
+;; Prove Finiteness of the 3D Metric Tensor (excluding the X-point) for a GK Geometry, using Automatic Differentiation
+;; -------------------------------------------------------------------------------------------------------------------
+(define (prove-metric-tensor-3d-finite-x-point geometry psi-coord
+                                               #:nx [nx 100]
+                                               #:x0 [x0 0.0]
+                                               #:x1 [x1 1.0]
+                                               #:ny [ny 100]
+                                               #:y0 [y0 0.0]
+                                               #:y1 [y1 1.0]
+                                               #:nz [nz 100]
+                                               #:z0 [z0 0.0]
+                                               #:z1 [z1 1.0])
+  "Prove that the 3D metric tensor remains finite everywhere (excluding the X-point) for the GK geometry specified by `geometry` using automatic differentiation.
+  - `nx`: Number of cells in the x-direction.
+  - `x0`, `x1`: Domain boundaries in the x-direction.
+  - `ny`: Number of cells in the y-direction.
+  - `y0`, `y1`: Domain boundaries in the y-direction.
+  - `nz`: Number of cells in the z-direction.
+  - `z0`, `z1`: Domain boundaries in the z-direction."
+
+  (define exprs (hash-ref geometry 'exprs))
+  (define coords (hash-ref geometry 'coords))
+  (define func-exprs (hash-ref geometry 'func-exprs))
+
+  (trace symbolic-diff)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp)
+  (trace symbolic-tangents)
+  (trace symbolic-metric)
+  (trace is-non-negative)
+  (trace is-real)
+  (trace is-non-zero)
+  (trace is-finite)
+  (trace is-finite-non-zero)
+
+  (define deriv-exprs (append* (map (lambda (func-expr)
+                                      (map (lambda (coord)
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
+                                           coords))
+                                    func-exprs)))
+  (define deriv-exprs-filtered (filter (lambda (deriv-expr)
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
+                                       deriv-exprs))
+  
+  (define metric-tensor (symbolic-metric exprs coords))
+
+  (define out (cond
+                ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nx 1) (>= x0 x1)) #f]
+
+                ;; Check whether the number of y-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< ny 1) (>= y0 y1)) #f]
+
+                ;; Check whether the number of z-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nz 1) (>= z0 z1)) #f]
+
+                ;; Check whether the domain boundaries, any hence the coordinates, correspond to real numbers (otherwise, return false).
+                [(or (not (is-real x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the domain boundaries, and hence the coordinates, are finite (otherwise, return false).
+                [(or (not (is-finite x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the components of the metric tensor g_{i j} are all finite, excluding the X-point (otherwise, return false).
+                [(or (not (is-finite-non-zero (list-ref (list-ref metric-tensor 0) 0) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 0) 1) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 0) 2) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 1) 0) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 1) 1) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 1) 2) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 2) 0) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 2) 1) (list psi-coord) func-exprs deriv-exprs-filtered coords))
+                     (not (is-finite-non-zero (list-ref (list-ref metric-tensor 2) 2) (list psi-coord) func-exprs deriv-exprs-filtered coords))) #f]
+
+                ;; Otherwise, return true.
+                [else #t]))
+
+  (untrace symbolic-diff)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp)
+  (untrace symbolic-tangents)
+  (untrace symbolic-metric)
+  (untrace is-non-negative)
+  (untrace is-real)
+  (untrace is-non-zero)
+  (untrace is-finite)
+  (untrace is-finite-non-zero)
+  
+  out)
+(trace prove-metric-tensor-3d-finite-x-point)
