@@ -8,12 +8,14 @@
          symbolic-simp-rule
          symbolic-simp
          symbolic-tangents
+         is-non-negative
          is-real
          is-non-zero
          is-finite
          is-finite-non-zero
          prove-tangent-vectors-3d-finite
-         prove-tangent-vectors-3d-finite-x-point)
+         prove-tangent-vectors-3d-finite-x-point
+         prove-tangent-vectors-3d-real)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -214,6 +216,26 @@
               exprs))
        coords))
 
+;; Determine whether an expression is non-negative.
+(define (is-non-negative expr non-negative)
+  (match expr
+    ;; A non-negative number is, trivially, non-negative.
+    [(? (lambda (arg)
+          (and (number? arg) (or (>= arg 0) (>= arg 0.0))))) #t]
+
+    ;; Non-negative variables are, trivially, non-zero.
+    [(? (lambda (arg)
+          (and (not (empty? non-negative)) (ormap (lambda (non-negative-var)
+                                                    (equal? arg non-negative-var)) non-negative)))) #t]
+
+    ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
+    [`(+ ,x ,y) (and (is-non-negative x non-negative) (is-non-negative y non-negative))]
+    [`(* ,x ,y) (and (is-non-negative x non-negative) (is-non-negative y non-negative))]
+    [`(/ ,x ,y) (and (is-non-negative x non-negative) (is-non-negative y non-negative))]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
 ;; Recursively determine whether an expression corresponds to a real number.
 (define (is-real expr func-exprs deriv-exprs coords)
   (match expr
@@ -236,6 +258,8 @@
     [(? (lambda (arg)
           (and (not (empty? coords)) (ormap (lambda (coord)
                                               (equal? arg coord)) coords)))) #t]
+
+    [`(sqrt ,x) (is-non-negative x `())]
 
     ;; The sum, difference, product, or quotient of two real numbers is always real.
     [`(+ . ,terms)
@@ -391,6 +415,7 @@
   (trace symbolic-simp-rule)
   (trace symbolic-simp)
   (trace symbolic-tangents)
+  (trace is-non-negative)
   (trace is-real)
   (trace is-non-zero)
   (trace is-finite)
@@ -459,6 +484,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-simp)
   (untrace symbolic-tangents)
+  (untrace is-non-negative)
   (untrace is-real)
   (untrace is-non-zero)
   (untrace is-finite)
@@ -495,6 +521,7 @@
   (trace symbolic-simp-rule)
   (trace symbolic-simp)
   (trace symbolic-tangents)
+  (trace is-non-negative)
   (trace is-real)
   (trace is-non-zero)
   (trace is-finite)
@@ -564,6 +591,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-simp)
   (untrace symbolic-tangents)
+  (untrace is-non-negative)
   (untrace is-real)
   (untrace is-non-zero)
   (untrace is-finite)
@@ -571,3 +599,109 @@
   
   out)
 (trace prove-tangent-vectors-3d-finite-x-point)
+
+;; -------------------------------------------------------------------------------------------
+;; Prove Realness of the 3D Tangent Vectors for a GK Geometry, using Automatic Differentiation
+;; -------------------------------------------------------------------------------------------
+(define (prove-tangent-vectors-3d-real geometry
+                                       #:nx [nx 100]
+                                       #:x0 [x0 0.0]
+                                       #:x1 [x1 1.0]
+                                       #:ny [ny 100]
+                                       #:y0 [y0 0.0]
+                                       #:y1 [y1 1.0]
+                                       #:nz [nz 100]
+                                       #:z0 [z0 0.0]
+                                       #:z1 [z1 1.0])
+  "Prove that the 3D tangent vectors remain real everywhere for the GK geometry specified by `geometry` using automatic differentiation.
+  - `nx`: Number of cells in the x-direction.
+  - `x0`, `x1`: Domain boundaries in the x-direction.
+  - `ny`: Number of cells in the y-direction.
+  - `y0`, `y1`: Domain boundaries in the y-direction.
+  - `nz`: Number of cells in the z-direction.
+  - `z0`, `z1`: Domain boundaries in the z-direction."
+
+  (define exprs (hash-ref geometry 'exprs))
+  (define coords (hash-ref geometry 'coords))
+  (define func-exprs (hash-ref geometry 'func-exprs))
+
+  (trace symbolic-diff)
+  (trace symbolic-simp-rule)
+  (trace symbolic-simp)
+  (trace symbolic-tangents)
+  (trace is-non-negative)
+  (trace is-real)
+  (trace is-non-zero)
+  (trace is-finite)
+
+  (define deriv-exprs (append* (map (lambda (func-expr)
+                                      (map (lambda (coord)
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
+                                           coords))
+                                    func-exprs)))
+  (define deriv-exprs-filtered (filter (lambda (deriv-expr)
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
+                                       deriv-exprs))
+  
+  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
+  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
+  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+
+  (define out (cond
+                ;; Check whether the number of x-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nx 1) (>= x0 x1)) #f]
+
+                ;; Check whether the number of y-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< ny 1) (>= y0 y1)) #f]
+
+                ;; Check whether the number of z-direction cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false).
+                [(or (< nz 1) (>= z0 z1)) #f]
+
+                ;; Check whether the domain boundaries, any hence the coordinates, correspond to real numbers (otherwise, return false).
+                [(or (not (is-real x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-real z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the domain boundaries, and hence the coordinates, are finite (otherwise, return false).
+                [(or (not (is-finite x0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite x1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite y1 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z0 func-exprs deriv-exprs-filtered `()))
+                     (not (is-finite z1 func-exprs deriv-exprs-filtered `()))) #f]
+
+                ;; Check whether the components of the first tangent vector e_1 are all real (otherwise, return false).
+                [(or (not (is-real (list-ref tangent1-exprs 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent1-exprs 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent1-exprs 2) func-exprs deriv-exprs-filtered coords))) #f]
+
+                ;; Check whether the components of the second tangent vector e_2 are all real (otherwise, return false).
+                [(or (not (is-real (list-ref tangent2-exprs 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent2-exprs 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent2-exprs 2) func-exprs deriv-exprs-filtered coords))) #f]
+
+                ;; Check whether the components of the third tangent vector e_3 are all real (otherwise, return false).
+                [(or (not (is-real (list-ref tangent3-exprs 0) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent3-exprs 1) func-exprs deriv-exprs-filtered coords))
+                     (not (is-real (list-ref tangent3-exprs 2) func-exprs deriv-exprs-filtered coords))) #f]
+
+                ;; Otherwise, return true.
+                [else #t]))
+
+  (untrace symbolic-diff)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-simp)
+  (untrace symbolic-tangents)
+  (untrace is-non-negative)
+  (untrace is-real)
+  (untrace is-non-zero)
+  (untrace is-finite)
+  
+  out)
+(trace prove-tangent-vectors-3d-real)
