@@ -8,6 +8,7 @@
          symbolic-simp-rule
          symbolic-simp
          symbolic-tangents
+         symbolic-metric
          is-non-negative
          is-real
          is-real-non-negative
@@ -217,6 +218,16 @@
                 (symbolic-simp (symbolic-diff expr coord)))
               exprs))
        coords))
+
+(define (symbolic-metric exprs coords)
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (map (lambda (row)
+         (map (lambda (column)
+                (symbolic-simp `(+ ,@(map (lambda (index)
+                                            `(* ,(list-ref (list-ref tangent-vectors row) index) ,(list-ref (list-ref tangent-vectors column) index)))
+                                          (build-list (length tangent-vectors) values)))))
+              (build-list (length tangent-vectors) values)))
+       (build-list (length tangent-vectors) values)))
 
 ;; Determine whether an expression is non-negative.
 (define (is-non-negative expr non-negative)

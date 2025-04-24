@@ -34,8 +34,7 @@
 (define z0 (* -1.0 pi))
 (define z1 pi)           ; alpha ranges between -pi and pi (8 cells).
 
-;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry, using automatic
-
+;; Synthesize the code for 3D tangent vector computation in a cylindrical GK geometry, using automatic differentiation.
 (define code-gk-cylindrical-tangent-vector
   (generate-tangent-vectors-3d geometry-cylindrical
                                #:nx nx
@@ -155,3 +154,22 @@
 (display "Tangent vectors real (X-point outwards): ")
 (display proof-gk-cylindrical-tangent-vectors-3d-real-x-point)
 (display "\n")
+
+;; Synthesize the code for 3D metric tensor computation in a cylindrical GK geometry, using automatic differentiation.
+(define code-gk-cylindrical-metric-tensor
+  (generate-metric-tensor-3d geometry-cylindrical
+                             #:nx nx
+                             #:x0 x0
+                             #:x1 x1
+                             #:ny ny
+                             #:y0 y0
+                             #:y1 y1
+                             #:nz nz
+                             #:z0 z0
+                             #:z1 z1))
+
+;; Output the code to a file.
+(with-output-to-file "code/gk_cylindrical_metric_tensor.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-gk-cylindrical-metric-tensor)))

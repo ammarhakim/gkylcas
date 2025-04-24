@@ -5,7 +5,8 @@
          convert-expr-params
          remove-bracketed-expressions
          remove-bracketed-expressions-from-file
-         generate-tangent-vectors-3d)
+         generate-tangent-vectors-3d
+         generate-metric-tensor-3d)
 
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
 (define (convert-expr expr)
@@ -173,9 +174,10 @@
                                          coords)))
   (define coord-params-filtered (substring coord-params 0 (- (string-length coord-params) 1)))
 
-  (define tangent1-exprs (list-ref (symbolic-tangents exprs coords) 0))
-  (define tangent2-exprs (list-ref (symbolic-tangents exprs coords) 1))
-  (define tangent3-exprs (list-ref (symbolic-tangents exprs coords) 2))
+  (define tangent-vectors (symbolic-tangents exprs coords))
+  (define tangent1-exprs (list-ref tangent-vectors 0))
+  (define tangent2-exprs (list-ref tangent-vectors 1))
+  (define tangent3-exprs (list-ref tangent-vectors 2))
   
   (define code
     (format "
@@ -192,19 +194,19 @@
 // Geometry derivative definitions (if any).
 ~a
 
-void compute_tangent_vector1(~a, double tangent_vector1[~a]) {
+void compute_tangent_vector1(~a, double *tangent_vector1) {
   tangent_vector1[0] = ~a;
   tangent_vector1[1] = ~a;
   tangent_vector1[2] = ~a;
 }
 
-void compute_tangent_vector2(~a, double tangent_vector2[~a]) {
+void compute_tangent_vector2(~a, double *tangent_vector2) {
   tangent_vector2[0] = ~a;
   tangent_vector2[1] = ~a;
   tangent_vector2[2] = ~a;
 }
 
-void compute_tangent_vector3(~a, double tangent_vector3[~a]) {
+void compute_tangent_vector3(~a, double *tangent_vector3) {
   tangent_vector3[0] = ~a;
   tangent_vector3[1] = ~a;
   tangent_vector3[2] = ~a;
@@ -266,24 +268,18 @@ int main() {
             deriv-code
             ;; Coordinate parameters for function signatures.
             coord-params-filtered
-            ;; Number of coordinates.
-            (length coords)
             ;; First tangent vector e_1.
             (convert-expr (list-ref tangent1-exprs 0))
             (convert-expr (list-ref tangent1-exprs 1))
             (convert-expr (list-ref tangent1-exprs 2))
             ;; Coordinate parameters for function signatures.
             coord-params-filtered
-            ;; Number of coordinates.
-            (length coords)
             ;; Second tangent vector e_2.
             (convert-expr (list-ref tangent2-exprs 0))
             (convert-expr (list-ref tangent2-exprs 1))
             (convert-expr (list-ref tangent2-exprs 2))
             ;; Coordinate parameters for function signatures.
             coord-params-filtered
-            ;; Number of coordinates.
-            (length coords)
             ;; Third tangent vector e_3.
             (convert-expr (list-ref tangent3-exprs 0))
             (convert-expr (list-ref tangent3-exprs 1))
@@ -369,6 +365,230 @@ int main() {
             (convert-expr (list-ref coords 0))
             (convert-expr (list-ref coords 1))
             (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 2))))
+  code)
+
+;; ----------------------------------------------
+;; 3D Metric Tensor Computation for a GK Geometry
+;; ----------------------------------------------
+(define (generate-metric-tensor-3d geometry
+                                   #:nx [nx 100]
+                                   #:x0 [x0 0.0]
+                                   #:x1 [x1 1.0]
+                                   #:ny [ny 100]
+                                   #:y0 [y0 0.0]
+                                   #:y1 [y1 1.0]
+                                   #:nz [nz 100]
+                                   #:z0 [z0 0.0]
+                                   #:z1 [z1 1.0])
+  "Generate C code that computes the 3D metric tensor for the GK geometry specified by `geometry` using automatic differentiation.
+  - `nx`: Number of cells in the x-direction.
+  - `x0`, `x1`: Domain boundaries in the x-direction.
+  - `ny`: Number of cells in the y-direction.
+  - `y0`, `y1`: Domain boundaries in the y-direction.
+  - `nz`: Number of cells in the z-direction.
+  - `z0`, `z1`: Domain boundaries in the z-direction."
+  
+  (define name (hash-ref geometry 'name))
+  (define exprs (hash-ref geometry 'exprs))
+  (define coords (hash-ref geometry 'coords))
+  (define func-exprs (hash-ref geometry 'func-exprs))
+
+  (define deriv-exprs (append* (map (lambda (func-expr)
+                                      (map (lambda (coord)
+                                             `(define ,(symbolic-diff (list-ref func-expr 1) coord)
+                                                ,(symbolic-simp (symbolic-diff (list-ref func-expr 2) coord))))
+                                           coords))
+                                    func-exprs)))
+  (define deriv-exprs-filtered (filter (lambda (deriv-expr)
+                                         (and (list? (list-ref deriv-expr 1))
+                                              (not (null? (list-ref deriv-expr 1)))
+                                              (eq? (car (list-ref deriv-expr 1)) `D)))
+                                       deriv-exprs))
+
+  (define func-code (cond
+                      [(not (empty? func-exprs)) (string-join (map (lambda (func-expr)
+                                                                     (string-append "double " (convert-expr-params (list-ref func-expr 1)) " {
+  return " (convert-expr (list-ref func-expr 2)) ";
+}"))
+                                                                   func-exprs) "\n")]
+                      [else ""]))
+  (define deriv-code (cond
+                       [(not (empty? deriv-exprs-filtered)) (string-join (map (lambda (deriv-expr)
+                                                                                (string-append "double " (convert-expr-params (list-ref deriv-expr 1)) " {
+  return " (convert-expr (list-ref deriv-expr 2)) ";
+}"))
+                                                                              deriv-exprs-filtered) "\n")]
+                       [else ""]))
+
+  (define coord-params (string-join (map (lambda (coord)
+                                           (string-append "double " (convert-expr coord) ","))
+                                         coords)))
+  (define coord-params-filtered (substring coord-params 0 (- (string-length coord-params) 1)))
+
+  (define metric-tensor (symbolic-metric exprs coords))
+
+  (define code
+    (format "
+// AUTO-GENERATED CODE FOR GYROKINETIC GEOMETRY: ~a
+// Symbolic metric tensor computation for a gyrokinetic geometry in 3D.
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+
+// Geometry function definitions (if any).
+~a
+
+// Geometry derivative definitions (if any).
+~a
+
+void compute_metric_tensor(~a, double **metric_tensor) {
+  metric_tensor[0][0] = ~a;
+  metric_tensor[0][1] = ~a;
+  metric_tensor[0][2] = ~a;
+
+  metric_tensor[1][0] = ~a;
+  metric_tensor[1][1] = ~a;
+  metric_tensor[1][2] = ~a;
+
+  metric_tensor[2][0] = ~a;
+  metric_tensor[2][1] = ~a;
+  metric_tensor[2][2] = ~a;
+}
+
+int main() {
+  // Domain setup.
+  const int n_~a = ~a;
+  const double ~a0 = ~a;
+  const double ~a1 = ~a;
+  const double L~a = (~a1 - ~a0);
+  const double d_~a = L~a / n_~a;
+  const int n_~a = ~a;
+  const double ~a0 = ~a;
+  const double ~a1 = ~a;
+  const double L~a = (~a1 - ~a0);
+  const double d_~a = L~a / n_~a;
+  const int n_~a = ~a;
+  const double ~a0 = ~a;
+  const double ~a1 = ~a;
+  const double L~a = (~a1 - ~a0);
+  const double d_~a = L~a / n_~a;
+
+  // Array for metric tensor components.
+  double **metric_tensor = (double**) malloc(~a * sizeof(double*));
+  for (int i = 0; i < ~a; i++) {
+    metric_tensor[i] = (double*) malloc(~a * sizeof(double));
+  }
+
+  for (int i = 0; i < n_~a; i++) {
+    for (int j = 0; j < n_~a; j++) {
+      for (int k = 0; k < n_~a; k++) {
+        double ~a = ~a0 + (i + 0.5) * d_~a;
+        double ~a = ~a0 + (j + 0.5) * d_~a;
+        double ~a = ~a0 + (k + 0.5) * d_~a;
+
+        compute_metric_tensor(~a, ~a, ~a, metric_tensor);
+
+        printf(\"(%g, %g, %g): g_{i j} = ((%g, %g, %g), (%g, %g, %g), (%g, %g, %g)) \\n\", ~a, ~a, ~a, metric_tensor[0][0], metric_tensor[0][1], metric_tensor[0][2],
+          metric_tensor[1][0], metric_tensor[1][1], metric_tensor[1][2], metric_tensor[2][0], metric_tensor[2][1], metric_tensor[2][2]);
+      }
+    }
+  }
+}
+"
+            ;; GK geometry name for code comments.
+            name
+            ;; Additional geometry functions (e.g. R, phi, Z for cylindrical geometries).
+            func-code
+            ;; Additional geometry derivative functions (e.g. psi, theta, alpha derivatives of R, phi, Z).
+            deriv-code
+            ;; Coordinate parameters for function signatures.
+            coord-params-filtered
+            ;; Metric tensor g_{i j} components.
+            (convert-expr (list-ref (list-ref metric-tensor 0) 0))
+            (convert-expr (list-ref (list-ref metric-tensor 0) 1))
+            (convert-expr (list-ref (list-ref metric-tensor 0) 2))
+            (convert-expr (list-ref (list-ref metric-tensor 1) 0))
+            (convert-expr (list-ref (list-ref metric-tensor 1) 1))
+            (convert-expr (list-ref (list-ref metric-tensor 1) 2))
+            (convert-expr (list-ref (list-ref metric-tensor 2) 0))
+            (convert-expr (list-ref (list-ref metric-tensor 2) 1))
+            (convert-expr (list-ref (list-ref metric-tensor 2) 2))
+            ;; Number of cells (x-direction).
+            (convert-expr (list-ref coords 0))
+            nx
+            ;; Left boundary (x-direction).
+            (convert-expr (list-ref coords 0))
+            x0
+            ;; Right boundary (y-direction).
+            (convert-expr (list-ref coords 0))
+            x1
+            ;; X-coordinate expressions.
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            ;; Number of cells (y-direction).
+            (convert-expr (list-ref coords 1))
+            ny
+            ;; Left boundary (y-direction).
+            (convert-expr (list-ref coords 1))
+            y0
+            ;; Right boundary (y-direction).
+            (convert-expr (list-ref coords 1))
+            y1
+            ;; Y-coordinate expressions.
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            ;; Number of cells (z-direction).
+            (convert-expr (list-ref coords 2))
+            nz
+            ;; Left boundary (z-direction).
+            (convert-expr (list-ref coords 2))
+            z0
+            ;; Right boundary (z-direction).
+            (convert-expr (list-ref coords 2))
+            z1
+            ;; Z--coordinate expressions.
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            ;; Number of coordinates.
+            (length coords)
+            (length coords)
+            (length coords)
+            ;; Coordinate expressions.
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 2))
+            ;; X-coordinate expressions.
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            (convert-expr (list-ref coords 0))
+            ;; Y-coordinate expressions.
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            (convert-expr (list-ref coords 1))
+            ;; Z-coordinate expressions.
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            (convert-expr (list-ref coords 2))
+            ;; Coordinate expressions.
             (convert-expr (list-ref coords 0))
             (convert-expr (list-ref coords 1))
             (convert-expr (list-ref coords 2))
