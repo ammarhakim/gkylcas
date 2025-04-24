@@ -129,3 +129,29 @@
 ;; Show whether 3D tangent vectors are real.
 (display "Tangent vectors real: ")
 (display proof-gk-cylindrical-tangent-vectors-3d-real)
+(display "\n")
+
+;; Attempt to prove realness of the 3D tangent vectors in a cylindrical GK geometry (from the X-point outwards), using automatic differentiation.
+(define proof-gk-cylindrical-tangent-vectors-3d-real-x-point
+  (call-with-output-file "proofs/gk_cylindrical_tangent_vectors_3d_real_x_point.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-tangent-vectors-3d-real-x-point geometry-cylindrical `psi
+                                               #:nx nx
+                                               #:x0 x0
+                                               #:x1 x1
+                                               #:ny ny
+                                               #:y0 y0
+                                               #:y1 y1
+                                               #:nz nz
+                                               #:z0 z0
+                                               #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_tangent_vectors_3d_real_x_point.rkt")
+
+;; Show whether 3D tangent vectors are real (from the X-point outwards).
+(display "Tangent vectors real (X-point outwards): ")
+(display proof-gk-cylindrical-tangent-vectors-3d-real-x-point)
+(display "\n")
