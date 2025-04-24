@@ -226,3 +226,53 @@
 (display "Metric tensor finite (excluding X-point): ")
 (display proof-gk-cylindrical-metric-tensor-3d-finite-x-point)
 (display "\n")
+
+;; Attempt to prove realness of the 3D metric tensor in a cylindrical GK geometry, using automatic differentiation.
+(define proof-gk-cylindrical-metric-tensor-3d-real
+  (call-with-output-file "proofs/gk_cylindrical_metric_tensor_3d_real.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-metric-tensor-3d-real geometry-cylindrical
+                                     #:nx nx
+                                     #:x0 x0
+                                     #:x1 x1
+                                     #:ny ny
+                                     #:y0 y0
+                                     #:y1 y1
+                                     #:nz nz
+                                     #:z0 z0
+                                     #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_metric_tensor_3d_real.rkt")
+
+;; Show whether 3D metric tensor is real.
+(display "Metric tensor real: ")
+(display proof-gk-cylindrical-metric-tensor-3d-real)
+(display "\n")
+
+;; Attempt to prove realness of the 3D metric tensor in a cylindrical GK geometry (from the X-point outwards), using automatic differentiation.
+(define proof-gk-cylindrical-metric-tensor-3d-real-x-point
+  (call-with-output-file "proofs/gk_cylindrical_metric_tensor_3d_real_x_point.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../geometry_prover_core.rkt\")\n\n")
+        (prove-metric-tensor-3d-real-x-point geometry-cylindrical `psi
+                                             #:nx nx
+                                             #:x0 x0
+                                             #:x1 x1
+                                             #:ny ny
+                                             #:y0 y0
+                                             #:y1 y1
+                                             #:nz nz
+                                             #:z0 z0
+                                             #:z1 z1)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/gk_cylindrical_metric_tensor_3d_real_x_point.rkt")
+
+;; Show whether 3D metric tensor is real (from the X-point outwards).
+(display "Metric tensor real (X-point outwards): ")
+(display proof-gk-cylindrical-metric-tensor-3d-real-x-point)
+(display "\n\n\n")
