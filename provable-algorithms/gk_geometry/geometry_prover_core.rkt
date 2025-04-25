@@ -14,6 +14,7 @@
          is-non-zero
          is-finite
          is-finite-non-zero
+         variable-transform
          prove-tangent-vectors-3d-finite
          prove-tangent-vectors-3d-finite-x-point
          prove-tangent-vectors-3d-real
@@ -441,6 +442,21 @@
 
     ;; Otherwise, assume false.
     [else #f]))
+
+;; Recursively transform all occurrences of a given variable within an expression to a new variable.
+(define (variable-transform expr var new-var)
+  (cond
+    ;; Replace any occurrence of var in expr with new-var.
+    [(symbol? expr) (cond
+                      [(equal? expr var) new-var]
+                      [else expr])]
+
+    ;; Recursively apply variable-transform to all subexpressions.
+    [(pair? expr) (map (lambda (subexpr)
+                         (variable-transform subexpr var new-var)) expr)]
+
+    ;; Otherwise, return the expression.
+    [else expr]))
 
 ;; ---------------------------------------------------------------------------------------------
 ;; Prove Finiteness of the 3D Tangent Vectors for a GK Geometry, using Automatic Differentiation
