@@ -76,7 +76,7 @@ genPosShiftGKPhaseShiftKernel(fh, funcName, cdim, vdim, basisType, polyOrder, no
       vvars : makelist(varsP[cdim+i],i,1,vdim),
       nodes : gaussOrdGkHyb(polyOrder+1, cvars, vvars)
     ) else (
-      nodes : gaussOrd(polyOrder+1, pdim-1)
+      nodes : gaussOrd(polyOrder+1, pdim)
     )
   ) elseif nodeType = "gauss_lobatto" then (
     nodes : getNodesGkHyb(cdim, vdim)
@@ -148,7 +148,7 @@ genPosShiftGKPhaseMRSKernel(fh, funcName, cdim, vdim, basisType, polyOrder, node
       vvars : makelist(varsP[cdim+i],i,1,vdim),
       nodes : gaussOrdGkHyb(polyOrder+1, cvars, vvars)
     ) else (
-      nodes : gaussOrd(polyOrder+1, pdim-1)
+      nodes : gaussOrd(polyOrder+1, pdim)
     )
   ) elseif nodeType = "gauss_lobatto" then (
     nodes : getNodesGkHyb(cdim, vdim)

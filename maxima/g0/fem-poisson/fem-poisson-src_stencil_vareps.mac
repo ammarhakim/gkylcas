@@ -24,7 +24,8 @@ fpprec : 24$
 generate_fem_poisson_src_stencil_vareps(fh, funcNm, dim, basisFun, pMax) := block(
   [coordVarS,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,currBC,stencilStr,bN,numB,vars,nodes,numNodes,
    massNod,massM,mod2nod,massMod2nod,rho_c,src,src_c,domSurfs,phi_e,surf_c,insertVal,dirichletDirs,opStr,dir,
-   dirichletNodesI,dirVar,surfVars,off3,k0,bcValues,eps_dphidnBC,sI,d,bcsInDir,i,bcI,polyOrder,dI,k],
+   phiBC_m,phiBC_c,dirichletNodes,dirichletNodesI,bcNode,bcNodeI,dirVar,surfVars,off3,bcValsIdx,bcValues,
+   eps_dphidnBC,sI,d,bcsInDir,i,bcI,polyOrder,dI,k],
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -43,9 +44,10 @@ generate_fem_poisson_src_stencil_vareps(fh, funcNm, dim, basisFun, pMax) := bloc
        =1 dirichlet
        =2 neumann
        =3 robin
+       =4 dirichletvar (=1 with spatially varying BC).
   */
-  bcTypes : [0, 1, 2, 3],
-  bcStrs  : ["periodic", "dirichlet", "neumann", "robin"],
+  bcTypes : [0, 1, 2, 3, 4],
+  bcStrs  : ["periodic", "dirichlet", "neumann", "robin", "dirichletvar"],
   bcKey   : makelist([bcTypes[i],bcStrs[i]],i,1,length(bcTypes)),
 
   for sI : 1 thru length(stencilLoc) do (
@@ -75,10 +77,11 @@ generate_fem_poisson_src_stencil_vareps(fh, funcNm, dim, basisFun, pMax) := bloc
 
       for polyOrder : 1 thru pMax do (
 
-        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
+        printf(fh, "GKYL_CU_DH void ~a_p~a~a(const double *epsilon, const double *dx, const double *rho, const double *bcVals, const double *phiBC, const long *globalIdxs, double *bsrc) ~%{ ~%", funcNm, polyOrder, stencilStr),
         printf(fh, "  // epsilon: permittivity tensor.~%"),
         printf(fh, "  // rho: right side source.~%"),
         printf(fh, "  // bcVals: values to impose as BCs, i.e. bcVals[off+0]*phi+bcVals[off+1]*epsilon^{ij}*d(phi)/dx_j=bcVals[off+2].~%"),
+        printf(fh, "  // phiBC: Dirichlet boundary potential, given as a DG (volume) expansion in the skin cell.~%"),
         printf(fh, "  // globalIdxs: global linear index of each basis function/node in current cell.~%"),
         printf(fh, "  // bsrc: global right side source vector.~%"),
         printf(fh, "~%"),
@@ -121,13 +124,13 @@ generate_fem_poisson_src_stencil_vareps(fh, funcNm, dim, basisFun, pMax) := bloc
           surfVars : delete(dirVar,vars),
 
           off3 : 3*((stencilLoc[sI][dir]+1)/2),
-          k0   : 6*(dir-1)+off3,
+          bcValsIdx   : 6*(dir-1)+off3,
           if currBC[dir]=2 then (
             /* Neumman. */
-            bcValues : [0, 1, bcVals[k0+2]]
+            bcValues : [0, 1, bcVals[bcValsIdx+2]]
           ) elseif currBC[dir]=3 then (
             /* Robin. */
-            bcValues : [bcVals[k0], bcVals[k0+1], bcVals[k0+2]]
+            bcValues : [bcVals[bcValsIdx], bcVals[bcValsIdx+1], bcVals[bcValsIdx+2]]
           ),
 
           /* Here eps_dphidnBC = epsilon^{ij}*d(phi)/dx_j. */
@@ -145,13 +148,29 @@ generate_fem_poisson_src_stencil_vareps(fh, funcNm, dim, basisFun, pMax) := bloc
            k-th node to phi_k = bcVals[2]. So we need to replace the source at
            this node by the boundary value. */
         insertVal : makelist(false,k,1,numB),
-        dirichletDirs : append([], sublist_indices(currBC, lambda([x],x = 1))),
+        dirichletDirs : append([], sublist_indices(currBC, lambda([x],x = 1 or x = 4))),
         for dI : 1 thru length(dirichletDirs) do (
           dir : dirichletDirs[dI],
+          if (currBC[dir] = 1) then (
+            /* Used homogeneous boundary phi value. */
+            bcValsIdx : 6*(dir-1)+2+max(0,3*stencilLoc[sI][dir])
+          ) else (
+            /* Evaluate phiBC at the boundary surface nodes. */
+            phiBC_m : mod2nod . makelist(phiBC[k-1],k,1,numB),
+            phiBC_c : makelist(fullratsimp(phiBC_m[i][1]),i,1,numB)
+          ),
+          dirichletNodes  : sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           dirichletNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletNodesI) do (
-            k0 : 6*(dir-1)+2+max(0,3*stencilLoc[sI][dir]),
-            src_c[dirichletNodesI[k]]     : bcVals[k0],
+            if (currBC[dir] = 1) then (
+              src_c[dirichletNodesI[k]] : bcVals[bcValsIdx]
+            ) else (
+              /* Evaluate phiBC at +1/-1 when at the lower/upper boundary.*/
+              bcNode : copylist(dirichletNodes[k]),
+              bcNode[dir] : bcNode[dir],
+              bcNodeI : sublist_indices(nodes,lambda([x],x=bcNode))[1],
+              src_c[dirichletNodesI[k]] : phiBC_c[bcNodeI]
+            ),
             insertVal[dirichletNodesI[k]] : true
           )
         ),
