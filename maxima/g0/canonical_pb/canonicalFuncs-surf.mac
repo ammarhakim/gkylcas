@@ -145,8 +145,8 @@ calcCanonicalPBSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOr
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
-  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fc_e,basisStr,"L",cdim, vdim, polyOrder,basisFun),
-  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fc_e,fr_e,basisStr,"R",cdim, vdim, polyOrder,basisFun),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fl_e,fc_e,basisStr,"L",cdim, vdim, polyOrder,basisFun, false),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fc_e,fr_e,basisStr,"R",cdim, vdim, polyOrder,basisFun, false),
 
   fUpL_e : doExpand1(fUpL, bSurf), 
   fUpR_e : doExpand1(fUpR, bSurf), 
@@ -329,7 +329,7 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
 
   NSurf : length(bSurf),
 
-  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fSkin_e,fEdge_e,basisStr,"R",cdim, vdim, polyOrder, basisFun),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fSkin_e,fEdge_e,basisStr,"R",cdim, vdim, polyOrder, basisFun, false),
   fUpR_e : doExpand1(fUpR, bSurf), 
   printf(fh, "  double GhatR[~a] = {0.};~%", NSurf), 
   GhatR_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfR_e*fUpR_e), 
@@ -349,7 +349,7 @@ calcCanonicalPBBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun
   /* Otherwise, edge == 1, and we are doing the right edge boundary and the skin cell needs to be evaluated at -1 */
   printf(fh, "  } else { ~%~%"), 
 
-  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fEdge_e,fSkin_e,basisStr,"L",cdim, vdim, polyOrder, basisFun),
+  calcAndWrite_CanonicalPBfUpwind(fh,surfDir,surfVar,surfIntVars,bSurf,NSurf,fEdge_e,fSkin_e,basisStr,"L",cdim, vdim, polyOrder, basisFun, false),
   fUpL_e : doExpand1(fUpL, bSurf), 
   printf(fh, "  double GhatL[~a] = {0.};~%", NSurf),
   GhatL_c : calcInnerProdList(surfIntVars, 1, bSurf, alphaSurfL_e*fUpL_e), 
