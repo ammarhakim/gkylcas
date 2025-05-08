@@ -97,7 +97,6 @@ calc_gr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   printf(fh, "#include <gkyl_canonical_pb_gr_Gamma_kernels.h> ~%"),
-  printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *h_ij_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT gr_pressure) ~%{ ~%", funcNm),
   printf(fh, "  // w:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv: Cell spacing.~%"),
@@ -218,52 +217,6 @@ calc_gr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  double temp_sq[~a] = {0.0}; ~%", NP),
   printf(fh, "  double p_fac[~a] = {0.0}; ~%", NP),
 
-    /* For p2 tensor, choose tensor, otherwise just use ser */
-  if not(basisFun = "tensor" and polyOrder = 2 and cdim > 1) then (
-    basisFunBinOp : "ser"
-  )
-  else (
-    basisFunBinOp : "tensor"
-  ),
-
-  /* Temporary varaibles to avoid issues with hxx[i]^2 etc. */
-  if (vdim = 1) then (
-    printf(fh, "  double Hxx_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxx, Hxx, Hxx_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    Hxx_sq_e : doExpand1(Hxx_sq, bC)
-  ),
-  if (vdim = 2) then (
-    printf(fh, "  double Hxx_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hxy_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hyy_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxx, Hxx, Hxx_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxy, Hxy, Hxy_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hyy, Hyy, Hyy_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    Hxx_sq_e : doExpand1(Hxx_sq, bC),
-    Hxy_sq_e : doExpand1(Hxy_sq, bC),
-    Hyy_sq_e : doExpand1(Hyy_sq, bC)
-  ),
-  if (vdim = 3) then (
-    printf(fh, "  double Hxx_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hxy_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hyy_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hxz_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hyz_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  double Hzz_sq[~a] = {0.0}; ~%", NC),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxx, Hxx, Hxx_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxy, Hxy, Hxy_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hyy, Hyy, Hyy_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hxz, Hxz, Hxz_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hyz, Hyz, Hyz_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    printf(fh, "  binop_mul_~ad_~a_p~a(Hzz, Hzz, Hzz_sq); ~%", cdim, basisFunBinOp, polyOrder),
-    Hxx_sq_e : doExpand1(Hxx_sq, bC),
-    Hxy_sq_e : doExpand1(Hxy_sq, bC),
-    Hyy_sq_e : doExpand1(Hyy_sq, bC),
-    Hxz_sq_e : doExpand1(Hxz_sq, bC),
-    Hyz_sq_e : doExpand1(Hyz_sq, bC),
-    Hzz_sq_e : doExpand1(Hzz_sq, bC)
-  ),
-
   /* Maxima couldn't generate these kernels raw, here we introduce smaller
   temporary variables to break it down and make the writes easier*/
 
@@ -272,14 +225,12 @@ calc_gr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     temp_sq_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*vTrans[1]*VxSq_e)
   )
   else if (vdim = 2) then (
-    temp_c : calcInnerProdList(varsP, 1, bP,
-              vTrans[1]*Vx_e + vTrans[2]*Vy_e),
+    temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e),
     temp_sq_c : calcInnerProdList(varsP, 1, bP,
               vTrans[1]*vTrans[1]*VxSq_e + vTrans[2]*vTrans[2]*VySq_e + 2*vTrans[1]*Vx_e*vTrans[2]*Vy_e)
   )
   else (
-    temp_c : calcInnerProdList(varsP, 1, bP,
-              vTrans[1]*Vx_e + vTrans[2]*Vy_e + vTrans[3]*Vz_e),
+    temp_c : calcInnerProdList(varsP, 1, bP, vTrans[1]*Vx_e + vTrans[2]*Vy_e + vTrans[3]*Vz_e),
     temp_sq_c : calcInnerProdList(varsP, 1, bP,
               vTrans[1]*vTrans[1]*VxSq_e + vTrans[2]*vTrans[2]*VySq_e + vTrans[3]*vTrans[3]*VzSq_e
               + 2*vTrans[1]*Vx_e*vTrans[2]*Vy_e + 2*vTrans[1]*Vx_e*vTrans[3]*Vz_e + 2*vTrans[2]*Vy_e*vTrans[3]*Vz_e)

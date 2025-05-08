@@ -1,9 +1,9 @@
 /*  Generate kernels for determining the rest-frame density in a 
     relativistic can-pb simulation. The order of operations is : 
-    1. Set the matrices for solving the linear system V_drift_i = M1i/M0 
+    1. Set the matrices for solving the linear system V_drift^i = M1i/M0 
        Note that this batched linear solve is parallelized over components. 
-    2. Call the batched linear solve routine to find V_drift_i.
-    3. Compute |V_drift|^2 = sum_i h^ij * V_drift_i * V_drift_j using weak multiplication.
+    2. Call the batched linear solve routine to find V_drift^i.
+    3. Compute |V_drift|^2 = sum_i h_ij * V_drift^i * V_drift^j using weak multiplication.
     4. Check is 1 - |V_drift|^2 < 0.0 at Gauss-Legendre quadrature points. 
     5. If 1 - |V_drift|^2 is positive definite, compute Gamma_inv = sqrt(1 - |V_drift|^2).
     6. If 1 - |V_drift|^2 < 0.0, compute V_drift_i * V_drift_i at linear Gauss-Lobatto
@@ -170,7 +170,7 @@ copy_gr_n(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ), 
     printf(fh, " ~%")
   ),
-  printf(fh, "  double V_sq[~a] = {0.0}; ~%", vdim*NC),
+  printf(fh, "  double V_sq[~a] = {0.0}; ~%", NC),
 
 
   /* Get pointers to components of velocity (based on how many components are present). */
