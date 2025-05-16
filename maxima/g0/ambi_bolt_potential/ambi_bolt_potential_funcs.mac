@@ -15,7 +15,7 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   /* Compute the sheath entrance potential using Gaussian quadrature. */
   [numQuad,vars,basis,numB,bmagBasis,sheathDir,sheathVar,sheathSurfVars,varsLowD,basisLowD,numBLowD,
    boundaryStr,ghostEvSign,skinEvSign,GammaJacIon_e,GammaJacIonB_c,
-   cmag_e,jacobtotInv_e,x3HalfMomJacElc_e,x3HalfMomJacElcB_c,x3HalfMomJacElcB_e,x3HalfMomJacElcB_n,
+   cmag_e,c_div_JB,x3HalfMomJacElc_e,x3HalfMomJacElcB_c,x3HalfMomJacElcB_e,x3HalfMomJacElcB_n,
    GammaJacIonB_e,m0JacIon_e,m0JacIonB_c,m0JacIonB_e,phiSlowD_c,
    phiSlowD_e,phiS_c,expr,m0Ion_c,m0Ion_e,m0IonS_c],
 
@@ -51,13 +51,12 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
   ghostEvSign : [1, -1],  skinEvSign  : [-1, 1],
 
   for bS : 1 thru 2 do ( /* One kernel for each of lower and upper boundaries. */
-    printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(double sheathDirDx, double q_e, double m_e, double T_e, const double *cmag, const double *jacobtotInv, const double *GammaJac_i, const double *m0Ion, const double *m0JacIon, double *out) ~%{ ~%"), boundaryStr[bS]),
+    printf(fh,sconcat("GKYL_CU_DH void ",funcNm,"(double sheathDirDx, double q_e, double m_e, double T_e, const double *c_div_JB, const double *GammaJac_i, const double *m0Ion, const double *m0JacIon, double *out) ~%{ ~%"), boundaryStr[bS]),
     printf(fh,"  // sheathDirDx: cell length in direction of the sheath.~%"),
     printf(fh,"  // q_e:         electron change.~%"),
     printf(fh,"  // m_e:         electron mass.~%"),
     printf(fh,"  // T_e:         electron temperature.~%"),
-    printf(fh,"  // cmag:        Clebsch function in definition of magnetic field.~%"),
-    printf(fh,"  // jacobtotInv: reciprocal of the phase-space and conf-space Jacobians (1/(J*B)).~%"),
+    printf(fh,"  // c_div_JB:    Clebsch function in definition of magnetic field divided by jacobian times magnetic field.~%"),
     printf(fh,"  // GammaJac_i:  ion particle flux (times the Jacobian) through sheath entrance.~%"),
     printf(fh,"  // m0Ion:       ion density.~%"),
     printf(fh,"  // m0JacIon:    ion density (times the geometry Jacobian).~%"),
@@ -91,8 +90,8 @@ genSheathCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
       where x^3=C*vpar/(J*B), and assume quasineutrality so n_i appears instead of n_e.
     */
     cmag_e : doExpand1(cmag, bmagBasis),
-    jacobtotInv_e : doExpand1(jacobtotInv, bmagBasis),
-    x3HalfMomJacElc_e : (1/sqrt(2*%pi))*cmag_e*jacobtotInv_e*m0JacIon_e*sqrt(T_e/m_e),
+    c_div_JB_e : doExpand1(c_div_JB, bmagBasis),
+    x3HalfMomJacElc_e : (1/sqrt(2*%pi))*c_div_JB_e*m0JacIon_e*sqrt(T_e/m_e),
     x3HalfMomJacElcB_c : calcInnerProdList(varsLowD,1,basisLowD,subst(sheathVar=skinEvSign[bS], x3HalfMomJacElc_e)),
     printf(fh,"  double x3HalfMomJacElcB[~a];~%", numBLowD),
     writeCExprs1(x3HalfMomJacElcB, x3HalfMomJacElcB_c),
