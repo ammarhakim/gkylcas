@@ -81,13 +81,6 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
 
   /* Upwind the drag term using quadrature point evaluation. */
 
-  /* Evaluate alpha at ordinates.
-     Note: alphaSurf_e is already a surface expansion. 
-     In addition, it is continuous and does not vary with respect to the surface variable.
-     We still require a alpha_l (w - dv/2) and alpha_r (w + dv/2) for the two sides of the cell */
-  alphaOrd_l_n : gcfac(float(evAtNodes(alphaDrSurf_l_e,surfNodes,surfVars))),
-  alphaOrd_r_n : gcfac(float(evAtNodes(alphaDrSurf_r_e,surfNodes,surfVars))),
-
   /* Drag term flux does not depend on velocity space surface on which it sits
      i.e., drag term in vparallel does not depend on mu
      so sort quadrature points between configuration space and velocity space */
@@ -95,6 +88,17 @@ calcGkLBOBoundaryDragUpdateVPar(fh, funcNm, cdim, vdim, basisFun, polyOrder) := 
   surfNodesConfig : gaussOrd(polyOrder+1, cdim),
   numNodesConfig  : length(surfNodesConfig),
   numNodesVel     : numNodes/numNodesConfig,
+
+  /* Evaluate alpha at ordinates.
+     Note: alphaSurf_e is already a surface expansion. 
+     In addition, it is continuous and does not vary with respect to the surface variable.
+     We still require a alpha_l (w - dv/2) and alpha_r (w + dv/2) for the two sides of the cell */
+  alphaDrSurfC_l_c : fullratsimp(calcInnerProdList(varsC, 1, bC, alphaDrSurf_l_e)),
+  alphaDrSurfC_r_c : fullratsimp(calcInnerProdList(varsC, 1, bC, alphaDrSurf_r_e)),
+  alphaDrSurfC_l_e : doExpand(alphaDrSurfC_l_c, bC),
+  alphaDrSurfC_r_e : doExpand(alphaDrSurfC_r_c, bC),
+  alphaOrd_l_n : gcfac(float(evAtNodes(alphaDrSurfC_l_e,surfNodesConfig,varsC))),
+  alphaOrd_r_n : gcfac(float(evAtNodes(alphaDrSurfC_r_e,surfNodesConfig,varsC))),
 
   printf(fh, "  double alphaDrSurf[~a] = {0.0}; ~%", length(bSurf)),
   printf(fh, "  double fUpwindQuad[~a] = {0.0};~%", numNodes),
