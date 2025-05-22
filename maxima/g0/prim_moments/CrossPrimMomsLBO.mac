@@ -58,12 +58,13 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numB : length(basis),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections, const double *nu) ~%{ ~%", funcNm),
   printf(fh, "  // greene:               Greene's factor. ~%"),
   printf(fh, "  // m_:                   mass. ~%"),
   printf(fh, "  // moms:                 moments of the distribution function. ~%"),
   printf(fh, "  // prim_mom              self primitive moments: mean flow velocity and thermal speed squared. ~%"),
   printf(fh, "  // boundary_corrections: corrections to momentum and energy conservation due to finite velocity space. ~%"),
+  printf(fh, "  // nu:                   Collision frequency. ~%"),
   printf(fh, " ~%"),
 
   /* Create pointers to u and vtsq of each species. */
@@ -72,6 +73,20 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *u_other = &prim_mom_other[~a];~%", 0*numB),
   printf(fh, "  const double *vtsq_other = &prim_mom_other[~a];~%", udim*numB),
   printf(fh, " ~%"),
+
+  /* Declare new buffers where moments are stored. */
+  printf(fh, sconcat("  double m0r[~a] = {0.0}; ~%"), numB),
+  printf(fh, sconcat("  double m1r[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, sconcat("  double m2r[~a] = {0.0}; ~%"), numB),
+  printf(fh, sconcat("  double cMr[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, sconcat("  double cEr[~a] = {0.0}; ~%"), numB),
+  printf(fh, " ~%"),
+
+  /* If cell average collsion frequency is not positive, set moments to 1 and
+     corrections to 0 to avoid inversion of singular system. In this case the
+     collision operator will be turned off anyway. */
+  printf(fh, "  if (nu[0] > 0.0) { ~%"),
+  printf(fh, "  ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities
      use the cell averages when m0,m2,vtSq<0 at one of the corners. */
@@ -99,12 +114,6 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, " ~%")
   ),
 
-  /* Declare new buffers where moments are stored. */
-  printf(fh, sconcat("  double m0r[~a] = {0.0}; ~%"), numB),
-  printf(fh, sconcat("  double m1r[~a] = {0.0}; ~%"), udim*numB),
-  printf(fh, sconcat("  double m2r[~a] = {0.0}; ~%"), numB),
-  printf(fh, sconcat("  double cMr[~a] = {0.0}; ~%"), udim*numB),
-  printf(fh, sconcat("  double cEr[~a] = {0.0}; ~%"), numB),
   printf(fh, "  if (notCellAvg) { ~%"),
   /* Use the original expansion polynomial. */
   writeCExprs1s(m0r,makelist(moms_self[i],i,0,numB-1)),
@@ -129,6 +138,27 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprs1s(cEr,append([boundary_corrections[udim*numB]],makelist(0.0,i,1,numB-1))),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
+
+  printf(fh, "  } else { ~%"),
+  printf(fh, "  ~%"),
+
+  writeCExprs1s(m0r,append([1.0],makelist(0.0,i,1,numB-1))),
+  for vd : 1 thru udim do (
+    expr : float(expand(append([1.0],makelist(0.0,i,1,numB-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", m1r[(vd-1)*numB+i-1], expr[i])
+    ),
+    expr : float(expand(append([0.0],makelist(0.0,i,1,numB-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", cMr[(vd-1)*numB+i-1], expr[i])
+    )
+  ),
+  writeCExprs1s(m2r,append([1.0],makelist(0.0,i,1,numB-1))),
+  writeCExprs1s(cEr,append([0.0],makelist(0.0,i,1,numB-1))),
+
+  printf(fh, "  ~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"),
 
   /* Expansion in configuration space basis and coefficients
      of m0, m2 and the Greene factor. */
