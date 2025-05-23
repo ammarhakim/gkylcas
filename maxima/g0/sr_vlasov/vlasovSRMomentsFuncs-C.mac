@@ -350,7 +350,7 @@ calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "} ~%")
 )$
 
-calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcSRIntFiveMomentsDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV, fl, M0, Energy, M3, clst, int],
   /* Load the specific desired basis, including the loading of the hybrid basis if p=1 */
   [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
@@ -371,7 +371,7 @@ calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   varsV : subst(pVsub, copylist(varsV)), 
   NV : length(bV),
     
-  printf(fh, "GKYL_CU_DH void ~a_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1)
@@ -408,5 +408,5 @@ calcSRMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   calcSRM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSRNi(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcSRTij(fh, funcNm, cdim, vdim, basisFun, polyOrder),
-  calcSRIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+  calcSRIntFiveMomentsDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$

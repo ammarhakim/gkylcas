@@ -30,7 +30,7 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid canonical_pb_M1i_from_H_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid canonical_pb_MEnergy_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid canonical_pb_int_mom_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid canonical_pb_int_five_moments_~ax~av_~a_p~a(const double *dxv, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 

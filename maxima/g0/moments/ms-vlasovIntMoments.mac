@@ -45,7 +45,7 @@ for bInd : 1 thru length(bName) do (
         disp(printf(false,sconcat("Creating Integrated Vlasov Moments ~ax~av", bName[bInd]),c,v)),
         fname : sconcat("~/max-out/vlasov_int_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("vlasov_int_mom"),
+        funcName : sconcat("vlasov"),
         calcIntMoments(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
