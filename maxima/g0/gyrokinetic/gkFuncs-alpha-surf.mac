@@ -167,7 +167,8 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
                 jacobTotInv_e,vmap_e,vmapSq_e,vmap_prime_e,vmap_prime_e],
     hamil_e : calcAndWrite_HamilES(fh,q_,m_,[wvpar,wmu],rdv2vec,bP,inFlds_e,"")
   ) else (
-    inFlds_e : [bmagSurf_e,cmagSurf_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,
+    /* Notice that we use the corner bmag here so that the Hamiltonian is continuous. */
+    inFlds_e : [bmag_e,cmagSurf_e,phi_e,Apar_e,dApardt_e,dApardtPrev_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,
                 jacobTotInvSurf_e,vmap_e,vmapSq_e,vmap_prime_e]
   ),
 
