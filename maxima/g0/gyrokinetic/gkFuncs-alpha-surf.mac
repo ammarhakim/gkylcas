@@ -67,7 +67,11 @@ buildGKAlphaESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsI
   numNodes : length(surfNodes),
 
   surfIntVarsC : delete(surfVar,varsC), 
-  bSurfC       : basisFromVars(basisFun,surfIntVarsC,polyOrder),
+  if (cdim > 1) then (
+    bSurfC : basisFromVars(basisFun,surfIntVarsC,polyOrder)
+  ) else (
+    bSurfC : [1]
+  ),
 
   /* if polyOrder = 1, we need to be careful about
      indexing input arrays since the surface hybrid basis has a different size in the
