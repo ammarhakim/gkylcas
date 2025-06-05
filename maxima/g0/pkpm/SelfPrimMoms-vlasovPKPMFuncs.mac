@@ -59,11 +59,12 @@ calcSelfPrimMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([bP,bC,NP
   nodes : eval_string(sconcat("nodesSer", cdim, "xp", 1)),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections, const double *nu) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // A:                    Matrix to be inverted to solve Ax = rhs (set by this function). ~%"),
   printf(fh, "  // rhs:                  right-hand side of Ax = rhs (set by this function). ~%"),
   printf(fh, "  // vlasov_pkpm_moms:     [rho, p_parallel, p_perp], Moments computed from kinetic equation in pkpm model. ~%"),
   printf(fh, "  // boundary_corrections: boundary corrections to vtSq. ~%"),
+  printf(fh, "  // nu:                   collision frequency. ~%"),
   printf(fh, " ~%"),
 
   /* Get pointers to PKPM moments, rho, p_parallel, p_perp, M1. M1 used here to insure collision operator conserves momentum */
