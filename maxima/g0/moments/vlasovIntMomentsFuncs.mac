@@ -18,7 +18,8 @@ wTrans  : [wx1, wx2, wx3]$
 dvTrans : [vx*dv1/2, vy*dv2/2, vz*dv3/2]$
 
 volExpr(totDim) := prod(dxv[i-1], i, 1, totDim)$
-calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+
+calcIntFiveMomentsDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsP,bP,varsSub,f_e,m0,m1,m2,M],
   /* Computes the integral of M0, M1i and M2 at the same time. */
   /* Load basis of dimensionality requested. */
@@ -49,7 +50,7 @@ calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder)
   ),
     
-  printf(fh, "GKYL_CU_DH void ~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  const double volFact = ~a*~a; ~%", volExpr(cdim+vdim), float(1/(2^(cdim+vdim))) ),
   for i : 1 thru vdim do (
     printf(fh, "  const double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -85,5 +86,5 @@ calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
 calcIntMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
-  calcIntMDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
+  calcIntFiveMomentsDist(fh, funcNm, cdim, vdim, basisFun, polyOrder)
 )$
