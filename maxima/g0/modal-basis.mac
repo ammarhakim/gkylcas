@@ -308,18 +308,18 @@ loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
   kill(varsC, varsP, basisC, basisP),
   if vdim>0 then (
     if cdim>0 then (
-      if pOrder = 1 then  /* Forcing p=1 to hybrid. */
+      if pOrder = 1 and btype = "Ser" then /* Forcing p=1 to hybrid. */
         modNm : sconcat("basis-precalc/basisHybrid", cdim, "x", vdim, "v")
       else
         modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
     ) else (
-      if basisType = "tensor" then 
+      if btype = "Tensor" then 
         modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
       else
         modNm : sconcat("basis-precalc/basisSer", vdim, "x")
     )
   ) else (
-    if basisType = "tensor" then 
+    if btype = "Tensor" then 
       modNm : sconcat("basis-precalc/basisTensor", cdim, "x")
     else
       modNm : sconcat("basis-precalc/basisSer", cdim, "x")
@@ -331,7 +331,7 @@ loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
       bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
       bP : copylist(basisP[pOrder]),  varsP : copylist(varsP)
     ) else (
-      if basisType = "hyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
+      if btype = "hyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
       bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[p])),
       varsP : subst([x=vx,y=vy,z=vz],copylist(varsC)),
       bC : [],  varsC : []
@@ -357,7 +357,7 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
   kill(varsC, varsP, basisC, basisP),
   if vdim > 0 then (
     if cdim>0 then (
-      if pOrder = 1 then
+      if pOrder = 1 and btype = "Ser" then
         /* MF 2022/07/15: In principle we could make GK use Hybrid instead
            of GkHybrid. Consider that later (which would require changes further
            down in this function and in many other parts/files. */
@@ -365,13 +365,13 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
       else
         modNm : sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")
     ) else (
-      if basisType = "tensor" then 
+      if btype = "tensor" then 
         modNm : sconcat("basis-precalc/basisTensor", vdim, "x")
       else
         modNm : sconcat("basis-precalc/basisSer", vdim, "x")
     )
   ) else (
-    if basisType = "tensor" then
+    if btype = "tensor" then
       modNm : sconcat("basis-precalc/basisTensor", cdim, "x")
     else
       modNm : sconcat("basis-precalc/basisSer", cdim, "x")
@@ -386,11 +386,11 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
       bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
       bP : subst(vSub, copylist(basisP[pOrder])),  varsP : subst(vSub, copylist(varsP))
     ) else (
-      if vdim=1 and basisType = "gkhyb" then (
+      if vdim=1 and btype = "GkHybrid" then (
         print("** Incorrect use of loadGkBasis: cdim/vdim not enough to specify which GkHybrid basis to load when vdim=1. **"),
         tmp : [1],  print(tmp[2]) /* just to trigger an error. */
       ),
-      if basisType = "gkhyb" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
+      if btype = "GkHybrid" then p : 2 else p : pOrder,  /* Forcing p=1 to hybrid. */
       bP    : subst([x=vpar,y=mu],copylist(basisC[p])),
       varsP : subst([x=vpar,y=mu],copylist(varsC)),
       bC : [],  varsC : []
@@ -398,6 +398,15 @@ loadGkBasis(basisType, cdim, vdim, pOrder) := block(
   ) else (
     bC : copylist(basisC[pOrder]),  varsC : copylist(varsC),
     bP : bC,  varsP : varsC
+  ),
+
+  /* 2x2v kernels are (x,z,vpar,mu) so we need to relabel y=z. */
+  if (cdim = 2) then (
+    varsSub : [y=z],
+    varsC   : subst(varsSub, varsC),
+    bC      : subst(varsSub, bC),
+    varsP   : subst(varsSub, varsP),
+    bP      : subst(varsSub, bP)
   ),
 
   return([varsC,bC,varsP,bP,vSub])
@@ -451,12 +460,14 @@ loadGkHybBasisFromVars(varsIn) := block(
       )
     )
   ),
+  replaceList : makelist(vars[i]=varsIn[i],i,1,dimIn),
+  basis : psubst(replaceList,basis),
 
   /* Restore varsC and varsP. */
   if listp(oldVarsC) then (varsC : copylist(oldVarsC)),
   if listp(oldVarsP) then (varsP : copylist(oldVarsP)),
 
-  return([vars,basis])
+  return([varsIn,basis])
 )$
 
 /* Load a basis of type 'basisType' and polynomial order 'pOrder'
@@ -472,7 +483,7 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   elseif basisType="gkhyb" then btype : "GkHybrid",
 
   dimIn : length(varsIn),
-  if basisType="hyb" or basisType="gkhyb" then (
+  if btype="Hybrid" or btype="GkHybrid" then (
     vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
     cdim : dimIn - vdim
   ),
@@ -482,9 +493,9 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   if listp(varsC) then (oldVarsC : copylist(varsC)),
   if listp(varsP) then (oldVarsP : copylist(varsP)),
 
-  if basisType = "hyb" then (
-    [varsc,bc,vars,basis] : loadPhaseBasis(basisType, cdim, vdim, 1)
-  ) elseif basisType = "gkhyb" then (
+  if btype = "Hybrid" then (
+    [varsc,bc,vars,basis] : loadPhaseBasis(btype, cdim, vdim, 1)
+  ) elseif btype = "GkHybrid" then (
     /* vdim is insufficient, because vdim=1 could mean vpar or mu,
        and one has p=2 (vpar) while the other p=1 (mu). Sort this out. */
     [vars, basis] : loadGkHybBasisFromVars(varsIn)

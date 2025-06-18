@@ -15,11 +15,6 @@ dx11 : [dx10, dx11, dx12]$
 statevec : [rhou0, rhou1, rhou2, energy]$
 lhs : [outrhou0, outrhou1, outrhou2, outenergy]$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 /* 1D Euler special since only involves evaluations */
 calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,NC,cid,cv,surfVars,
@@ -51,7 +46,7 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *p_ijl, const double *p_ijc, const double *p_ijr,
   const double *vlasov_pkpm_surf_momsl, const double *vlasov_pkpm_surf_momsr, 
@@ -335,6 +330,9 @@ calcEulerPKPM1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "~%")
   ),
 
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -378,7 +376,7 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Number of basis monomials. */
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, 
   const double *u_il, const double *u_ic, const double *u_ir,
   const double *p_ijl, const double *p_ijc, const double *p_ijr,
   const double *vlasov_pkpm_surf_momsl, const double *vlasov_pkpm_surf_momsr, 
@@ -817,13 +815,13 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  Ghat_energy_l_e : doExpandLst(doMakeExprLst(Ghat_energy_l_c, Ghat_energy_l), bSurf),
+  Ghat_energy_l_e : doExpand(makelistNoZeros1(Ghat_energy_l_c, Ghat_energy_l), bSurf),
 
   writeCExprs1(Ghat_energy_r, Ghat_energy_r_c),
   printf(fh, "~%"),
   flush_output(fh),
   /* Zero out components of Ghat which are empty. */
-  Ghat_energy_r_e : doExpandLst(doMakeExprLst(Ghat_energy_r_c, Ghat_energy_r), bSurf),
+  Ghat_energy_r_e : doExpand(makelistNoZeros1(Ghat_energy_r_c, Ghat_energy_r), bSurf),
 
   /* Print C exprs for the recovery of u_i across surface boundary, (l = LEFT BOUNDARY, r = RIGHT BOUNDARY) */
   uxrec_l_c : fullratsimp(innerProd(surfVars, 1, bSurf, subst(cv=0, ux_rec_l))),
@@ -859,13 +857,13 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of recovered functions which are empty and make new expansions. */
-  uxrec_l_e : doExpandLst(doMakeExprLst(uxrec_l_c, uxrec_l), bSurf),
-  uyrec_l_e : doExpandLst(doMakeExprLst(uyrec_l_c, uyrec_l), bSurf),
-  uzrec_l_e : doExpandLst(doMakeExprLst(uzrec_l_c, uzrec_l), bSurf),
+  uxrec_l_e : doExpand(makelistNoZeros1(uxrec_l_c, uxrec_l), bSurf),
+  uyrec_l_e : doExpand(makelistNoZeros1(uyrec_l_c, uyrec_l), bSurf),
+  uzrec_l_e : doExpand(makelistNoZeros1(uzrec_l_c, uzrec_l), bSurf),
 
-  uxrec_r_e : doExpandLst(doMakeExprLst(uxrec_r_c, uxrec_r), bSurf),
-  uyrec_r_e : doExpandLst(doMakeExprLst(uyrec_r_c, uyrec_r), bSurf),
-  uzrec_r_e : doExpandLst(doMakeExprLst(uzrec_r_c, uzrec_r), bSurf),
+  uxrec_r_e : doExpand(makelistNoZeros1(uxrec_r_c, uxrec_r), bSurf),
+  uyrec_r_e : doExpand(makelistNoZeros1(uyrec_r_c, uyrec_r), bSurf),
+  uzrec_r_e : doExpand(makelistNoZeros1(uzrec_r_c, uzrec_r), bSurf),
 
   /* Print C exprs for the recovery of P_ij across surface boundary, (l = LEFT BOUNDARY, r = RIGHT BOUNDARY) */
   if (dir = 1) then (
@@ -921,13 +919,13 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of recovered functions which are empty and make new expansions. */
-  Pixrec_l_e : doExpandLst(doMakeExprLst(Pixrec_l_c, Pixrec_l), bSurf),
-  Piyrec_l_e : doExpandLst(doMakeExprLst(Piyrec_l_c, Piyrec_l), bSurf),
-  Pizrec_l_e : doExpandLst(doMakeExprLst(Pizrec_l_c, Pizrec_l), bSurf),
+  Pixrec_l_e : doExpand(makelistNoZeros1(Pixrec_l_c, Pixrec_l), bSurf),
+  Piyrec_l_e : doExpand(makelistNoZeros1(Piyrec_l_c, Piyrec_l), bSurf),
+  Pizrec_l_e : doExpand(makelistNoZeros1(Pizrec_l_c, Pizrec_l), bSurf),
 
-  Pixrec_r_e : doExpandLst(doMakeExprLst(Pixrec_r_c, Pixrec_r), bSurf),
-  Piyrec_r_e : doExpandLst(doMakeExprLst(Piyrec_r_c, Piyrec_r), bSurf),
-  Pizrec_r_e : doExpandLst(doMakeExprLst(Pizrec_r_c, Pizrec_r), bSurf),
+  Pixrec_r_e : doExpand(makelistNoZeros1(Pixrec_r_c, Pixrec_r), bSurf),
+  Piyrec_r_e : doExpand(makelistNoZeros1(Piyrec_r_c, Piyrec_r), bSurf),
+  Pizrec_r_e : doExpand(makelistNoZeros1(Pizrec_r_c, Pizrec_r), bSurf),
 
   incr_rhoux_l : calcInnerProdList(surfVars, 1, subst(cv=-1, bC), rho_flux_l_e*uxrec_l_e + Pixrec_l_e),
   incr_rhoux_r : calcInnerProdList(surfVars, -1, subst(cv=1, bC), rho_flux_r_e*uxrec_r_e + Pixrec_r_e),
@@ -947,6 +945,9 @@ calcEulerPKPMUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     writeCIncrExprs1(lhs[m], dx1*surf),
     printf(fh, "~%")
   ),
+
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume term. */
+  printf(fh, "~%"),
 
   printf(fh, "} ~%")
 );

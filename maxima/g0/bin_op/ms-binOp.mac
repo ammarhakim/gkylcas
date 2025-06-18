@@ -2,9 +2,7 @@
    two fields. Currently two operations are supported:
      1) Weak division by a scalar function.
      2) Weak multiplication.
-   This script calls the functions calcBinOp for various
-   combinations of configuration and velocity space, and
-   indicates the maximum polyOrder to generate code for. */
+   This script calls the functions calcBinOp for weak division. */
 
 load("bin_op/binOp-div-C")$
 load(stringproc)$
@@ -15,19 +13,15 @@ load(stringproc)$
 minPolyOrder_Ser : 0$
 maxPolyOrder_Ser : 3$
 minCdim_Ser : 1$
-minVdim_Ser : 1$
 maxCdim_Ser : 3$
-maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
 /* Thus no need to calculate p = 1 Tensor basis */
 minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 3$
-minCdim_Tensor : 1$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 2$
+maxCdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 

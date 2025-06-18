@@ -3,9 +3,8 @@
    dimensionality (assume Dirichlet boundary conditions, although the BCs
    don't enter the FEM projection in the parallel direction). 
    
-   MF: This is more complicated than it needs to be because I just reused
-       Maxima used for the Poisson solve in arbitrary dimensions. Will
-       simplify at a later time.
+   MF 2023/07/31: This may be more complicated than it needs to be because I just
+   reused Maxima used for the Poisson solve in arbitrary dimensions.
 */
 
 load("modal-basis");
@@ -15,61 +14,80 @@ load("bvp_utilities/bvp-util");
 load("fem/fem-util");
 fpprec : 24$
 
-generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMax) := block(
-  [stencilLoc,numCells,polyOrder,col,bN,numB,nodes,numNodes,
-   storedNodes,numStoredNodes,numNodesOut,sI,d,numBoundCells],
+generate_fem_parproj_num_nodes(fh, funcNm, dim, basisFun, pMin, pMax) := block(
+  [varsC,basis,stencilLoc,bcTypes,bcStrs,bcKey,bcCombos,bcI,currBC,stencilStr,polyOrder,numCells,
+   bN,numB,nodes,numNodes,storedNodes,numStoredNodes,numNodesOut,sI,d,numBoundCells],
 
-  kill(varsC, varsP, basisC, basisP),
-
-  load(sconcat("basis-precalc/basis", basisFun, dim, "x")),
+  [varsC,basis] : loadBasis(basisFun, dim, pMin),
 
   /* List of stencil locations. Each entry is a dim-dimensional list
      with -1 meaning it is at a lower boundary, 1 upper boundary, or
      0 away from boundaries in that direction. */
   stencilLoc : getStencilCoords(dim),
 
-  /* Assume there's only one cell in perpendicular directions, and that
-     the parallel direction is the last one. */
-  numCells : makelist(1,d,1,dim),
-  numCells[dim] : numCellsPar,
+  /* Types of boundary conditions for which to generate kernels.
+       =0 periodic
+       =1 non-periodic
+  */
+  bcTypes : [0, 1],
+  bcStrs  : ["periodic", "nonperiodic"],
+  bcKey   : makelist([bcTypes[i],bcStrs[i]],i,1,length(bcTypes)),
 
-  for polyOrder : 1 thru pMax do (
+  bcCombos : makelist([bcTypes[i]],i,1,length(bcTypes)),
 
-    printf(fh, "long ~a_p~a(const int numCellsPar) ~%{ ~%", funcNm, polyOrder),
-    printf(fh, "  // numCellsPar:  number of cells in parallel direction.~%"),
-    printf(fh, "~%"),
+  /* Loop over BC combinations. Will create a separate kernel for each. */
+  for bcI : 1 thru length(bcCombos) do (
 
-    bN   : getNodalBasis(basisFun, dim, polyOrder),
-    numB : length(bN),
+    currBC : copylist(bcCombos[bcI]),
 
-    nodes    : args(getNodes(basisFun, dim, polyOrder)),
-    numNodes : length(nodes),
+    /* String used in kernel name, identifying stencil location and BC. */
+    stencilStr : sconcat("_",assoc(currBC[1],bcKey),string(varsC[dim])),
 
-    storedNodes    : getStoredNodes(nodes,stencilLoc[1]),
-    numStoredNodes : length(storedNodes),
+    for polyOrder : pMin thru pMax do (
 
-    numNodesOut : product(numCells[d]-1,d,1,dim)*numStoredNodes, /* Interior nodes. */
+      printf(fh, "long ~a_p~a~a(int numCellsPar) ~%{ ~%", funcNm, polyOrder, stencilStr),
+      printf(fh, "  // numCellsPar:  number of cells in parallel direction.~%"),
+      printf(fh, "~%"),
 
-    for sI : 2 thru length(stencilLoc) do (
-      /* This if-statement excludes lower boundary kernels (without an upper boundary). */
-      if (length(sublist(stencilLoc[sI],lambda([x],x < 0)))=0) then (
-        storedNodes : getStoredNodes(nodes,stencilLoc[sI]),
-        numStoredNodes : length(storedNodes),
-  
-        numBoundCells : makelist(numCells[d]-1,d,1,dim),
-        for d : 1 thru dim do ( if stencilLoc[sI][d]=1 then (
-          numBoundCells[d] : 1
-        ) ),
+      /* Assume there's only one cell in perpendicular directions, and that
+         the parallel direction is the last one. */
+      numCells : makelist(1,d,1,dim),
+      numCells[dim] : numCellsPar,
 
-        numNodesOut : numNodesOut + product(numBoundCells[d],d,1,dim)*numStoredNodes
-      )
-    ),
+      bN   : getNodalBasis(basisFun, dim, polyOrder),
+      numB : length(bN),
 
-    printf(fh, "  return ~a;~%", numNodesOut),
+      nodes    : args(getNodes(basisFun, dim, polyOrder)),
+      numNodes : length(nodes),
 
-    printf(fh, "}~%"),
-    printf(fh, "~%")
+      storedNodes    : getStoredNodes(nodes,stencilLoc[1]),
+      numStoredNodes : length(storedNodes),
 
+      numNodesOut : product(numCells[d]-1,d,1,dim)*numStoredNodes, /* Interior nodes. */
+
+      for sI : 2 thru length(stencilLoc) do (
+        /* This if-statement excludes lower boundary kernels (without an upper boundary). */
+        if (length(sublist(stencilLoc[sI],lambda([x],x < 0)))=0) then (
+          storedNodes : getStoredNodes(nodes,stencilLoc[sI]),
+          if currBC[1]=0 then (
+            storedNodes : deleteNodes(storedNodes,[[dim,1]],false)
+          ),
+          numStoredNodes : length(storedNodes),
+    
+          numBoundCells : makelist(numCells[d]-1,d,1,dim),
+          for d : 1 thru dim do ( if stencilLoc[sI][d]=1 then (
+            numBoundCells[d] : 1
+          ) ),
+
+          numNodesOut : numNodesOut + product(numBoundCells[d],d,1,dim)*numStoredNodes
+        )
+      ),
+
+      printf(fh, "  return ~a;~%", numNodesOut),
+
+      printf(fh, "}~%"),
+      printf(fh, "~%")
+
+    )
   )
-  
 )$

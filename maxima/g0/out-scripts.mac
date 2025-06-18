@@ -77,6 +77,13 @@ writeCExprs1(lhs, rhs) := block([expr],
   )
 )$
 
+writeCExprsWithZeros(lhs, rhs) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    printf(fh, "  ~a = ~a; ~%", lhs[i], expr[i])
+  )
+)$
+
 writeCExprsWithZeros1(lhs, rhs) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (
@@ -109,8 +116,30 @@ writeCIncrExprsCollect1(lhs, rhs, clst) := block([expr],
   )
 )$
 
+writeCIncrExprsOffCollect1(lhs, rhs, offset, clst) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param : cons(expr[i], clst),
+      e : apply(collectterms, param),
+      printf(fh, "  ~a += ~a; ~%", lhs[offset+i-1], e)
+    )
+  )
+)$
+
 writeCExprsCollect1(lhs, rhs, clst) := block([expr],
   expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param : cons(expr[i], clst),
+      e : apply(collectterms, param),
+      printf(fh, "  ~a = ~a; ~%", lhs[i-1], e)
+    )
+  )
+)$
+
+writeCExprsCollectNoExpand1(lhs, rhs, clst) := block([expr],
+  expr : float(rhs),
   for i : 1 thru length(expr) do (
     if expr[i] # 0.0 then (
       param : cons(expr[i], clst),
@@ -196,7 +225,11 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
   for eI : 1 thru length(qPow) do (
     /* Maximum number of elements of qPow (e.g. qPow[0], qPow[1], ...) whose
        powers to search for. */
-    numElemMax : min(256, length(qPow[eI])),
+    if atom(qPow[eI]) then (
+      numElemMax : 0
+    ) else (
+      numElemMax : min(256, length(qPow[eI]))
+    ),
 
     if numElemMax > 0 then (
       for d : 0 thru numElemMax-1 do (
@@ -233,7 +266,14 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
         ),
         if (doSub) then (
           /* Define a separate variable. */
-          newTempVar : sconcat(string(op(qPow[eI])),args(qPow[eI])[1],"R",f),
+          if atom(qPow[eI]) then (
+            qPowOp   : qPow[eI],
+            qPowArgs : ""
+          ) else (
+            qPowOp   : op(qPow[eI]),
+            qPowArgs : args(qPow[eI])[1]
+          ),
+          newTempVar : sconcat(string(qPowOp),qPowArgs,"R",f),
           /* Check that the new variable hasn't already been declared. */
           idx : sublist_indices(alreadyDecl,lambda([x], x=newTempVar)),
           if length(idx)=0 then (
@@ -243,7 +283,7 @@ findReplacePowers(rhs,qPow,firstIdx,alreadyDecl) := block(
             alreadyDecl : endcons(newTempVar,alreadyDecl)
           ),
           /* Add to the string substitution list, used in writing file. */
-          subList : append(subList,[[sconcat(string(qPow[eI]), "^",f), sconcat(sconcat(string(op(qPow[eI])),args(qPow[eI])[1]),"R",f)]])
+          subList : append(subList,[[sconcat(string(qPow[eI]), "^",f), sconcat(sconcat(string(qPowOp),qPowArgs),"R",f)]])
         )
       )
     )
@@ -263,7 +303,7 @@ writeCExprs1noPowers(lhs, rhs, qPow, alreadyDecl) := block(
      redefining the same variables.
   */
 
-  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 0, alreadyDecl), 
+  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 1, alreadyDecl), 
 
   expr : float(rhs),
   for i : 1 thru length(rhs) do (
@@ -283,10 +323,34 @@ writeCExprs1noPowers(lhs, rhs, qPow, alreadyDecl) := block(
   return(alreadyDecl)
 )$
 
+writeCExprsCollect1noPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
+  [i,subList,expr,ep,outStr],
+
+  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 1, alreadyDecl), 
+
+  expr : float(expand(rhs)),
+  for i : 1 thru length(rhs) do (
+    if expr[i] # 0.0 then (
+      expr[i] : apply(collectterms, cons(expr[i], clst)),
+      ep : string(expr[i]),
+      if (length(subList) > 0) then (
+        outStr : ssubst(subList[1][2],subList[1][1],ep),
+        for s : 2 thru length(subList) do (
+          outStr : ssubst(subList[s][2],subList[s][1],outStr)
+        )
+      ) else (
+        outStr : ep
+      ),
+      printf(fh, "  ~a = ~a; ~%", lhs[i-1], outStr)
+    )
+  ),
+  return(alreadyDecl)
+)$
+
 writeCIncrExprsCollect1noPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
   [i,subList,expr,ep,outStr],
 
-  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 0, alreadyDecl), 
+  [subList,alreadyDecl] : findReplacePowers(rhs, qPow, 1, alreadyDecl), 
 
   expr : float(expand(rhs)),
   for i : 1 thru length(rhs) do (
@@ -307,7 +371,6 @@ writeCIncrExprsCollect1noPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
   return(alreadyDecl)
 )$
 
-
 writeCIncrExprsCollectnoPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
   [i,subList,expr,ep,outStr],
 
@@ -326,7 +389,7 @@ writeCIncrExprsCollectnoPowers(lhs, rhs, clst, qPow, alreadyDecl) := block(
       ) else (
         outStr : ep
       ),
-      printf(fh, "  ~a += ~a; ~%", lhs[i-1], outStr)
+      printf(fh, "  ~a += ~a; ~%", lhs[i], outStr)
     )
   ),
   return(alreadyDecl)

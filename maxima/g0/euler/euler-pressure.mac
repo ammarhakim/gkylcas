@@ -18,7 +18,7 @@ calcEulerPressure(fh, funcNm, cdim, basisFun, pOrder) := block([modNm,bC,NC,
 
   printf(fh, "#include <gkyl_euler_kernels.h> ~%"),
 
-  printf(fh, "GKYL_CU_DH void ~a_p~a(const double gas_gamma, const double *uvar, const double *statevec, double* GKYL_RESTRICT pressure) ~%{ ~%", funcNm, pOrder),
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double gas_gamma, const double *uvar, const double *statevec, double* pressure) ~%{ ~%", funcNm, pOrder),
   printf(fh, "  // gas_gamma: Adiabatic index.~%"),
   printf(fh, "  // uvar: [ux, uy, uz], Fluid flow.~%"),
   printf(fh, "  // statevec: [rho, rho ux, rho uy, rho uz, energy], Fluid input state vector.~%"),

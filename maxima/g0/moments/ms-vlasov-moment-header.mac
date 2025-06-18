@@ -11,13 +11,12 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p = 1, is equivalent to Tensor */
-/* Thus no need to calculate p = 1 Tensor basis */
-minPolyOrder_Tensor : 2$
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 3$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -40,19 +39,8 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid vlasov_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid vlasov_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%"), 
-  printf(fh, "~avoid vlasov_sr_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_sr_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
-  printf(fh, "~avoid vlasov_sr_int_mom_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *p_over_gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%")  
-)$
-
-printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid mom_vlasov_pkpm_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *bvar, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
-  for si : 1 thru ci do (
-    printf(fh, "~avoid mom_vlasov_pkpm_surf~a_~ax1v_~a_p~a(const double *w, const double *dxv, const int *idx, double mass, const double *u_il, const double *u_ir, const double *bvarl, const double *bvarr, const double *fl, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, bStr, pi)
-  ),
   printf(fh, "~%")  
 )$
 
@@ -75,10 +63,7 @@ for bInd : 1 thru length(bName) do (
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
-    ),
-    for polyOrder : minPolyOrderB thru 2 do (
-      printPKPMPrototype(decorator, c, bName[bInd], polyOrder)
-    )    
+    )
   )
 );
 printf(fh, "EXTERN_C_END ~%")$

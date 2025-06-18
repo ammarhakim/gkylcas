@@ -11,11 +11,6 @@ cvars : [x, y, z]$
 dx11 : [dx10, dx11, dx12]$
 cidx(cdim)      := makelist(i,i,0,cdim-1)$
 
-/* Helper functions for expanding in basis functions a quantity we know should be sparse  */
-/* For example, alpha, the phase space flow only depends on a few phase space coordinates */
-doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, length(vals))$
-doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
-
 /* 1D advection special since only involves evaluations */
 calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,NC,cid,cv,surfVars,ul_e,uc_e,ur_e,fl_e,fc_e,fr_e,ul_r,fl_r,uc_l,fc_l,uc_r,fc_r,ur_l,fr_l,avg_l,avg_r,jump_l,jump_r,incr_l,incr_r],
@@ -27,7 +22,7 @@ calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bC : basisC[polyOrder],
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // ul/uc/ur:  Advection velocity in left/center/right cells.~%"),
@@ -89,6 +84,9 @@ calcAdvection1xUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   writeCIncrExprsCollect1lhsc(out, dx1*incr_l + dx1*incr_r), 
   printf(fh, "~%"),
 
+  printf(fh, "  return 0.;~%"), /* Return CFL frequency in volume kernel.*/
+  printf(fh, "~%"),
+
   printf(fh, "} ~%")
 );
 
@@ -102,7 +100,7 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   bC : basisC[polyOrder],
   NC : length(bC),
 
-  printf(fh, "GKYL_CU_DH void ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH double ~a~a_~ax_~a_p~a(const double *w, const double *dxv, const double *ul, const double *uc, const double *ur, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cvars[dir], cdim, basisFun, polyOrder),
   printf(fh, "  // w[NDIM]:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv[NDIM]: Cell spacing.~%"),
   printf(fh, "  // ul/uc/ur:  Advection velocity in left/center/right cells.~%"),
@@ -195,8 +193,8 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_l : doMakeExprLst(Ghat_l_c, Ghat_l),
-  Ghat_l_e     : doExpandLst(GhatNoZero_l, bSurf),
+  GhatNoZero_l : makelistNoZeros1(Ghat_l_c, Ghat_l),
+  Ghat_l_e     : doExpand(GhatNoZero_l, bSurf),
 
   /* Print C exprs for Ghat across surface boundary, (RIGHT BOUNDARY) */
   Ghat_r_c : fullratsimp(innerProd(surfVars, 1, bSurf, avg_r - uMax_r_e*jump_r)),
@@ -206,13 +204,16 @@ calcAdvectionUpdateInDir(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   flush_output(fh),
 
   /* Zero out components of Ghat which are empty. */
-  GhatNoZero_r : doMakeExprLst(Ghat_r_c, Ghat_r),
-  Ghat_r_e     : doExpandLst(GhatNoZero_r, bSurf),
+  GhatNoZero_r : makelistNoZeros1(Ghat_r_c, Ghat_r),
+  Ghat_r_e     : doExpand(GhatNoZero_r, bSurf),
 
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bC), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bC), Ghat_r_e),
   writeCIncrExprsCollect1lhsc(out, dx1*incr_l + dx1*incr_r),  
+  printf(fh, "~%"),
+
+  printf(fh, "  return 0.;~%"), /* Return CFL frequency in volume kernel.*/
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
