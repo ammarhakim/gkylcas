@@ -65,6 +65,12 @@ buildCanonicalPBVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "// w[NDIM]: Cell-center coordinates. dxv[NDIM]: Cell spacing. H/f: Input Hamiltonian/distribution function. out: Incremented output ~%"),
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
+  /* Factor of 4*dx*dvInv[dir] comes from taking derivatives in the normalized cell coordinates:
+  For example the bracket in 1D
+  {f,g} = 
+      ( \pfrac{f}{xbar}\pfrac{g}{vbar} - \pfrac{g}{xbar}\pfrac{f}{vbar})
+      *(\frac{dxbar}{dx}\frac{dvbar}{dv}) 
+  */
   for dir : 1 thru cdim do (
     pbfac[dir] : 4*dxdvInv[dir]
   ),

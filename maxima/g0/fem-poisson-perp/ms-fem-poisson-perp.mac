@@ -17,21 +17,23 @@ load("fem-poisson-perp/fem-poisson-perp-sol_stencil")$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 1$
+minCdim_Ser : 2$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 0$
+minCdim_Tensor : 2$
 
 /* ...... END OF USER INPUTS........ */
 
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
 
-cdim : 3$
+cdimMax : 3$
 
 /**
-**/
 /* Kernels computing the number of nodes in the global problem. */
 disp(printf(false,"Creating fem_poisson_perp_num_nodes.c"))$
 for bInd : 1 thru length(bName) do (
@@ -40,9 +42,11 @@ for bInd : 1 thru length(bName) do (
   fh    : openw(fname),
   printf(fh, "#include <gkyl_fem_poisson_perp_kernels.h> ~%"),
   printf(fh, " ~%"),
-  funcName : sconcat("fem_poisson_perp_num_nodes_global_", cdim, "x_", bName[bInd]),
-  disp(printf(false,sconcat("Working on fem_poisson_perp_num_nodes_global_", cdim, "x_", bName[bInd]))),
-  generate_fem_poisson_perp_num_nodes(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd]),
+  for cdim : minCdim[bInd] thru cdimMax do (
+    funcName : sconcat("fem_poisson_perp_num_nodes_global_", cdim, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_poisson_perp_num_nodes_global_", cdim, "x_", bName[bInd]))),
+    generate_fem_poisson_perp_num_nodes(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  ),
   close(fh)
 )$
 
@@ -53,21 +57,27 @@ for bInd : 1 thru length(bName) do (
   fh    : openw(fname),
   printf(fh, "#include <gkyl_fem_poisson_perp_kernels.h> ~%"),
   printf(fh, " ~%"),
-  funcName : sconcat("fem_poisson_perp_local_to_global_", cdim, "x_", bName[bInd]),
-  disp(printf(false,sconcat("Working on fem_poisson_perp_local_to_global_", cdim, "x_", bName[bInd]))),
-  generate_fem_poisson_perp_local_to_global(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd]),
+  for cdim : minCdim[bInd] thru cdimMax do (
+    funcName : sconcat("fem_poisson_perp_local_to_global_", cdim, "x_", bName[bInd]),
+    disp(printf(false,sconcat("Working on fem_poisson_perp_local_to_global_", cdim, "x_", bName[bInd]))),
+    generate_fem_poisson_perp_local_to_global(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  ),
   close(fh)
 )$
+**/
 
 
 /* LHS stencil kernels. */
 disp(printf(false,"Creating fem_poisson_perp_lhs_stencil.c"))$
 for bInd : 1 thru length(bName) do (
-  disp(printf(false,sconcat("Working on fem_poisson_perp_lhs_stencil_", cdim, "x_", bName[bInd]))),
-  funcName : sconcat("fem_poisson_perp_lhs_stencil_", cdim, "x_", bName[bInd]),
-  generate_fem_poisson_perp_lhs_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  for cdim : minCdim[bInd] thru cdimMax do (
+    disp(printf(false,sconcat("Working on fem_poisson_perp_lhs_stencil_", cdim, "x_", bName[bInd]))),
+    funcName : sconcat("fem_poisson_perp_lhs_stencil_", cdim, "x_", bName[bInd]),
+    generate_fem_poisson_perp_lhs_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  )
 )$
 
+/**
 /* Solution nodal-to-modal kernels. */
 disp(printf(false,"Creating fem_poisson_perp_sol_stencil.c"))$
 for bInd : 1 thru length(bName) do (
@@ -75,18 +85,21 @@ for bInd : 1 thru length(bName) do (
   fh    : openw(fname),
   printf(fh, "#include <gkyl_fem_poisson_perp_kernels.h> ~%"),
   printf(fh, " ~%"),
-  funcName : sconcat("fem_poisson_perp_sol_stencil_", cdim, "x_", bName[bInd]),
-  generate_fem_poisson_perp_sol_stencil(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd]),
+  for cdim : minCdim[bInd] thru cdimMax do (
+    funcName : sconcat("fem_poisson_perp_sol_stencil_", cdim, "x_", bName[bInd]),
+    generate_fem_poisson_perp_sol_stencil(fh, funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  ),
   close(fh)
 )$
-/**
-**/
 
 /* RHS source stencil kernels. */
 disp(printf(false,"Creating fem_poisson_perp_src_stencil.c"))$
 for bInd : 1 thru length(bName) do (
   disp(printf(false,sconcat("Working on fem_poisson_perp_src_stencil_", cdim, "x_", bName[bInd]))),
-  funcName : sconcat("fem_poisson_perp_src_stencil_", cdim, "x_", bName[bInd]),
-  generate_fem_poisson_perp_src_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  for cdim : minCdim[bInd] thru cdimMax do (
+    funcName : sconcat("fem_poisson_perp_src_stencil_", cdim, "x_", bName[bInd]),
+    generate_fem_poisson_perp_src_stencil(funcName, cdim, bName[bInd], minPolyOrder[bInd], maxPolyOrder[bInd])
+  )
 )$
 
+**/
