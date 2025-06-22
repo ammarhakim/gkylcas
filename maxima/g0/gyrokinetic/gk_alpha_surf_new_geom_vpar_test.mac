@@ -1,0 +1,163 @@
+load("modal-basis")$
+load("out-scripts")$
+load(stringproc)$
+load("scifac")$
+load("gyrokinetic/gkUtil")$
+fpprec : 24$
+
+buildGKAlphaVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
+  [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
+   surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
+   tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
+   rdx2vec,rdv2vec,allVarLabelsC,
+   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
+   BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,alphaSurf_e],
+
+  kill(varsC,varsP,bC,bP),
+  pDim : cdim+vdim,
+
+  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
+  numC : length(bC),  numP : length(bP), 
+
+  surfVar  : varsP[surfDir],         /* Surface variable. */
+  varLabel : makelist(string(varsP[d]),d,1,pDim),
+  dirLabel : varLabel[surfDir],
+
+  surfIntVars : delete(surfVar,varsP), 
+  surf_cvars  : delete(surfVar, makelist(varsP[i],i,1,cdim)),
+  surf_vvars  : delete(surfVar, makelist(varsP[cdim+i],i,1,vdim)),
+
+  surfIntVarsC : delete(surfVar,varsC), 
+  bSurfC       : basisFromVars(basisFun,surfIntVarsC,polyOrder),
+  
+  if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
+    surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
+    nodeVars  : surfIntVars, 
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
+  ) else (
+    surfNodes : gaussOrd(polyOrder+1, pDim-1),
+    nodeVars  : surfIntVars,
+    bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
+  ),
+  configNodes : gaussOrd(polyOrder+1, cdim),
+  numSurfNodes : length(surfNodes),  
+  numConfigNodes : length(configNodes), 
+  numVelNodes : numSurfNodes/numConfigNodes, 
+
+
+  print("Working on ", funcNm),
+  printf(fh, "GKYL_CU_DH int ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
+    const double q_, const double m_,
+    const struct dg_vol_geom *dgv, const struct gk_dg_vol_geom *gkdgv, const double *bmag, 
+    const double *phi, double* GKYL_RESTRICT alpha_surf, double* GKYL_RESTRICT sgn_alpha_surf) ~%{ ~%", funcNm),
+  printf(fh, "  // w[NDIM]: cell-center.~%"),
+  printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // vmap: velocity space mapping.~%"),
+  printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
+  printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "  // bmag: magnetic field amplitude.~%"),
+  printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
+  printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
+  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
+  printf(fh, "  // phi: electrostatic potential.~%"),
+  printf(fh, "  // bmag_surf: bmag represented on the surface.~%"),
+  printf(fh, "  // jacobtot_inv_surf: jacobtot_inv represented on the surface.~%"),
+  printf(fh, "  // cmag_surf: cmag represented on the surface.~%"),
+  printf(fh, "  // b_i_surf: b_i represented on the surface.~%"),
+  printf(fh, "  // alpha_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
+  printf(fh, "  //             Note: Each cell owns their *lower* edge surface evaluation.~%"),
+  printf(fh, "  // sgn_alpha_surf: output sign(alpha_surf) in each direction at quadrature points (cdim + 1 components).~%"),
+  printf(fh, "  //                 Note: Each cell owns their *lower* edge sign(alpha_surf).~%"),
+  printf(fh, "  // returns int const_sgn_alpha (true if sign(alpha_surf) is only one sign, either +1 or -1).~%"),
+  printf(fh, "~%"),
+
+  /* Declare cell-center variables and variables multiplying gradients. */
+  for d : 1 thru cdim+1 do (
+    printf(fh, "  double rd~a2 = 2.0/dxv[~a];~%", varLabel[d], d-1)
+  ),
+  printf(fh, "~%"),
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+  /* Axisymmetric basis (independent of y). */
+  bmagBasis : getAxisymmetricConfBasis(bC),
+
+  /* Expand input fields for Hamiltonian calculation */
+  phi_e     : doExpand1(phi,bC),
+  bmag_e : doExpand1(bmag, bmagBasis),
+
+  /* Basis for the velocity space mapping. */
+  [jnk,vmapBasis] : loadBasis("Ser", 1, 1),  [jnk,vmapSqBasis] : loadBasis("Ser", 1, 2),
+  vmapBnum        : length(vmapBasis),       vmapSqBnum        : length(vmapSqBasis),
+
+  vmap_e : [],  vmapSq_e : [],  vmap_prime_e : [],
+  for d : 1 thru vdim do (
+    vmap_c : makelist(vmap[(d-1)*vmapBnum+i-1],i,1,vmapBnum),
+    vmap_e : endcons(doExpand(vmap_c,subst(x=varsP[cdim+d],vmapBasis)), vmap_e),
+
+    vmapSq_c : makelist(vmapSq[(d-1)*vmapSqBnum+i-1],i,1,vmapSqBnum),
+    vmapSq_e : endcons(doExpand(vmapSq_c,subst(x=varsP[cdim+d],vmapSqBasis)), vmapSq_e),
+
+    vmap_prime_e : endcons(vmap_prime[d-1], vmap_prime_e)
+  ),
+
+
+  /* Redefine vmap_prime to exploit the relationship between it and vmap. */
+  vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
+
+  /* Finally write out the hamiltonian*/
+  hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
+  if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmagSurf_e ),
+  hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
+  printf(fh, "  double hamil[~a] = {0.}; ~%", numP),
+  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
+  hamilCvar : eval_string(sconcat("hamil")),
+  writeCExprsNoExpand1(hamilCvar, gcfac(float(expand(subst(replaceList, hamil_c))))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
+  /* Expand projected Hamiltonian on basis. */
+  hamil_e : hamilNoZero_c . bP,
+
+  /* Now calculate apha at all quadrature nodes */
+  dH_dz_nodes : makelist(0, i, 1, pDim),  
+  for i : 1 thru pDim-1 do (
+    if i = pdim-1 then (
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))/float(evAtNodes(vmap_prime_e,surfNodes,surfIntVars))
+    )
+    else (
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
+    )
+  ),
+
+
+  printf(fh, "double bmag_quad = 0.0; ~%"),
+  printf(fh, "double B3_quad = 0.0; ~%"),
+  printf(fh, "double Jc_quad = 0.0; ~%"),
+  printf(fh, "double dualcurlbhat_quad[3] = {0.0}; ~%"),
+  printf(fh, "~%"),
+  for i : 1 thru numConfigNodes do (
+    printf(fh, "~%"),
+    printf(fh, "bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
+    printf(fh, "B3_quad = gkdgv[~a].B3; ~%", i-1), 
+    printf(fh, "Jc_quad = dgv[~a].area_elem; ~%", i-1), 
+    printf(fh, "dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
+    printf(fh, "dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
+    printf(fh, "dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
+    printf(fh, "~%"),
+    for j : 1 thru numVelNodes do (
+      printf(fh, "alpha_surf[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j-1+(i-1)*numVelNodes, dH_dz_nodes[cdim][j+(i-1)*numVelNodes]),
+      if no_by = false then (
+         for k : 1 thru cdim do (
+           printf(fh, "alpha_surf[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[k];~%", j+(i-1)*numVelNodes, dH_dz_nodes[k][j+(i-1)*numVelNodes], k-1)
+          )
+       )
+    )
+  ),
+
+  printf(fh, "~%"),
+  flush_output(fh),
+  printf(fh, "} ~%")
+
+)$
