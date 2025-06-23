@@ -6,7 +6,7 @@ load("gyrokinetic/gkUtil")$
 fpprec : 24$
 
 buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
+  [pDim,vpardim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
    surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
@@ -128,9 +128,11 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
 
+  vpardim : pDim-1,
+  if vdim = 1 then ( vpardim : pDim ),
   dH_dz_nodes : makelist(0, i, 1, pDim),  
-  for i : 1 thru pDim-1 do (
-    if i = pdim-1 then (
+  for i : 1 thru vpardim do (
+    if i = vpardim then (
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))/float(evAtNodes(vmap_prime_e,surfNodes,surfIntVars))
     )
     else (
