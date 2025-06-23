@@ -56,19 +56,19 @@ printPrototypes() := block([],
   
           for surfDir : 1 thru c+1 do (
             if surfDir<=c then (dirlabel : varsC[surfDir]) else (dirlabel : varsV[surfDir-c]),
-            if surfDir<=c then (extraargs : "const struct dg_surf_geom *dgs, const struct gk_dg_surf_geom *gkdgs, " ) else (extraargs : "const struct dg_vol_geom *dgv, const struct gk_dg_vol_geom *gkdgv, "),
+            if surfDir<=c then (extraargs : "const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs, " ) else (extraargs : "const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv, "),
 
-            printf(fh, "GKYL_CU_DH int gyrokinetic_flux_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
+            printf(fh, "GKYL_CU_DH void gyrokinetic_flux_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
               const double *vmap, const double *vmapSq, const double q_, const double m_, ~a
               const double *bmag, const double *phi, double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, extraargs),  
-            printf(fh, "GKYL_CU_DH int gyrokinetic_flux_no_by_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
+            printf(fh, "GKYL_CU_DH void gyrokinetic_flux_no_by_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
               const double *vmap, const double *vmapSq, const double q_, const double m_, ~a
               const double *bmag, const double *phi, double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, extraargs),  
             if (surfDir < c+1) then (
-              printf(fh, "GKYL_CU_DH int gyrokinetic_flux_edge_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
+              printf(fh, "GKYL_CU_DH void gyrokinetic_flux_edge_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
                 const double *vmap, const double *vmapSq, const double q_, const double m_, ~a
                 const double *bmag, const double *phi, double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, extraargs),
-              printf(fh, "GKYL_CU_DH int gyrokinetic_flux_no_by_edge_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
+              printf(fh, "GKYL_CU_DH void gyrokinetic_flux_no_by_edge_surf~a_~ax~av_~a_p~a(const struct gkyl_basis *basis, const double *w, const double *dxv,
                 const double *vmap, const double *vmapSq, const double q_, const double m_, ~a
                 const double *bmag, const double *phi, double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, extraargs)
             ),
