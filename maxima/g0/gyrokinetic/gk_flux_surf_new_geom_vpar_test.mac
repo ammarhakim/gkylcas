@@ -47,7 +47,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
+  printf(fh, "GKYL_CU_DH void ~a(const struct gkyl_basis *basis, const double *w, const double *dxv, const double *vmap, const double *vmapSq,
     const double q_, const double m_,
     const struct dg_vol_geom *dgv, const struct gk_dg_vol_geom *gkdgv, const double *bmag, 
     const double *phi, const double *JfL, const double *JfR, double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
@@ -140,6 +140,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   /* Now calculate apha at all quadrature nodes */
+  printf(fh, "double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
   printf(fh, "double bmag_quad = 0.0; ~%"),
   printf(fh, "double B3_quad = 0.0; ~%"),
   printf(fh, "double Jc_quad = 0.0; ~%"),
@@ -157,14 +158,18 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
       j1index : j+(i-1)*numVelNodes,
-      printf(fh, "flux_surf[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j0index, dH_dz_nodes[cdim][j1index]),
+      printf(fh, "flux_surf_nodal[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j0index, dH_dz_nodes[cdim][j1index]),
       if no_by = false then (
          for k : 1 thru cdim do (
-           printf(fh, "flux_surf[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[k];~%", j0index, dH_dz_nodes[k][j1index], k-1)
+           printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[k];~%", j0index, dH_dz_nodes[k][j1index], k-1)
           )
       ),
-      printf(fh, "flux_surf[~a] = flux_surf[~a]/2.0 * (~a + ~a) + fabs(flux_surf[~a])/2.0 * (~a - (~a)) ;~%", j0index, j0index, JfR_nodes[j1index], JfL_nodes[j1index], j0index, JfR_nodes[j1index], JfL_nodes[j1index])
+      printf(fh, "flux_surf_nodal[~a] = flux_surf_nodal[~a]/2.0 * (~a + ~a) + fabs(flux_surf_nodal[~a])/2.0 * (~a - (~a)) ;~%", j0index, j0index, JfR_nodes[j1index], JfL_nodes[j1index], j0index, JfR_nodes[j1index], JfL_nodes[j1index])
     )
+  ),
+
+  for k : 1 thru length(bP) do (
+    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", length(bP)*(surfDir-1), k)
   ),
 
   printf(fh, "~%"),
