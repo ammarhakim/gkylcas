@@ -78,7 +78,8 @@ for bInd : 1 thru length(bName) do (
           funcName : sconcat("gyrokinetic_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           calcGKBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
           close(fh),
-
+            
+           /*
           fname : sconcat("~/max-out/gyrokinetic_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
           disp(printf(false,"Creating surface flux file: ~a",fname)),
 
@@ -87,6 +88,7 @@ for bInd : 1 thru length(bName) do (
           funcName : sconcat("gyrokinetic_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           calcGKBoundaryFluxUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
           close(fh),
+          */
 
           /* if cdim > 1, also generate a set of kernels for the case where there is no toroidal field (by = 0) */
           if (c > 1) then (
@@ -107,8 +109,9 @@ for bInd : 1 thru length(bName) do (
             includeSurfHeaders(fh, bName[bInd], c, v, polyOrder, dir),
             funcName : sconcat("gyrokinetic_no_by_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcGKBoundarySurfUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, true),
-            close(fh),
+            close(fh)
 
+            /*
             fname : sconcat("~/max-out/gyrokinetic_no_by_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p",polyOrder, ".c"),
             disp(printf(false,"Creating surface flux file (no by): ~a",fname)),
 
@@ -117,6 +120,7 @@ for bInd : 1 thru length(bName) do (
             funcName : sconcat("gyrokinetic_no_by_boundary_flux",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcGKBoundaryFluxUpdateInDir(dir, fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, true),
             close(fh)
+            */
           )
         ),
 
