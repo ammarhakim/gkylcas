@@ -126,27 +126,33 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
     writeCExprs1(phiWallNodal   , phiWall_n     ),
     printf(fh, "~%"),
 
+    printf(fh, "  double upar_e;~%"),
+    printf(fh, "  double upar_i;~%"),
+    printf(fh, "  double Tpar_e;~%"),
+    printf(fh, "  double Tpar_i;~%"),
+    printf(fh, "  double c_s;~%"),
+    printf(fh, "  double Delta_phi_r;~%"),
+    printf(fh, "~%"),
     for i : 1 thru numSurfNodes do (
       /* Compute the parallel temperature at each node.*/
       uparElc_n : m1eSurfNodal[i-1]/m0eSurfNodal[i-1],
       uparIon_n : m1iSurfNodal[i-1]/m0iSurfNodal[i-1],
-      printf(fh, "  double upar_e = ~a;~%", float(expand(uparElc_n))),
-      printf(fh, "  double upar_i = ~a;~%", float(expand(uparIon_n))),
+      printf(fh, "  upar_e = ~a;~%", float(expand(uparElc_n))),
+      printf(fh, "  upar_i = ~a;~%", float(expand(uparIon_n))),
       printf(fh, "~%"),
 
       TparElc_n : mElc*(m2pareSurfNodal[i-1]-upar_e*m1eSurfNodal[i-1])/m0eSurfNodal[i-1],
       TparIon_n : mIon*(m2pariSurfNodal[i-1]-upar_i*m1iSurfNodal[i-1])/m0iSurfNodal[i-1],
-      printf(fh, "  double Tpar_e = fmax(0.0, ~a);~%", float(fullratsimp(TparElc_n))),
-      printf(fh, "  double Tpar_i = fmax(0.0, ~a);~%", float(fullratsimp(TparIon_n))),
+      printf(fh, "  Tpar_e = fmax(0.0, ~a);~%", float(fullratsimp(TparElc_n))),
+      printf(fh, "  Tpar_i = fmax(0.0, ~a);~%", float(fullratsimp(TparIon_n))),
       printf(fh, "~%"),
 
       /* Compute the shift in phi at each node. */
       cSound_n : sqrt((Tpar_e+3*Tpar_i)/mIon),
-      printf(fh, "  double c_s = ~a;~%", float(fullratsimp(cSound_n))),
-      printf(fh, "  double Delta_phi_r;~%"),
+      printf(fh, "  c_s = ~a;~%", float(fullratsimp(cSound_n))),
       printf(fh, "  if (c_s > 0.0)~%"),
       Dphi_r : - (Tpar_e/elem_q)*(1.-fmin(1.0,fabs(upar_i)/c_s)),
-      printf(fh, "    Delta_phi_r = ~a;~%", i-1, float(fullratsimp(Dphi_r))),
+      printf(fh, "    Delta_phi_r = ~a;~%", float(fullratsimp(Dphi_r))),
       printf(fh, "  else~%"),
       Dphi_r : 0.0,
       printf(fh, "    Delta_phi_r = 0.0;~%", i-1),
@@ -157,7 +163,7 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
       currSurfNodeVol : makelist(boundaryVal[sI],i,1,cdim),
       for d : 1 thru cdim-1 do ( currSurfNodeVol[d] : surfNodes[i][d] ),
       nIdxVol : sublist_indices(nodes, lambda([x], x=currSurfNodeVol))[1],
-      printf(fh,"  phiNodal[~a] = fmax(phiNodal[~a] + Delta_phi_r, phi_wallNodal[~a];~%",nIdxVol-1,nIdxVol-1,i-1),
+      printf(fh,"  phiNodal[~a] = fmax(phiNodal[~a] + Delta_phi_r, phiWallNodal[~a]);~%",nIdxVol-1,nIdxVol-1,i-1),
       printf(fh, "~%")
     ),
 
