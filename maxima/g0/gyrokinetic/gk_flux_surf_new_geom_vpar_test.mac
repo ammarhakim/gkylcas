@@ -62,14 +62,16 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH void ~a(
+  printf(fh, "GKYL_CU_DH double ~a(
     const struct gkyl_basis *basis, const double *w, const double *dxv, 
+    const double *vmap_prime_l, const double *vmap_prime_r,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
     const double *bmag, const double *phi, const double *JfL, const double *JfR, 
     double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
+  printf(fh, "  // vmap_prime_l,vmap_prime_r: velocity space mapping derivative in left and right cells.~%"),
   printf(fh, "  // vmap: velocity space mapping.~%"),
   printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
@@ -140,7 +142,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   JfL_e : JfL_c . bP,
   JfR_e : JfR_c . bP,
    
-  JfL_e : subst(surfVar=-1,JfL_e),
+  JfL_e : subst(surfVar=1,JfL_e),
   JfR_e : subst(surfVar=-1,JfR_e),
 
   JfL_nodes : float(evAtNodes(JfL_e,surfNodes,surfIntVars)),
@@ -163,7 +165,9 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   /* Now calculate apha at all quadrature nodes */
+  printf(fh, "double alpha_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
   printf(fh, "double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
+  printf(fh, "double cfl = 0.0; ~%"),
   printf(fh, "double bmag_quad = 0.0; ~%"),
   printf(fh, "double B3_quad = 0.0; ~%"),
   printf(fh, "double Jc_quad = 0.0; ~%"),
@@ -187,6 +191,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
            printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[~a];~%", j0index, dH_dz_nodes[k][j1index], k-1)
           )
       ),
+      printf(fh, "alpha_surf_nodal[~a] = flux_surf_nodal[~a] ;~%", j0index, j0index),
+      printf(fh, "cfl = fmax(fabs(alpha_surf_nodal[~a]), fabs(cfl)) ;~%", j0index),
       printf(fh, "flux_surf_nodal[~a] = flux_surf_nodal[~a]/2.0 * (~a + ~a) + fabs(flux_surf_nodal[~a])/2.0 * (~a - (~a)) ;~%", j0index, j0index, JfR_nodes[j1index], JfL_nodes[j1index], j0index, JfR_nodes[j1index], JfL_nodes[j1index])
     )
   ),
@@ -194,6 +200,14 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   for k : 1 thru length(bSurf) do (
     printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", NSurfIndexing*(surfDir-1), k-1)
   ),
+
+  /*Calculate the cfl*/
+  pOrderCFL : polyOrder,
+  if polyOrder=1 then ( pOrderCFL : 2 ),
+  printf(fh, "  double vmap_prime_min = fmin(fabs(~a),fabs(~a));~%",vmap_prime_l[surfDir-cdim-1],vmap_prime_r[surfDir-cdim-1]),
+  vprimeStr : "/vmap_prime_min",
+  printf(fh, "~%"),
+  printf(fh, "  return cfl~a*~a; ~%", vprimeStr, float(0.5*(2*pOrderCFL+1)*rdSurfVar2)),
 
   printf(fh, "~%"),
   flush_output(fh),
