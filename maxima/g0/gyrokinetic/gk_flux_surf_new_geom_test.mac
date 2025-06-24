@@ -119,7 +119,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   ),
 
   /* Finally write out the hamiltonian*/
-  hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
+  hamil_e : q_*phi_e + (1/2)*m_*vmapSq_e[1],
   if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmagSurf_e ),
   hamil_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,hamil_e)),
   printf(fh, "  double hamil[~a] = {0.}; ~%", numP),
@@ -144,12 +144,15 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   JfL_nodes : float(evAtNodes(JfL_e,surfNodes,surfIntVars)),
   JfR_nodes : float(evAtNodes(JfR_e,surfNodes,surfIntVars)),
 
+  vmap_prime_nodes : float(evAtNodes(vmap_prime_e[1],surfNodes,surfIntVars)),
+
   vpardim : pDim-1,
   if vdim = 1 then ( vpardim : pDim ),
   dH_dz_nodes : makelist(0, i, 1, pDim),  
   for i : 1 thru vpardim do (
     if i = vpardim then (
-      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))/float(evAtNodes(vmap_prime_e,surfNodes,surfIntVars))
+      /*dH_dz_nodes[i] : (float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars)))/(float(evAtNodes(vmap_prime_e,surfNodes,surfIntVars)))*/
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
     )
     else (
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
@@ -178,22 +181,22 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
     printf(fh, "Jc_quad = gkdgs[~a].Jc; ~%", i-1), 
     printf(fh, "B3_quad = gkdgs[~a].B3; ~%", i-1), 
     printf(fh, "normcurlbhat_quad = gkdgs[~a].normcurlbhat; ~%", i-1), 
+    printf(fh, "bhat_quad[0] = gkdgs[~a].bhat.x[0];  ~%", i-1), 
+    printf(fh, "bhat_quad[1] = gkdgs[~a].bhat.x[1];  ~%", i-1), 
+    printf(fh, "bhat_quad[2] = gkdgs[~a].bhat.x[2];  ~%", i-1), 
     printf(fh, "area_elem_quad = dgs[~a].area_elem; ~%", i-1), 
-    printf(fh, "bhat_quad[0] = dgs[~a].bhat.x[0];  ~%", i-1), 
-    printf(fh, "bhat_quad[1] = dgs[~a].bhat.x[1];  ~%", i-1), 
-    printf(fh, "bhat_quad[2] = dgs[~a].bhat.x[2];  ~%", i-1), 
     printf(fh, "~%"),
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
       j1index : j+(i-1)*numVelNodes,
       if di3 = true then (
-        printf(fh, "flux_surf_nodal[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j0index, dH_dz_nodes[vpardim][j1index])
+        printf(fh, "flux_surf_nodal[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j0index, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
       )
       else (
         printf(fh, "flux_surf_nodal[~a] = 0.0  ;~%", j0index)
       ),
       if no_by = false then (
-        printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * (~a)/q_ * normcurlbhat_quad ;~%", j0index, dH_dz_nodes[vpardim][j1index], dH_dz_nodes[vpardim][j1index]),
+        printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * (~a)/q_ * normcurlbhat_quad ;~%", j0index, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index], dH_dz_nodes[vpardim][j1index]),
         if cdim = 3 then (
            if surfDir = 1 then(
              printf(fh, "flux_surf_nodal[~a] += 1/q_/bmag_quad/area_elem_quad * (bhat_quad[1]*(~a) - bhat_quad[2]*(~a))  ;~%", j0index, dH_dz_nodes[3][j1index], dH_dz_nodes[2][j1index])
@@ -207,14 +210,14 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
         ),
         if cdim = 2 then (
            if surfDir = 1 then(
-             printf(fh, "flux_surf_nodal[~a] += 1/q_/bmag_quad/area_elem_quad * bhat_quad[1]*(~a))  ;~%", j0index, dH_dz_nodes[2][j1index])
+             printf(fh, "flux_surf_nodal[~a] += 1/q_/bmag_quad/area_elem_quad * bhat_quad[1]*(~a)  ;~%", j0index, dH_dz_nodes[2][j1index])
            ),
            if surfDir = 2 then(
-             printf(fh, "flux_surf_nodal[~a] += 1/q_/bmag_quad/area_elem_quad * -bhat_quad[0]*(~a)) ;~%", j0index, dH_dz_nodes[1][j1index])
+             printf(fh, "flux_surf_nodal[~a] += 1/q_/bmag_quad/area_elem_quad * -bhat_quad[0]*(~a) ;~%", j0index, dH_dz_nodes[1][j1index])
            )
         )
       ),
-      printf(fh, "flux_surf_nodal[~a] *= area_elem_quad ) ;~%", j0index),
+      printf(fh, "flux_surf_nodal[~a] *= area_elem_quad ;~%", j0index),
       printf(fh, "flux_surf_nodal[~a] = flux_surf_nodal[~a]/2.0/Jc_quad * (~a + ~a) + fabs(flux_surf_nodal[~a])/2.0/Jc_quad * (~a - (~a)) ;~%", j0index, j0index, JfR_nodes[j1index], JfL_nodes[j1index], j0index, JfR_nodes[j1index], JfL_nodes[j1index])
     )
   ),

@@ -110,7 +110,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
+  printf(fh, "  double cflFreq = fmax(fabs(flux_surf_l[0]~a), fabs(flux_surf_r[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
@@ -197,8 +197,8 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      (which stores the next interior edge surface alpha at -1 and alpha is continuous)
      When we need the surface alpha at -1, we use alpha_skin 
      (which stores the skin cell surface alpha at -1 and alpha is continuous) */
-  printf(fh, "  const double *GhatL = &alpha_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *GhatR = &alpha_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
   printf(fh, "~%"),
 
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
@@ -242,7 +242,7 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
+  printf(fh, "  double cflFreq = fmax(fabs(flux_surf_edge[0]~a), fabs(flux_surf_skin[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 
@@ -386,7 +386,7 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      Also need to divide out 1/sqrt(2^(pDim-1)) to convert 0th component of surface alpha
      expansion to cell average (so we take the surface averaged alpha as our estimate of the
      maximum velocity to compute the largest frequency) */
-  printf(fh, "  double cflFreq = fmax(fabs(alphaL[0]~a), fabs(alphaR[0]~a)); ~%", vprimeStr, vprimeStr),
+  printf(fh, "  double cflFreq = fmax(fabs(flux_surf_edge[0]~a), fabs(flux_surf_skin[0]~a)); ~%", vprimeStr, vprimeStr),
   printf(fh, "  return ~a*cflFreq; ~%",float(0.5*(2*pOrderCFL+1)*rdSurfVar2*2.0^(-0.5*(pDim-1)))),
   printf(fh, "~%"),
 

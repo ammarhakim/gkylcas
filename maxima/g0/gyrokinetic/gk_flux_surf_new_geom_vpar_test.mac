@@ -104,8 +104,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   /* Finally write out the hamiltonian*/
-  hamil_e : charge*phi_e + (1/2)*mass*vmapSq_e[1],
-  if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmagSurf_e ),
+  hamil_e : q_*phi_e + (1/2)*m_*vmapSq_e[1],
+  if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmag_e ),
   hamil_c : calcInnerProdList(varsP, 1, bP, hamil_e),
   printf(fh, "  double hamil[~a] = {0.}; ~%", numP),
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
@@ -124,18 +124,22 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   JfR_c : calcInnerProdList(varsP, 1, bP, JfR_e),
   JfL_e : JfL_c . bP,
   JfR_e : JfR_c . bP,
+   
+  JfL_e : subst(surfVar=-1,JfL_e),
+  JfR_e : subst(surfVar=-1,JfR_e),
 
   JfL_nodes : float(evAtNodes(JfL_e,surfNodes,surfIntVars)),
   JfR_nodes : float(evAtNodes(JfR_e,surfNodes,surfIntVars)),
 
 
+  vmap_prime_nodes : float(evAtNodes(vmap_prime_e[1],surfNodes,surfIntVars)),
 
   vpardim : pDim-1,
   if vdim = 1 then ( vpardim : pDim ),
   dH_dz_nodes : makelist(0, i, 1, pDim),  
   for i : 1 thru vpardim do (
     if i = vpardim then (
-      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))/float(evAtNodes(vmap_prime_e,surfNodes,surfIntVars))
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
     )
     else (
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
@@ -154,7 +158,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     printf(fh, "~%"),
     printf(fh, "bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
     printf(fh, "B3_quad = gkdgv[~a].B3; ~%", i-1), 
-    printf(fh, "Jc_quad = dgv[~a].area_elem; ~%", i-1), 
+    printf(fh, "Jc_quad = dgv[~a].Jc; ~%", i-1), 
     printf(fh, "dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
     printf(fh, "dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
     printf(fh, "dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
@@ -165,7 +169,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       printf(fh, "flux_surf_nodal[~a] = (~a)/m_/bmag_quad * B3_quad ;~%", j0index, dH_dz_nodes[cdim][j1index]),
       if no_by = false then (
          for k : 1 thru cdim do (
-           printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[k];~%", j0index, dH_dz_nodes[k][j1index], k-1)
+           printf(fh, "flux_surf_nodal[~a] += (~a)/m_/bmag_quad * dualcurlbhat_quad[~a];~%", j0index, dH_dz_nodes[k][j1index], k-1)
           )
       ),
       printf(fh, "flux_surf_nodal[~a] = flux_surf_nodal[~a]/2.0 * (~a + ~a) + fabs(flux_surf_nodal[~a])/2.0 * (~a - (~a)) ;~%", j0index, j0index, JfR_nodes[j1index], JfL_nodes[j1index], j0index, JfR_nodes[j1index], JfL_nodes[j1index])
