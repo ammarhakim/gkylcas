@@ -110,7 +110,8 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
 
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
-  vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
+  /*vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),*/
+  vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   if edge = true then (
       evPoint : 1
@@ -234,7 +235,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
       printf(fh, "JfR_quad =  ~a;~%", JfR_nodes[j1index]),
       printf(fh, "Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
       printf(fh, "Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
-      printf(fh, "flux_surf_nodal[~a] = alpha_quad*Jfavg_quad*area_elem_quad - fabs(alpha_quad)*Jfjump_quad*area_elem_quad ;~%", j0index)
+      printf(fh, "flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
     )
   ),
 
