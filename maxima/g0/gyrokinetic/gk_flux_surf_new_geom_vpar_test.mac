@@ -205,8 +205,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       printf(fh, "JfL_quad =  ~a;~%", JfL_nodes[j1index]),
       printf(fh, "JfR_quad =  ~a;~%", JfR_nodes[j1index]),
       printf(fh, "Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
-      printf(fh, "Jfjump_quad = (JfL_quad - JfR_quad)/2.0 ;~%"),
-      printf(fh, "flux_surf_nodal[~a] = alpha_quad*Jfavg_quad + fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
+      printf(fh, "Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
+      printf(fh, "flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
     )
   ),
 
