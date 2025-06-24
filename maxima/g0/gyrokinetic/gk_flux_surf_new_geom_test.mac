@@ -223,7 +223,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   ),
 
   for k : 1 thru length(bSurf) do (
-    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", length(bSurf)*(surfDir-1), k)
+    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", length(bSurf)*(surfDir-1), k-1)
   ),
 
   printf(fh, "~%"),

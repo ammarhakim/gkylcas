@@ -45,6 +45,21 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   numConfigNodes : length(configNodes), 
   numVelNodes : numSurfNodes/numConfigNodes, 
 
+  /* if polyOrder = 1, we need to be careful about
+     indexing input arrays since the surface hybrid basis has a different size in the
+     vparallel surfaces and/or we are more directly exploiting the sparsity of 
+     alpha (e.g., in the x and z direction when no toroidal field, by=0) 
+     and thus utilize fewer coefficients to reduce the number of operations */
+  if (polyOrder = 1) then (
+    tempVars         : delete(x,varsP), 
+    tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
+    NSurfIndexing    : length(tempBasis),
+    numNodesIndexing : length(tempBasis)
+  ) else (
+    NSurfIndexing    : NSurf,
+    numNodesIndexing : numNodes
+  ),
+
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH void ~a(
@@ -176,8 +191,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     )
   ),
 
-  for k : 1 thru length(bP) do (
-    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", length(bP)*(surfDir-1), k)
+  for k : 1 thru length(bSurf) do (
+    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", NSurfIndexing*(surfDir-1), k-1)
   ),
 
   printf(fh, "~%"),
