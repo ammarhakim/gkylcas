@@ -157,7 +157,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
     )
     else (
-      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
     )
   ),
 

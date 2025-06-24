@@ -120,7 +120,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
-  vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
+  /*vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),*/
+  vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   /* Finally write out the hamiltonian*/
   hamil_e : q_*phi_e + (1/2)*m_*vmapSq_e[1],
@@ -161,7 +162,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
     )
     else (
-      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
     )
   ),
 
