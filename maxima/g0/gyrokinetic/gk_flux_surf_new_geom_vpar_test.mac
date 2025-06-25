@@ -194,10 +194,11 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
       j1index : j+(i-1)*numVelNodes,
-      printf(fh, "alpha_quad = (~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index]),
+      printf(fh, "~%"),
+      printf(fh, "alpha_quad = -(~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index]),
       if no_by = false then (
          for k : 1 thru cdim do (
-           printf(fh, "alpha_quad += (~a)/m_/bmag_quad * dualcurlbhat_quad[~a];~%", dH_dz_nodes[k][j1index], k-1)
+           printf(fh, "alpha_quad += -(~a)/m_/bmag_quad * dualcurlbhat_quad[~a];~%", dH_dz_nodes[k][j1index], k-1)
           )
       ),
 
