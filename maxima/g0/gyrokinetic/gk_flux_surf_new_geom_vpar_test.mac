@@ -123,6 +123,13 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   /*vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),*/
   vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
+  if edge = true then (
+      evPoint : 1
+  )
+  else (
+      evPoint : -1
+  ),
+
   /* Finally write out the hamiltonian*/
   hamil_e : q_*phi_e + (1/2)*m_*vmapSq_e[1],
   if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmag_e ),
@@ -136,6 +143,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
+  /*hamil_e : subst(surfVar=evPoint,hamil_e),*/
 
   /*fl and fr */
   JfL_e : doExpand1(JfL, bP),
@@ -159,7 +167,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   dH_dz_nodes : makelist(0, i, 1, pDim),  
   for i : 1 thru vpardim do (
     if i = vpardim then (
-      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars))
+      dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e,varsP[i]),surfNodes,surfIntVars)),
+      dH_dz_nodes[i] : subst(surfVar=evPoint, dH_dz_nodes[i])
     )
     else (
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
@@ -198,7 +207,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       printf(fh, "alpha_quad = -(~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index]),
       if no_by = false then (
          for k : 1 thru cdim do (
-           printf(fh, "alpha_quad += -(~a)/m_/bmag_quad * dualcurlbhat_quad[~a];~%", dH_dz_nodes[k][j1index], k-1)
+           printf(fh, "alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a);~%", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
           )
       ),
 
