@@ -47,6 +47,12 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   ),
   numBsurf : length(bSurf),
 
+  if (cdim > 1) then (
+    bSurfC : basisFromVars(basisFun,surfVarsC,polyOrder)
+  ) else (
+    bSurfC : [1]
+  ),
+  
   zvSurfVars : append(surfVarsC, [mu]),  /* = x,y,mu. */
   /* Set up surface nodes. */
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
@@ -74,6 +80,9 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand input distribution function f on phase-space basis using input coeffs. */
   f_e : doExpand1(f, bP),
 
+  /* Expand wall potential in conf-space surface basis. */
+  phiWall_e : doExpand1(phiWall, bSurfC),
+
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
   surfPerpVal : [-1, 1],
@@ -86,7 +95,6 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     /* Calculate expansion for deltaPhi = phiSheath - phiWall, evaluated at z=zVal,
        where zVal=-1 or 1 depending on if we're on the left or right edge of the global domain, respectively. */
     phiSheath_e : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phi, bC)),
-    phiWall_e   : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phiWall, bC)),
     deltaPhi_e  : phiSheath_e - phiWall_e,
 
     /* Evaluate vcutSq = vcut^2 at x,y nodes. */
