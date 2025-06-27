@@ -188,7 +188,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
           alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[2])
         ),
         if dir = 2 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[1])
+          alpha_e : alpha_e - 1/q_ * (bioverJB_list[2]*dH_dz_e[1])
         )
       ),
       if dir = vpardim then (
