@@ -14,7 +14,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
-   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e],
+   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar, hamil2_c],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -83,7 +83,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   bioverJB_y_e : doExpand1(bioverJB_y, bmagBasis),
   bioverJB_z_e : doExpand1(bioverJB_z, bmagBasis),
 
-  dualcurlbhatoverB_list : [dualcurlbhatoverB_x_e, dualcurlbhatoverB__e, dualcurlbhatoverB_z_e],
+  dualcurlbhatoverB_list : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
   bioverJB_list : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e],
 
   /* Basis for the velocity space mapping. */
@@ -118,6 +118,16 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
 
+  printf(fh, "  double hamil2[~a] = {0.}; ~%", numP),
+  for ih : 1 thru numP do (
+    printf(fh, "  hamil2[~a] = hamil[~a]*hamil[~a]; ~%", ih-1, ih-1, ih-1)
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "  double vmap2 = vmap[1]*vmap[1]; ~%"),
+
+  printf(fh, "~%"),
+
   /*Expand Jf*/
   Jf_e : doExpand1(fin,bP),
 
@@ -135,7 +145,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   ),
 
 
-  alphaSum_e : 0,
+  replaceListHamil : makelist(hamil[i]^2=hamil2[i] , i, 1, numP),
+  replaceListVpar : [vmap[1]^2=vmap2],
   /* Note: no contribution from mu. */
   for dir : 1 thru cdim+1 do (
 
@@ -150,7 +161,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       alpha_e : rtg33inv_e*dH_dz_e[vpardim]/vmap_prime_e[1]/m_
     )
     else if dir = vpardim then (
-      alpha_e : rtg33inv_e * dH_dz_e[cdim]/vmap_prime_e[1]/m_
+      alpha_e : -rtg33inv_e * dH_dz_e[cdim]/vmap_prime_e[1]/m_
     )
     else (
       alpha_e : 0
@@ -163,13 +174,13 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       ),
       if cdim = 3 then (
         if dir = 1 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[3] - bioverJBlist[3]*dH_dz_e[2])
+          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[3] - bioverJB_list[3]*dH_dz_e[2])
         ),
         if dir = 2 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[3]*dH_dz_e[1] - bioverJBlist[1]*dH_dz_e[3])
+          alpha_e : alpha_e + 1/q_ * (bioverJB_list[3]*dH_dz_e[1] - bioverJB_list[1]*dH_dz_e[3])
         ),
         if dir = 3 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[1]*dH_dz_e[2] - bioverJBlist[2]*dH_dz_e[1])
+          alpha_e : alpha_e + 1/q_ * (bioverJB_list[1]*dH_dz_e[2] - bioverJB_list[2]*dH_dz_e[1])
         )
       ),
       if cdim = 2 then (
@@ -177,7 +188,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
           alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[2])
         ),
         if dir = 2 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJBlist[2]*dH_dz_e[1])
+          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[1])
         )
       ),
       if dir = vpardim then (
@@ -188,11 +199,27 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
     ),
 
+    /* Project alpha on basis and write to array. */
+    printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
+    alpha_c : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)),
+    alpha_c : subst(replaceList, alpha_c),
+    alpha_c : subst(replaceListHamil, alpha_c),
+    alpha_c : subst(replaceListVpar, alpha_c),
+    alpha_c : subst(dvparSimp, alpha_c),
+    alphaLabel : eval_string(sconcat(alpha, dirLabel)),
+    clst : [rdx2vec, rdv2vec, m_, q_, wvpar, rdvpar2Sq,
+            makelist(dxv[i-1],i,1,pDim), makelist(vmap[i-1],i,1,2*length(vmap_e[1]))],
+    writeCExprsCollect1(alphaLabel, alpha_c, clst),
+    printf(fh, "~%"),
+    flush_output(fh),
+    alphaNoZero_c : makelistNoZeros1(alpha_c, alphaLabel),
+    alpha_e       : doExpand(alphaNoZero_c, bP),
+
     alphaJf_e : alpha_e*Jf_e,
 
     printf(fh, "~%"),
     volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,varsP[dir]), alphaJf_e)),
-
+    volTerm_c : subst(replaceList, volTerm_c),
     writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
     flush_output(fh),
     printf(fh, "~%")
