@@ -161,7 +161,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       alpha_e : rtg33inv_e*dH_dz_e[vpardim]/vmap_prime_e[1]/m_
     )
     else if dir = vpardim then (
-      alpha_e : -rtg33inv_e * dH_dz_e[cdim]/vmap_prime_e[1]/m_
+      alpha_e : -rtg33inv_e * dH_dz_e[cdim]/m_
     )
     else (
       alpha_e : 0
@@ -199,6 +199,13 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
     ),
 
+    if dir < vpardim then (
+      alpha_e : alpha_e*rdx2vec[dir]
+    )
+    else if dir = vpardim then (
+      alpha_e : alpha_e/vmap_prime_e[1]
+    ),
+
     /* Project alpha on basis and write to array. */
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
     alpha_c : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)),
@@ -220,7 +227,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     printf(fh, "~%"),
     volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,varsP[dir]), alphaJf_e)),
     volTerm_c : subst(replaceList, volTerm_c),
-    writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
+    writeCIncrExprsNoExpand(float(expand(volTerm_c))),
     flush_output(fh),
     printf(fh, "~%")
 
