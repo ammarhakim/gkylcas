@@ -10,7 +10,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
    surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
    rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
+   bmagBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
    bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
    BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,fluxSurf_e],
 
@@ -87,11 +87,10 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
 
   /* Axisymmetric basis (independent of y). */
   bmagBasis : getAxisymmetricConfBasis(bC),
-  bmagSurfBasis : getAxisymmetricConfBasis(bSurfC),
 
   /* Expand input fields for Hamiltonian calculation */
-  phi_e     : doExpand1(phi,bC),
-  bmagSurf_e : doExpand1(bmag, bmagSurfBasis),
+  phi_e     : doExpand1(phi,bmagBasis),
+  bmagSurf_e : doExpand1(bmag, bmagBasis),
 
   /* Basis for the velocity space mapping. */
   [jnk,vmapBasis] : loadBasis("Ser", 1, 1),  [jnk,vmapSqBasis] : loadBasis("Ser", 1, 2),
