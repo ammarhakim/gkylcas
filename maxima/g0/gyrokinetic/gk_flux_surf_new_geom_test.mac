@@ -89,7 +89,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   bmagBasis : getAxisymmetricConfBasis(bC),
 
   /* Expand input fields for Hamiltonian calculation */
-  phi_e     : doExpand1(phi,bmagBasis),
+  phi_e     : doExpand1(phi,bC),
   bmagSurf_e : doExpand1(bmag, bmagBasis),
 
   /* Basis for the velocity space mapping. */
