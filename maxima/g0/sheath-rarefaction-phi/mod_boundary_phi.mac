@@ -160,7 +160,7 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
 
       /* Change boundary value of phi to account for the rarefaction wave
          modification to phi: -(Tpare/e)*(1-|upari|/c_s). */
-      currSurfNodeVol : makelist(boundaryVal[sI],i,1,cdim),
+      currSurfNodeVol : makelist(boundaryVal[sI],d,1,cdim),
       for d : 1 thru cdim-1 do ( currSurfNodeVol[d] : surfNodes[i][d] ),
       nIdxVol : sublist_indices(nodes, lambda([x], x=currSurfNodeVol))[1],
       printf(fh,"  phiNodal[~a] = fmax(phiNodal[~a] + Delta_phi_r, phiWallNodal[~a]);~%",nIdxVol-1,nIdxVol-1,i-1),
