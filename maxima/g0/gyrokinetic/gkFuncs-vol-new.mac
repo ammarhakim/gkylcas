@@ -11,10 +11,10 @@ load("utilities")$
 fpprec : 24$
 
 buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
+  [pDim,varsC,bC,varsP,bP,varsV,vmapBasis,vmapSqBasis,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
-   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar, hamil2_c],
+   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,hamil2_c,isqlist,mvpar_e,mvparsq_e],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -118,16 +118,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
 
-  printf(fh, "  double hamil2[~a] = {0.}; ~%", numP),
-  for ih : 1 thru numP do (
-    printf(fh, "  hamil2[~a] = hamil[~a]*hamil[~a]; ~%", ih-1, ih-1, ih-1)
-  ),
-  printf(fh, "~%"),
-
-  printf(fh, "  double vmap2 = vmap[1]*vmap[1]; ~%"),
-
-  printf(fh, "~%"),
-
   /*Expand Jf*/
   Jf_e : doExpand1(fin,bP),
 
@@ -145,8 +135,28 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   ),
 
 
-  replaceListHamil : makelist(hamil[i]^2=hamil2[i] , i, 1, numP),
+  /*Make sure to avoid having hamil[i]^2 or vmap[i]^2 in expressions*/
   replaceListVpar : [vmap[1]^2=vmap2],
+  printf(fh, "  double vmap2 = vmap[1]*vmap[1]; ~%"),
+  printf(fh, "~%"),
+
+  mvpar_e : dH_dz_e[vpardim]/vmap_prime_e[1],
+  mvparsq_e : mvpar_e*mvpar_e/m_,
+  isqlist : [],
+  for i : 1 thru numP do (
+    if freeof(hamil[i]^2, expand(mvparsq_e)) = false then (
+      isqlist : append(isqlist,[i])
+    )
+  ),
+
+  replaceListHamil : [],
+  printf(fh, "  double hamil2[~a] = {0.}; ~%", length(isqlist)),
+  for i : 1 thru length(isqlist) do (
+    printf(fh, "  hamil2[~a] = hamil[~a]*hamil[~a]; ~%", i-1, isqlist[i], isqlist[i]),
+    replaceListHamil : append(replaceListHamil, [hamil[isqlist[i]]^2=hamil2[i-1]])
+  ),
+  printf(fh, "~%"),
+
   /* Note: no contribution from mu. */
   for dir : 1 thru cdim+1 do (
 
