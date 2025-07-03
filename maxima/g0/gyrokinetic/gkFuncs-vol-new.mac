@@ -11,10 +11,10 @@ load("utilities")$
 fpprec : 24$
 
 buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
-  [pDim,varsC,bC,varsP,bP,varsV,vmapBasis,vmapSqBasis,vmapSubBasis,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
-   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar, hamil2_c, isqlist, ivlist],
+   dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar, hamil2_c],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -23,8 +23,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   numC : length(bC),  numP : length(bP), 
 
   varLabel : makelist(string(varsP[d]),d,1,pDim),
-
-  varsV : makelist(varsP[i],i,cdim+1,pDim),
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
@@ -120,7 +118,11 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bP,
 
-
+  printf(fh, "  double hamil2[~a] = {0.}; ~%", numP),
+  for ih : 1 thru numP do (
+    printf(fh, "  hamil2[~a] = hamil[~a]*hamil[~a]; ~%", ih-1, ih-1, ih-1)
+  ),
+  printf(fh, "~%"),
 
   printf(fh, "  double vmap2 = vmap[1]*vmap[1]; ~%"),
 
@@ -142,61 +144,9 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     )
   ),
 
-  /* Expand mvpar = dH/dv * 1/v' and mvpar^2 on vmap sub basis */
-  vmapSubBasis : [],
-  ivlist : [],
-  for i : 1 thru numP do (
-    if every(lambda([v], freeof(v, bP[i])), delete(vpar, varsP)) = true then (
-      vmapSubBasis : append(vmapSubBasis,[ bP[i]] ),
-      ivlist : append(ivlist,[i])
-    )
-  ),
 
-  mvpar_e : dH_dz_e[vpardim]/vmap_prime_e[1],
-  mvparsq_e : mvpar_e*mvpar_e/m_,
-  mvpar_c : calcInnerProdList(varsP, 1, bP, mvpar_e),
-  mvparsq_c : calcInnerProdList(varsP, 1, bP, mvparsq_e),
-
-  isqlist : [],
-  for i : 1 thru numP do (
-    if freeof(hamil[i]^2, expand(mvparsq_e)) = false then (
-      isqlist : append(isqlist,[i])
-    )
-  ),
-
-  /*Make sure to avoid having hamil[i]^2 or vmap[i]^2 in expressions*/
-  replaceListHamil : [],
-  printf(fh, "  double hamil2[~a] = {0.}; ~%", length(isqlist)),
-  for i : 1 thru length(isqlist) do (
-    printf(fh, "  hamil2[~a] = hamil[~a]*hamil[~a]; ~%", i-1, isqlist[i], isqlist[i]),
-    replaceListHamil : append(replaceListHamil, [hamil[isqlist[i]]^2=hamil2[i-1]])
-  ),
-  printf(fh, "~%"),
+  replaceListHamil : makelist(hamil[i]^2=hamil2[i] , i, 1, numP),
   replaceListVpar : [vmap[1]^2=vmap2],
-  printf(fh, "~%"),
-
-  /* write out mvpar and mvpar^2 expressions with ^2 replaced with hamil2 or vmap2*/
-  printf(fh, "  double mvpar[~a] = {0.}; ~%", length(vmapSubBasis)),
-  printf(fh, "  double mvparsq[~a] = {0.}; ~%", length(vmapSubBasis)),
-  mvpar_c : subst(replaceListHamil, mvpar_c),
-  mvpar_c : subst(replaceListVpar,  mvpar_c),
-  mvpar_c : makelist(mvpar_c[ivlist[i]], i, 1, length(ivlist)),
-  mvparCvar : eval_string(sconcat("mvpar")),
-  writeCExprsNoExpand1(mvparCvar, (float(expand(subst(replaceList, mvpar_c))))),
-  mvparNoZero_c : makelistNoZeros1(mvpar_c, mvparCvar),
-  mvpar_e : mvparNoZero_c . vmapSubBasis,
-
-  mvparsq_c : subst(replaceListHamil, mvparsq_c),
-  mvparsq_c : subst(replaceListVpar,  mvparsq_c),
-  mvparsq_c : makelist(mvparsq_c[ivlist[i]], i, 1, length(ivlist)),
-  mvparsqCvar : eval_string(sconcat("mvparsq")),
-  writeCExprsNoExpand1(mvparsqCvar, gcfac(float(expand(subst(replaceList, mvparsq_c))))),
-  mvparsqNoZero_c : makelistNoZeros1(mvparsq_c, mvparsqCvar),
-  mvparsq_e : mvparsqNoZero_c . vmapSubBasis,
-
-  printf(fh, "~%"),
-
-
   /* Note: no contribution from mu. */
   for dir : 1 thru cdim+1 do (
 
@@ -208,7 +158,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     dirVar    : varsP[dir],         /* Variable in current direction. */
 
     if dir = cdim then (
-      alpha_e : rtg33inv_e*mvpar_e/m_
+      alpha_e : rtg33inv_e*dH_dz_e[vpardim]/vmap_prime_e[1]/m_
     )
     else if dir = vpardim then (
       alpha_e : -rtg33inv_e * dH_dz_e[cdim]/m_
@@ -220,7 +170,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
     if no_by = false then (
       if dir < vpardim then (
-        alpha_e : alpha_e + dualcurlbhatoverB_list[dir]*mvparsq_e/q_
+        alpha_e : alpha_e + dualcurlbhatoverB_list[dir]*dH_dz_e[vpardim]/vmap_prime_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/m_/q_
       ),
       if cdim = 3 then (
         if dir = 1 then (
@@ -243,7 +193,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       ),
       if dir = vpardim then (
         for k : 1 thru cdim do (
-          alpha_e : alpha_e + dualcurlbhatoverB_list[k]*dH_dz_e[k]*mvpar_e/q_/m_
+          alpha_e : alpha_e + dualcurlbhatoverB_list[k]*dH_dz_e[k]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
         )
       )
 
@@ -260,6 +210,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
     alpha_c : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)),
     alpha_c : subst(replaceList, alpha_c),
+    alpha_c : subst(replaceListHamil, alpha_c),
+    alpha_c : subst(replaceListVpar, alpha_c),
     alpha_c : subst(dvparSimp, alpha_c),
     alphaLabel : eval_string(sconcat(alpha, dirLabel)),
     clst : [rdx2vec, rdv2vec, m_, q_, wvpar, rdvpar2Sq,
