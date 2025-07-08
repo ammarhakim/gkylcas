@@ -32,8 +32,15 @@ for bInd : 1 thru length(bName) do (
       printf(fh, "#include <gkyl_sheath_rarefaction_pot_kernels.h> ~%"),
       printf(fh, "~%"),
 
+      /* Kinetic electrons. */
       print(sconcat("Creating sheath_rarefaction_phi_mod ", cDims[cI], "x ", bName[bInd], " p",polyOrder)),
-      genModPhiKer(fh, cDims[cI], bName[bInd], polyOrder),
+      genModPhiKer(fh, cDims[cI], bName[bInd], polyOrder, false),
+      printf(fh, "~%"),
+
+      /* Boltzmann electrons. */
+      print(sconcat("Creating sheath_rarefaction_phi_mod ", cDims[cI], "x ", bName[bInd], " p",polyOrder)),
+      genModPhiKer(fh, cDims[cI], bName[bInd], polyOrder, true),
+      printf(fh, "~%"),
 
       close(fh)
     )
@@ -59,7 +66,9 @@ for bInd : 1 thru length(bName) do (
     for cI : 1 thru length(cDims) do (
       for sI : 1 thru length(edges) do (
 
-        printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_~a_~ax_~a_p~a(double elem_q, double mElc, const double *momsElc, double mIon, const double *momsIon, const double *phiWall, double *phi); ~%", edges[sI], cDims[cI], bName[bInd], polyOrder)
+        printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_kinetic_elc_~a_~ax_~a_p~a(double elem_q, double mElc, double tempElcBoltz, const double *momsElc, double mIon, const double *momsIon, const double *phiWall, double *phi); ~%", edges[sI], cDims[cI], bName[bInd], polyOrder),
+        printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_boltzmann_elc_~a_~ax_~a_p~a(double elem_q, double mElc, double tempElcBoltz, const double *momsElc, double mIon, const double *momsIon, const double *phiWall, double *phi); ~%", edges[sI], cDims[cI], bName[bInd], polyOrder),
+        printf(fh, "~%")
 
       )
     )

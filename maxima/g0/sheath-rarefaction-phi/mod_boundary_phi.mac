@@ -9,11 +9,13 @@ load("modal-basis")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
-  [vars,basis,numB,nodes,numNodes,dimIn,basisNodal,phi_c,phi_e,phi_n,phiWall_c,phiWall_e,
-   m0Elc_e,m0Ion_e,m1Elc_e,m1Ion_e,m2parElc_e,m2parIon_e,edge,boundaryVal,zVar,m0Elc_b,
-   m0Ion_b,m1Elc_b,m1Ion_b,m2parElc_b,m2parIon_b,uparElc_b,uparIon_b,TparElc_b,TparIon_b,
-   cSound_b,Dphi_r,bNodeIdx,phiWall_b,phiOut_c],
+genModPhiKer(fh, cdim, basisNm, polyOrder, isElcBoltz) := block(
+  [vars,basis,numB,nodes,numNodes,basisNodal,surfPerpVar,surfVars,bSurf,surfNodes,numBsurf,numSurfNodes,
+   phi_c,phi_e,phi_n,phiWall_c,phiWall_e,m0Elc_e,m0Ion_e,m1Elc_e,m1Ion_e,m2parElc_e,m2parIon_e,
+   edge,boundaryVal,kinBoltz_elc_str,sI,m,
+   m0IonSurf_c,m1IonSurf_c,m2parIonSurf_c,m0IonSurf_e,m1IonSurf_e,m2parIonSurf_e,m0IonSurf_n,m1IonSurf_n,m2parIonSurf_n,
+   m0ElcSurf_c,m1ElcSurf_c,m2parElcSurf_c,m0ElcSurf_e,m1ElcSurf_e,m2parElcSurf_e,m0ElcSurf_n,m1ElcSurf_n,m2parElcSurf_n,
+   phiWall_n,i,uparIon_n,TparIon_n,uparElc_n,TparElc_n,cSound_n,Dphi_r,currSurfNodeVol,d,nIdxVol,phiOut_c],
 
   [vars, basis] : loadBasis(basisNm, cdim, polyOrder),
   numB : length(basis),
@@ -59,14 +61,18 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
   /* Generate separate kernels for lower/upper boundaries. */
   edge : ["lower", "upper"],
   boundaryVal : [-1, 1],
-  surfPerpVar : vars[cdim],
+  kinBoltz_elc_str : "kinetic_elc",
+  if (isElcBoltz) then (
+    kinBoltz_elc_str : "boltzmann_elc"
+  ),
 
   for sI : 1 thru length(edge) do (
 
     printf(fh, "~%"),
-    printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_~a_~ax_~a_p~a(double elem_q, double mElc, const double *momsElc, double mIon, const double *momsIon, const double *phiWall, double *phi) ~%{ ~%", edge[sI], cdim, basisNm, polyOrder),
+    printf(fh, "GKYL_CU_DH void sheath_rarefaction_phi_mod_~a_~a_~ax_~a_p~a(double elem_q, double mElc, double tempElcBoltz, const double *momsElc, double mIon, const double *momsIon, const double *phiWall, double *phi) ~%{ ~%", kinBoltz_elc_str, edge[sI], cdim, basisNm, polyOrder),
     printf(fh, "  // elem_q: elementary charge.~%"),
     printf(fh, "  // mElc: electron mass.~%"),
+    printf(fh, "  // tempElcBoltz: electron temperature in Boltzmann electron model.~%"),
     printf(fh, "  // momsElc: m0, m1, m2par (and m2perp, but not used) moments of electrons.~%"),
     printf(fh, "  // mIon: ion mass.~%"),
     printf(fh, "  // momsIon: m0, m1, m2par (and m2perp, but not used) moments of ions.~%"),
@@ -80,75 +86,98 @@ genModPhiKer(fh, cdim, basisNm, polyOrder) := block(
 
     /* Create pointers to M0, M1, M2par. */
     for m : 0 thru 1 do (
-      printf(fh, "  const double *m~aElc = &momsElc[~a];~%", m, m*numB),
       printf(fh, "  const double *m~aIon = &momsIon[~a];~%", m, m*numB)
     ),
-    printf(fh, "  const double *m2parElc = &momsElc[~a];~%", 2*numB),
     printf(fh, "  const double *m2parIon = &momsIon[~a];~%", 2*numB),
     printf(fh, "~%"),
 
     /* Compute surface expansion. */
-    m0ElcSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m0Elc_e)),
     m0IonSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m0Ion_e)),
-    m1ElcSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m1Elc_e)),
     m1IonSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m1Ion_e)),
-    m2parElcSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m2parElc_e)),
     m2parIonSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m2parIon_e)),
 
-    m0ElcSurf_e    : doExpand(m0ElcSurf_c   ,bSurf),
     m0IonSurf_e    : doExpand(m0IonSurf_c   ,bSurf),
-    m1ElcSurf_e    : doExpand(m1ElcSurf_c   ,bSurf),
     m1IonSurf_e    : doExpand(m1IonSurf_c   ,bSurf),
-    m2parElcSurf_e : doExpand(m2parElcSurf_c,bSurf),
     m2parIonSurf_e : doExpand(m2parIonSurf_c,bSurf),
 
     /* Evaluate surface expansions at nodes. */
-    m0ElcSurf_n    : evAtNodes(m0ElcSurf_e   , surfNodes, surfVars),
     m0IonSurf_n    : evAtNodes(m0IonSurf_e   , surfNodes, surfVars),
-    m1ElcSurf_n    : evAtNodes(m1ElcSurf_e   , surfNodes, surfVars),
     m1IonSurf_n    : evAtNodes(m1IonSurf_e   , surfNodes, surfVars),
-    m2parElcSurf_n : evAtNodes(m2parElcSurf_e, surfNodes, surfVars),
     m2parIonSurf_n : evAtNodes(m2parIonSurf_e, surfNodes, surfVars),
-    phiWall_n      : evAtNodes(phiWall_e     , surfNodes, surfVars),
-    printf(fh, "  double m0eSurfNodal[~a];~%", numSurfNodes),
     printf(fh, "  double m0iSurfNodal[~a];~%", numSurfNodes),
-    printf(fh, "  double m1eSurfNodal[~a];~%", numSurfNodes),
     printf(fh, "  double m1iSurfNodal[~a];~%", numSurfNodes),
-    printf(fh, "  double m2pareSurfNodal[~a];~%", numSurfNodes),
     printf(fh, "  double m2pariSurfNodal[~a];~%", numSurfNodes),
-    printf(fh, "  double phiWallNodal[~a];~%", numSurfNodes),
-    writeCExprs1(m0eSurfNodal   , m0ElcSurf_n   ),
     writeCExprs1(m0iSurfNodal   , m0IonSurf_n   ),
-    writeCExprs1(m1eSurfNodal   , m1ElcSurf_n   ),
     writeCExprs1(m1iSurfNodal   , m1IonSurf_n   ),
-    writeCExprs1(m2pareSurfNodal, m2parElcSurf_n),
     writeCExprs1(m2pariSurfNodal, m2parIonSurf_n),
+      printf(fh, "~%"),
+
+    /* Do the same for the electrons if they are kinetic. */
+    if not isElcBoltz then (
+      for m : 0 thru 1 do (
+        printf(fh, "  const double *m~aElc = &momsElc[~a];~%", m, m*numB)
+      ),
+      printf(fh, "  const double *m2parElc = &momsElc[~a];~%", 2*numB),
+      printf(fh, "~%"),
+  
+      m0ElcSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m0Elc_e)),
+      m1ElcSurf_c    : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m1Elc_e)),
+      m2parElcSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=boundaryVal[sI], m2parElc_e)),
+  
+      m0ElcSurf_e    : doExpand(m0ElcSurf_c   ,bSurf),
+      m1ElcSurf_e    : doExpand(m1ElcSurf_c   ,bSurf),
+      m2parElcSurf_e : doExpand(m2parElcSurf_c,bSurf),
+  
+      /* Evaluate surface expansions at nodes. */
+      m0ElcSurf_n    : evAtNodes(m0ElcSurf_e   , surfNodes, surfVars),
+      m1ElcSurf_n    : evAtNodes(m1ElcSurf_e   , surfNodes, surfVars),
+      m2parElcSurf_n : evAtNodes(m2parElcSurf_e, surfNodes, surfVars),
+      printf(fh, "  double m0eSurfNodal[~a];~%", numSurfNodes),
+      printf(fh, "  double m1eSurfNodal[~a];~%", numSurfNodes),
+      printf(fh, "  double m2pareSurfNodal[~a];~%", numSurfNodes),
+      writeCExprs1(m0eSurfNodal   , m0ElcSurf_n   ),
+      writeCExprs1(m1eSurfNodal   , m1ElcSurf_n   ),
+      writeCExprs1(m2pareSurfNodal, m2parElcSurf_n),
+      printf(fh, "~%")
+    ),
+
+    phiWall_n      : evAtNodes(phiWall_e     , surfNodes, surfVars),
+    printf(fh, "  double phiWallNodal[~a];~%", numSurfNodes),
     writeCExprs1(phiWallNodal   , phiWall_n     ),
     printf(fh, "~%"),
 
-    printf(fh, "  double upar_e;~%"),
     printf(fh, "  double upar_i;~%"),
-    printf(fh, "  double Tpar_e;~%"),
     printf(fh, "  double Tpar_i;~%"),
+    if not isElcBoltz then (
+      printf(fh, "  double upar_e;~%"),
+      printf(fh, "  double Tpar_e;~%")
+    ) else (
+      printf(fh, "  double Tpar_e = tempElcBoltz;~%")
+    ),
     printf(fh, "  double c_s;~%"),
     printf(fh, "  double Delta_phi_r;~%"),
     printf(fh, "~%"),
     for i : 1 thru numSurfNodes do (
       /* Compute the parallel temperature at each node.*/
-      uparElc_n : m1eSurfNodal[i-1]/m0eSurfNodal[i-1],
       uparIon_n : m1iSurfNodal[i-1]/m0iSurfNodal[i-1],
-      printf(fh, "  upar_e = ~a;~%", float(expand(uparElc_n))),
-      printf(fh, "  upar_i = ~a;~%", float(expand(uparIon_n))),
-      printf(fh, "~%"),
-
-      TparElc_n : mElc*(m2pareSurfNodal[i-1]-upar_e*m1eSurfNodal[i-1])/m0eSurfNodal[i-1],
       TparIon_n : mIon*(m2pariSurfNodal[i-1]-upar_i*m1iSurfNodal[i-1])/m0iSurfNodal[i-1],
-      printf(fh, "  Tpar_e = fmax(0.0, ~a);~%", float(fullratsimp(TparElc_n))),
+      printf(fh, "  upar_i = ~a;~%", float(expand(uparIon_n))),
       printf(fh, "  Tpar_i = fmax(0.0, ~a);~%", float(fullratsimp(TparIon_n))),
       printf(fh, "~%"),
 
-      /* Compute the shift in phi at each node. */
+      /* Do the same for the electrons if they are kinetic. */
+      if not isElcBoltz then (
+        uparElc_n : m1eSurfNodal[i-1]/m0eSurfNodal[i-1],
+        TparElc_n : mElc*(m2pareSurfNodal[i-1]-upar_e*m1eSurfNodal[i-1])/m0eSurfNodal[i-1],
+        printf(fh, "  upar_e = ~a;~%", float(expand(uparElc_n))),
+        printf(fh, "  Tpar_e = fmax(0.0, ~a);~%", float(fullratsimp(TparElc_n))),
+        printf(fh, "~%")
+      ),
+
+      /* Sound speed. */
       cSound_n : sqrt((Tpar_e+3*Tpar_i)/mIon),
+
+      /* Compute the shift in phi at each node. */
       printf(fh, "  c_s = ~a;~%", float(fullratsimp(cSound_n))),
       printf(fh, "  if (c_s > 0.0)~%"),
       Dphi_r : - (Tpar_e/elem_q)*(1.-fmin(1.0,fabs(upar_i)/c_s)),
