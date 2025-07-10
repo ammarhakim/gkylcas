@@ -64,7 +64,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(
-    const struct gkyl_basis *basis, const double *w, const double *dxv, 
+    const double *w, const double *dxv, 
     const double *vmap_prime_l, const double *vmap_prime_r,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,

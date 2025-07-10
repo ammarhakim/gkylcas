@@ -62,14 +62,14 @@ printPrototypes() := block([],
             if surfDir<=c then (vprimeargs : "" ) else (vprimeargs : "const double *vmap_prime_l, const double *vmap_prime_r, "),
 
             printf(fh, "GKYL_CU_DH double gyrokinetic_flux_surf~a_~ax~av_~a_p~a(
-              const struct gkyl_basis *basis, const double *w, const double *dxv,
+              const double *w, const double *dxv,
               ~a
               const double *vmap, const double *vmapSq, const double q_, const double m_, 
               ~a
               const double *bmag, const double *phi, const double *JfL, const double *JfR, 
               double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, vprimeargs, extraargs),  
             printf(fh, "GKYL_CU_DH double gyrokinetic_flux_no_by_surf~a_~ax~av_~a_p~a(
-              const struct gkyl_basis *basis, const double *w, const double *dxv,
+              const double *w, const double *dxv,
               ~a
               const double *vmap, const double *vmapSq, const double q_, const double m_,
               ~a
@@ -77,14 +77,14 @@ printPrototypes() := block([],
               double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, vprimeargs, extraargs),  
             if (surfDir < c+1) then (
               printf(fh, "GKYL_CU_DH double gyrokinetic_flux_edge_surf~a_~ax~av_~a_p~a(
-                const struct gkyl_basis *basis, const double *w, const double *dxv,
+                const double *w, const double *dxv,
                 ~a
                 const double *vmap, const double *vmapSq, const double q_, const double m_,
                 ~a
                 const double *bmag, const double *phi, const double *JfL, const double *JfR, 
                 double* GKYL_RESTRICT flux_surf); ~%", dirlabel, c, v, bName[bInd], polyOrder, vprimeargs, extraargs),
               printf(fh, "GKYL_CU_DH double gyrokinetic_flux_no_by_edge_surf~a_~ax~av_~a_p~a(
-                const struct gkyl_basis *basis, const double *w, const double *dxv,
+                const double *w, const double *dxv,
                 ~a
                 const double *vmap, const double *vmapSq, const double q_, const double m_,
                 ~a
@@ -132,7 +132,6 @@ printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
-printf(fh, "#include <gkyl_basis.h>~%")$
 printf(fh, "#include <gkyl_dg_geom.h>~%")$
 printf(fh, "#include <gkyl_gk_dg_geom.h>~%")$
 printf(fh, "~%")$
