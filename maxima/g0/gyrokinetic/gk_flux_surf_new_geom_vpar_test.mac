@@ -34,7 +34,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   if polyOrder = 1 then (  /* Force p=1 to use hybrid basis. */
     surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
     nodeVars  : surfIntVars, 
-    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder)
+    bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, vdim-1, surfIntVars, surfNodes)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
     nodeVars  : surfIntVars,
@@ -177,53 +178,58 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
 
   /* Now calculate apha at all quadrature nodes */
-  printf(fh, "double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
-  printf(fh, "double cfl = 0.0; ~%"),
-  printf(fh, "double bmag_quad = 0.0; ~%"),
-  printf(fh, "double B3_quad = 0.0; ~%"),
-  printf(fh, "double Jc_quad = 0.0; ~%"),
-  printf(fh, "double dualcurlbhat_quad[3] = {0.0}; ~%"),
+  printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
+  printf(fh, "  double cfl = 0.0; ~%"),
+  printf(fh, "  double bmag_quad = 0.0; ~%"),
+  printf(fh, "  double B3_quad = 0.0; ~%"),
+  printf(fh, "  double Jc_quad = 0.0; ~%"),
+  printf(fh, "  double dualcurlbhat_quad[3] = {0.0}; ~%"),
 
-  printf(fh, "double alpha_quad = 0.0; ~%"),
-  printf(fh, "double JfL_quad = 0.0; ~%"),
-  printf(fh, "double JfR_quad = 0.0; ~%"),
-  printf(fh, "double Jfavg_quad = 0.0; ~%"),
-  printf(fh, "double Jfjump_quad = 0.0; ~%"),
+  printf(fh, "  double alpha_quad = 0.0; ~%"),
+  printf(fh, "  double JfL_quad = 0.0; ~%"),
+  printf(fh, "  double JfR_quad = 0.0; ~%"),
+  printf(fh, "  double Jfavg_quad = 0.0; ~%"),
+  printf(fh, "  double Jfjump_quad = 0.0; ~%"),
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
     printf(fh, "~%~%"),
-    printf(fh, "bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
-    printf(fh, "B3_quad = gkdgv[~a].B3; ~%", i-1), 
-    printf(fh, "Jc_quad = dgv[~a].Jc; ~%", i-1), 
-    printf(fh, "dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
-    printf(fh, "dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
-    printf(fh, "dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
+    printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
+    printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i-1), 
+    printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i-1), 
+    printf(fh, "  dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
+    printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
+    printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
     printf(fh, "~%"),
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
       j1index : j+(i-1)*numVelNodes,
       printf(fh, "~%"),
-      printf(fh, "alpha_quad = -(~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index]),
+      printf(fh, "  alpha_quad = -(~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index]),
       if no_by = false then (
          for k : 1 thru cdim do (
-           printf(fh, "alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a);~%", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
+           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a);~%", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
           )
       ),
 
       printf(fh, "~%"),
-      printf(fh, "cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%", j0index),
-      printf(fh, "JfL_quad =  (~a)/~a;~%", JfL_nodes[j1index], vmap_prime_l[surfDir-cdim-1]),
-      printf(fh, "JfR_quad =  (~a)/~a;~%", JfR_nodes[j1index], vmap_prime_r[surfDir-cdim-1]),
-      printf(fh, "Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
-      printf(fh, "Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
-      printf(fh, "flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
+      printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%", j0index),
+      printf(fh, "  JfL_quad =  (~a)/~a;~%", JfL_nodes[j1index], vmap_prime_l[surfDir-cdim-1]),
+      printf(fh, "  JfR_quad =  (~a)/~a;~%", JfR_nodes[j1index], vmap_prime_r[surfDir-cdim-1]),
+      printf(fh, "  Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
+      printf(fh, "  Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
+      printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
     )
   ),
 
+  /* Do the quad nodal to modal ops directly here*/ 
   printf(fh, "~%"),
-  for k : 1 thru length(bSurf) do (
-    printf(fh, "basis->quad_nodal_to_modal(flux_surf_nodal, &flux_surf[~a], ~a) ;~%", NSurfIndexing*(surfDir-1), k-1)
+  printf(fh, "  double *fmodal = &flux_surf[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  flux_surf_nodal_e : doExpand1(flux_surf_nodal,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, flux_surf_nodal_e)),
+
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  fmodal[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
   ),
 
   printf(fh, "~%"),
