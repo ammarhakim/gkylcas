@@ -237,7 +237,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     printf(fh, "~%"),
     volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,varsP[dir]), alphaJf_e)),
     volTerm_c : subst(replaceList, volTerm_c),
-    writeCIncrExprsNoExpand(float(expand(volTerm_c))),
+    writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
     flush_output(fh),
     printf(fh, "~%")
 
