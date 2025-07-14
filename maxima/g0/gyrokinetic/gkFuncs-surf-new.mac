@@ -6,6 +6,7 @@ load("out-scripts")$
 load(stringproc)$
 load("scifac")$
 load("gyrokinetic/gkUtil")$
+load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
 calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
@@ -15,7 +16,8 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
    rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
    BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,
    hamil_e,alphaSurfL_e,alphaSurfR_e,
-   fl_e,fc_e,fr_e,fUpL_e,fUpR_e,GhatL_c,GhatR_c,GhatL_e,GhatR_e,incrL_c,incrR_c,pOrderCFL],
+   fl_e,fc_e,fr_e,fUpL_e,fUpR_e,GhatL_c,GhatR_c,GhatL_e,GhatR_e,incrL_c,incrR_c,pOrderCFL,
+   fnodal_l_e, fnodal_r_e, fmodproj_e],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -48,10 +50,12 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
     tempVars         : delete(x,varsP), 
     tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
     NSurfIndexing    : length(tempBasis),
-    numNodesIndexing : length(tempBasis)
+    numNodesIndexing : length(tempBasis),
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, vdim-1, surfIntVars, surfNodes)
   ) else (
     NSurfIndexing    : NSurf,
-    numNodesIndexing : numNodes
+    numNodesIndexing : numNodes,
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim-1, vdim, surfIntVars, surfNodes)
   ),
 
   print("Working on ", funcNm),
@@ -81,8 +85,27 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
     vmap_prime_fac_c : subst(vmap_prime=vmap_prime_c, vmap_prime_e[surfDir-cdim]),
     vmap_prime_fac_r : subst(vmap_prime=vmap_prime_r, vmap_prime_e[surfDir-cdim])
   ),
-  printf(fh, "  const double *GhatL = &flux_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *GhatR = &flux_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),
+
+  /* Do the quad nodal to modal ops directly here*/ 
+  printf(fh, "  double GhatL[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "  double GhatR[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "~%"),
+  printf(fh, "  const double *fnodal_l = &flux_surf_l[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  printf(fh, "  const double *fnodal_r = &flux_surf_r[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  fnodal_l_e : doExpand1(fnodal_l,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+  fnodal_r_e : doExpand1(fnodal_r,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+  printf(fh, "~%"),
+
+  /*printf(fh, "  const double *GhatL = &flux_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),*/
+  /*printf(fh, "  const double *GhatR = &flux_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),*/
 
   GhatL_e : doExpand1(GhatL, bSurf), 
   GhatR_e : doExpand1(GhatR, bSurf), 
@@ -145,10 +168,12 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
     tempVars         : delete(x,varsP), 
     tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
     NSurfIndexing    : length(tempBasis),
-    numNodesIndexing : length(tempBasis)
+    numNodesIndexing : length(tempBasis),
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, vdim-1, surfIntVars, surfNodes)
   ) else (
     NSurfIndexing    : NSurf,
-    numNodesIndexing : numNodes
+    numNodesIndexing : numNodes,
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim-1, vdim, surfIntVars, surfNodes)
   ),
 
   print("Working on ", funcNm),
@@ -182,8 +207,25 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      (which stores the next interior edge surface alpha at -1 and alpha is continuous)
      When we need the surface alpha at -1, we use alpha_skin 
      (which stores the skin cell surface alpha at -1 and alpha is continuous) */
-  printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
+
+  /* Do the quad nodal to modal ops directly here*/ 
+  printf(fh, "  double GhatL[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "  double GhatR[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "~%"),
+  printf(fh, "  const double *fnodal_l = &flux_surf_skin[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  printf(fh, "  const double *fnodal_r = &flux_surf_edge[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  fnodal_l_e : doExpand1(fnodal_l,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+  fnodal_r_e : doExpand1(fnodal_r,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+  /*printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
+  printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),*/
   printf(fh, "~%"),
 
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evaluated at +1 */
@@ -270,10 +312,12 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
     tempVars         : delete(x,varsP), 
     tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
     NSurfIndexing    : length(tempBasis),
-    numNodesIndexing : length(tempBasis)
+    numNodesIndexing : length(tempBasis),
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, vdim-1, surfIntVars, surfNodes)
   ) else (
     NSurfIndexing    : NSurf,
-    numNodesIndexing : numNodes
+    numNodesIndexing : numNodes,
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim-1, vdim, surfIntVars, surfNodes)
   ),
 
   print("Working on ", funcNm),
@@ -307,8 +351,26 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
      (which stores the next interior edge surface alpha at -1 and alpha is continuous)
      When we need the surface alpha at -1, we use alpha_skin 
      (which stores the skin cell surface alpha at -1 and alpha is continuous) */
-  printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
-  printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),
+
+  /* Do the quad nodal to modal ops directly here*/ 
+  printf(fh, "  double GhatL[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "  double GhatR[~a]= {0.0}; ~%", NSurf),
+  printf(fh, "~%"),
+  printf(fh, "  const double *fnodal_l = &flux_surf_skin~a]; ~%", NSurfIndexing*(surfDir-1)),
+  printf(fh, "  const double *fnodal_r = &flux_surf_edge[~a]; ~%", NSurfIndexing*(surfDir-1)),
+  fnodal_l_e : doExpand1(fnodal_l,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+  fnodal_r_e : doExpand1(fnodal_r,basisNodal),
+  fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
+  for i : 1 thru length(fmodproj_e) do (
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+  ),
+
+  /*printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),*/
+  /*printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),*/
   printf(fh, "~%"),
 
   fluxDir : surfDir,

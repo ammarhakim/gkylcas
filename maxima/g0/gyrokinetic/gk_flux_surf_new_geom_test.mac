@@ -178,7 +178,8 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   ),
 
   /* Now calculate flux at all quadrature nodes */
-  printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),
+  /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
+  printf(fh, "  double *flux_surf_nodal = &flux_surf[~a]; ~%", length(bSurf)*(surfDir-1)),
   printf(fh, "  double cfl = 0.0; ~%"),
   printf(fh, "  double bmag_quad = 0.0; ~%"),
   printf(fh, "  double Jc_quad = 0.0; ~%"),
@@ -267,7 +268,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   ),
 
   /* Do the quad nodal to modal ops directly here*/ 
-  printf(fh, "~%"),
+  /*printf(fh, "~%"),
   printf(fh, "  double *fmodal = &flux_surf[~a]; ~%", length(bSurf)*(surfDir-1)),
   flux_surf_nodal_e : doExpand1(flux_surf_nodal,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, flux_surf_nodal_e)),
@@ -276,7 +277,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
     printf(fh, "  fmodal[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
   ),
 
-  printf(fh, "~%"),
+  printf(fh, "~%"),*/
 
 
 
