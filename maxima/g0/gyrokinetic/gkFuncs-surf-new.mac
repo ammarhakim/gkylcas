@@ -95,12 +95,12 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
   fnodal_l_e : doExpand1(fnodal_l,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
   fnodal_r_e : doExpand1(fnodal_r,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
   printf(fh, "~%"),
 
@@ -217,12 +217,12 @@ calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   fnodal_l_e : doExpand1(fnodal_l,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
   fnodal_r_e : doExpand1(fnodal_r,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
   /*printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),
   printf(fh, "  const double *GhatR = &flux_surf_edge[~a];~%", (surfDir-1)*NSurfIndexing),*/
@@ -361,12 +361,12 @@ calcGKBoundaryFluxUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   fnodal_l_e : doExpand1(fnodal_l,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_l_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatL[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
   fnodal_r_e : doExpand1(fnodal_r,basisNodal),
   fmodproj_e : fullratsimp(calcInnerProdList(surfIntVars, 1, bSurf, fnodal_r_e)),
   for i : 1 thru length(fmodproj_e) do (
-    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, float(expand(fmodproj_e[i])))
+    printf(fh, "  GhatR[~a] = ~a; ~%", i-1, gcfac(float(expand(fmodproj_e[i]))))
   ),
 
   /*printf(fh, "  const double *GhatL = &flux_surf_skin[~a];~%", (surfDir-1)*NSurfIndexing),*/
