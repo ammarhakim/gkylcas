@@ -129,7 +129,7 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   hamil_e : q_*phi_e + (1/2)*m_*vmapSq_e[1],
   if vdim > 1 then ( hamil_e : hamil_e + vmap_e[2]*bmagSurf_e ),
   hamil_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,hamil_e)),
-  printf(fh, "  double hamil[~a] = {0.}; ~%", numP),
+  printf(fh, "  double hamil[~a] = {0.}; ~%", length(bSurf)),
   replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
   hamilCvar : eval_string(sconcat("hamil")),
   writeCExprsNoExpand1(hamilCvar, gcfac(float(expand(subst(replaceList, hamil_c))))),
@@ -189,10 +189,11 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
   printf(fh, "  double bhat_quad[3] = {0.0}; ~%"),
 
   printf(fh, "  double alpha_quad = 0.0; ~%"),
-  printf(fh, "  double JfL_quad = 0.0; ~%"),
+  printf(fh, "  double Jf_quad = 0.0; ~%"),
+  /*printf(fh, "  double JfL_quad = 0.0; ~%"),
   printf(fh, "  double JfR_quad = 0.0; ~%"),
   printf(fh, "  double Jfavg_quad = 0.0; ~%"),
-  printf(fh, "  double Jfjump_quad = 0.0; ~%"),
+  printf(fh, "  double Jfjump_quad = 0.0; ~%"),*/
 
   printf(fh, "  double mvpar_quad[3] = {0.0}; ~%"),
   for i : 1 thru numVparNodes do (
@@ -259,11 +260,22 @@ buildGKFluxESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsIn
       printf(fh, "~%"),
       /*printf(fh, "  alpha_quad = alpha_quad*area_elem_quad/Jc_quad ;~%"),*/
       printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%"),
-      printf(fh, "  JfL_quad =  ~a;~%", JfL_nodes[j1index]),
+
+      printf(fh, "  if (alpha_quad > 0) {~%"),
+      printf(fh, "    Jf_quad =  ~a;~%", JfL_nodes[j1index]),
+      printf(fh, "    flux_surf_nodal[~a] = alpha_quad*Jf_quad;~%", j0index),
+      printf(fh, "  }~%"),
+
+      printf(fh, "  else {~%"),
+      printf(fh, "    Jf_quad =  ~a;~%", JfR_nodes[j1index]),
+      printf(fh, "    flux_surf_nodal[~a] = alpha_quad*Jf_quad;~%", j0index),
+      printf(fh, "  }~%")
+
+      /*printf(fh, "  JfL_quad =  ~a;~%", JfL_nodes[j1index]),
       printf(fh, "  JfR_quad =  ~a;~%", JfR_nodes[j1index]),
       printf(fh, "  Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
       printf(fh, "  Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
-      printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
+      printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)*/
     )
   ),
 
