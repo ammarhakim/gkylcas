@@ -1,10 +1,7 @@
-load("gk_neut_fluid_prim_vars/gk_neut_fluid_prim_vars-pressure.mac")$
+load("gk_neut_fluid_prim_vars/gk_neut_fluid_prim_vars-temp")$
 load(stringproc)$
 /* This script calls the functions which generate the kernels for calculating the
-   pressure via weak multiplication. Pressure different for each equation system: 
-   Euler -> p = (gas_gamma - 1)*(E - 1/2 rho u^2)
-   Computes both the volume expansion and the necessary surface expansions of p at
-   the corresponding surfaces */
+   temperature using weak division. */
 
 
 /* ...... USER INPUTS........ */
@@ -38,15 +35,26 @@ for bInd : 1 thru length(bName) do (
     if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating prim var pressure funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/gk_neut_fluid_prim_vars_pressure_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating prim vars temp funcs ",bName[bInd]," ~axp~a"),d,polyOrder)),
+
+      fname : sconcat("~/max-out/gk_neut_fluid_prim_vars_temp_", d, "x_", bName[bInd], "_p", polyOrder, ".c"),
       fh : openw(fname),
 
+      printf(fh, "#include <gkyl_mat.h> ~%"),
       printf(fh, "#include <gkyl_gk_neut_fluid_prim_vars_kernels.h> ~%"),
       printf(fh, "#include <gkyl_binop_mul_ser.h> ~%"),
+      printf(fh, "#include <gkyl_basis_~a_~ax_p~a_inv.h> ~%", bName[bInd], d, polyOrder),
 
-      funcName : sconcat("gk_neut_fluid_prim_vars_pressure_",  d, "x_", bName[bInd], "_p", polyOrder),
-      gk_neut_fluid_prim_vars_pressure(fh, funcName, d, bName[bInd], polyOrder),
+      funcName : sconcat("gk_neut_fluid_prim_vars_temp_set_prob_",  d, "x_", bName[bInd], "_p", polyOrder),
+      if (polyOrder = 1) then (
+        gk_neut_fluid_prim_vars_temp_set_prob_p1(fh, funcName, d, bName[bInd], polyOrder)
+      )                                       
+      else (                                  
+        gk_neut_fluid_prim_vars_temp_set_prob(fh, funcName, d, bName[bInd], polyOrder)
+      ),
+
+      funcName : sconcat("gk_neut_fluid_prim_vars_temp_get_sol_",  d, "x_", bName[bInd], "_p", polyOrder),
+      gk_neut_fluid_prim_vars_temp_get_sol(fh, funcName, d, bName[bInd], polyOrder),
       close(fh)
     )
   )

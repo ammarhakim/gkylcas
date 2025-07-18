@@ -26,10 +26,16 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPrototype(deco, ci, bStr, pi) := block([si],
 
-  printf(fh, "~avoid gk_neut_fluid_prim_vars_pressure_~ax_~a_p~a(double gas_gamma, const double *moms, const double *udrift, double* GKYL_RESTRICT pressure); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid gk_neut_fluid_prim_vars_pressure_~ax_~a_p~a(double gas_gamma, const double *moms, const double *udrift, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
 
   printf(fh,  "~avoid gk_neut_fluid_prim_vars_udrift_set_prob_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *moms); ~%", deco, ci, bStr, pi),
-  printf(fh, "~avoid gk_neut_fluid_prim_vars_udrift_get_sol_~ax_~a_p~a(int count, struct gkyl_nmat *xsol, double* GKYL_RESTRICT udrift); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid gk_neut_fluid_prim_vars_udrift_get_sol_~ax_~a_p~a(int count, struct gkyl_nmat *xsol, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+
+  printf(fh,  "~avoid gk_neut_fluid_prim_vars_temp_set_prob_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *moms, double gas_gamma, double mass); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid gk_neut_fluid_prim_vars_temp_get_sol_~ax_~a_p~a(int count, struct gkyl_nmat *xsol, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+
+  printf(fh,  "~avoid gk_neut_fluid_prim_vars_udrift_temp_set_prob_~ax_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *moms, double gas_gamma, double mass); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid gk_neut_fluid_prim_vars_udrift_temp_get_sol_~ax_~a_p~a(int count, struct gkyl_nmat *xsol, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
 
   printf(fh, "~%")
 )$
