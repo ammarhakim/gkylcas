@@ -1,0 +1,389 @@
+/* Functions which compute the moments of the distribution function in 
+   a Vlasov model. Certain moments, M1i, M2, and M3i, are defined in 
+   terms of a specified Hamiltonian (dH/dv_i, H, H*dH/dv_i) which is
+   either only a function of velocity-space (such as p^2/2m or mc^2*sqrt(1 + p^2)) 
+   or a function of the full phase space through geometric terms, e.g., g^ij p_i p_j/2m. */
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load("new_vlasov/vlasov-basis");
+load(stringproc)$
+fpprec : 24$
+
+let(wx1^3, wx1_cu)$
+let(wx2^3, wx2_cu)$
+let(wx3^3, wx3_cu)$
+let(dv1^3, dv1_cu)$
+let(dv2^3, dv2_cu)$
+let(dv3^3, dv3_cu)$
+
+let(wx1^2, wx1_sq)$
+let(wx2^2, wx2_sq)$
+let(wx3^2, wx3_sq)$
+let(dv1^2, dv1_sq)$
+let(dv2^2, dv2_sq)$
+let(dv3^2, dv3_sq)$
+
+volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
+volExprTot(totDim) := prod(dxv[i-1], i, 1, totDim)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+dv11 : [dv10, dv11, dv12]$
+vTrans  : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
+
+/* Number density */
+/* M0 = < f > */
+calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  fl : doExpand1(f, bP),
+  M : calcInnerProdList(varsP, 1, bC, fl),
+  writeCIncrExprs1(out, volFact*M),
+  
+  printf(fh, "} ~%")
+)$  
+
+/* Mass flux (no mass factor) */
+/* M1i = < dH/dv_i f > where H is the Hamiltonian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M : (M : [],
+    for dir : 1 thru vdim do (
+      M : append(M, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), bC, fl))
+    ),
+  M),
+  
+  clst : [dv10, dv11, dv12, volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$  
+
+/* Energy (no mass factor) */
+/* M2 = < H f > where H is the Hamiltonian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  fl : doExpand1(f, bP),
+  M : calcInnerProdList(varsP, hamil, bC, fl),
+  
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$  
+
+/* Energy flux (no mass factor) */
+/* M3i = < H*dH/dv_i f > where H is the Hamiltonian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NV,NP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NV : length(bV), 
+  NP : length(bP), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV), 
+    printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+    vid : vidx(cdim,vdim),
+    for i : 1 thru vdim do (
+      printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+    ),
+
+    printf(fh, "  double dH_dpx[~a] = {0.0}; ~%", NV), 
+    dH_dpx_c : calcInnerProdList(varsV, 1, bV, dv11[1]*diff(hamil, vx)), 
+    writeCExprs1(dH_dpx, dH_dpx_c), 
+    /* zero out components of px/gamma which are empty due to derivative */
+    dH_dpx_NoZero : makelistNoZeros1(dH_dpx_c, dH_dpx),
+    dH_dpx_NoZero_e : doExpand(dH_dpx_NoZero, bV), 
+    dH_dp_fld : [dH_dpx_NoZero_e],
+    printf(fh, "~%"),
+    if (vdim > 1) then (
+      printf(fh, "  double dH_dpy[~a] = {0.0}; ~%", NV), 
+      dH_dpy_c : calcInnerProdList(varsV, 1, bV, dv11[2]*diff(hamil, vy)), 
+      writeCExprs1(dH_dpy, dH_dpy_c), 
+      /* zero out components of py/gamma which are empty due to derivative */
+      dH_dpy_NoZero : makelistNoZeros1(dH_dpy_c, dH_dpy),
+      dH_dpy_NoZero_e : doExpand(dH_dpy_NoZero, bV), 
+      dH_dp_fld : [dH_dpx_NoZero_e, dH_dpy_NoZero_e],
+      printf(fh, "~%")
+    ),
+    if (vdim = 3) then (
+      printf(fh, "  double dH_dpz[~a] = {0.0}; ~%", NV), 
+      dH_dpz_c : calcInnerProdList(varsV, 1, bV, dv11[3]*diff(hamil, vz)), 
+      writeCExprs1(dH_dpz, dH_dpz_c), 
+      /* zero out components of px/gamma which are empty due to derivative */
+      dH_dpz_NoZero : makelistNoZeros1(dH_dpz_c, dH_dpz),
+      dH_dpz_NoZero_e : doExpand(dH_dpz_NoZero, bV), 
+      dH_dp_fld : [dH_dpx_NoZero_e, dH_dpy_NoZero_e, dH_dpz_NoZero_e],
+      printf(fh, "~%")
+    )
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+    vid : vidx(cdim,vdim),
+    for i : 1 thru vdim do (
+      printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+    ),
+    hamil : doExpand1(hamil, bP), 
+
+    printf(fh, "  double dH_dpx[~a] = {0.0}; ~%", NP), 
+    dH_dpx_c : calcInnerProdList(varsP, 1, bP, dv11[1]*diff(hamil, vx)), 
+    writeCExprs1(dH_dpx, dH_dpx_c), 
+    /* zero out components of px/gamma which are empty due to derivative */
+    dH_dpx_NoZero : makelistNoZeros1(dH_dpx_c, dH_dpx),
+    dH_dpx_NoZero_e : doExpand(dH_dpx_NoZero, bP), 
+    dH_dp_fld : [dH_dpx_NoZero_e],
+    printf(fh, "~%"),
+    if (vdim > 1) then (
+      printf(fh, "  double dH_dpy[~a] = {0.0}; ~%", NP), 
+      dH_dpy_c : calcInnerProdList(varsP, 1, bP, dv11[2]*diff(hamil, vy)), 
+      writeCExprs1(dH_dpy, dH_dpy_c), 
+      /* zero out components of py/gamma which are empty due to derivative */
+      dH_dpy_NoZero : makelistNoZeros1(dH_dpy_c, dH_dpy),
+      dH_dpy_NoZero_e : doExpand(dH_dpy_NoZero, bP), 
+      dH_dp_fld : [dH_dpx_NoZero_e, dH_dpy_NoZero_e],
+      printf(fh, "~%")
+    ),
+    if (vdim = 3) then (
+      printf(fh, "  double dH_dpz[~a] = {0.0}; ~%", NP), 
+      dH_dpz_c : calcInnerProdList(varsP, 1, bP, dv11[3]*diff(hamil, vz)), 
+      writeCExprs1(dH_dpz, dH_dpz_c), 
+      /* zero out components of px/gamma which are empty due to derivative */
+      dH_dpz_NoZero : makelistNoZeros1(dH_dpz_c, dH_dpz),
+      dH_dpz_NoZero_e : doExpand(dH_dpz_NoZero, bP), 
+      dH_dp_fld : [dH_dpx_NoZero_e, dH_dpy_NoZero_e, dH_dpz_NoZero_e],
+      printf(fh, "~%")
+    )        
+  ),
+
+  fl : doExpand1(f, bP),
+  M : (M : [],
+    for dir : 1 thru vdim do (
+      M : append(M, calcInnerProdList(varsP, hamil*dH_dp_fld[dir], bC, fl))
+    ),
+  M),
+  
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$  
+
+/* Pressure tensor */
+calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  printf(fh, "GKYL_CU_DH void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  double wx~a_sq = wx~a*wx~a, dv~a_sq = dv~a*dv~a; ~%", i, i, i, i, i, i)
+  ),
+  
+  fl : doExpand1(f, bP),
+  
+  M : (M : [],
+    for d1 : 1 thru vdim do (
+      for d2 : d1 thru vdim do (
+        M : append(M, calcInnerProdList(varsP, vTrans[d1]*vTrans[d2], bC, fl))
+    )),
+  M),
+  
+  M : map(letsimp, M),
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+/* Heat-flux tensor */
+calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  
+  printf(fh, "GKYL_CU_DH void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  double wx~a_sq = wx~a*wx~a, dv~a_sq = dv~a*dv~a; ~%", i, i, i, i, i, i),
+    printf(fh, "  double wx~a_cu = wx~a*wx~a*wx~a, dv~a_cu = dv~a*dv~a*dv~a; ~%", i, i, i, i, i, i, i, i)
+  ),
+  
+  fl : doExpand1(f, bP),
+  
+  M : (M : [],
+    for d1 : 1 thru vdim do (
+      for d2 : d1 thru vdim do (
+        for d3 : d2 thru vdim do (
+          M : append(M, calcInnerProdList(varsP, vTrans[d1]*vTrans[d2]*vTrans[d3], bC, fl))
+    ))),
+  M),
+  
+  M : map(letsimp, M),
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$
+
+/* Calculate M0 = <f>, M1i = < dH/dv_i f >, and M2 = < H f > simultaneously */
+/* Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M0 : calcInnerProdList(varsP, 1, bC, fl),
+  M1i : (M1i : [],
+    for dir : 1 thru vdim do (
+      M1i : append(M1i, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), bC, fl))
+    ),
+  M1i),
+  M2 : calcInnerProdList(varsP, hamil, bC, fl),
+  
+  clst : [dv10, dv11, dv12, volFact],
+  five_moments : [],
+  five_moments : append(five_moments, volFact*M0),
+  five_moments : append(five_moments, volFact*M1i),
+  five_moments : append(five_moments, volFact*M2),
+  writeCIncrExprsCollect1(out, five_moments, clst),
+  
+  printf(fh, "} ~%")
+)$ 
+
+/* Calculate integrated M0 = <f>, M1i = < dH/dv_i f >, and M2 = < H f > */
+/* Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i])
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M0 : calcInnerProdList(varsP, 1, [1], fl),
+  M1i : (M1i : [],
+    for dir : 1 thru vdim do (
+      M1i : append(M1i, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), [1], fl))
+    ),
+  M1i),
+  M2 : calcInnerProdList(varsP, hamil, [1], fl),
+  
+  clst : [dv10, dv11, dv12, volFact],
+  int_five_moments : [],
+  int_five_moments : append(int_five_moments, volFact*M0),
+  int_five_moments : append(int_five_moments, volFact*M1i),
+  int_five_moments : append(int_five_moments, volFact*M2),
+  writeCIncrExprsCollect1(out, int_five_moments, clst),
+  
+  printf(fh, "} ~%")
+)$ 
+
+calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder), 
+  calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+  calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+  /* New energy flux kernels which are formally H*dH/dv are very dense, 
+     so not generating them for right now. JJ 07/26/25. */
+  /* calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+  calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false),  */
+  calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder),
+  calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+  calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+  calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+  calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+)$

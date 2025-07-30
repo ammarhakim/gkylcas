@@ -1,0 +1,258 @@
+/* Functions which compute the components of the surface update of the Vlasov 
+   equation using a discontinuous Galerkin (DG) method. Advection in
+   configuration space is computed as velocity gradients of a Hamiltonian. 
+   In the case when the Hamiltonian that only depends on velocity space,
+   **we assume the origin (v=0) is at a velocity-space cell edge** and thus
+   we can just check the sign of the cell center value for the upwind 
+   direction. In the case when the Hamiltonian depends on phase space
+   we utilize a standard Lax-Friedrichs flux for continuous characteristics: 
+   G = alpha/2*(f^+ + f^-) - |alpha|/2*(f^+ - f^-)
+   evaluated at nodes and converted back to a modal expansion. Note that 
+   we do not make any assumptions on the order of the phase space expansion
+   and thus to evaluate G, we must utilize enough Gauss-Legendre quadrature points
+   to integrate a 3*p polynomial (cubic for p=1, sixth order for p=2, ninth order for p=3). 
+   We thus must use 2, 4, and 5 Gauss-Legendre points respectively. 
+
+   We do similar evaluations for the velocity-space update, but for the velocity-space
+   update, we pre-compute the modal expansion of the flux to allow for ease of 
+   accumulation of different forces (Hamiltonian, electromagnetic, scalar potentials, etc.). 
+   Thus, the velocity-space update simply evaluates the final surface integral with the
+   computed modal expansion of the flux at that interface. 
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load("nodal_operations/nodal_functions")$
+load("new_vlasov/vlasov-basis");
+load(stringproc)$
+fpprec : 24$
+
+clabels : ["x","y","z"]$
+dx11 : [dx10, dx11, dx12]$
+dv11 : [dv10, dv11, dv12]$
+cidx(cdim) := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+/* Velocity-space Hamiltonian surface streaming */
+calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,
+   fl_e,fc_e,fr_e,Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r,stream],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *hamil, 
+  const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  printf(fh, "  double wv = w[~a]; ~%", vid[dir], vid[dir]),
+  printf(fh, "~%"),
+  hamil : doExpand1(hamil, bV), /* Hamiltonian only a function of velocity space. */
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+  /* cv = variable in direction of surface update. */
+  cv : varsP[dir],
+  vv : varsV[dir],
+
+  /* Surface variables to integrate over. */
+  surfVars : delete(cv,varsP),
+  bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+  NSurf : length(bSurf), 
+
+  /* Create expansions of f_left, f_center, and f_right on volume basis. */
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
+  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
+  
+  printf(fh, "  if (~a>0) { ~%~%",wv),
+
+  /* Because dH/dv > 0, need left edge value */
+  /* Evaluate surface projection of Ghat_r = dH/dv f_c. */
+  Ghat_r_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=1, fc_e)),
+  writeCExprsCollect1lhsc(Ghat_r, Ghat_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Evaluate surface projection of Ghat_l = dH/dv f_l. */
+  Ghat_l_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=1, fl_e)),
+  writeCExprsCollect1lhsc(Ghat_l, Ghat_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  printf(fh, "  } else { ~%~%"),
+  
+  /* Because dH/dv < 0, need right edge value */
+  /* Evaluate surface projection of Ghat_r = dH/dv f_r. */
+  Ghat_r_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=-1, fr_e)),
+  writeCExprs1(Ghat_r, Ghat_r_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Evaluate surface projection of Ghat_l = dH/dv f_c. */
+  Ghat_l_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=-1, fc_e)),
+  writeCExprs1(Ghat_l, Ghat_l_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+  
+  printf(fh, "  } ~%"),
+  /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
+  Ghat_l_e : doExpand1(Ghat_l, bSurf),
+  Ghat_r_e : doExpand1(Ghat_r, bSurf),
+  incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
+  writeCIncrExprsCollect1lhsc(out, dv11[dir]*dx11[dir]*incr_l + dv11[dir]*dx11[dir]*incr_r),    
+  printf(fh, "~%"),
+
+  /* Estimate stable time step from the cell average of the derivative of the Hamiltonian. */
+  stream : calcInnerProdList(varsV, 1, bV, diff(hamil, vv)), 
+  printf(fh, "  return fabs(~a*~a*~a*~a);~%", float(0.5*(2*polyOrder+1)*2.0^(-0.5*(vdim))), dv11[dir], dx11[dir], float(stream[1])), 
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$  
+
+/* Phase-space Hamiltonian surface streaming */
+calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,
+   fl_e,fc_e,fr_e,surfNodes,basisNodal,numNodes,
+   dH_dv_l_n,dH_dv_r_n,f_lr_n,f_cl_n,f_cr_n,f_rl_n,
+   Ghat_r_nodal_e,Ghat_l_nodal_e,Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *hamil, 
+  const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  printf(fh, "~%"),
+  hamil : doExpand1(hamil, bP), /* Hamiltonian a function of the full phase space. */
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+  /* cv = variable in direction of surface update. */
+  cv : varsP[dir],
+  vv : varsV[dir],
+
+  /* Surface variables to integrate over. */
+  surfVars : delete(cv,varsP),
+  bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+  NSurf : length(bSurf), 
+
+  /* Create expansions of f_left, f_center, and f_right on volume basis. */
+  fl_e : doExpand1(fl, bP),
+  fc_e : doExpand1(fc, bP),
+  fr_e : doExpand1(fr, bP),
+  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
+  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
+
+  if (polyOrder = 1) then (
+    surfNodes : gaussOrd(2,length(surfVars)), 
+    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 1, surfVars, surfNodes)
+  )
+  else if (polyOrder = 2) then (
+    /* 4 quadrature points required for p=2, so nodal basis is a cubic. */
+    surfNodes : gaussOrd(4,length(surfVars)), 
+    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 3, surfVars, surfNodes)
+  ), 
+  numNodes : length(surfNodes), 
+  printf(fh, "  double Ghat_l_nodal[~a]; ~%", numNodes),
+  printf(fh, "  double Ghat_r_nodal[~a]; ~%", numNodes),
+  dH_dv_l_n : float(evAtNodes(subst(cv=-1,diff(hamil,vv)),surfNodes,surfVars)), 
+  dH_dv_r_n : float(evAtNodes(subst(cv=1,diff(hamil,vv)),surfNodes,surfVars)), 
+  f_lr_n : float(evAtNodes(subst(cv=1,fl_e),surfNodes,surfVars)), 
+  f_cl_n : float(evAtNodes(subst(cv=-1,fc_e),surfNodes,surfVars)), 
+  f_cr_n : float(evAtNodes(subst(cv=1,fl_e),surfNodes,surfVars)), 
+  f_rl_n : float(evAtNodes(subst(cv=-1,fr_e),surfNodes,surfVars)), 
+  printf(fh, "  double alpha_l_quad = 0.0; ~%"), 
+  printf(fh, "  double alpha_r_quad = 0.0; ~%"), 
+  printf(fh, "  double alpha_max = 0.0; ~%"), 
+  printf(fh, "  double f_lr_quad = 0.0; ~%"), 
+  printf(fh, "  double f_cl_quad = 0.0; ~%"), 
+  printf(fh, "  double f_cr_quad = 0.0; ~%"), 
+  printf(fh, "  double f_rl_quad = 0.0; ~%"), 
+  for i : 1 thru numNodes do (
+    printf(fh, "  alpha_l_quad = ~a; ~%", dH_dv_l_n[i]), 
+    printf(fh, "  alpha_r_quad = ~a; ~%", dH_dv_r_n[i]), 
+    printf(fh, "  alpha_max = fmax(alpha_max, fmax(fabs(alpha_l_quad), fabs(alpha_r_quad))); ~%"), 
+    printf(fh, "  f_lr_quad = ~a; ~%", f_lr_n[i]), 
+    printf(fh, "  f_cl_quad = ~a; ~%", f_cl_n[i]), 
+    printf(fh, "  f_cr_quad = ~a; ~%", f_cr_n[i]), 
+    printf(fh, "  f_rl_quad = ~a; ~%", f_rl_n[i]), 
+    printf(fh, "  Ghat_l_nodal[~a] = 0.5*(alpha_l_quad*(f_cl_quad + f_lr_quad) - fabs(alpha_l_quad)*(f_cl_quad - f_lr_quad)); ~%", i-1), 
+    printf(fh, "  Ghat_r_nodal[~a] = 0.5*(alpha_r_quad*(f_rl_quad + f_cr_quad) - fabs(alpha_r_quad)*(f_rl_quad - f_cr_quad)); ~%", i-1), 
+    printf(fh, "~%")    
+  ), 
+  Ghat_l_nodal_e : doExpand1(Ghat_l_nodal,basisNodal),
+  Ghat_r_nodal_e : doExpand1(Ghat_r_nodal,basisNodal),
+  /* Project nodal basis back onto modal basis */
+  Ghat_l_c : calcInnerProdList(surfVars, 1, bSurf, Ghat_l_nodal_e),
+  Ghat_r_c : calcInnerProdList(surfVars, 1, bSurf, Ghat_r_nodal_e),
+  writeCExprs1(Ghat_l, Ghat_l_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  writeCExprs1(Ghat_r, Ghat_r_c), 
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
+  Ghat_l_e : doExpand1(Ghat_l, bSurf),
+  Ghat_r_e : doExpand1(Ghat_r, bSurf),
+  incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
+  writeCIncrExprsCollect1lhsc(out, dv11[dir]*dx11[dir]*incr_l + dv11[dir]*dx11[dir]*incr_r),    
+  printf(fh, "~%"),
+
+  /* Estimate stable time step from the maximum quadrature point evaluation. */
+  printf(fh, "  return fabs(~a*~a*~a*alpha_max);~%", float(0.5*(2*polyOrder+1)), dv11[dir], dx11[dir]), 
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$  
+
+/* Velocity-space surface update from pre-computed flux. */
+calcVelSurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,vid,vv,surfVars,bSurf,NSurf,
+   Ghat_l_e,Ghat_r_e,incr_l,incr_r],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  vid : vidx(cdim,vdim),
+  printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  printf(fh, "~%"),
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+  vv : varsV[dir],
+  /* Surface variables to integrate over. */
+  surfVars : delete(vv,varsP),
+  bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+  NSurf : length(bSurf), 
+  printf(fh, "  const double *Ghat_l = &flux_l[~a]; ~%", (dir-1)*NSurf),
+  printf(fh, "  const double *Ghat_r = &flux_r[~a]; ~%", (dir-1)*NSurf),
+
+  Ghat_l_e : doExpand1(Ghat_l, bSurf), 
+  Ghat_r_e : doExpand1(Ghat_r, bSurf), 
+  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
+  writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr_l + dv11[dir]*incr_r),    
+  printf(fh, "~%"),
+
+  /* Stable time step obtained from flux computation at nodes earlier. */
+  printf(fh, "  return 0.0;~%"), 
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$    

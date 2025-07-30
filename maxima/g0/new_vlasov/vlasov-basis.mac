@@ -1,0 +1,76 @@
+load("modal-basis");
+load("out-scripts");
+
+loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
+  [varsSubV, varsSubP],
+  
+  [varsC,bC] : loadBasis(basisType, cdim, polyOrder),
+  [varsV,bV] : loadBasis(basisType, vdim, polyOrder), 
+  [varsP,bP] : loadBasis(basisType, cdim+vdim, polyOrder), 
+  /* Do a variable substitution for the lower dimensional basis functions
+     to construct the correct set of variables for the subsequent operations */
+  if (cdim = 1) then (
+    if (vdim = 1) then (
+      varsSubV : [x=vx], 
+      bV : subst(varsSubV, copylist(bV)),  
+      varsV : subst(varsSubV, copylist(varsV)), 
+
+      varsSubP : [y=vx],
+      bP : subst(varsSubP, copylist(bP)),  
+      varsP : subst(varsSubP, copylist(varsP))
+    )
+    else if (vdim = 2) then (
+      varsSubV : [x=vx, y=vy], 
+      bV : subst(varsSubV, copylist(bV)),  
+      varsV : subst(varsSubV, copylist(varsV)), 
+
+      varsSubP : [y=vx, z=vy],
+      bP : subst(varsSubP, copylist(bP)),  
+      varsP : subst(varsSubP, copylist(varsP))      
+    )
+  )
+  else if (cdim = 2) then (
+    if (vdim = 1) then (
+      varsSubV : [x=vx], 
+      bV : subst(varsSubV, copylist(bV)),  
+      varsV : subst(varsSubV, copylist(varsV)), 
+
+      varsSubP : [z=vx],
+      bP : subst(varsSubP, copylist(bP)),  
+      varsP : subst(varsSubP, copylist(varsP))   
+    )
+    else if (vdim = 2) then (
+      varsSubV : [x=vx, y=vy], 
+      bV : subst(varsSubV, copylist(bV)),  
+      varsV : subst(varsSubV, copylist(varsV)), 
+
+      varsSubP : [vx=y, vy=vx, vz=vy],
+      bP : subst(varsSubP, copylist(bP)),  
+      varsP : subst(varsSubP, copylist(varsP)) 
+    )
+  ), 
+
+  if (vdim = 3) then (
+    varsSubV : [x=vx, y=vy, z=vz], 
+    bV : subst(varsSubV, copylist(bV)),  
+    varsV : subst(varsSubV, copylist(varsV))
+  ),
+  return([varsC,bC,varsV,bV,varsP,bP])
+)$
+
+loadVlasovSurfBasis(basisType, polyOrder, surfVars) := block(
+  bSurf : basisFromVars(basisType,surfVars,polyOrder),
+  NSurf : length(bSurf), 
+
+  if (polyOrder = 1) then (
+    surfNodes : gaussOrd(2,length(surfVars)), 
+    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 1, surfVars, surfNodes)
+  )
+  else if (polyOrder = 2) then (
+    /* 4 quadrature points required for p=2, so nodal basis is a cubic. */
+    surfNodes : gaussOrd(4,length(surfVars)), 
+    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 3, surfVars, surfNodes)
+  ), 
+  numNodes : length(surfNodes),   
+  return([bSurf,NSurf,surfNodes,basisNodal,numNodes])
+)$

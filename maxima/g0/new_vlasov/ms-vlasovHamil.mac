@@ -1,0 +1,48 @@
+load("new_vlasov/vlasovHamilFuncs")$
+load(stringproc)$
+/* This script calls the functions which calculate the velocity-space Hamiltonian
+   in the case of non-relativistic (v^2/2) or relativistic (sqrt(1 + u^2)) Vlasov
+   simulations. These quantities are derived from the grid and must be continuous, 
+   so they are projected onto basis functions using Gauss-Lobatto nodes.*/
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minVdim_Ser : 1$  
+maxVdim_Ser : 3$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minVdim_Tensor : 1$ 
+maxVdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+for bInd : 1 thru length(bName) do (
+  for v : 1 thru maxVdim[bInd] do (
+
+    minPolyOrderB : minPolyOrder[bInd],
+    maxPolyOrderB : maxPolyOrder[bInd],
+    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+      fname : sconcat("~/max-out/hamil_default_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("hamil_default_",  v, "v_", bName[bInd], "_p", polyOrder),
+      calcHamil(fh, funcName, v, bName[bInd], polyOrder, false),
+      close(fh), 
+
+      fname : sconcat("~/max-out/hamil_sr_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+      fh : openw(fname),
+      funcName : sconcat("hamil_sr_",  v, "v_", bName[bInd], "_p", polyOrder),
+      calcHamil(fh, funcName, v, bName[bInd], polyOrder, true),
+      close(fh)      
+    )
+  )
+);

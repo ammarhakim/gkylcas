@@ -46,7 +46,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
 printPrototypeLorentz(deco, vi, bStr, pi) := block([si],
   /* Variations of the Lorentz boost factor. */
-  printf(fh, "~avoid sr_vars_lorentz_~av_~a_p~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
+  printf(fh, "~avoid sr_vars_lorentz_~av_~a_p~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 

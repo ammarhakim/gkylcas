@@ -1,0 +1,88 @@
+load("new_vlasov/vlasovVolFuncs")$
+load(stringproc)$
+/* This script calls the functions compute the components of the volume update of the Vlasov 
+   equation using a discontinuous Galerkin (DG) method. Different component include: 
+   1. Streaming in configuration space via velocity-space derivatives of 
+      the Hamiltonian, with either a velocity-space only Hamiltonian such as
+      H = p^2/2m or H = mc^2*sqrt(1 + p^2), or a full phase-space Hamiltonian
+      including geometric terms, H = g^ij p_i p_j/2m. 
+   2. Forces in velocity space due to geometric terms in the Hamiltonian, -grad_x(H)
+   3. Forces in velocity space due to the Lorentz force, q/m (E + grad_v(H) x B)
+   4. Forces in velocity space due to a scalar potential, -grad_x(phi) where phi
+      can be electrostatic, gravitational, or external. 
+   5. Forces in velocity space due to a vector potential, q/m (-dA/dt + grad_v(H) x curl(A))
+*/
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+minVdim_Tensor : 1$    /* see begining of v loop below though. */
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+/* Compute the volume contribution in BOTH configuration and velocity space (for use in full Vlasov-Maxwell) */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    minVdimB : max(c,minVdim[bInd]), 
+    maxVdimB : maxVdim[bInd], 
+    if (c = 2) then minVdimB : 1, /* We support 2x1v. */
+    for v : minVdimB thru maxVdimB do (
+
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        disp(printf(false,sconcat("Creating volume Vlasov ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        /* Velocity-space Hamiltonian volume component. */
+        fname : sconcat("~/max-out/vlasov_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true),
+        close(fh), 
+
+        /* Phase-space Hamiltonian volume component. */
+        fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false),
+        close(fh),  
+
+        /* Lorentz force with velocity-space Hamiltonian volume component. */
+        fname : sconcat("~/max-out/vlasov_EB_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_EB_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcEBVol(fh, funcName, c, v, bName[bInd], polyOrder, true),
+        close(fh), 
+
+        /* Force due to a scalar potential. */
+        fname : sconcat("~/max-out/vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)       
+      )
+    )
+  )
+);

@@ -29,10 +29,9 @@ calcLorentz(fh, funcNm, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_sr_Gamma_kernels.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma_inv) ~%{ ~%", funcNm),
   printf(fh, "  // w:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv: Cell spacing.~%"),
-  printf(fh, "  // gamma:  Particle Lorentz boost factor sqrt(1 + p^2).~%"),
   printf(fh, "  // gamma_inv: Inverse particle Lorentz boost factor 1/sqrt(1 + p^2).~%"),
   printf(fh, " ~%"),  
 
@@ -89,8 +88,6 @@ calcLorentz(fh, funcNm, vdim, basisFun, polyOrder) := block(
 
   gamma_c : calcInnerProdList(varsV, 1, bV, gamma_nodal_e), 
   gamma_inv_c : calcInnerProdList(varsV, 1, bV, gamma_inv_nodal_e), 
-  writeCExprs1(gamma, gamma_c), 
-  printf(fh, "~%"), 
   writeCExprs1(gamma_inv, gamma_inv_c), 
   flush_output(fh),
 
