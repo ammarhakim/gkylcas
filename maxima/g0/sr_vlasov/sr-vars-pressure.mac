@@ -61,7 +61,8 @@ calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NV : length(bV),
 
   printf(fh, "#include <gkyl_sr_Gamma_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure) ~%{ ~%", funcNm),
+  printf(fh, "  // vmap:        Momentum-space nonuniform mapping (unused in uniform grid simulations).~%"),
   printf(fh, "  // gamma:       Particle Lorentz boost factor sqrt(1 + p^2).~%"),
   printf(fh, "  // gamma_inv:   Inverse particle Lorentz boost factor 1/sqrt(1 + p^2).~%"),
   printf(fh, "  // u_i:         Spatial components of bulk four-velocity = GammaV*V_drift. ~%"),

@@ -106,15 +106,31 @@ setDGEMSourceSolve(fh, funcNm, cdim, basisFun, polyOrder) := block(
   ), 
   printf(fh, "~%"),
 
+  /* Expand external forces due to EM fields and applied accelerations */
+  rhoi_e : doExpand1(rho[s],bC),
+  ext_Ex_e : doExpand1(ext_Ex,bC),
+  ext_Ey_e : doExpand1(ext_Ey,bC),
+  ext_Ez_e : doExpand1(ext_Ez,bC),
+  app_accel_x_e : doExpand1(app_accel_x,bC),
+  app_accel_y_e : doExpand1(app_accel_y,bC),
+  app_accel_z_e : doExpand1(app_accel_z,bC), 
+
+  ext_Ex_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*ext_Ex_e), 
+  ext_Ey_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*ext_Ey_e), 
+  ext_Ez_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*ext_Ez_e), 
+  ext_appx_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*app_accel_x_e), 
+  ext_appy_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*app_accel_y_e), 
+  ext_appz_force_c : calcInnerProdList(varsC, 1, bC, rhoi_e*app_accel_z_e), 
+
   /* Set the RHS for all known quantities including the solution at the old time-step, and any 
      external electromagnetic fields, applied accelerations, or applied currents */
   printf(fh, "  // Set RHS for momentum equations, including solution at known time-step and external forces. ~%"),     
-  printf(fh, "  for (int i = 0; i < num_species; ++i) { ~%"),
+  printf(fh, "  for (int s = 0; s < num_species; ++s) { ~%"),
   printf(fh, "~%"),
   for j : 1 thru NC do (
-    printf(fh,"    gkyl_mat_set(&rhs, ~a + i*(~a), 0, qbym[i]*rhoux[i][~a] + 0.5*dt*qbym[i]*rho[i][~a]*(qbym[i]*ext_Ex[~a] + app_accel_x[i][~a])); ~%", j-1, 3*NC, j-1, j-1, j-1, j-1),
-    printf(fh,"    gkyl_mat_set(&rhs, ~a + i*(~a), 0, qbym[i]*rhouy[i][~a] + 0.5*dt*qbym[i]*rho[i][~a]*(qbym[i]*ext_Ey[~a] + app_accel_y[i][~a])); ~%", j-1+1*NC, 3*NC, j-1, j-1, j-1, j-1),
-    printf(fh,"    gkyl_mat_set(&rhs, ~a + i*(~a), 0, qbym[i]*rhouz[i][~a] + 0.5*dt*qbym[i]*rho[i][~a]*(qbym[i]*ext_Ez[~a] + app_accel_z[i][~a])); ~%", j-1+2*NC, 3*NC, j-1, j-1, j-1, j-1),
+    printf(fh,"    gkyl_mat_set(&rhs, ~a + s*(~a), 0, qbym[s]*rhoux[s][~a] + 0.5*dt*qbym[s]*qbym[s]*(~a) + 0.5*dt*qbym[s]*(~a)); ~%", j-1, 3*NC, j-1, gcfac(float(expand(ext_Ex_force_c[j]))), gcfac(float(expand(ext_appx_force_c[j])))),
+    printf(fh,"    gkyl_mat_set(&rhs, ~a + s*(~a), 0, qbym[s]*rhouy[s][~a] + 0.5*dt*qbym[s]*qbym[s]*(~a) + 0.5*dt*qbym[s]*(~a)); ~%", j-1+1*NC, 3*NC, j-1, gcfac(float(expand(ext_Ey_force_c[j]))), gcfac(float(expand(ext_appy_force_c[j])))),
+    printf(fh,"    gkyl_mat_set(&rhs, ~a + s*(~a), 0, qbym[s]*rhouz[s][~a] + 0.5*dt*qbym[s]*qbym[s]*(~a) + 0.5*dt*qbym[s]*(~a)); ~%", j-1+2*NC, 3*NC, j-1, gcfac(float(expand(ext_Ez_force_c[j]))), gcfac(float(expand(ext_appz_force_c[j])))),
     printf(fh, "~%")
   ),  
   printf(fh, "  } ~%"),
@@ -133,7 +149,6 @@ setDGEMSourceSolve(fh, funcNm, cdim, basisFun, polyOrder) := block(
   tot_Bx_e : doExpand1(tot_Bx,bC),
   tot_By_e : doExpand1(tot_By,bC),
   tot_Bz_e : doExpand1(tot_Bz,bC),
-  rhoi_e : doExpand1(rho[s],bC),
 
   /* Generate matrices of unknown coefficients */
 

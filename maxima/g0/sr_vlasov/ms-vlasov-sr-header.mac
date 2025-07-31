@@ -17,8 +17,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 2$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -37,14 +37,26 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~adouble vlasov_sr_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~adouble vlasov_sr_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   for si : 1 thru ci do (
-    printf(fh, "~adouble vlasov_sr_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_sr_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
   for si : 1 thru vi do (
-    printf(fh, "~adouble vlasov_sr_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_sr_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    printf(fh, "~adouble vlasov_sr_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_sr_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
   ),
 
-  printf(fh, "~%")
+  printf(fh, "~%"), 
+
+  printf(fh, "~adouble vlasov_sr_vmap_stream_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~adouble vlasov_sr_vmap_vol_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+  for si : 1 thru ci do (
+    printf(fh, "~adouble vlasov_sr_vmap_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+  ),
+  for si : 1 thru vi do (
+    printf(fh, "~adouble vlasov_sr_vmap_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+    printf(fh, "~adouble vlasov_sr_vmap_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *jacob_vel_inv, const double *gamma, const double *qmem, int edge, const double *fEdge, const double *fSkin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+  ),
+
+  printf(fh, "~%")  
 )$
 
 /* ............ Write out the C header file ............ */
@@ -59,7 +71,9 @@ printf(fh, "~%")$
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    minVdim : c, 
+    if (c < 3) then minVdim : 1, 
+    for v : minVdim thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],

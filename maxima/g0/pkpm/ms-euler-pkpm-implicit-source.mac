@@ -1,4 +1,4 @@
-load("pkpm/euler-pkpm-implicit-source")$
+load("pkpm/euler-pkpm-dJdt-implicit-source")$
 load(stringproc)$
 /* This script calls the functions which generate the kernels for an implicit update of
    the source terms in the fluid equations of the PKPM system. 

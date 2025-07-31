@@ -1,4 +1,4 @@
-load("lenard_bernstein_operator/vmLBOFuncs-drag-vol")$
+load("lbo_vlasov/vmLBOFuncs-drag-vol")$
 load(stringproc)$
 
 /* This script calls the functions which calculate the
@@ -9,10 +9,10 @@ load(stringproc)$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 1$
+minCdim_Ser : 2$
 minVdim_Ser : 1$
-maxCdim_Ser : 3$
-maxVdim_Ser : 3$
+maxCdim_Ser : 2$
+maxVdim_Ser : 1$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
@@ -34,7 +34,9 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    minVdim : c, 
+    if (c < 3) then minVdim : 1, 
+    for v : minVdim thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       minPolyOrderB : minPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,

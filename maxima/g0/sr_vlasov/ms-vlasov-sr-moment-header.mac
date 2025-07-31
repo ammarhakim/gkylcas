@@ -17,8 +17,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 2$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -41,6 +41,12 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_sr_Tij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
   printf(fh, "~avoid vlasov_sr_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
+
+  printf(fh, "~avoid vlasov_sr_vmap_M0_upper_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_vmap_M0_lower_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),  
+  printf(fh, "~avoid vlasov_sr_vmap_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *jacob_vel_inv, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_vmap_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi), 
+  printf(fh, "~avoid vlasov_sr_vmap_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, const double *vmap, const double *gamma, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
 )$
 
 fh : openw("~/max-out/gkyl_mom_vlasov_sr_kernels.h")$
@@ -53,7 +59,9 @@ printf(fh, "~%")$
 decorator : "GKYL_CU_DH "$
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    minVdim : c, 
+    if (c < 3) then minVdim : 1, 
+    for v : minVdim thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],

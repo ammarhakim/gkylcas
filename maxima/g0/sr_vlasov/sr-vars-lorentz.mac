@@ -29,9 +29,10 @@ calcLorentz(fh, funcNm, vdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_sr_Gamma_kernels.h> ~%"),
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma_inv) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap, double* GKYL_RESTRICT gamma, double* GKYL_RESTRICT gamma_inv) ~%{ ~%", funcNm),
   printf(fh, "  // w:   Cell-center coordinates.~%"),
   printf(fh, "  // dxv: Cell spacing.~%"),
+  printf(fh, "  // vmap: Momentum-space nonuniform mapping (unused in uniform grid simulations).~%"),
   printf(fh, "  // gamma_inv: Inverse particle Lorentz boost factor 1/sqrt(1 + p^2).~%"),
   printf(fh, " ~%"),  
 

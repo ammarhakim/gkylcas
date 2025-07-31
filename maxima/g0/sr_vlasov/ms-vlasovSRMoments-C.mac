@@ -8,10 +8,10 @@ load(stringproc)$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 1$
+minCdim_Ser : 2$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
-maxVdim_Ser : 3$
+maxCdim_Ser : 2$
+maxVdim_Ser : 1$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -35,7 +35,9 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    minVdim : c, 
+    if (c < 3) then minVdim : 1, 
+    for v : minVdim thru maxVdim[bInd] do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],

@@ -23,8 +23,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 0$
+maxCdim_Tensor : 2$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -40,14 +40,10 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid sr_vars_n_set_~ax~av_~a_p~a(int count, struct gkyl_nmat *A, struct gkyl_nmat *rhs, const double *M0, const double *M1i); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid sr_vars_n_copy_~ax~av_~a_p~a(int count, struct gkyl_nmat *x, const double *M0, double* GKYL_RESTRICT n); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid sr_vars_GammaV_~ax~av_~a_p~a(const double *u_i, double* GKYL_RESTRICT u_i_sq, double* GKYL_RESTRICT GammaV, double* GKYL_RESTRICT GammaV_sq); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid sr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~%") 
-)$
-
-printPrototypeLorentz(deco, vi, bStr, pi) := block([si],
-  /* Variations of the Lorentz boost factor. */
-  printf(fh, "~avoid sr_vars_lorentz_~av_~a_p~a(const double *w, const double *dxv, double* GKYL_RESTRICT gamma_inv); ~%", deco, vi, bStr, pi),
-  printf(fh, "~%")  
+  printf(fh, "~avoid sr_vars_pressure_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vmap, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%"), 
+  printf(fh, "~avoid sr_vars_pressure_vmap_~ax~av_~a_p~a(const double *w, const double *dxv, const double *vmap, const double *gamma, const double *gamma_inv, const double *u_i, const double *u_i_sq, const double *GammaV, const double *GammaV_sq, const double *f, double* GKYL_RESTRICT sr_pressure); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%")
 )$
 
 fh : openw("~/max-out/gkyl_sr_Gamma_kernels.h")$
@@ -64,17 +60,15 @@ for bInd : 1 thru length(bName) do (
   maxPolyOrderB : maxPolyOrder[bInd],
 
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    minVdim : c, 
+    if (c < 3) then minVdim : 1, 
+    for v : minVdim thru maxVdim[bInd] do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)
       )
     )
-  ),
-  /* Only quadratic particle Lorentz boost kernels for now */
-  for v : 1 thru maxVdim[bInd] do ( 
-    printPrototypeLorentz(decorator, v, bName[bInd], 2) 
   )
 );
 printf(fh, "EXTERN_C_END ~%")$

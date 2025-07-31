@@ -33,9 +33,11 @@ calcVmLBODragUpdateInDir(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   vv   : vvarsAll[dir],
   surfVars : delete(vv,varsP),
 
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *vmap, const double *jacob_vel_inv, const double *nuSum, const double *nuPrimMomsSum, const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[~a]: cell-center coordinates. ~%", cdim+vdim),
   printf(fh, "  // dxv[~a]: cell spacing. ~%", cdim+vdim),
+  printf(fh, "  // vmap: Velocity-space nonuniform mapping in each dimension (unused in uniform grid simulations). ~%"),
+  printf(fh, "  // jacob_vel_inv: Inverse of velocity space Jacobian in each dimension (unused in uniform grid simulations). ~%"),
   printf(fh, "  // nuSum: collisionalities added (self and cross species collisionalities). ~%"),
   printf(fh, "  // nuPrimMomsSum[~a]: sum of bulk velocities and thermal speeds (squared) times their respective collisionalities. ~%", (vdim+1)*NC),
   printf(fh, "  // fl/fc/fr: distribution function in cells ~%"),
