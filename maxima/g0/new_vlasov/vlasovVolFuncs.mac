@@ -15,28 +15,39 @@
 load("modal-basis");
 load("out-scripts");
 load("utilities")$
+load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
 load(stringproc)$
 fpprec : 24$
 
 clabels : ["x","y","z"]$
-dx11 : [dx10, dx11, dx12]$
-dv11 : [dv10, dv11, dv12]$
+dx1 : [dx10, dx11, dx12]$
+dv1 : [dv10, dv11, dv12]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
 
 /* Hamiltonian volume contribution, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
-   grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f */
-calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,vid,pb_dim,hamil,f_e,pb,pbBasis,clst],
+   grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f 
+   If using mapped velocity grids, we divide out J_vi in the direction of the update, e.g., 
+   grad_x(w) . (grad_v(H)/Jv_i) Jf, where the division by J_vi in direction i is done
+   nodally and then the resulting expansion is projected back onto modes. */
+calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NP,
+   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
+   cid,vid,pb_dim,hamil,f_e,
+   fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
+   pb,pbBasis,clst_vol],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NP : length(bP), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  if (vmap) then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
   )
@@ -50,38 +61,57 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
   pb_dim : min(cdim,vdim), 
   for dir : 1 thru pb_dim do (
     printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]), 
-    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir])
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+    if (vmap) then (
+      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+      fl_v : evAtNodes(f_e,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
+      f_vol_e : doExpand1(f_no_J, bP) 
+    ) 
+    else (
+      f_vol_e : f_e
+    ), 
+    /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
+       For instance if we have varsC = [x,y,z] with:
+       - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
+       - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
+       It is assumed that H does not depend on these ignorable coordinates. */
+    pbBasis : dx1[dir]*dv1[dir]*(PB_vol(bP,hamil,varsC[dir],varsV[dir])), 
+    pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)), 
+    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+    writeCIncrExprsCollect1(out, pb, clst_vol), 
+    printf(fh, "~%") 
   ),
-
-  /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
-     For instance if we have varsC = [x,y,z] with:
-     - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
-     - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
-     It is assumed that H does not depend on these ignorable coordinates. */
-  pb : (pb : 0, for dir : 1 thru pb_dim do (
-     pbBasis : dx11[dir]*dv11[dir]*(PB_vol(bP,hamil,varsC[dir],varsV[dir])),
-     pb : pb + fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_e))
-     ),
-  pb),
-  clst : [dx10, dx11, dx12, dv10, dv11, dv12],
-  writeCIncrExprsCollect1(out, pb, clst),
 
   printf(fh, "} ~%")
 )$  
 
-calcEBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
-  [varsC,bC,varsV,bV,varsP,bP,NC,NV,NP,hamil,f_e,vid,
+calcEBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NC,NV,NP,
+   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
+   hamil,f_e,vid,
    Ex_e,Ey_e,Ez_e,Bx_e,By_e,Bz_e,ax,ay,az,accel,
+   fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
    alpha_vdim_c,exprs,alpha_vdim_NoZero,alpha_vdim_NoZero_e,incr_vdim],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NC : length(bC), 
   NV : length(bV), 
   NP : length(bP), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *hamil, const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *hamil, const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  if (vmap) then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
   )
@@ -109,17 +139,17 @@ calcEBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
   else if (vdim = 2) then (
     /* If vdim = 2, only need Bz. */
     printf(fh, "  const double *Bz = &qmem[~a]; ~%", NC*5),
-    ax : Ex_e + dv11[2]*diff(hamil, varsV[2])*Bz_e,
-    ay : Ey_e - dv11[1]*diff(hamil, varsV[1])*Bz_e, 
+    ax : Ex_e + dv1[2]*diff(hamil, varsV[2])*Bz_e,
+    ay : Ey_e - dv1[1]*diff(hamil, varsV[1])*Bz_e, 
     accel : [ax, ay]
   )
   else (
     printf(fh, "  const double *Bx = &qmem[~a]; ~%", NC*3),
     printf(fh, "  const double *By = &qmem[~a]; ~%", NC*4),
     printf(fh, "  const double *Bz = &qmem[~a]; ~%", NC*5),
-    ax : Ex_e + dv11[2]*diff(hamil, varsV[2])*Bz_e - dv11[3]*diff(hamil, varsV[3])*By_e,
-    ay : Ey_e + dv11[3]*diff(hamil, varsV[3])*Bx_e - dv11[1]*diff(hamil, varsV[1])*Bz_e, 
-    az : Ez_e + dv11[1]*diff(hamil, varsV[1])*By_e - dv11[2]*diff(hamil, varsV[2])*Bx_e, 
+    ax : Ex_e + dv1[2]*diff(hamil, varsV[2])*Bz_e - dv1[3]*diff(hamil, varsV[3])*By_e,
+    ay : Ey_e + dv1[3]*diff(hamil, varsV[3])*Bx_e - dv1[1]*diff(hamil, varsV[1])*Bz_e, 
+    az : Ez_e + dv1[1]*diff(hamil, varsV[1])*By_e - dv1[2]*diff(hamil, varsV[2])*Bx_e, 
     accel : [ax, ay, az]
   ), 
 
@@ -130,14 +160,32 @@ calcEBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 
     /* Write out the component of alpha_vdim's phase space expansion */
     for i : 1 thru NP do (
-      if expr[i] # 0.0 then printf(fh, "  alpha_vdim[~a] = ~a*(~a); ~%", i-1, dv11[dir], expr[i])
+      if expr[i] # 0.0 then printf(fh, "  alpha_vdim[~a] = ~a*(~a); ~%", i-1, dv1[dir], expr[i])
     ),
 
     /* zero out components of alpha which are empty */
     alpha_vdim_NoZero : makelistNoZeros1(alpha_vdim_c, alpha_vdim),
     alpha_vdim_NoZero_e : doExpand(alpha_vdim_NoZero, bP),
 
-    incr_vdim : calcInnerProdList(varsP, 1, diff(bP, varsV[dir]), alpha_vdim_NoZero_e*f_e), 
+    if (vmap) then (
+      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+      fl_v : evAtNodes(f_e,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
+      f_vol_e : doExpand1(f_no_J, bP) 
+    ) 
+    else (
+      f_vol_e : f_e
+    ), 
+
+    incr_vdim : calcInnerProdList(varsP, 1, diff(bP, varsV[dir]), alpha_vdim_NoZero_e*f_vol_e), 
     writeCIncrExprs1(out, incr_vdim),
     printf(fh, "~%")
   ),
@@ -146,14 +194,18 @@ calcEBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 )$  
 
 /* Scalar potential contribution -grad_v(w) . grad_x(phi) f. */
-calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,vid,pb_dim,phi_e,f_e,pb,pbBasis,clst],
+calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NP,
+   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
+   cid,vid,pb_dim,phi_e,f_e,
+   fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
+   pb,pbBasis,clst_vol],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *phi, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *phi, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   phi_e : doExpand1(phi, bC), 
   f_e : doExpand1(f, bP),
   
@@ -162,19 +214,88 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   pb_dim : min(cdim,vdim), 
   for dir : 1 thru pb_dim do (
     printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]), 
-    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir])
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+    if (vmap) then (
+      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+      fl_v : evAtNodes(f_e,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
+      f_vol_e : doExpand1(f_no_J, bP) 
+    ) 
+    else (
+      f_vol_e : f_e
+    ), 
+    /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
+       For instance if we have varsC = [x,y,z] with:
+       - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
+       - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
+       It is assumed that H does not depend on these ignorable coordinates. */
+    pbBasis : dx1[dir]*dv1[dir]*(PB_vol(bP,phi_e,varsC[dir],varsV[dir])), 
+    pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)), 
+    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+    writeCIncrExprsCollect1(out, pb, clst_vol), 
+    printf(fh, "~%") 
   ),
 
-  /* Utilize the same Poisson bracket structure for computing the update due to a
-     scalar potential (like a Hamiltonian that only depends on configuration space) 
-     and thus contributes a -grad_v(w) . grad_x(phi) f term to the volume. */
-  pb : (pb : 0, for dir : 1 thru pb_dim do (
-     pbBasis : dx11[dir]*dv11[dir]*(PB_vol(bP,phi_e,varsC[dir],varsV[dir])),
-     pb : pb + fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_e))
-     ),
-  pb),
-  clst : [dx10, dx11, dx12, dv10, dv11, dv12],
-  writeCIncrExprsCollect1(out, pb, clst),
+  printf(fh, "} ~%")
+)$  
+
+/* Radiation drag force grad_v(w) . F_rad(v) f where F_rad(v) is only a function of velocity space. */
+calcRadVelVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NV,NP,
+   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
+   rad_vx_e,rad_vy_e,rad_vz_e,rad_v_e,f_e,vid,
+   fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
+   incr_vol,clst_vol],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NV : length(bV), 
+  NP : length(bP), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
+  const double *jacob_vel, const double *rad, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  if (vmap) then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
+  rad_vx_e : doExpand1(rad_vx, bV), 
+  rad_vy_e : doExpand1(rad_vy, bV), 
+  rad_vz_e : doExpand1(rad_vz, bV),
+  rad_v_e : [rad_vx_e, rad_vy_e, rad_vz_e], 
+  f_e : doExpand1(f, bP),
+  
+  vid : vidx(cdim,vdim),  
+  for dir : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+    printf(fh, "  const double *rad_v~a = &rad[~a]; ~%", clabels[dir], NV*(dir-1)),
+    if (vmap) then (
+      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+      fl_v : evAtNodes(f_e,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
+      f_vol_e : doExpand1(f_no_J, bP) 
+    ) 
+    else (
+      f_vol_e : f_e
+    ), 
+    incr_vol : calcInnerProdList(varsP, 1, diff(bP, varsV[dir]), rad_v_e[dir]*f_vol_e),  
+    clst_vol : [dv10, dv11, dv12],
+    writeCIncrExprsCollect1(out, dv1[dir]*incr_vol, clst_vol), 
+    printf(fh, "~%") 
+  ),
 
   printf(fh, "} ~%")
 )$  

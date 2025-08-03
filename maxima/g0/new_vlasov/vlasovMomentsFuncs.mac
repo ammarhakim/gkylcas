@@ -7,6 +7,7 @@
 load("modal-basis");
 load("out-scripts");
 load("utilities")$
+load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
 load(stringproc)$
 fpprec : 24$
@@ -25,6 +26,7 @@ let(dv1^2, dv1_sq)$
 let(dv2^2, dv2_sq)$
 let(dv3^2, dv3_sq)$
 
+clabels : ["x","y","z"]$
 volExpr(cdim, vdim) := prod(dxv[cdim+i-1], i, 1, vdim)$
 volExprTot(totDim) := prod(dxv[i-1], i, 1, totDim)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
@@ -39,7 +41,7 @@ calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   fl : doExpand1(f, bP),
   M : calcInnerProdList(varsP, 1, bC, fl),
@@ -59,12 +61,12 @@ calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bP)    
   ),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -98,12 +100,12 @@ calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bP)    
   ),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -129,7 +131,7 @@ calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV), 
     printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
     vid : vidx(cdim,vdim),
@@ -168,7 +170,7 @@ calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
     vid : vidx(cdim,vdim),
     for i : 1 thru vdim do (
@@ -226,7 +228,7 @@ calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "GKYL_CU_DH void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -256,7 +258,7 @@ calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   
   printf(fh, "GKYL_CU_DH void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -291,12 +293,12 @@ calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bP)    
   ),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -335,12 +337,12 @@ calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := bl
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bP)    
   ),
   printf(fh, "  double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
@@ -369,11 +371,225 @@ calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := bl
   printf(fh, "} ~%")
 )$ 
 
+/* Mass flux (no mass factor) with velocity mapping */
+/* M1i = < 1/J_vi dH/dv_i Jf > where H is the Hamiltonian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NC : length(bC), 
+  NP : length(bP), 
+
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]), 
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[i], NV_1D*(i-1)) 
+  ),
+
+  fl : doExpand1(f, bP),
+  M : (M : [],
+    for dir : 1 thru vdim do (
+      fl_v : evAtNodes(fl,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      M : append(M, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), bC, fl_v_ne))
+    ),
+  M),
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$  
+
+/* Calculate M0 = <Jf>, M1i = < 1/J_vi dH/dv_i Jf >, and M2 = < H Jf > simultaneously 
+   where J is the velocity space Jacobian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]), 
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[i], NV_1D*(i-1)) 
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M0 : calcInnerProdList(varsP, 1, bC, fl),
+  M1i : (M1i : [],
+    for dir : 1 thru vdim do (
+      fl_v : evAtNodes(fl,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      M1i : append(M1i, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), bC, fl_v_ne))
+    ),
+  M1i),
+  M2 : calcInnerProdList(varsP, hamil, bC, fl),
+  
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  five_moments : [],
+  five_moments : append(five_moments, volFact*M0),
+  five_moments : append(five_moments, volFact*M1i),
+  five_moments : append(five_moments, volFact*M2),
+  writeCIncrExprsCollect1(out, five_moments, clst),
+  
+  printf(fh, "} ~%")
+)$ 
+
+/* Calculate integrated M0 = <Jf>, M1i = < 1/J_vi dH/dv_i Jf >, and M2 = < H Jf > simultaneously 
+   where J is the velocity space Jacobian. 
+   Takes boolean input for whether Hamiltonian is a function of only velocity space 
+   or a function of the full phase space. */
+calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+
+  if (hamil_vel) then (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_hamil_gen_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : doExpand1(hamil, bP)    
+  ),
+  printf(fh, "  double volFact = ~a*~a; ~%", volExprTot(cdim+vdim), float(1/(2^(cdim+vdim))) ),
+  vid : vidx(cdim,vdim),
+  for i : 1 thru vdim do (
+    printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[i], NV_1D*(i-1)) 
+  ),
+
+  fl : doExpand1(f, bP),
+
+  M0 : calcInnerProdList(varsP, 1, [1], fl),
+  M1i : (M1i : [],
+    for dir : 1 thru vdim do (
+      fl_v : evAtNodes(fl,jacobNodes,[varsV[dir]]), 
+      jacob_vi : jacobNodes_vi[dir], 
+      basisNodal : basisNodal_vi[dir], 
+      fl_v_ne : 0, 
+      for i : 1 thru numJacobNodes do (
+        fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
+      ), 
+      M1i : append(M1i, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), [1], fl_v_ne))
+    ),
+  M1i),
+  M2 : calcInnerProdList(varsP, hamil, [1], fl),
+  
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  int_five_moments : [],
+  int_five_moments : append(int_five_moments, volFact*M0),
+  int_five_moments : append(int_five_moments, volFact*M1i),
+  int_five_moments : append(int_five_moments, volFact*M2),
+  writeCIncrExprsCollect1(out, int_five_moments, clst),
+  
+  printf(fh, "} ~%")
+)$ 
+
+/* M0 integrated over a subset of velocity-space in the upper/lower half-plane */
+calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
+  [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+
+  if (upper) then (
+    printf(fh, "GKYL_CU_DH void ~a_M0_upper_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
+  )
+  else (
+    printf(fh, "GKYL_CU_DH void ~a_M0_lower_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
+  ), 
+  printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
+
+  /* M0 Reduced only works for 1v, so only load the x velocity coordinate */
+  printf(fh, "  const double *px = &vmap[0]; ~%"), 
+  px_e : doExpand1(px, bV_vi[1]), 
+  /* Make a set of Gauss-Legendre nodes for evaluating configuration-space basis. */
+  nodes_conf : gaussOrd(polyOrder+1, cdim),
+  num_nodes_conf : length(nodes_conf), 
+
+  /* Make a set of Gauss-Legendre nodes for evaluating velocity-space mapping. */
+  nodes_vel : gaussOrd(polyOrder+1, vdim),
+  num_nodes_vel : length(nodes_vel), 
+  px_ords : gcfac(float(evAtNodes(px_e,nodes_vel,varsV))),
+  py_ords : gcfac(float(evAtNodes(py_e,nodes_vel,varsV))),
+  pz_ords : gcfac(float(evAtNodes(pz_e,nodes_vel,varsV))),
+
+  f_e : doExpand1(f, bP),
+
+  nodes_phase : gaussOrd(polyOrder+1, cdim+vdim), 
+  basisNodal_phase : getVarsNodalBasisWithNodes("Tensor", cdim+vdim, polyOrder, varsP, nodes_phase),
+  num_nodes_phase : length(nodes_phase), 
+  f_ords : gcfac(float(evAtNodes(f_e,nodes_phase,varsP))),
+  printf(fh, "  double f_nodes[~a] = {0.0};~%", num_nodes_phase),
+  for j : 1 thru num_nodes_vel do (
+    if (upper) then (
+      printf(fh, "  if (~a > v_thresh) { ~%", px_ords[j])
+    )
+    else (
+      printf(fh, "  if (~a < -v_thresh) { ~%", px_ords[j])
+    ), 
+    for i : 1 thru num_nodes_conf do (
+      printf(fh, "    f_nodes[~a] = ~a; ~%", (j-1)+(i-1)*num_nodes_vel, f_ords[j+(i-1)*num_nodes_vel])
+    ), 
+    printf(fh, "  } ~%")
+  ), 
+  fNodal_e : doExpand1(f_nodes, basisNodal_phase),
+  /* Compute moment in nodal basis since we can do so without aliasing */
+  M : calcInnerProdList(varsP, 1, bC, fNodal_e), 
+  clst : [volFact],
+  writeCIncrExprsCollect1(out, volFact*M, clst),
+  
+  printf(fh, "} ~%")
+)$  
+
 calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
-  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),  
   calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder), 
-  calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-  calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
   calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
   calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
   /* New energy flux kernels which are formally H*dH/dv are very dense, 
@@ -382,8 +598,24 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false),  */
   calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder),
-  calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-  calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-  calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-  calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+  if (basisFun = "tensor" and polyOrder > 1) then (
+    calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    if (cdim + vdim < 4) then (
+      calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+      calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+      calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    ), 
+    calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true),
+    calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+  ) 
+  else (
+    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+  )
 )$

@@ -24,7 +24,7 @@ maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-minPolyOrder_Tensor : 1$
+minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
@@ -59,29 +59,51 @@ for bInd : 1 thru length(bName) do (
         fname : sconcat("~/max-out/vlasov_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true),
+        if (bName[bInd] = "tensor" and polyOrder > 1) then (
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, true)
+        )
+        else (
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
+        ), 
         close(fh), 
 
         /* Phase-space Hamiltonian volume component. */
         fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false),
+        calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, false),
         close(fh),  
 
         /* Lorentz force with velocity-space Hamiltonian volume component. */
         fname : sconcat("~/max-out/vlasov_EB_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_EB_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcEBVol(fh, funcName, c, v, bName[bInd], polyOrder, true),
+        if (bName[bInd] = "tensor" and polyOrder > 1) then (
+          calcEBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, true)
+        )
+        else (
+          calcEBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
+        ),
         close(fh), 
 
         /* Force due to a scalar potential. */
         fname : sconcat("~/max-out/vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)       
+        calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder, false),
+        close(fh), 
+
+        /* Force due to radiation drag which is only a function of velocity space. */
+        fname : sconcat("~/max-out/vlasov_rad_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_rad_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        if (bName[bInd] = "tensor" and polyOrder > 1) then (
+          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, true)
+        )
+        else (
+          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, false)
+        ),
+        close(fh)                   
       )
     )
   )

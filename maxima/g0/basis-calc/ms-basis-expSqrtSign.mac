@@ -9,7 +9,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 3$
+maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -36,7 +36,7 @@ for bInd : 1 thru length(bName) do (
        Actually seems to have *worse* properties than just polyOrder + 1 
        quadrature points */
     quadPolyOrder : 3, 
-    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 1,
+    if (d>1 and bName[bInd] = "ser") then maxPolyOrderB : 2,
 
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       fname : sconcat("~/max-out/gkyl_basis_",  bName[bInd], "_", d, "x_p", polyOrder, "_sqrt_with_sign.h"),

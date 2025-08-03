@@ -35,15 +35,20 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Velocity-space Hamiltonian surface streaming */
-calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,
-   fl_e,fc_e,fr_e,Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r,stream],
+calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+  [varsC,bC,varsV,bV,varsP,bP,
+   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
+   cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,fl_e,fc_e,fr_e,
+   jacob_vi,f_l_v,f_l_v_ne,f_c_v,f_c_v_ne,f_r_v,f_r_v_ne,
+   dH_dv_nodes,dH_dv_ne,fUpwind_r_e,fUpwind_l_e,fUpwind_r_c,fUpwind_l_c,
+   Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r,stream],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *hamil, 
+  const double *jacob_vel, const double *hamil, 
   const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -68,40 +73,93 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
-  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
-  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
+
+  if (vmap) then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+    /* Fetch Jacobian and nodal basis in surface direction */
+    jacob_vi : jacobNodes_vi[dir], 
+    basisJacobNodal : basisNodal_vi[dir], 
+
+    /* Project the distribution function in each cell onto the nodal basis 
+       to divide out the Jacobian in direction dir. We will only write to a 
+       temporary variables the evaluations we need based on the sign of the cell center. */
+    f_l_v : evAtNodes(fl_e,jacobNodes,[varsV[dir]]), 
+    f_l_v_ne : 0, 
+    for i : 1 thru numJacobNodes do (
+      f_l_v_ne : f_l_v_ne + f_l_v[i]/jacob_vi[i]*basisJacobNodal[i]
+    ), 
+
+    f_c_v : evAtNodes(fc_e,jacobNodes,[varsV[dir]]), 
+    f_c_v_ne : 0, 
+    for i : 1 thru numJacobNodes do (
+      f_c_v_ne : f_c_v_ne + f_c_v[i]/jacob_vi[i]*basisJacobNodal[i]
+    ), 
+
+    f_r_v : evAtNodes(fr_e,jacobNodes,[varsV[dir]]), 
+    f_r_v_ne : 0, 
+    for i : 1 thru numJacobNodes do (
+      f_r_v_ne : f_r_v_ne + f_r_v[i]/jacob_vi[i]*basisJacobNodal[i]
+    ), 
+
+    /* Estimate the stable time step size from the streaming term at nodes */
+    dH_dv_nodes : evAtNodes(diff(hamil, vv),jacobNodes,[varsV[dir]]), 
+    dH_dv_ne : 0, 
+    for i : 1 thru numJacobNodes do (
+      dH_dv_ne : dH_dv_ne + dH_dv_nodes[i]/jacob_vi[i]*basisJacobNodal[i]
+    ) 
+  )
+  else (
+    f_l_v_ne : fl_e, 
+    f_c_v_ne : fc_e, 
+    f_r_v_ne : fr_e, 
+    dH_dv_ne : diff(hamil, vv)
+  ), 
+  fUpwind_r_e : doExpand1(fUpwind_r, bSurf), 
+  fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
+
+  printf(fh, "  double fUpwind_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double fUpwind_l[~a] = {0.0}; ~%", NSurf), 
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", NSurf),
   
   printf(fh, "  if (~a>0) { ~%~%",wv),
 
   /* Because dH/dv > 0, need left edge value */
-  /* Evaluate surface projection of Ghat_r = dH/dv f_c. */
-  Ghat_r_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=1, fc_e)),
-  writeCExprsCollect1lhsc(Ghat_r, Ghat_r_c),
+  fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, f_c_v_ne)), 
+  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Evaluate surface projection of Ghat_l = dH/dv f_l. */
-  Ghat_l_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=1, fl_e)),
-  writeCExprsCollect1lhsc(Ghat_l, Ghat_l_c),
+  fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, f_l_v_ne)), 
+  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
   printf(fh, "~%"),
   flush_output(fh),
 
   printf(fh, "  } else { ~%~%"),
   
   /* Because dH/dv < 0, need right edge value */
-  /* Evaluate surface projection of Ghat_r = dH/dv f_r. */
-  Ghat_r_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=-1, fr_e)),
-  writeCExprs1(Ghat_r, Ghat_r_c), 
+  fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, f_r_v_ne)), 
+  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
   printf(fh, "~%"),
   flush_output(fh),
 
-  /* Evaluate surface projection of Ghat_l = dH/dv f_c. */
-  Ghat_l_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, subst(cv=-1, fc_e)),
-  writeCExprs1(Ghat_l, Ghat_l_c), 
+  fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, f_c_v_ne)), 
+  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
   printf(fh, "~%"),
   flush_output(fh),
   
   printf(fh, "  } ~%"),
+
+  Ghat_l_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, fUpwind_l_e),
+  writeCExprsCollect1lhsc(Ghat_l, Ghat_l_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
+  Ghat_r_c : calcInnerProdList(surfVars, diff(hamil, vv), bSurf, fUpwind_r_e),
+  writeCExprsCollect1lhsc(Ghat_r, Ghat_r_c),
+  printf(fh, "~%"),
+  flush_output(fh),
+
   /* Compute surface contribution integral(phi^- Ghat) on the left and right. */
   Ghat_l_e : doExpand1(Ghat_l, bSurf),
   Ghat_r_e : doExpand1(Ghat_r, bSurf),
@@ -111,8 +169,8 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   printf(fh, "~%"),
 
   /* Estimate stable time step from the cell average of the derivative of the Hamiltonian. */
-  stream : calcInnerProdList(varsV, 1, bV, diff(hamil, vv)), 
-  printf(fh, "  return fabs(~a*~a*~a*~a);~%", float(0.5*(2*polyOrder+1)*2.0^(-0.5*(vdim))), dv11[dir], dx11[dir], float(stream[1])), 
+  stream : calcInnerProdList(varsV, 1, bV, dH_dv_ne), 
+  printf(fh, "  return fabs(~a*~a*~a*(~a));~%", float(0.5*(2*polyOrder+1)*2.0^(-0.5*(vdim))), dv11[dir], dx11[dir], float(expand(stream[1]))), 
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
@@ -129,7 +187,7 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *hamil, 
+  const double *jacob_vel, const double *hamil, 
   const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -153,8 +211,8 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   fl_e : doExpand1(fl, bP),
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
-  printf(fh, "  double Ghat_r[~a]; ~%", NSurf),
-  printf(fh, "  double Ghat_l[~a]; ~%", NSurf),
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", NSurf),
 
   if (polyOrder = 1) then (
     surfNodes : gaussOrd(2,length(surfVars)), 
@@ -166,8 +224,8 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 3, surfVars, surfNodes)
   ), 
   numNodes : length(surfNodes), 
-  printf(fh, "  double Ghat_l_nodal[~a]; ~%", numNodes),
-  printf(fh, "  double Ghat_r_nodal[~a]; ~%", numNodes),
+  printf(fh, "  double Ghat_l_nodal[~a] = {0.0}; ~%", numNodes),
+  printf(fh, "  double Ghat_r_nodal[~a] = {0.0}; ~%", numNodes),
   dH_dv_l_n : float(evAtNodes(subst(cv=-1,diff(hamil,vv)),surfNodes,surfVars)), 
   dH_dv_r_n : float(evAtNodes(subst(cv=1,diff(hamil,vv)),surfNodes,surfVars)), 
   f_lr_n : float(evAtNodes(subst(cv=1,fl_e),surfNodes,surfVars)), 
