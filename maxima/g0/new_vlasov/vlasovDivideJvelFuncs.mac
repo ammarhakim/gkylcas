@@ -1,0 +1,49 @@
+/* Function which divides out the velocity space Jacobian at velocity quadrature points
+   and converts the resulting nodal expansion back to a modal representations. 
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load("nodal_operations/nodal_functions")$
+load("new_vlasov/vlasov-basis");
+load(stringproc)$
+fpprec : 24$
+
+divideJvel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,NP,
+   nodes_vel,num_nodes_vel,basisNodal_vel,
+   Jf_e,Jf_n,jacob_vel_n,Jf_ne,f_c],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NP : length(bP), 
+  nodes_conf : gaussOrd(polyOrder+1, cdim), 
+  num_nodes_conf : length(nodes_conf), 
+  basisNodal_conf  : getVarsNodalBasisWithNodes("Tensor", cdim, polyOrder, varsC, nodes_conf),
+
+  nodes_vel : gaussOrd(polyOrder+1, vdim), 
+  num_nodes_vel : length(nodes_vel), 
+  basisNodal_vel  : getVarsNodalBasisWithNodes("Tensor", vdim, polyOrder, varsV, nodes_vel),
+
+  nodes_phase : gaussOrd(polyOrder+1, cdim+vdim), 
+  num_nodes_phase : length(nodes_phase), 
+  basisNodal_phase  : getVarsNodalBasisWithNodes("Tensor", cdim+vdim, polyOrder, varsP, nodes_phase),
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *jacob_vel_gauss, const double *Jf, double* GKYL_RESTRICT f_no_J) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "  double f_no_J_nodal[~a] = {0.0};~%", NP),
+  printf(fh, "~%"), 
+  Jf_e : doExpand1(Jf, bP), 
+  Jf_n : evAtNodes(Jf_e, nodes_phase, varsP), 
+  for i : 1 thru num_nodes_conf do (
+    for j : 1 thru num_nodes_vel do (
+      printf(fh, "  f_no_J_nodal[~a] = 1.0/jacob_vel_gauss[~a]*(~a);~%", j-1 + num_nodes_vel*(i-1), j-1, float(expand(Jf_n[j + num_nodes_vel*(i-1)])))
+    )
+  ),
+  printf(fh, "~%"),
+  Jf_ne : doExpand1(f_no_J_nodal, basisNodal_phase),
+  f_c : calcInnerProdList(varsP, 1, bP, Jf_ne), 
+  writeCExprs1(f_no_J, f_c), 
+
+  printf(fh, "} ~%")
+)$  

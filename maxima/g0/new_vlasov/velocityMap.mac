@@ -36,13 +36,14 @@ calcVmap(fh, funcNm, vdim) := block(
 
   /* Function declaration with input/output variables. */
   printf(fh, "static void ~a(const double *dv, const double *v_cubic_dir[GKYL_MAX_VDIM], 
-    double* GKYL_RESTRICT vmap, double* GKYL_RESTRICT jacob_vel, 
+    double* GKYL_RESTRICT vmap, double* GKYL_RESTRICT jacob_vel, double* GKYL_RESTRICT jacob_vel_surf,  
     double* GKYL_RESTRICT vmap_pgkyl, double* GKYL_RESTRICT jacob_vel_pgkyl, 
     double* GKYL_RESTRICT vmap_avg_pgkyl, double* GKYL_RESTRICT jacob_vel_avg_pgkyl, 
     double* GKYL_RESTRICT jacob_vel_gauss) ~%{ ~%", funcNm),
   printf(fh, "  // v_cubic_dir: Cubic C^1 representation of the velocity mapping.~%"),
   printf(fh, "  // vmap: Velocity-space nonuniform mapping in each dimension.~%"),
   printf(fh, "  // jacob_vel: Velocity-space Jacobian in each dimension at 1V Gauss-Legendre quadrature points.~%"),
+  printf(fh, "  // jacob_vel_surf: Velocity-space Jacobian evaluated at number of quadrature points needed for surface updates.~%"),
   printf(fh, "  // vmap_pgkyl: Velocity-space nonuniform mapping for I/O (defined in full 1V, 2V, or 3V).~%"),
   printf(fh, "  // jacob_vel_pgkyl: Velocity space Jacobian for I/O (defined in full 1V, 2V, or 3V).~%"),
   printf(fh, "  // vmap_avg_pgkyl: Cell average of velocity-space nonuniform mapping for I/O (defined in full 1V, 2V, or 3V).~%"),
@@ -57,21 +58,31 @@ calcVmap(fh, funcNm, vdim) := block(
     printf(fh, "  const double *v_cubic_dir~a = &v_cubic_dir[~a][0]; ~%", dir-1, dir-1),
     printf(fh, "  double *p~a = &vmap[~a]; ~%", dir-1, NV_p3*(dir-1)),
     printf(fh, "  double *vmap_pgkyl~a = &vmap_pgkyl[~a]; ~%", dir-1, NV_vdim_p3*(dir-1)),
-    printf(fh, "  double *jacob_vel~a = &jacob_vel[~a]; ~%", dir-1, NV_p2*(dir-1))
+    printf(fh, "  double *jacob_vel~a = &jacob_vel[~a]; ~%", dir-1, NV_p2*(dir-1)), 
+    printf(fh, "  double *jacob_vel~a_surf = &jacob_vel_surf[~a]; ~%", dir-1, 4*(dir-1))
   ),
 
   px_e : doExpand1(p0, bV_p3), 
   py_e : doExpand1(p1, bV_p3), 
   pz_e : doExpand1(p2, bV_p3), 
 
+  /* Evaluate the derivative at (polyOrder + 1) nodes for use in update to perform
+     operations like Jf/J at Gauss-Legendre quadrature points (equivalence between the
+     polyOrder + 1 Gauss-Legendre nodal basis and our modal basis). */
   nodes_gauss_1v : gaussOrd(3, 1),
   num_nodes_gauss_1v : length(nodes_gauss_1v), 
-  basis_nodal_gauss_1v : getVarsNodalBasisWithNodes("Tensor", 1, 2, varsV_p3, nodes_gauss_1v), 
-  /* Evaluate the derivative at nodes */
   jacob_velx_nodes : expand(float(evAtNodes(diff(px_e,x),nodes_gauss_1v,varsV_p3))),  
   jacob_vely_nodes : expand(float(evAtNodes(diff(py_e,x),nodes_gauss_1v,varsV_p3))),  
   jacob_velz_nodes : expand(float(evAtNodes(diff(pz_e,x),nodes_gauss_1v,varsV_p3))),  
   jacob_vel_nodes : [jacob_velx_nodes, jacob_vely_nodes, jacob_velz_nodes], 
+
+  /* Evaluate derivative at larger number of nodes for use in surface terms (polyOrder + 2). */
+  nodes_gauss_surf : gaussOrd(4, 1),
+  num_nodes_gauss_surf : length(nodes_gauss_surf), 
+  jacob_velx_surf_nodes : expand(float(evAtNodes(diff(px_e,x),nodes_gauss_surf,varsV_p3))),  
+  jacob_vely_surf_nodes : expand(float(evAtNodes(diff(py_e,x),nodes_gauss_surf,varsV_p3))),  
+  jacob_velz_surf_nodes : expand(float(evAtNodes(diff(pz_e,x),nodes_gauss_surf,varsV_p3))),  
+  jacob_vel_surf_nodes : [jacob_velx_surf_nodes, jacob_vely_surf_nodes, jacob_velz_surf_nodes],   
 
   for i : 1 thru vdim do (
     printf(fh, "  p~a[0] = v_cubic_dir~a[0];~%", i-1, i-1), 
@@ -79,14 +90,21 @@ calcVmap(fh, funcNm, vdim) := block(
     printf(fh, "  p~a[2] = v_cubic_dir~a[2];~%", i-1, i-1),
     printf(fh, "  p~a[3] = v_cubic_dir~a[3];~%", i-1, i-1), 
     printf(fh, "~%"),
+
     jacob_vel_nodes_dir : jacob_vel_nodes[i], 
     for j : 1 thru num_nodes_gauss_1v do (
       printf(fh, "  jacob_vel~a[~a] = dv~a*(~a);~%", i-1, j-1, i-1, jacob_vel_nodes_dir[j])
-    ),    
-    printf(fh, "~%") 
+    ), 
+    printf(fh, "~%"),
+
+    jacob_vel_surf_nodes_dir : jacob_vel_surf_nodes[i], 
+    for j : 1 thru num_nodes_gauss_surf do (
+      printf(fh, "  jacob_vel~a_surf[~a] = dv~a*(~a);~%", i-1, j-1, i-1, jacob_vel_surf_nodes_dir[j])
+    ),     
+    printf(fh, "~%")
   ), 
 
-  /* Expand vmap and inverse Jacobian in high dimensional basis for I/O
+  /* Expand vmap and Jacobian in high dimensional basis for I/O
      along with full Jacobian at Gauss-Legendre quadrature nodes */
   nodes_gauss : gaussOrd(3, vdim),
   num_nodes_gauss : length(nodes_gauss), 

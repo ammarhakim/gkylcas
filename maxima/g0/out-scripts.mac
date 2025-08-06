@@ -116,6 +116,17 @@ writeCIncrExprsCollect1(lhs, rhs, clst) := block([expr],
   )
 )$
 
+writeCIncrExprsCollectFactordx1(lhs, rhs, clst, dx) := block([expr],
+  expr : float(expand(rhs)),
+  for i : 1 thru length(expr) do (
+    if expr[i] # 0.0 then (
+      param : cons(expr[i], clst),
+      e : apply(collectterms, param),
+      printf(fh, "  ~a += ~a*(~a); ~%", lhs[i-1], dx, e)
+    )
+  )
+)$
+
 writeCIncrExprsOffCollect1(lhs, rhs, offset, clst) := block([expr],
   expr : float(expand(rhs)),
   for i : 1 thru length(expr) do (

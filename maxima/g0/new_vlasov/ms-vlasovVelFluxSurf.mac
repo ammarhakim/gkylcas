@@ -15,7 +15,7 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
+maxCdim_Ser : 1$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -23,7 +23,7 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 1$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -70,11 +70,26 @@ for bInd : 1 thru length(bName) do (
           close(fh)            
         ),
         for dir : 1 thru v do (
-          fname : sconcat("~/max-out/EB_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fname : sconcat("~/max-out/E_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
-          funcName : sconcat("EB_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcEBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          funcName : sconcat("E_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcEVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
           close(fh), 
+
+          /* Magnetic force with velocity-space Hamiltonian volume component. 
+             Only valid for vdim > 1. */
+          if (v > 1) then (
+            fname : sconcat("~/max-out/B_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("B_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            if (bName[bInd] = "tensor" and polyOrder > 1) then (
+              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, true)
+            )
+            else (
+              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false)
+            ), 
+            close(fh)
+          ),
 
           fname : sconcat("~/max-out/rad_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
@@ -86,16 +101,16 @@ for bInd : 1 thru length(bName) do (
             fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFluxVmap(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, true), 
             close(fh)  
           )
           else (
             fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
             close(fh)  
-          )                   
+          )            
         )
       )
     )
