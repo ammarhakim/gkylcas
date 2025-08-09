@@ -33,6 +33,8 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
 
+  printf(fh, "~avoid vlasov_divide_Jv_~ax~av_~a_p~a(const double *jacob_vel_gauss, const double *Jf, double* GKYL_RESTRICT f_no_J); ~%", deco, ci, vi, bStr, pi),
+
   printf(fh, "~avoid vlasov_hamil_vel_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
     const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~avoid vlasov_hamil_gen_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 

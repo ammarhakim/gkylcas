@@ -208,6 +208,15 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   surfVars : delete(vv,varsP), 
 
   if (vdim = 2) then (
+    printf(fh, "  const double *Bz = &qmem[~a]; ~%", NC*5),
+    if (vmap) then (
+      if (dir = 1) then (
+        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[4]; ~%")
+      )
+      else if (dir = 2) then (
+        printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf[0]; ~%")
+      )
+    ),
     dH_dvx_l_n : float(evAtNodes(subst(vv=-1,diff(hamil, varsV[1])),nodes_vel,surfVVars)), 
     dH_dvy_l_n : float(evAtNodes(subst(vv=-1,diff(hamil, varsV[2])),nodes_vel,surfVVars)),
     printf(fh, "  double Bz_quad = 0.0;~%"), 

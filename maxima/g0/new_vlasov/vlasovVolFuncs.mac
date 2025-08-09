@@ -104,6 +104,8 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
    pb,pbBasis,clst_vol],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NC : length(bC), 
+  NP : length(bP), 
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
@@ -252,7 +254,7 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
     clst_vol : [Bz[0], Bz[1], Bz[2], Bz[3], Bz[4], Bz[5], Bz[6], Bz[7], Bz[8]],
     incr_vx : calcInnerProdList(varsP, 1, diff(bP, varsV[1]), ax*f_e), 
     incr_vy : calcInnerProdList(varsP, 1, diff(bP, varsV[2]), ay*f_e), 
-    writeCIncrExprsCollectFactordx1(out, incr_vx + incr_vy, clst_vol, dv1[1]*dv1[2]), 
+    writeCIncrExprsCollectFactordxSplit1(out, incr_vx + incr_vy, clst_vol, dv1[1]*dv1[2]), 
     printf(fh, "~%")
   )
   else if (vdim = 3) then (
@@ -276,10 +278,10 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         f_Jvx_c : calcInnerProdList(varsP, 1, bP, fl_vx_ne), 
         clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2]],
         writeCExprsCollect1(f_Jvi, f_Jvx_c, clst_J),   
-        clst_Bx_vol : [Bx[0], Bx[1], Bx[2]],
+        clst_Bx_vol : [Bx[0], Bx[1], Bx[2], Bx[3], Bx[4], Bx[5], Bx[6], Bx[7], Bx[8]],
         incr_Bx_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[2]), ay_1*f_vol_e), 
         incr_Bx_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[3]), az_2*f_vol_e),
-        writeCIncrExprsCollectFactordx1(out, incr_Bx_1 + incr_Bx_2, clst_Bx_vol, dv1[2]*dv1[3]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_Bx_1 + incr_Bx_2, clst_Bx_vol, dv1[2]*dv1[3]), 
         printf(fh, "~%")
       )
       else if (Bdir = 2) then (
@@ -298,10 +300,10 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         f_Jvy_c : calcInnerProdList(varsP, 1, bP, fl_vy_ne), 
         clst_J : [jacob_vy[0], jacob_vy[1], jacob_vy[2]],
         writeCExprsCollect1(f_Jvi, f_Jvy_c, clst_J),   
-        clst_By_vol : [By[0], By[1], By[2]],
+        clst_By_vol : [By[0], By[1], By[2], By[3], By[4], By[5], By[6], By[7], By[8]],
         incr_By_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[3]), az_1*f_vol_e), 
         incr_By_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[1]), ax_2*f_vol_e),
-        writeCIncrExprsCollectFactordx1(out, incr_By_1 + incr_By_2, clst_By_vol, dv1[1]*dv1[3]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_By_1 + incr_By_2, clst_By_vol, dv1[1]*dv1[3]), 
         printf(fh, "~%")
       )
       else (
@@ -320,10 +322,10 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         f_Jvz_c : calcInnerProdList(varsP, 1, bP, fl_vz_ne), 
         clst_J : [jacob_vz[0], jacob_vz[1], jacob_vz[2]],
         writeCExprsCollect1(f_Jvi, f_Jvz_c, clst_J),   
-        clst_Bz_vol : [Bz[0], Bz[1], Bz[2]],
+        clst_Bz_vol : [Bz[0], Bz[1], Bz[2], Bz[3], Bz[4], Bz[5], Bz[6], Bz[7], Bz[8]],
         incr_Bz_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[1]), ax_1*f_vol_e), 
         incr_Bz_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[2]), ay_2*f_vol_e),
-        writeCIncrExprsCollectFactordx1(out, incr_Bz_1 + incr_Bz_2, clst_Bz_vol, dv1[1]*dv1[2]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_Bz_1 + incr_Bz_2, clst_Bz_vol, dv1[1]*dv1[2]), 
         printf(fh, "~%")
       )
     )
@@ -338,7 +340,7 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         clst_Bx_vol : [Bx[0], Bx[1], Bx[2], Bx[3], Bx[4], Bx[5], Bx[6], Bx[7]],
         incr_Bx_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[2]), ay_1*f_e), 
         incr_Bx_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[3]), az_2*f_e),
-        writeCIncrExprsCollectFactordx1(out, incr_Bx_1 + incr_Bx_2, clst_Bx_vol, dv1[2]*dv1[3]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_Bx_1 + incr_Bx_2, clst_Bx_vol, dv1[2]*dv1[3]), 
         printf(fh, "~%")
       )
       else if (Bdir = 2) then (
@@ -348,10 +350,10 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         printf(fh, "  const double *By = &qmem[~a]; ~%", NC*4),
         az_1 : diff(hamil, varsV[1])*By_e, 
         ax_2 : -diff(hamil, varsV[3])*By_e,
-        clst_By_vol : [By[0], By[1], By[2], By[3], By[4], By[5], By[6], By[7], dv10, dv12],
+        clst_By_vol : [By[0], By[1], By[2], By[3], By[4], By[5], By[6], By[7]],
         incr_By_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[3]), az_1*f_e), 
         incr_By_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[1]), ax_2*f_e),
-        writeCIncrExprsCollectFactordx1(out, incr_By_1 + incr_By_2, clst_By_vol, dv1[1]*dv1[3]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_By_1 + incr_By_2, clst_By_vol, dv1[1]*dv1[3]), 
         printf(fh, "~%")
       )
       else (
@@ -361,10 +363,10 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
         printf(fh, "  const double *Bz = &qmem[~a]; ~%", NC*5),
         ax_1 : diff(hamil, varsV[2])*Bz_e, 
         ay_2 : -diff(hamil, varsV[1])*Bz_e, 
-        clst_Bz_vol : [Bz[0], Bz[1], Bz[2], Bz[3], Bz[4], Bz[5], Bz[6], Bz[7], dv10, dv11],
+        clst_Bz_vol : [Bz[0], Bz[1], Bz[2], Bz[3], Bz[4], Bz[5], Bz[6], Bz[7]],
         incr_Bz_1 : calcInnerProdList(varsP, 1, diff(bP, varsV[1]), ax_1*f_e), 
         incr_Bz_2 : calcInnerProdList(varsP, 1, diff(bP, varsV[2]), ay_2*f_e),
-        writeCIncrExprsCollectFactordx1(out, incr_Bz_1 + incr_Bz_2, clst_Bz_vol, dv1[1]*dv1[2]), 
+        writeCIncrExprsCollectFactordxSplit1(out, incr_Bz_1 + incr_Bz_2, clst_Bz_vol, dv1[1]*dv1[2]), 
         printf(fh, "~%") 
       ) 
     )
