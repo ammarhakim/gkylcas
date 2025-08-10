@@ -75,6 +75,44 @@ loadVlasovSurfBasis(basisType, polyOrder, surfVars) := block(
   return([bSurf,NSurf,surfNodes,basisNodal,numNodes])
 )$
 
+loadVlasovSurfBasisNew(basisType, polyOrder, surfVars, surfVVars, varsC) := block(
+  bSurf : basisFromVars(basisType,surfVars,polyOrder),
+
+    /* 4 quadrature points required for p=2, so nodal basis is a cubic. */
+  if (polyOrder = 1) then (
+    nodes_conf : gaussOrd(2, cdim), 
+    basisNodalConf  : getVarsNodalBasisWithNodes("Tensor", length(varsC), 1, varsC, nodes_conf)
+  )
+  else (
+    nodes_conf : gaussOrd(4, cdim), 
+    basisNodalConf  : getVarsNodalBasisWithNodes("Tensor", length(varsC), 3, varsC, nodes_conf)
+  ),
+
+  if (vdim > 1) then (
+    if (polyOrder = 1) then (
+      nodes_vel : gaussOrd(2, vdim-1), 
+      basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(surfVVars), 1, surfVVars, nodes_vel) 
+    )
+    else (
+      nodes_vel : gaussOrd(4, vdim-1), 
+      basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(surfVVars), 3, surfVVars, nodes_vel) 
+    )
+  )
+  else (
+    nodes_vel : [1], 
+    basisNodalVel : [1] 
+  ),
+
+
+  if (polyOrder = 1) then (
+    surfNodes : gaussOrd(2,length(surfVars))
+  )
+  else if (polyOrder = 2) then (
+    surfNodes : gaussOrd(4,length(surfVars))
+  ), 
+  return([bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes])
+)$
+
 loadVelJacobianBasis() := block(
   /* Load basis sets for Jacobian in each direction, 
      which are p=2 in one velocity dimension (derivative of cubic C^1 mapping). */

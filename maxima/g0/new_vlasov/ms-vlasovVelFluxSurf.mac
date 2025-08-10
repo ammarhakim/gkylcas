@@ -48,7 +48,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating velocity flux ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
@@ -104,14 +104,14 @@ for bInd : 1 thru length(bName) do (
             fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, true), 
+            calcNodalLaxToModalVelFluxNew(dir, fh, funcName, c, v, bName[bInd], polyOrder, true), 
             close(fh)  
           )
           else (
             fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
+            calcNodalLaxToModalVelFluxNew(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
             close(fh)  
           )            
         )

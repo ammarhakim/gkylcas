@@ -28,8 +28,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 3$
-maxVdim_Tensor : 3$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -50,7 +50,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume Vlasov ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
