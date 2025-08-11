@@ -58,24 +58,7 @@ loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
   return([varsC,bC,varsV,bV,varsP,bP])
 )$
 
-loadVlasovSurfBasis(basisType, polyOrder, surfVars) := block(
-  bSurf : basisFromVars(basisType,surfVars,polyOrder),
-  NSurf : length(bSurf), 
-
-  if (polyOrder = 1) then (
-    surfNodes : gaussOrd(2,length(surfVars)), 
-    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 1, surfVars, surfNodes)
-  )
-  else if (polyOrder = 2) then (
-    /* 4 quadrature points required for p=2, so nodal basis is a cubic. */
-    surfNodes : gaussOrd(4,length(surfVars)), 
-    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 3, surfVars, surfNodes)
-  ), 
-  numNodes : length(surfNodes),   
-  return([bSurf,NSurf,surfNodes,basisNodal,numNodes])
-)$
-
-loadVlasovSurfBasisNew(basisType, polyOrder, surfVars, surfVVars, varsC) := block(
+loadVlasovSurfBasis(basisType, polyOrder, surfVars, surfVVars, varsC) := block(
   bSurf : basisFromVars(basisType,surfVars,polyOrder),
 
     /* 4 quadrature points required for p=2, so nodal basis is a cubic. */

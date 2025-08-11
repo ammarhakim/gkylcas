@@ -1,11 +1,24 @@
 load("new_vlasov/vlasovDivideJvelFuncs")$
 load(stringproc)$
-/* This script calls the functions divide out the velocity-space
+/* This script calls the function which divides out the velocity-space
    Jacobian at nodes from Jf and converts the resulting nodal 
    expansion back to a modal expansion. 
+
+   Also creates a function for rescaling an input f *without* the Jacobian
+   into Jf from multiplying f at nodes by the velocity-space Jacobian at
+   nodes and converting back to the modal expansion. The latter function
+   is used at restarts since we write out f, not Jf. 
 */
 
 /* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
@@ -17,13 +30,13 @@ maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
-bName        : ["tensor"]$
-minPolyOrder : [minPolyOrder_Tensor]$
-maxPolyOrder : [maxPolyOrder_Tensor]$
-minCdim      : [minCdim_Tensor]$
-minVdim      : [minVdim_Tensor]$
-maxCdim      : [maxCdim_Tensor]$
-maxVdim      : [maxVdim_Tensor]$
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -34,16 +47,32 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating Jf/J  ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
-        /* Phase-space Hamiltonian volume component. */
         fname : sconcat("~/max-out/vlasov_divide_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_divide_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        divideJvel(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)           
+        if (bName[bInd] = "tensor" and polyOrder > 1) then (
+          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, true)
+        )
+        else (
+          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, false)
+        ),
+        close(fh),
+
+        disp(printf(false,sconcat("Creating J*f  ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
+        fname : sconcat("~/max-out/vlasov_rescale_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_rescale_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        if (bName[bInd] = "tensor" and polyOrder > 1) then (
+          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, true)
+        )
+        else (
+          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, false)
+        ),
+        close(fh)                      
       )
     )
   )
