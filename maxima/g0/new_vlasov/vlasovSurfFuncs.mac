@@ -114,6 +114,7 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
     f_r_v_ne : fr_e, 
     dH_dv_ne : diff(hamil, vv)
   ), 
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
   fUpwind_r_e : doExpand1(fUpwind_r, bSurf), 
   fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
 
@@ -126,12 +127,12 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
 
   /* Because dH/dv > 0, need left edge value */
   fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, f_c_v_ne)), 
-  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
+  writeCExprsCollect1(fUpwind_r, fUpwind_r_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
 
   fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=1, f_l_v_ne)), 
-  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
+  writeCExprsCollect1(fUpwind_l, fUpwind_l_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
 
@@ -139,12 +140,12 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   
   /* Because dH/dv < 0, need right edge value */
   fUpwind_r_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, f_r_v_ne)), 
-  writeCExprsCollect1lhsc(fUpwind_r, fUpwind_r_c),
+  writeCExprsCollect1(fUpwind_r, fUpwind_r_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
 
   fUpwind_l_c : calcInnerProdList(surfVars, 1, bSurf, subst(cv=-1, f_c_v_ne)), 
-  writeCExprsCollect1lhsc(fUpwind_l, fUpwind_l_c),
+  writeCExprsCollect1(fUpwind_l, fUpwind_l_c, clst),
   printf(fh, "~%"),
   flush_output(fh),
   
@@ -178,8 +179,9 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
 
 /* Phase-space Hamiltonian surface streaming */
 calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,
-   fl_e,fc_e,fr_e,surfNodes,basisNodal,numNodes,
+  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
+   bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes, 
+   NSurf,num_nodes_conf,num_nodes_vel,numNodes,fl_e,fc_e,fr_e,
    dH_dv_l_n,dH_dv_r_n,f_lr_n,f_cl_n,f_cr_n,f_rl_n,
    Ghat_r_nodal_e,Ghat_l_nodal_e,Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r],
 
@@ -200,12 +202,14 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
   /* cv = variable in direction of surface update. */
   cv : varsP[dir],
-  vv : varsV[dir],
-
-  /* Surface variables to integrate over. */
-  surfVars : delete(cv,varsP),
-  bSurf : basisFromVars(basisFun,surfVars,polyOrder),
+  vv : varsV[dir], 
+  surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
+  surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
   NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  num_nodes_vel : length(nodes_vel), 
+  numNodes : length(surfNodes), 
 
   /* Create expansions of f_left, f_center, and f_right on volume basis. */
   fl_e : doExpand1(fl, bP),
@@ -214,16 +218,6 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", NSurf),
   printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", NSurf),
 
-  if (polyOrder = 1) then (
-    surfNodes : gaussOrd(2,length(surfVars)), 
-    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 1, surfVars, surfNodes)
-  )
-  else if (polyOrder = 2) then (
-    /* 4 quadrature points required for p=2, so nodal basis is a cubic. */
-    surfNodes : gaussOrd(4,length(surfVars)), 
-    basisNodal  : getVarsNodalBasisWithNodes("Tensor", length(surfVars), 3, surfVars, surfNodes)
-  ), 
-  numNodes : length(surfNodes), 
   printf(fh, "  double Ghat_l_nodal[~a] = {0.0}; ~%", numNodes),
   printf(fh, "  double Ghat_r_nodal[~a] = {0.0}; ~%", numNodes),
   dH_dv_l_n : float(evAtNodes(subst(cv=-1,diff(hamil,vv)),surfNodes,surfVars)), 
@@ -251,8 +245,20 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
     printf(fh, "  Ghat_r_nodal[~a] = 0.5*(alpha_r_quad*(f_rl_quad + f_cr_quad) - fabs(alpha_r_quad)*(f_rl_quad - f_cr_quad)); ~%", i-1), 
     printf(fh, "~%")    
   ), 
-  Ghat_l_nodal_e : doExpand1(Ghat_l_nodal,basisNodal),
-  Ghat_r_nodal_e : doExpand1(Ghat_r_nodal,basisNodal),
+  /* Construct the nodal expansion from a tensor product of the configuration-space nodal basis 
+     and velocity-space nodal basis. We do this separation because Maxima struggles to make
+     high dimensional nodal bases and we know the basis we need is a tensor product of two
+     lower dimensional basis sets. */
+  Ghat_l_nodal_list : makelist(Ghat_l_nodal[i], i, 0, numNodes-1), 
+  Ghat_r_nodal_list : makelist(Ghat_r_nodal[i], i, 0, numNodes-1), 
+  Ghat_l_nodal_e : 0, 
+  Ghat_r_nodal_e : 0, 
+  for i : 1 thru num_nodes_conf do (
+    for j : 1 thru num_nodes_vel do (
+      Ghat_l_nodal_e : Ghat_l_nodal_e + Ghat_l_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i],
+      Ghat_r_nodal_e : Ghat_r_nodal_e + Ghat_r_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i]
+    )
+  ),
   /* Project nodal basis back onto modal basis */
   Ghat_l_c : calcInnerProdList(surfVars, 1, bSurf, Ghat_l_nodal_e),
   Ghat_r_c : calcInnerProdList(surfVars, 1, bSurf, Ghat_r_nodal_e),

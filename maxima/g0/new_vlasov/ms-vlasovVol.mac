@@ -66,15 +66,6 @@ for bInd : 1 thru length(bName) do (
         ), 
         close(fh), 
 
-        /* Phase-space Hamiltonian volume component. Only generate with uniform grids and Serendipity basis for now. */
-        if (bName[bInd] = "ser") then (
-          fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          fh : openw(fname),
-          funcName : sconcat("vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, false),
-          close(fh)
-        ),
-
         /* Force due to a scalar potential. */
         fname : sconcat("~/max-out/vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
@@ -159,6 +150,18 @@ for bInd : 1 thru length(bName) do (
           calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, false)
         ),
         close(fh)                   
+      ),
+      /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        /* Phase-space Hamiltonian volume component. Only generate with Serendipity basis for now. */
+        if (bName[bInd] = "ser") then (
+          fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, false),
+          close(fh)
+        )
       )
     )
   )

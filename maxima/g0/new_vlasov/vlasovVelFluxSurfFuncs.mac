@@ -57,7 +57,7 @@ calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -92,7 +92,7 @@ calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -134,7 +134,7 @@ calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -176,7 +176,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -339,7 +339,7 @@ calcRadVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -377,7 +377,7 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vma
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovSurfBasis(basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 

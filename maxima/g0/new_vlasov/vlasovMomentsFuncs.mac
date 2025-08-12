@@ -587,11 +587,9 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
   printf(fh, "} ~%")
 )$  
 
-calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
+calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, calcHamilGen) := block([],
   printf(fh, "#include <gkyl_mom_vlasov_kernels.h> ~%"),  
   calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder), 
-  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
   /* New energy flux kernels which are formally H*dH/dv are very dense, 
      so not generating them for right now. JJ 07/26/25. */
   /* calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
@@ -600,22 +598,24 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block([],
   calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder),
   if (basisFun = "tensor" and polyOrder > 1) then (
     calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
     calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
     calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-    if (cdim + vdim < 4) then (
-      calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-      calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-      calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
-    ), 
-    calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true),
-    calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    if (vdim = 1) then (
+      calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true),
+      calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    )
   ) 
   else (
     calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
+    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
     calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
     calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, true), 
-    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    if (calcHamilGen) then (
+      calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+      calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+      calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
+      calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    )
   )
 )$

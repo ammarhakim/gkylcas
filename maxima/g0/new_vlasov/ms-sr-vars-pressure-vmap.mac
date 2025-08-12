@@ -2,7 +2,11 @@ load("new_vlasov/sr-vars-pressure-vmap")$
 load(stringproc)$
 /* This script calls the functions which calculate the rest frame pressure = n*T
    in the special relativistic Vlasov-Maxwell system of equation using a nonuniform
-   velocity space mesh. */
+   velocity space mesh. 
+   
+   NOTE: To generate the 2x3v kernels, I had to set 
+   export MAXIMA_LISP_OPTIONS="--dynamic-space-size 30000" 
+   on my Macbook. JJ 08/12/25. */
 
 /* ...... USER INPUTS........ */
 
@@ -32,7 +36,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         fname : sconcat("~/max-out/sr_vars_pressure_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),

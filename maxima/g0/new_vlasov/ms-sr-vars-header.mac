@@ -59,7 +59,7 @@ for bInd : 1 thru length(bName) do (
     minVdim : c, 
     if (c < 3) then minVdim : 1, 
     for v : minVdim thru maxVdim[bInd] do (
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         printPrototype(decorator, c, v, bName[bInd], polyOrder)

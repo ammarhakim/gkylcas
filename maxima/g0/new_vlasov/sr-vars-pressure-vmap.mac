@@ -169,11 +169,12 @@ calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   p_fac_e     : doExpandLst(p_facNoZero, bP),
 
   fl : doExpand1(f, bP),
-  
-  Pressure : calcInnerProdList(varsP, p_fac_e, bC, fl),
-  
-  clst : [volFact],
-  writeCIncrExprsCollect1(sr_pressure, volFact/vdim*Pressure, clst),
-  
+  /* Pressure is dense and we separate into individual inner products to try to minimize the internal memory Maxima uses. */
+  for i : 1 thru NC do (
+   printf(fh, "  sr_pressure[~a] += (volFact/~a)*(~a); ~%", i-1, vdim, float(expand(innerProd(varsP, bC[i], p_fac_e, fl))))
+  ),
+  printf(fh, "~%"),
+  flush_output(fh),
+
   printf(fh, "} ~%")
 )$

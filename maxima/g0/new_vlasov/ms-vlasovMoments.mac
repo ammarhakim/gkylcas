@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       /* Vlasov moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
@@ -48,7 +48,13 @@ for bInd : 1 thru length(bName) do (
         fname : sconcat("~/max-out/mom_vlasov_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("mom_vlasov"),
-        calcMoments(fh, funcName, c, v, bName[bInd], polyOrder),
+        /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
+        if (c+v>4 and polyOrder>1) then (
+          calcMoments(fh, funcName, c, v, bName[bInd], polyOrder, false)
+        )
+        else (
+          calcMoments(fh, funcName, c, v, bName[bInd], polyOrder, true)
+        ),
         close(fh)
       )
     )
