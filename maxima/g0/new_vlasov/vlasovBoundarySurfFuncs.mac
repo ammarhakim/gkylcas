@@ -42,7 +42,7 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
    fedge_e,fskin_e,incr],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
@@ -104,7 +104,7 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
       f_l_v_ne : fL_e, 
       f_r_v_ne : fR_e
     ),
-    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
     printf(fh, "  if (~a>0) { ~%~%",wv),
 
     /* Evaluate surface projection of fUpwind = f_left(cv=1). */

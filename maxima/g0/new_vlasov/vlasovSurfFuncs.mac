@@ -44,7 +44,7 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
    Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r,stream],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
@@ -114,7 +114,7 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
     f_r_v_ne : fr_e, 
     dH_dv_ne : diff(hamil, vv)
   ), 
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
   fUpwind_r_e : doExpand1(fUpwind_r, bSurf), 
   fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
 

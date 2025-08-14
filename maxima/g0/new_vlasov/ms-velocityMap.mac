@@ -4,9 +4,20 @@ load(stringproc)$
    velocity mapping and inverse Jacobian from a cubic C^1 mapping. */
 
 for v : 1 thru 3 do (
-  fname : sconcat("~/max-out/vmap_", v, "v.c"),
-  fh : openw(fname),
-  funcName : sconcat("vmap_",  v, "v"),
-  calcVmap(fh, funcName, v),
-  close(fh)
+  if (v = 1) then (
+    fname : sconcat("~/max-out/vmap_", v, "v.c"),
+    fh : openw(fname),
+    for polyOrder : 2 thru 3 do (
+      funcName : sconcat("vmap_",  v, "v_p", polyOrder),
+      calcVmap(fh, funcName, v, polyOrder)
+    ),
+    close(fh)
+  )
+  else (
+    fname : sconcat("~/max-out/vmap_", v, "v.c"),
+    fh : openw(fname),
+    funcName : sconcat("vmap_",  v, "v_p", 2),
+    calcVmap(fh, funcName, v, 2),
+    close(fh)    
+  )
 );

@@ -42,7 +42,7 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := bl
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
@@ -72,7 +72,7 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := bl
         fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
       ), 
       f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
-      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
       writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
       f_vol_e : doExpand1(f_no_J, bP), 
       printf(fh, "~%") 
@@ -106,7 +106,7 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NC : length(bC), 
   NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
@@ -131,7 +131,7 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
         fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
       ), 
       f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
-      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
       writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
       f_vol_e : doExpand1(f_no_J, bP) 
     ) 
@@ -160,7 +160,7 @@ calcEVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NC : length(bC), 
   NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
@@ -186,7 +186,7 @@ calcEVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
         fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
       ), 
       f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
-      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
       writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
       f_vol_e : doExpand1(f_no_J, bP), 
       printf(fh, "~%") 
@@ -226,7 +226,7 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
   NC : length(bC), 
   NV : length(bV), 
   NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
@@ -386,7 +386,7 @@ calcRadVelVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NV : length(bV), 
   NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
@@ -412,7 +412,7 @@ calcRadVelVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
         fl_v_ne : fl_v_ne + fl_v[i]/jacob_vi[i]*basisNodal[i]
       ), 
       f_no_J_c : calcInnerProdList(varsP, 1, bP, fl_v_ne), 
-      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2]],
+      clst_J : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
       writeCExprsCollect1(f_no_J, f_no_J_c, clst_J),
       f_vol_e : doExpand1(f_no_J, bP) 
     ) 

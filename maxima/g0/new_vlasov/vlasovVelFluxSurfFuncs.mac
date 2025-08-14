@@ -190,7 +190,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
     printf(fh, "  const double *Bz = &qmem[~a]; ~%", NC*5),
     if (vmap) then (
       if (dir = 1) then (
-        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[4]; ~%")
+        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[~a]; ~%", (polyOrder+2))
       )
       else if (dir = 2) then (
         printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf[0]; ~%")
@@ -224,22 +224,22 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   )
   else if (vdim = 3) then (
     if (vmap) then (
-      [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, dir, nodes_vel, surfVVars, nodes_vel, surfVars, false), 
+      [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, polyOrder, dir, nodes_vel, surfVVars, nodes_vel, surfVars, false), 
       if (dir = 1) then (
-        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[4]; ~%"), 
-        printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[8]; ~%"), 
+        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[~a]; ~%", (polyOrder+2)), 
+        printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[~a]; ~%", 2*(polyOrder+2)), 
         jacob_vy_surf_l_n : jacob_vi_surf[2], 
         jacob_vz_surf_l_n : jacob_vi_surf[3]
       )
       else if (dir = 2) then (
         printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf[0]; ~%"), 
-        printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[8]; ~%"), 
+        printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[~a]; ~%", 2*(polyOrder+2)), 
         jacob_vx_surf_l_n : jacob_vi_surf[1], 
         jacob_vz_surf_l_n : jacob_vi_surf[3]        
       )
       else (
         printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf[0]; ~%"), 
-        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[4]; ~%"), 
+        printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[~a]; ~%", (polyOrder+2)), 
         jacob_vx_surf_l_n : jacob_vi_surf[1], 
         jacob_vy_surf_l_n : jacob_vi_surf[2]           
       )
@@ -385,13 +385,13 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vma
   printf(fh, "  double *Ghat = &vel_flux_surf[~a]; ~%", (dir-1)*NSurf),
 
   if (vmap) then (
-    [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, dir, nodes_vel, surfVVars, surfNodes, surfVars, true), 
+    [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, polyOrder, dir, nodes_vel, surfVVars, surfNodes, surfVars, true), 
     printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf[0]; ~%"),
     if (vdim > 1) then (
-      printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[4]; ~%")
+      printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf[~a]; ~%", (polyOrder+2))
     ),
     if (vdim = 3) then (
-      printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[8]; ~%")
+      printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf[~a]; ~%", 2*(polyOrder+2))
     )
   ), 
   /* Create expansions of f_left and f_right on volume basis. */

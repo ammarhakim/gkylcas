@@ -130,6 +130,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
+      if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
@@ -140,6 +141,7 @@ for bInd : 1 thru length(bName) do (
   for v : 1 thru maxVdim[bInd] do ( 
     minPolyOrderB : minPolyOrder[bInd],
     maxPolyOrderB : maxPolyOrder[bInd],
+    if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       printPrototypeHamiltonian(decorator, v, bName[bInd], polyOrder), 
       printPrototypeRadiation(decorator, v, bName[bInd], polyOrder)  

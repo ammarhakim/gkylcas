@@ -7,7 +7,7 @@ load("nodal_operations/nodal_functions")$
 load(stringproc)$
 fpprec : 24$
 
-calcVmap(fh, funcNm, vdim) := block(
+calcVmap(fh, funcNm, vdim, polyOrder) := block(
   [bV_p3, varsV_p3, NV_p3, bV_p2, varsV_p2, NV_p2],
 
   kill(varsV_p2, bV_p2, varsV_p3, bV_p3),
@@ -30,8 +30,6 @@ calcVmap(fh, funcNm, vdim) := block(
   bV_vy_p2 : subst(x=y, copylist(bV_p2)), 
   bV_vz_p2 : subst(x=z, copylist(bV_p2)), 
   [varsV_vdim_p3,bV_vdim_p3] : loadBasis("Ser", vdim, 3),
-  [varsV_vdim_p2,bV_vdim_p2] : loadBasis("Tensor", vdim, 2),
-  NV_vdim_p2 : length(bV_vdim_p2), 
   NV_vdim_p3 : length(bV_vdim_p3), 
 
   /* Function declaration with input/output variables. */
@@ -65,7 +63,7 @@ calcVmap(fh, funcNm, vdim) := block(
   /* Evaluate the derivative at (polyOrder + 1) nodes for use in update to perform
      operations like Jf/J at Gauss-Legendre quadrature points (equivalence between the
      polyOrder + 1 Gauss-Legendre nodal basis and our modal basis). */
-  nodes_gauss_1v : gaussOrd(3, 1),
+  nodes_gauss_1v : gaussOrd(polyOrder+1, 1),
   num_nodes_gauss_1v : length(nodes_gauss_1v), 
   jacob_velx_nodes : expand(float(evAtNodes(diff(px_e,x),nodes_gauss_1v,varsV_p3))),  
   jacob_vely_nodes : expand(float(evAtNodes(diff(py_e,x),nodes_gauss_1v,varsV_p3))),  
@@ -73,7 +71,7 @@ calcVmap(fh, funcNm, vdim) := block(
   jacob_vel_nodes : [jacob_velx_nodes, jacob_vely_nodes, jacob_velz_nodes], 
 
   /* Evaluate derivative at larger number of nodes for use in surface terms (polyOrder + 2). */
-  nodes_gauss_surf : gaussOrd(4, 1),
+  nodes_gauss_surf : gaussOrd(polyOrder+2, 1),
   num_nodes_gauss_surf : length(nodes_gauss_surf), 
   jacob_velx_surf_nodes : expand(float(evAtNodes(diff(px_e,x),nodes_gauss_surf,varsV_p3))),  
   jacob_vely_surf_nodes : expand(float(evAtNodes(diff(py_e,x),nodes_gauss_surf,varsV_p3))),  
@@ -102,7 +100,7 @@ calcVmap(fh, funcNm, vdim) := block(
 
   /* Expand vmap and Jacobian in high dimensional basis for I/O
      along with full Jacobian at Gauss-Legendre quadrature nodes */
-  nodes_gauss : gaussOrd(3, vdim),
+  nodes_gauss : gaussOrd(polyOrder+1, vdim),
   num_nodes_gauss : length(nodes_gauss), 
   px_gauss_e : doExpand1(p0, bV_vx_p3), 
   py_gauss_e : doExpand1(p1, bV_vy_p3), 

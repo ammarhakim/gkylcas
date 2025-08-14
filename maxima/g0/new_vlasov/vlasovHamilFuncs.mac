@@ -45,8 +45,29 @@ calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
   printf(fh, " ~%"),  
 
   /* For p = 1, we use nodes (-1, 1) and 
-     for p = 2, we use the nodes (-1, 0, 1) (Gauss-Lobatto nodes) */
-  nodes_lobatto : getNodes(basisFun, vdim, polyOrder),
+     for p = 2, we use the nodes (-1, 0, 1) (Gauss-Lobatto nodes) 
+     for p = 3, we use the nodes (-1, -sqrt(1/5), sqrt(1/5), 1) */
+  if (polyOrder = 3) then (
+    if (vdim = 1) then (
+      nodes_lobatto : matrix([-1],[-sqrt(1/5)],[sqrt(1/5)],[1])
+    )
+    else if (vdim = 2) then (
+      if (basisFun = "ser") then (
+        nodes_lobatto : matrix([-1,-1],[-sqrt(1/5),-1],[sqrt(1/5),-1],[1,-1], 
+                              [-1,-sqrt(1/5)],[1,-sqrt(1/5)],[-1,sqrt(1/5)],[1,sqrt(1/5)],
+                              [-1,1],[-sqrt(1/5),1],[sqrt(1/5),1],[1,1])
+      )
+      else (
+        nodes_lobatto : matrix([-1,-1],[-sqrt(1/5),-1],[sqrt(1/5),-1],[1,-1], 
+                              [-1,-sqrt(1/5)],[-sqrt(1/5),-sqrt(1/5)],[sqrt(1/5),-sqrt(1/5)],[1,-sqrt(1/5)],
+                              [-1,sqrt(1/5)],[-sqrt(1/5),sqrt(1/5)],[sqrt(1/5),sqrt(1/5)],[1,sqrt(1/5)],
+                              [-1,1],[-sqrt(1/5),1],[sqrt(1/5),1],[1,1])
+      )
+    )
+  )
+  else (
+    nodes_lobatto : getNodes(basisFun, vdim, polyOrder)
+  ),
   num_nodes_lobatto : length(nodes_lobatto),
   if (vmap) then (
     for dir : 1 thru vdim do (

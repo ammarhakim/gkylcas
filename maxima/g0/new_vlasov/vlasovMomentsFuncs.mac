@@ -41,7 +41,7 @@ calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "GKYL_CU_DH void ~a_M0_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   fl : doExpand1(f, bP),
   M : calcInnerProdList(varsP, 1, bC, fl),
@@ -100,12 +100,12 @@ calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bV)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_gen_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
     hamil : doExpand1(hamil, bP)    
   ),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
@@ -228,7 +228,7 @@ calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "GKYL_CU_DH void ~a_M2ij_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *vmap, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -258,7 +258,7 @@ calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   
   printf(fh, "GKYL_CU_DH void ~a_M3ijk_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *vmap, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
   for i : 1 thru vdim do (
     printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
@@ -382,7 +382,7 @@ calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
   NC : length(bC), 
   NP : length(bP), 
 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -414,7 +414,7 @@ calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
       M : append(M, calcInnerProdList(varsP, dv11[dir]*diff(hamil,varsV[dir]), bC, fl_v_ne))
     ),
   M),
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], dv10, dv11, dv12, volFact],
   writeCIncrExprsCollect1(out, volFact*M, clst),
   
   printf(fh, "} ~%")
@@ -428,7 +428,7 @@ calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := b
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -464,7 +464,7 @@ calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := b
   M1i),
   M2 : calcInnerProdList(varsP, hamil, bC, fl),
   
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], dv10, dv11, dv12, volFact],
   five_moments : [],
   five_moments : append(five_moments, volFact*M0),
   five_moments : append(five_moments, volFact*M1i),
@@ -482,7 +482,7 @@ calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) :
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   if (hamil_vel) then (
     printf(fh, "GKYL_CU_DH void ~a_hamil_vel_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -518,7 +518,7 @@ calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) :
   M1i),
   M2 : calcInnerProdList(varsP, hamil, [1], fl),
   
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vz[0], jacob_vz[1], jacob_vz[2], dv10, dv11, dv12, volFact],
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], dv10, dv11, dv12, volFact],
   int_five_moments : [],
   int_five_moments : append(int_five_moments, volFact*M0),
   int_five_moments : append(int_five_moments, volFact*M1i),
@@ -533,7 +533,7 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   if (upper) then (
     printf(fh, "GKYL_CU_DH void ~a_M0_upper_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -568,10 +568,10 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
   printf(fh, "  double f_nodes[~a] = {0.0};~%", num_nodes_phase),
   for j : 1 thru num_nodes_vel do (
     if (upper) then (
-      printf(fh, "  if (~a > v_thresh) { ~%", px_ords[j])
+      printf(fh, "  if ((~a) > v_thresh) { ~%", px_ords[j])
     )
     else (
-      printf(fh, "  if (~a < -v_thresh) { ~%", px_ords[j])
+      printf(fh, "  if ((~a) < -v_thresh) { ~%", px_ords[j])
     ), 
     for i : 1 thru num_nodes_conf do (
       printf(fh, "    f_nodes[~a] = ~a; ~%", (j-1)+(i-1)*num_nodes_vel, f_ords[j+(i-1)*num_nodes_vel])
