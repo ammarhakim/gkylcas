@@ -202,8 +202,16 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
         )
       ),
       if dir = vpardim then (
-        for k : 1 thru cdim do (
-          alpha_e : alpha_e + dualcurlbhatoverB_list[k]*dH_dz_e[k]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+        if cdim = 3 then (
+          for k : 1 thru cdim do (
+            alpha_e : alpha_e + dualcurlbhatoverB_list[k]*dH_dz_e[k]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+          )
+        ),
+        if cdim = 2 then (
+            alpha_e : alpha_e + dualcurlbhatoverB_list[1]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_ + dualcurlbhatoverB_list[3]*dH_dz_e[2]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+        ),
+        if cdim = 1 then (
+            alpha_e : alpha_e + dualcurlbhatoverB_list[3]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
         )
       )
 
