@@ -63,7 +63,7 @@ calcSigmaCXcellAv(fh, funcNm, cdim, basisFun, polyOrder) := block(
   declareWriteCExprsC(m0_neut_av, m0_neut_av_e),
   printf(fh, " ~%"),
 
-  printf(fh, "  const double *vt_sq_ion = &maxwellian_moms_ion[~a]; ~%", NC*(3+1)),
+  printf(fh, "  const double *vt_sq_ion = &maxwellian_moms_ion[~a]; ~%", NC*(1+1)),
   printf(fh, "  const double *u_neut = &maxwellian_moms_neut[~a]; ~%", NC),	
   printf(fh, "  const double *vt_sq_neut = &maxwellian_moms_neut[~a]; ~%", NC*(3+1)),
   printf(fh, " ~%"),
