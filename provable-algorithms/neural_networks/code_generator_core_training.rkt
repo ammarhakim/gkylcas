@@ -281,6 +281,22 @@ int main() {
       }
     }
 
+    // Output solution to disk.
+    const char *fmt = \"output_%d.csv\";
+    int sz = snprintf(0, 0, fmt, n);
+    char file_nm[sz + 1];
+    snprintf(file_nm, sizeof file_nm, fmt, n);
+    
+    FILE *fptr;
+    fptr = fopen(file_nm, \"w\");
+    if (fptr != NULL) {
+      for (int i = 1; i <= nx; i++) {
+        double x = x0 + (i - 0.5) * dx;
+        fprintf(fptr, \"%f, %f\\n\", x, u[i]);
+      }
+    }
+    fclose(fptr);
+
     // Increment time.
     t += dt;
     n += 1;
@@ -288,12 +304,6 @@ int main() {
 
   // Train neural network.
   kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data, output_data);
-
-  // Output solution to stdout.
-  for (int i = 1; i <= nx; i++) {
-    double x = x0 + (i - 0.5) * dx;
-    printf(\"%g %g\\n\", x, u[i]);
-  }
 
   // Output neural network to disk.
   kann_save(\"neural_net.dat\", ann);
