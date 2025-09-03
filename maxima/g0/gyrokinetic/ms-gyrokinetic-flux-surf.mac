@@ -3,8 +3,8 @@
 
   The functions called in this file are in gkFuncs-alpha-surf.mac.
 */
-load("gyrokinetic/gk_flux_surf_new_geom_test")$
-load("gyrokinetic/gk_flux_surf_new_geom_vpar_test")$
+load("gyrokinetic/gkFuncs-flux-surf")$
+load("gyrokinetic/gkFuncs-flux-surf-vpar")$
 
 /* ...... USER INPUTS........ */
 
