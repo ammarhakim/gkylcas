@@ -1,6 +1,7 @@
 #lang racket
 
 (require "code_generator_core_training.rkt")
+(require "code_generator_core_validation.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
@@ -39,8 +40,8 @@
    ))
    
 
-;; Synthesize the code to train a Lax-Friedrichs solver for the 1D linear advection equation using a shallow neural network.
-(define code-linear-advection-lax
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D linear advection equation using a shallow neural network.
+(define code-linear-advection-lax-train
   (train-lax-friedrichs-scalar-1d pde-linear-advection neural-net-shallow
                                   #:nx nx
                                   #:x0 x0
@@ -50,7 +51,23 @@
                                   #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "code/linear_advection_lax.c"
+(with-output-to-file "code/linear_advection_lax_train.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-lax)))
+    (display code-linear-advection-lax-train)))
+
+;; Synthesize the code to validate a Lax-Friedrichs surrogate solver for the 1D linear advection equation using a shallow neural network.
+(define code-linear-advection-lax-validate
+  (validate-lax-friedrichs-scalar-1d pde-linear-advection neural-net-shallow
+                                     #:nx nx
+                                     #:x0 x0
+                                     #:x1 x1
+                                     #:t-final t-final
+                                     #:cfl cfl
+                                     #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_lax_validate.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-lax-validate)))
