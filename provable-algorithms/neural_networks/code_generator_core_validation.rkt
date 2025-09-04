@@ -1,6 +1,7 @@
 #lang racket
 
-(provide validate-lax-friedrichs-scalar-1d)
+(provide validate-scalar-1d
+         validate-scalar-1d-second-order)
 
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
 (define (convert-expr expr)
@@ -102,19 +103,19 @@
 (define (flux-substitute flux-expr cons-expr var-name)
   (string-replace flux-expr cons-expr var-name))
 
-;; ----------------------------------------------------------------------------------
-;; Valdiate a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 1D Scalar PDE
-;; ----------------------------------------------------------------------------------
-(define (validate-lax-friedrichs-scalar-1d pde neural-net
-                                           #:nx [nx 200]
-                                           #:x0 [x0 0.0]
-                                           #:x1 [x1 2.0]
-                                           #:t-final [t-final 1.0]
-                                           #:cfl [cfl 0.95]
-                                           #:init-func [init-func `(cond
-                                                                     [(< x 1.0) 1.0]
-                                                                     [else 0.0])])
-  "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using the Lax-Friedrichs finite-difference method.
+;; ------------------------------------------------------------------------
+;; Validate an Arbitrary (First-Order) Surrogate Solver for a 1D Scalar PDE
+;; ------------------------------------------------------------------------
+(define (validate-scalar-1d pde neural-net
+                            #:nx [nx 200]
+                            #:x0 [x0 0.0]
+                            #:x1 [x1 2.0]
+                            #:t-final [t-final 1.0]
+                            #:cfl [cfl 0.95]
+                            #:init-func [init-func `(cond
+                                                      [(< x 1.0) 1.0]
+                                                      [else 0.0])])
+  "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using any first-order method.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -140,7 +141,7 @@
   (define code
     (format "
 // AUTO-GENERATED CODE FOR VALIDATING ON SCALAR PDE: ~a
-// Validate a Lax–Friedrichs first-order finite-difference surrogate solver for a scalar PDE in 1D.
+// Validate any first-order surrogate solver for a scalar PDE in 1D.
 
 #include <stdio.h>
 #include <math.h>
@@ -264,6 +265,201 @@ int main() {
 "
            ;; PDE name for code comments.
            name
+           ;; Additional PDE parameters (e.g. a = 1.0 for linear advection).
+           parameter-code
+           ;; Number of cells.
+           nx
+           ;; Left boundary.
+           x0
+           ;; Right boundary.
+           x1
+           ;; CFL coefficient.
+           cfl
+           ;; Final time.
+           t-final
+           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
+           ;; PDE name for neural network input.
+           name
+           name
+           ;; Expression for local wave-speed estimate.
+           max-speed-local
+           ;; PDE name for file output.
+           name
+           name
+           ))
+  code)
+
+;; ------------------------------------------------------------------------
+;; Validate an Arbitrary (Second-Order) Surrogate Solver for a 1D Scalar PDE
+;; ------------------------------------------------------------------------
+(define (validate-scalar-1d-second-order pde limiter neural-net
+                                         #:nx [nx 200]
+                                         #:x0 [x0 0.0]
+                                         #:x1 [x1 2.0]
+                                         #:t-final [t-final 1.0]
+                                         #:cfl [cfl 0.95]
+                                         #:init-func [init-func `(cond
+                                                                   [(< x 1.0) 1.0]
+                                                                   [else 0.0])])
+  "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using any first-order method with any second-order flux extrapolations
+   using flux limiter `limiter`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define name (hash-ref pde 'name))
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define max-speed-expr (hash-ref pde 'max-speed-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (define limiter-name (hash-ref limiter 'name))
+
+  (define cons-code (convert-expr cons-expr))
+  (define max-speed-code (convert-expr max-speed-expr))
+  (define init-func-code (convert-expr init-func))
+  
+  (define max-speed-local (flux-substitute max-speed-code cons-code "u[i]"))
+
+  (define parameter-code (cond
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
+                           [else ""]))
+
+  (define code
+    (format "
+// AUTO-GENERATED CODE FOR VALIDATING ON SCALAR PDE: ~a
+// FLUX LIMITER: ~a
+// Validate any first-order surrogate solver for a scalar PDE in 1D, with any second-order flux extrapolation.
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include \"kann.h\"
+
+// Additional PDE parameters (if any).
+~a
+
+int main() {
+  // Spatial domain setup.
+  const int nx = ~a;
+  const double x0 = ~a;
+  const double x1 = ~a;
+  const double L = (x1 - x0);
+  const double dx = L / nx;
+
+  // Time-stepper setup.
+  const double cfl = ~a;
+  const double t_final = ~a;
+
+  // Array for storing solution.
+  double *u = (double*) malloc((nx + 4) * sizeof(double));
+
+  // Initialize grid and set initial conditions.
+  for (int i = 0; i <= nx + 3; i++) {
+    double x = x0 + (i - 1.5) * dx;
+    
+    u[i] = ~a; // init-func in C.
+  }
+
+  // Load neural network architecture.
+  kann_t *ann;
+  const char *fmt = \"%s_neural_net.dat\";
+  int sz = snprintf(0, 0, fmt, \"~a\");
+  char file_nm[sz + 1];
+  snprintf(file_nm, sizeof file_nm, fmt, \"~a\");
+
+  FILE *fptr;
+  fptr = fopen(file_nm, \"r\");
+  if (fptr != NULL) {
+    ann = kann_load(file_nm);
+    
+    fclose(fptr);
+  }
+
+  double t = 0.0;
+  int n = 0;
+  while (t < t_final) {
+    // Determine global maximum wave-speed alpha (for stable dt).
+    // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
+    double alpha = 0.0;
+    
+    for (int i = 2; i <= nx + 1; i++) {
+      double local_alpha = ~a; // max-speed-expr in C.
+      
+      if (local_alpha > alpha) {
+        alpha = local_alpha;
+      }
+    }
+
+    // Avoid division by zero.
+    if (alpha < 1e-14) {
+      alpha = 1e-14;
+    }
+
+    // Compute stable time step from alpha.
+    double dt = cfl * dx / alpha;
+
+    // If stepping beyond t_final, adjust dt accordingly.
+    if (t + dt > t_final) {
+      dt = t_final - t;
+    }
+
+    for (int i = 2; i <= nx + 1; i++) {
+      double x = x0 + (i - 1.5) * dx;
+      
+      float *input_data = (float*) malloc(2 * sizeof(float));
+      const float *output_data;
+
+      input_data[0] = t;
+      input_data[1] = x;
+      
+      output_data = kann_apply1(ann, input_data);
+
+      u[i] = output_data[0];
+
+      free(input_data);
+    }
+
+    // Apply simple boundary conditions (transmissive).
+    u[0] = u[2];
+    u[1] = u[2];
+    u[nx + 2] = u[nx + 1];
+    u[nx + 3] = u[nx + 1];
+
+    // Output solution to disk.
+    const char *fmt = \"%s_validation_%d.csv\";
+    int sz = snprintf(0, 0, fmt, \"~a\", n);
+    char file_nm[sz + 1];
+    snprintf(file_nm, sizeof file_nm, fmt, \"~a\", n);
+    
+    FILE *fptr;
+    fptr = fopen(file_nm, \"w\");
+    if (fptr != NULL) {
+      for (int i = 2; i <= nx + 1; i++) {
+        double x = x0 + (i - 1.5) * dx;
+        fprintf(fptr, \"%f, %f\\n\", x, u[i]);
+      }
+    }
+    fclose(fptr);
+
+    // Increment time.
+    t += dt;
+    n += 1;
+  }
+
+  free(u);
+  kann_delete(ann);
+  
+  return 0;
+}
+"
+           ;; PDE name for code comments.
+           name
+           ;; Flux limiter name for code comments.
+           limiter-name
            ;; Additional PDE parameters (e.g. a = 1.0 for linear advection).
            parameter-code
            ;; Number of cells.

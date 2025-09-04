@@ -10,39 +10,38 @@
 (cond
   [(not (directory-exists? "proofs")) (make-directory "proofs")])
 
-;; Define the 1D linear advection equation: du/dt + d(au)/dx = 0.
-(define pde-linear-advection
+;; Define the 1D inviscid Burgers' equation: du/dt + u du/dx = 0.
+(define pde-inviscid-burgers
   (hash
-   'name "linear-advection"
-   'cons-expr `u                 ; conserved variable: u
-   'flux-expr `(* a u)           ; flux function: f(u) = a * u
-   'max-speed-expr `(abs a)      ; local wave-speed: alpha = |a|
-   'parameters (list
-                `(define a 1.0)) ; advection speed: a = 1.0
+   'name "burgers"
+   'cons-expr `u             ; conserved variable: u
+   'flux-expr `(* 0.5 u u)   ; flux function: f(u) = 0.5 * u^2
+   'max-speed-expr `(abs u)  ; local wave-speed: alpha = |u|
+   'parameters `()
    ))
 
 ;; Define simulation parameters.
 (define nx 200)
-(define x0 0.0)
-(define x1 2.0)
+(define x0 -3.0)
+(define x1 3.0)
 (define t-final 0.5)
 (define cfl 0.95)
 (define init-func `(cond
-                     [(< x 1.0) 1.0]
-                     [else 0.0]))
+                     [(< (abs x) 1.0) 3.0]
+                     [else -1.0]))
 
 ;; Define (shallow) neural network hyperparameters.
 (define neural-net-shallow
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 4             ; total number of layers: 4
+   'depth 6             ; total number of layers: 6
    ))
    
 
-;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D linear advection equation using a shallow neural network.
-(define code-linear-advection-lax-train
-  (train-lax-friedrichs-scalar-1d pde-linear-advection neural-net-shallow
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-lax-train
+  (train-lax-friedrichs-scalar-1d pde-inviscid-burgers neural-net-shallow
                                   #:nx nx
                                   #:x0 x0
                                   #:x1 x1
@@ -51,10 +50,10 @@
                                   #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "code/linear_advection_lax_train.c"
+(with-output-to-file "code/inviscid_burgers_lax_train.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-lax-train)))
+    (display code-inviscid-burgers-lax-train)))
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod
@@ -64,10 +63,10 @@
    'limiter-ratio `r
    ))
 
-;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
 ;; using a shallow neural network.
-(define code-linear-advection-lax-minmod-train
-  (train-lax-friedrichs-scalar-1d-second-order pde-linear-advection limiter-minmod neural-net-shallow
+(define code-inviscid-burgers-lax-minmod-train
+  (train-lax-friedrichs-scalar-1d-second-order pde-inviscid-burgers limiter-minmod neural-net-shallow
                                                #:nx nx
                                                #:x0 x0
                                                #:x1 x1
@@ -76,14 +75,14 @@
                                                #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "code/linear_advection_lax_minmod_train.c"
+(with-output-to-file "code/inviscid_burgers_lax_minmod_train.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-lax-minmod-train)))
+    (display code-inviscid-burgers-lax-minmod-train)))
 
-;; Synthesize the code to validate any first-order surrogate solver for the 1D linear advection equation using a shallow neural network.
-(define code-linear-advection-validate
-  (validate-scalar-1d pde-linear-advection neural-net-shallow
+;; Synthesize the code to validate any first-order surrogate solver for the 1D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-validate
+  (validate-scalar-1d pde-inviscid-burgers neural-net-shallow
                       #:nx nx
                       #:x0 x0
                       #:x1 x1
@@ -92,15 +91,15 @@
                       #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "code/linear_advection_validate.c"
+(with-output-to-file "code/inviscid_burgers_validate.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-validate)))
+    (display code-inviscid-burgers-validate)))
 
-;; Synthesize the code to validate any first-order surrogate solver for the 1D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; Synthesize the code to validate any first-order surrogate solver for the 1D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
 ;; using a shallow neural network.
-(define code-linear-advection-minmod-validate
-  (validate-scalar-1d-second-order pde-linear-advection limiter-minmod neural-net-shallow
+(define code-inviscid-burgers-minmod-validate
+  (validate-scalar-1d-second-order pde-inviscid-burgers limiter-minmod neural-net-shallow
                                    #:nx nx
                                    #:x0 x0
                                    #:x1 x1
@@ -109,7 +108,7 @@
                                    #:init-func init-func))
 
 ;; Output the code to a file.
-(with-output-to-file "code/linear_advection_minmod_validate.c"
+(with-output-to-file "code/inviscid_burgers_minmod_validate.c"
   #:exists 'replace
   (lambda ()
-    (display code-linear-advection-minmod-validate)))
+    (display code-inviscid-burgers-minmod-validate)))
