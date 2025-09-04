@@ -2,6 +2,7 @@
 
 (require "code_generator_core_training.rkt")
 (require "code_generator_core_validation.rkt")
+(require "prover.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
@@ -80,6 +81,28 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-minmod-train)))
+
+;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D linear advection equation.
+(define proof-linear-advection-smooth
+  (call-with-output-file "proofs/proof_linear_advection_smooth.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-scalar-1d-smooth pde-linear-advection neural-net-shallow
+                                #:nx nx
+                                #:x0 x0
+                                #:x1 x1
+                                #:t-final t-final
+                                #:cfl cfl
+                                #:init-func init-func)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_smooth.rkt")
+
+;; Show the error bound (if applicable) on smooth solutions.
+(display "Error bound (smooth solutions): ")
+(display proof-linear-advection-smooth)
+(display "\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D linear advection equation using a shallow neural network.
 (define code-linear-advection-validate

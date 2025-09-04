@@ -369,9 +369,9 @@ int main() {
            ))
   code)
 
-;; -------------------------------------------------------------------------------
-;; Train a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 1D Scalar PDE
-;; -------------------------------------------------------------------------------
+;; ----------------------------------------------------------------------------------------------------------------------
+;; Train a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 1D Scalar PDE with a Second-Order Flux Extrapolation
+;; ----------------------------------------------------------------------------------------------------------------------
 (define (train-lax-friedrichs-scalar-1d-second-order pde limiter neural-net
                                                      #:nx [nx 200]
                                                      #:x0 [x0 0.0]
