@@ -1,0 +1,67 @@
+load("triads/triadVolFuncs")$
+load(stringproc)$
+/* This script calls the functions compute the components of the volume update of the Vlasov 
+   equation using a discontinuous Galerkin (DG) method. Different component include: 
+   1. Streaming in configuration space via velocity-space derivatives of 
+      the Hamiltonian, with either a velocity-space only Hamiltonian such as
+      H = p^2/2m or H = mc^2*sqrt(1 + p^2), or a full phase-space Hamiltonian
+      including geometric terms, H = g^ij p_i p_j/2m. 
+   2. Forces in velocity space due to geometric terms in the Hamiltonian, -grad_x(H)
+   3. Forces in velocity space due to the Lorentz force, q/m (E + grad_v(H) x B)
+   4. Forces in velocity space due to a scalar potential, -grad_x(phi) where phi
+      can be electrostatic, gravitational, or external. 
+   5. Forces in velocity space due to a vector potential, q/m (-dA/dt + grad_v(H) x curl(A))
+*/
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
+
+/* Tensor product basis. */
+/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
+
+/* Generate kernels of selected types. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
+      if (c+v>4 and maxPolyOrderB > 1) and (bName[bInd] = "ser") then maxPolyOrderB : 1,
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
+          if (bName[bInd] = "ser") then (
+            disp(printf(false,"Creating volume file: ~a",fname)),
+            fname : sconcat("~/max-out/vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false),
+            close(fh) 
+          )
+        )
+      )
+    )
+  )
+)$

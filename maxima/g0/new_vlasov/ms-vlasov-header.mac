@@ -39,6 +39,10 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_hamil_vel_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
     const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   if (bStr = "ser") then (
+    if (ci <= vi and pi < 3) then (
+      printf(fh, "~avoid vlasov_nc_hamil_gen_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
+       const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
+    ),
     printf(fh, "~avoid vlasov_hamil_gen_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
   ),
@@ -66,15 +70,29 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       printf(fh, "~adouble vlasov_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const double *jacob_vel, const double *hamil, 
       const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      if (ci <= vi  and pi < 3) then (
+        printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      ),
       printf(fh, "~adouble vlasov_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const double *jacob_vel, const double *hamil, 
-      const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      if (ci <= vi  and pi < 3) then (
+        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf,  const double *hamil, 
+        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      )
     )
   ),
   for si : 1 thru vi do (
     if (bStr = "ser") then (
       printf(fh, "~avoid hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *dxv, 
-      const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      if (ci <= vi  and pi < 3) then (
+        printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      )
     ),
     printf(fh, "~avoid phi_alpha_quad_v~a_~ax~av_~a_p~a(const double *dxv, 
     const double *phi, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi), 
