@@ -105,7 +105,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
   )
@@ -130,7 +130,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
 
   /* Create a projection of the momentum */
   for i : 1 thru vdim do (
-    printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+    printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1),
     printf(fh, "  const double dv1~a_sq = dv1~a*dv1~a; ~%",  i-1, i-1, i-1)
   ),
 
@@ -162,30 +162,31 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
 
     /* Exclude making variables for when cdim < vdim */
     if not((( dir1 <= vdim ) and ( dir1 > cdim )) or (( dir2 <= vdim ) and ( dir2 > cdim ))) then (
-      printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", pt_index - 1, NC*(pt_index-1))
-    ),
-    
-    /* Compute the volume element */
-    if (dir1 <= vdim ) then dz_val1 : dx1[dir1] else dz_val1 : dv1[dir1-vdim],
-    if (dir2 <= vdim ) then dz_val2 : dx1[dir2] else dz_val2 : dv1[dir2-vdim],
-    dvol : dz_val1*dz_val2,
+      printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", pt_index - 1, NC*(pt_index-1)),
 
-    /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
-      For instance if we have varsC = [x,y,z] with:
-      - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
-      - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
-      It is assumed that H does not depend on these ignorable coordinates. */
+      /* Compute the volume element */
+      if (dir1 <= vdim ) then dz_val1 : dx1[dir1] else dz_val1 : dv1[dir1-vdim],
+      if (dir2 <= vdim ) then dz_val2 : dx1[dir2] else dz_val2 : dv1[dir2-vdim],
+      dvol : dz_val1*dz_val2, 
 
-    /* Convert to a phase space PT by mulitplying by p for the bottom right block comps */
-    if ( (dir1 > vdim) and (dir2 > vdim) ) then p_factor : vTrans[index_vsum] else p_factor : 1,
-    pbBasis : dvol*(PB_vol(bP,hamil,varsP1,varsP2))*poissonTensorConf_local*p_factor,
-    pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)), 
-    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
-    /* Replace dv*dv with dv_sq */
-    pb : subst([dv10*dv10 = dv10_sq, dv11*dv11 = dv11_sq, dv12*dv12 = dv12_sq], pb),
-    pb : subst([dv10^2 = dv10_sq, dv11^2 = dv11_sq, dv12^2 = dv12_sq], pb),
-    writeCIncrExprsCollect1(out, pb, clst_vol), 
-    printf(fh, "~%") 
+      /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
+        For instance if we have varsC = [x,y,z] with:
+        - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
+        - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
+        It is assumed that H does not depend on these ignorable coordinates. */
+
+      /* Convert to a phase space PT by mulitplying by p for the bottom right block comps */
+      if ( (dir1 > vdim) and (dir2 > vdim) ) then p_factor : vTrans[index_vsum] else p_factor : 1,
+      pbBasis : dvol*(PB_vol(bP,hamil,varsP1,varsP2))*poissonTensorConf_local*p_factor,
+      pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)), 
+      /* Volume factor for intergation */
+      clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+      /* Replace dv*dv with dv_sq */
+      pb : subst([dv10*dv10 = dv10_sq, dv11*dv11 = dv11_sq, dv12*dv12 = dv12_sq], pb),
+      pb : subst([dv10^2 = dv10_sq, dv11^2 = dv11_sq, dv12^2 = dv12_sq], pb),
+      writeCIncrExprsCollect1(out, pb, clst_vol), 
+      printf(fh, "~%") 
+    )
   ),
 
   printf(fh, "} ~%")
