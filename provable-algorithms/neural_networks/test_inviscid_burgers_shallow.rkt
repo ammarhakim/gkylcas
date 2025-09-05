@@ -1,7 +1,7 @@
 #lang racket
 
 (require "code_generator_core_training.rkt")
-(require "code_generator_core_validation.rkt")
+(require "code_generator_validation.rkt")
 (require "prover.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 

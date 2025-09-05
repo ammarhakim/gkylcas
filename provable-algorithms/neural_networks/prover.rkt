@@ -273,6 +273,16 @@
     [(? (lambda (arg)
          (and (number? arg) (not (real? arg )) (equal? (imag-part arg) -0.0)))) (real-part expr)]
 
+    ;; If expr is of the form expt(x, y) for numeric x and y, then just evaluate the exponential.
+    [`(expt ,(and x (? number?)) ,(and y (? number?))) (expt x y)]
+    ;; If expr is of the form expt(expr1, expr2), then apply symbolic simplification to the interior expr1 and expr2.
+    [`(expt ,x ,y) `(expt ,(symbolic-simp-rule x) ,(symbolic-simp-rule y))]
+
+    ;; If expr is of the form (x < y) for numeric x and y, then just evaluate the comparison operator.
+    [`( < ,(and x (? number?)) ,(and y (? number?))) (< x y)]
+    ;; If expr is of the form (expr1 < expr2), then apply symbolic simplification to the interior expr1 and expr2.
+    [`(< ,x ,y) `(< ,(symbolic-simp-rule x) ,(symbolic-simp-rule y))]
+    
     ;; Otherwise, return the expression.
     [else expr]))
 
@@ -338,7 +348,8 @@
                                 #:init-func [init-func `(cond
                                                           [(< x 1.0) 1.0]
                                                           [else 0.0])])
-   "Attempt to prove an analytic error bound on smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`.
+   "Attempt to prove an analytic error bound on smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`,
+    with neural network architecture `neural-net`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -378,10 +389,10 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
     ;; Check whether the neural network depth is at least equal to 2 + the order of the derivative of the flux function (otherwise, return false).
-    [(< depth (+ 2 flux-deriv-order)) #f]
+    [(symbolic-simp `(< ,depth (+ 2 ,flux-deriv-order))) #f]
 
     ;; Otherwise, return the bound.
-    [else (/ 1.0 (expt (* width depth) (/ 1.0 (+ 2 flux-deriv-order))))]))
+    [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,flux-deriv-order)))))]))
 
   (untrace is-real)
   (untrace symbolic-simp)
@@ -404,7 +415,8 @@
                                     #:init-func [init-func `(cond
                                                               [(< x 1.0) 1.0]
                                                               [else 0.0])])
-   "Attempt to prove an analytic error bound on mom-smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`.
+   "Attempt to prove an analytic error bound on mom-smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`,
+    with neural network architecture `neural-net`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -444,10 +456,10 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
     ;; Check whether the neural network depth is at least equal to 2 * the order of the derivative of the flux function (otherwise, return false).
-    [(< depth (* 2 flux-deriv-order)) #f]
+    [(symbolic-simp `(< ,depth (* 2 ,flux-deriv-order))) #f]
 
     ;; Otherwise, return the bound.
-    [else (/ 1.0 (expt (* width depth) (/ 1.0 (* 2 flux-deriv-order))))]))
+    [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,flux-deriv-order)))))]))
 
   (untrace is-real)
   (untrace symbolic-simp)

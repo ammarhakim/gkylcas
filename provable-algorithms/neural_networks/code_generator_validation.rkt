@@ -115,7 +115,8 @@
                             #:init-func [init-func `(cond
                                                       [(< x 1.0) 1.0]
                                                       [else 0.0])])
-  "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using any first-order method.
+  "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using any first-order method,
+   with neural network architecture `neural-net`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -303,7 +304,7 @@ int main() {
                                                                    [(< x 1.0) 1.0]
                                                                    [else 0.0])])
   "Generate C code that validates a surrogate solver for the 1D scalar PDE specified by `pde` using any first-order method with any second-order flux extrapolations
-   using flux limiter `limiter`.
+   using flux limiter `limiter`, with neural network architecture `neural-net`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
