@@ -39,7 +39,7 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
 calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,vv,surfVars,surfVVars,bSurf,NSurf,
+  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dx_l],
 
@@ -50,8 +50,6 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
   const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
-  cid : cidx(cdim),
-  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "~%"),
   hamil : doExpand1(hamil, bV), /* Hamiltonian is a function of phase space. */
 
@@ -60,7 +58,6 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
     poisson_tensor_conf_3, poisson_tensor_conf_4, poisson_tensor_conf_5, poisson_tensor_conf_6,
     poisson_tensor_conf_7, poisson_tensor_conf_8],
 
-  cv : varsC[dir],
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
@@ -109,9 +106,9 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
 
   /* Each cells owns its *lower* edge fluxes, so we evaluate the derivative of the 
      Hamiltonian at vv = -1. Note that the flux is -grad_x(H). */
-  PI_dH_dx_l : float(evAtNodes(subst(vv=-1,Pi_dH_dv),surfNodes,surfVars)), 
+  PI_dH_dv_l : float(evAtNodes(subst(vv=-1,Pi_dH_dv),surfNodes,surfVars)), 
   for i : 1 thru numNodes do (
-    printf(fh, "  alpha_quad[~a] += -~a*(~a); ~%", i-1, dx1[dir], PI_dH_dx_l[i]) 
+    printf(fh, "  alpha_quad[~a] += -~a*(~a); ~%", i-1, dv1[dir], PI_dH_dv_l[i]) 
   ),
   printf(fh, "~%"),
 
