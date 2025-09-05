@@ -8,7 +8,9 @@
          symbolic-simp-rule
          symbolic-simp
          is-real
-         prove-scalar-1d-smooth)
+         symbolic-diff-order
+         prove-scalar-1d-smooth
+         prove-scalar-1d-non-smooth)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -336,7 +338,7 @@
                                 #:init-func [init-func `(cond
                                                           [(< x 1.0) 1.0]
                                                           [else 0.0])])
-   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D scalar PDE specified by `pde`. 
+   "Attempt to prove an analytic error bound on smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -355,6 +357,8 @@
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
   (trace symbolic-diff-order)
+
+  (define flux-deriv-order (symbolic-diff-order flux-expr cons-expr 0))
   
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -374,10 +378,10 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
     ;; Check whether the neural network depth is at least equal to 2 + the order of the derivative of the flux function (otherwise, return false).
-    [(< depth (+ 2 (symbolic-diff-order flux-expr cons-expr 0))) #f]
+    [(< depth (+ 2 flux-deriv-order)) #f]
 
     ;; Otherwise, return the bound.
-    [else (/ 1.0 (expt (* width depth) (/ 1.0 (+ 2 (symbolic-diff-order flux-expr cons-expr 0)))))]))
+    [else (/ 1.0 (expt (* width depth) (/ 1.0 (+ 2 flux-deriv-order))))]))
 
   (untrace is-real)
   (untrace symbolic-simp)
@@ -387,3 +391,69 @@
   
   out)
 (trace prove-scalar-1d-smooth)
+
+;; ------------------------------------------------------------------------------------------------
+;; Prove Error Bounds on Non-Smooth Solutions for an Arbitrary Surrogate Solver for a 1D Scalar PDE
+;; ------------------------------------------------------------------------------------------------
+(define (prove-scalar-1d-non-smooth pde neural-net
+                                    #:nx [nx 200]
+                                    #:x0 [x0 0.0]
+                                    #:x1 [x1 2.0]
+                                    #:t-final [t-final 1.0]
+                                    #:cfl [cfl 0.95]
+                                    #:init-func [init-func `(cond
+                                                              [(< x 1.0) 1.0]
+                                                              [else 0.0])])
+   "Attempt to prove an analytic error bound on mom-smooth solutions for an arbitrary surrogate solver for the 1D scalar PDE specified by `pde`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr (hash-ref pde 'flux-expr))
+  (define parameters (hash-ref pde 'parameters))
+
+  (define width (hash-ref neural-net 'width))
+  (define depth (hash-ref neural-net 'depth))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-diff-order)
+
+  (define flux-deriv-order (symbolic-diff-order flux-expr cons-expr 0))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+
+    ;; Check whether the neural network depth is at least equal to 2 * the order of the derivative of the flux function (otherwise, return false).
+    [(< depth (* 2 flux-deriv-order)) #f]
+
+    ;; Otherwise, return the bound.
+    [else (/ 1.0 (expt (* width depth) (/ 1.0 (* 2 flux-deriv-order))))]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-diff-order)
+  
+  out)
+(trace prove-scalar-1d-non-smooth)
