@@ -3,9 +3,9 @@
 (require "code_generator_core_training.rkt")
 (provide train-lax-friedrichs-vector2-1d)
 
-;; -------------------------------------------------------------------------------
-;; Train a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 1D Scalar PDE
-;; -------------------------------------------------------------------------------
+;; ----------------------------------------------------------------------------------------------------
+;; Train a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 1D Coupled Vector System of 2 PDEs
+;; ----------------------------------------------------------------------------------------------------
 (define (train-lax-friedrichs-vector2-1d pde-system neural-net
                                          #:nx [nx 200]
                                          #:x0 [x0 0.0]
@@ -25,7 +25,7 @@
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
   - `cfl`: CFL coefficient.
-  - `init-func`: Racket expressions for the initial conditions, e.g. piecewise constant."
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
 
   (define name (hash-ref pde-system 'name))
   (define cons-exprs (hash-ref pde-system 'cons-exprs))

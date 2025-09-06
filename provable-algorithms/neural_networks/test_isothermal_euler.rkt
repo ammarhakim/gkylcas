@@ -1,6 +1,7 @@
 #lang racket
 
 (require "code_generator_core_training.rkt")
+(require "code_generator_validation.rkt")
 (require "code_generator_vector_training.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 (provide (all-from-out "code_generator_vector_training.rkt"))
@@ -65,3 +66,19 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-train)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 1D isothermal Euler equations using a shallow neural network.
+(define code-isothermal-euler-validate
+  (validate-vector2-1d pde-system-isothermal-euler neural-net-shallow
+                       #:nx nx
+                       #:x0 x0
+                       #:x1 x1
+                       #:t-final t-final
+                       #:cfl cfl
+                      #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_validate.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-validate)))
