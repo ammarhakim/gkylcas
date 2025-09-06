@@ -100,10 +100,27 @@
                        #:x1 x1
                        #:t-final t-final
                        #:cfl cfl
-                      #:init-funcs init-funcs))
+                       #:init-funcs init-funcs))
 
 ;; Output the code to a file.
 (with-output-to-file "code/isothermal_euler_validate.c"
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-validate)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 1D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-isothermal-euler-minmod-validate
+  (validate-vector2-1d-second-order pde-system-isothermal-euler limiter-minmod neural-net-shallow
+                                    #:nx nx
+                                    #:x0 x0
+                                    #:x1 x1
+                                    #:t-final t-final
+                                    #:cfl cfl
+                                    #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_minmod_validate.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-minmod-validate)))

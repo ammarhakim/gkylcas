@@ -704,7 +704,7 @@ int main() {
     
       FILE *fptr = fopen(file_nm, \"w\");
       if (fptr != NULL) {
-        for (int i = 1; i <= nx; i++) {
+        for (int i = 2; i <= nx + 1; i++) {
           double x = x0 + (i - 1.5) * dx;
           fprintf(fptr, \"%f, %f\\n\", x, u[(i * 2) + j]);
         }
