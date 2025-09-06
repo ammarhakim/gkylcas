@@ -52,7 +52,7 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-  printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   printf(fh, "~%"),
   hamil : doExpand1(hamil, bV), /* Hamiltonian a function of the full phase space. */
 
@@ -86,7 +86,7 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
 
     poissonTensorConf_local : doExpand1(poissonTensorConf[j],bC),
     v_diff : varsV[j],
-    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)
+    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)*dv11[j]
   ),
 
 
@@ -136,13 +136,13 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
   printf(fh, "  if (edge == -1) { ~%~%"),
 
   incr : evSurfIncr(fskin_e, fedge_e, 1.0),
-  writeCIncrExprsCollect1lhsc(out, dx11[dir]*dv11[dir]*incr),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
 
   incr : evSurfIncr(fedge_e, fskin_e, -1.0),
-  writeCIncrExprsCollect1lhsc(out, dx11[dir]*dv11[dir]*incr),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
 
   printf(fh, "~%  } ~%"),
 

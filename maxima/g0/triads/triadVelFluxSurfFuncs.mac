@@ -70,7 +70,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   /* Create a projection of the momentum */
   vid : vidx(cdim,vdim), 
   for i : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
-  for dir : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
 
   /* Compute the characteristic for the NC Poisson Tensor */
   Pi_dH_dv : 0,
@@ -84,23 +84,53 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
     poissonTensorConf_local_1 : doExpand1(poissonTensorConf[1],bC),
     poissonTensorConf_local_2 : doExpand1(poissonTensorConf[2],bC),
 
-    Pi_dH_dv : (vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_2 ) * ( diff(hamil,varsV[2]) - diff(hamil,varsV[1]))
+    omega_12 : (vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_2 ),
+
+    if (dir = 1) then (
+      Pi_dH_dv : omega_12 * diff(hamil,varsV[2])*dv1[2] 
+    ) 
+    else if (dir = 2) then (
+      Pi_dH_dv : - omega_12 * diff(hamil,varsV[1])*dv1[1]
+    )
   ),
   if (vdim = 3) then (
-    for j : 1 thru vdim do (
 
-      /* Offset the row by vdim*vdim*NC components so we are in the bottom right block */
-      printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 0 + (j-1)*vdim, vdim*vdim*NC + (j-1)*vdim*NC ),
-      printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 1 + (j-1)*vdim, vdim*vdim*NC + NC + (j-1)*vdim*NC ),
-      printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 2 + (j-1)*vdim, vdim*vdim*NC + NC*2 + (j-1)*vdim*NC ),
+    /* Offset the row by vdim*vdim*NC components so we are in the bottom right block */
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 0, vdim*vdim*NC ),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 1, vdim*vdim*NC + NC),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 2, vdim*vdim*NC + NC*2),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 3, vdim*vdim*NC + NC*3),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 4, vdim*vdim*NC + NC*4),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 5, vdim*vdim*NC + NC*5),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 6, vdim*vdim*NC + NC*6),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 7, vdim*vdim*NC + NC*7),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 8, vdim*vdim*NC + NC*8),
 
-      poissonTensorConf_local_1 : doExpand1(poissonTensorConf[1 + (j-1)*vdim ],bC),
-      poissonTensorConf_local_2 : doExpand1(poissonTensorConf[2 + (j-1)*vdim ],bC),
-      poissonTensorConf_local_3 : doExpand1(poissonTensorConf[3 + (j-1)*vdim ],bC),
+    poissonTensorConf_local_1 : doExpand1(poissonTensorConf[1],bC),
+    poissonTensorConf_local_2 : doExpand1(poissonTensorConf[2],bC),
+    poissonTensorConf_local_3 : doExpand1(poissonTensorConf[3],bC),
+    poissonTensorConf_local_4 : doExpand1(poissonTensorConf[4],bC),
+    poissonTensorConf_local_5 : doExpand1(poissonTensorConf[5],bC),
+    poissonTensorConf_local_6 : doExpand1(poissonTensorConf[6],bC),
+    poissonTensorConf_local_7 : doExpand1(poissonTensorConf[7],bC),
+    poissonTensorConf_local_8 : doExpand1(poissonTensorConf[8],bC),
+    poissonTensorConf_local_9 : doExpand1(poissonTensorConf[9],bC),
 
-      Pi_dH_dv : Pi_dH_dv + (vTrans[j]*poissonTensorConf_local_1 ) * ( diff(hamil,varsV[2]) - diff(hamil,varsV[1])),
-      Pi_dH_dv : Pi_dH_dv + (vTrans[j]*poissonTensorConf_local_2 ) * ( diff(hamil,varsV[3]) - diff(hamil,varsV[1])),
-      Pi_dH_dv : Pi_dH_dv + (vTrans[j]*poissonTensorConf_local_3 ) * ( diff(hamil,varsV[3]) - diff(hamil,varsV[2]))
+    omega_12 : vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_4 + vTrans[3]*poissonTensorConf_local_7,
+    omega_13 : vTrans[1]*poissonTensorConf_local_2 + vTrans[2]*poissonTensorConf_local_5 + vTrans[3]*poissonTensorConf_local_8,
+    omega_23 : vTrans[1]*poissonTensorConf_local_3 + vTrans[2]*poissonTensorConf_local_6 + vTrans[3]*poissonTensorConf_local_9,
+
+    if (dir = 1) then (
+      Pi_dH_dv : Pi_dH_dv + omega_12 * diff(hamil,varsV[2])*dv1[2],
+      Pi_dH_dv : Pi_dH_dv + omega_13 * diff(hamil,varsV[3])*dv1[3]
+    ) 
+    else if (dir = 2) then (
+      Pi_dH_dv : Pi_dH_dv - omega_12 * diff(hamil,varsV[1])*dv1[1],
+      Pi_dH_dv : Pi_dH_dv + omega_23 * diff(hamil,varsV[3])*dv1[3]
+    )
+    else if (dir = 3) then (
+      Pi_dH_dv : Pi_dH_dv - omega_13 * diff(hamil,varsV[1])*dv1[1],
+      Pi_dH_dv : Pi_dH_dv - omega_23 * diff(hamil,varsV[2])*dv1[2]
     )
   ),
 
@@ -108,7 +138,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
      Hamiltonian at vv = -1. Note that the flux is -grad_x(H). */
   PI_dH_dv_l : float(evAtNodes(subst(vv=-1,Pi_dH_dv),surfNodes,surfVars)), 
   for i : 1 thru numNodes do (
-    printf(fh, "  alpha_quad[~a] += -~a*(~a); ~%", i-1, dv1[dir], PI_dH_dv_l[i]) 
+    printf(fh, "  alpha_quad[~a] += -~a; ~%", i-1, PI_dH_dv_l[i]) 
   ),
   printf(fh, "~%"),
 

@@ -53,7 +53,7 @@ calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-  printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
+  for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   printf(fh, "~%"),
   hamil : doExpand1(hamil, bV), /* Hamiltonian a function of the *velocity* phase space. */
 
@@ -88,7 +88,7 @@ calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
 
     poissonTensorConf_local : doExpand1(poissonTensorConf[j],bC),
     v_diff : varsV[j],
-    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)
+    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)*dv11[j]
   ),
 
   printf(fh, "  double Ghat_l_nodal[~a] = {0.0}; ~%", numNodes),
@@ -148,7 +148,7 @@ calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
   Ghat_r_e : doExpand1(Ghat_r, bSurf),
   incr_l : calcInnerProdList(surfVars, 1, subst(cv=-1.0, bP), Ghat_l_e),
   incr_r : calcInnerProdList(surfVars, -1, subst(cv=1.0, bP), Ghat_r_e),
-  writeCIncrExprsCollect1lhsc(out, dv11[dir]*dx11[dir]*incr_l + dv11[dir]*dx11[dir]*incr_r),    
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr_l + dx11[dir]*incr_r),    
   printf(fh, "~%"),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
