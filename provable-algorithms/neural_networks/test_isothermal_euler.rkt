@@ -67,6 +67,31 @@
   (lambda ()
     (display code-isothermal-euler-lax-train)))
 
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-isothermal-euler-lax-minmod-train
+  (train-lax-friedrichs-vector2-1d-second-order pde-system-isothermal-euler limiter-minmod neural-net-shallow
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_minmod_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-minmod-train)))
+
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D isothermal Euler equations using a shallow neural network.
 (define code-isothermal-euler-validate
   (validate-vector2-1d pde-system-isothermal-euler neural-net-shallow
