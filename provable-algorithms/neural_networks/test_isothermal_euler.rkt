@@ -3,6 +3,7 @@
 (require "code_generator_core_training.rkt")
 (require "code_generator_validation.rkt")
 (require "code_generator_vector_training.rkt")
+(require "prover.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 (provide (all-from-out "code_generator_vector_training.rkt"))
 
@@ -91,6 +92,28 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-minmod-train)))
+
+;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D isothermal Euler equations.
+(define proof-isothermal-euler-smooth
+  (call-with-output-file "proofs/proof_isothermal_euler_smooth.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-vector2-1d-smooth pde-system-isothermal-euler neural-net-shallow
+                                 #:nx nx
+                                 #:x0 x0
+                                 #:x1 x1
+                                 #:t-final t-final
+                                 #:cfl cfl
+                                 #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_smooth.rkt")
+
+;; Show the error bounds (if applicable) on smooth solutions.
+(display "Error bounds (smooth solutions): ")
+(display proof-isothermal-euler-smooth)
+(display "\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D isothermal Euler equations using a shallow neural network.
 (define code-isothermal-euler-validate

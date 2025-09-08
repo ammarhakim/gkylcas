@@ -9,8 +9,10 @@
          symbolic-simp
          is-real
          symbolic-diff-order
+         symbolic-jacobian-order
          prove-scalar-1d-smooth
-         prove-scalar-1d-non-smooth)
+         prove-scalar-1d-non-smooth
+         prove-vector2-1d-smooth)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -334,7 +336,16 @@
 
   (cond
     [(or (equal? diff-expr 0.0) (equal? diff-expr 0)) (+ order 1)]
+    [(> order 1) #f]
     [else (symbolic-diff-order diff-expr var (+ order 1))]))
+
+;; Recursively differentiate each component of exprs with respect to each component of vars until the results are 0, and return the necessary orders of differentiation.
+(define (symbolic-jacobian-order exprs vars)
+  (map (lambda (expr)
+         (map (lambda (var)
+                (symbolic-diff-order expr var 0))
+              vars))
+       exprs))
 
 ;; --------------------------------------------------------------------------------------------
 ;; Prove Error Bounds on Smooth Solutions for an Arbitrary Surrogate Solver for a 1D Scalar PDE
@@ -389,7 +400,7 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
     ;; Check whether the neural network depth is at least equal to 2 + the order of the derivative of the flux function (otherwise, return false).
-    [(symbolic-simp `(< ,depth (+ 2 ,flux-deriv-order))) #f]
+    [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,flux-deriv-order))) #f)) #f]
 
     ;; Otherwise, return the bound.
     [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,flux-deriv-order)))))]))
@@ -456,7 +467,7 @@
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
     ;; Check whether the neural network depth is at least equal to 2 * the order of the derivative of the flux function (otherwise, return false).
-    [(symbolic-simp `(< ,depth (* 2 ,flux-deriv-order))) #f]
+    [(not (equal? (symbolic-simp `(< ,depth (* 2 ,flux-deriv-order))) #f)) #f]
 
     ;; Otherwise, return the bound.
     [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,flux-deriv-order)))))]))
@@ -469,3 +480,86 @@
   
   out)
 (trace prove-scalar-1d-non-smooth)
+
+;; -----------------------------------------------------------------------------------------------------------------
+;; Prove Error Bounds on Smooth Solutions for an Arbitrary Surrogate Solver for a 1D Coupled Vector System of 2 PDEs
+;; -----------------------------------------------------------------------------------------------------------------
+(define (prove-vector2-1d-smooth pde-system neural-net
+                                 #:nx [nx 200]
+                                 #:x0 [x0 0.0]
+                                 #:x1 [x1 2.0]
+                                 #:t-final [t-final 1.0]
+                                 #:cfl [cfl 0.95]
+                                 #:init-funcs [init-funcs (list
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 3.0]
+                                                                                    [else 1.0])
+                                                                                 `(cond
+                                                                                    [(< x 0.5) 1.5]
+                                                                                    [else 0.0]))])
+   "Attempt to prove an analytic error bound on smooth solutions for an arbitrary surrogate solver for the 1D coupled vector system of 2 PDEs specified by `pde-system`,
+    with neural network architecture `neural-net`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (define width (hash-ref neural-net 'width))
+  (define depth (hash-ref neural-net 'depth))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-diff-order)
+  (trace symbolic-jacobian-order)
+
+  (define flux-jacobian-order (symbolic-jacobian-order flux-exprs cons-exprs))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-exprs) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
+
+    ;; Check whether the neural network depth is at least equal to 2 + the order of each component of the Jacobian of the flux function: if so, return the bounds;
+    ;; otherwise, return false.
+    [else (list (cond
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 0)))) #f)) #f]
+                  [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 0))))))])
+                (cond
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 1)))) #f)) #f]
+                  [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 1))))))])
+                (cond
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 0)))) #f)) #f]
+                  [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 0))))))])
+                (cond
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 1)))) #f)) #f]
+                  [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 1))))))]))]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-diff-order)
+  (untrace symbolic-jacobian-order)
+  
+  out)
+(trace prove-vector2-1d-smooth)
