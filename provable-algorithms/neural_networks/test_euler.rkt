@@ -36,7 +36,7 @@
    ))
 
 ;; Define simulation parameters.
-(define nx 200)
+(define nx 800)
 (define x0 0.0)
 (define x1 1.0)
 (define t-final 0.1)
@@ -75,6 +75,31 @@
   #:exists 'replace
   (lambda ()
     (display code-euler-lax-train)))
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-euler-lax-minmod-train
+  (train-lax-friedrichs-vector3-1d-second-order pde-system-euler limiter-minmod neural-net-shallow
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_lax_minmod_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-lax-minmod-train)))
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D Euler equations using a shallow neural network.
 (define code-euler-validate
