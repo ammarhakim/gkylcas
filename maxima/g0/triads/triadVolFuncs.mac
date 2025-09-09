@@ -19,8 +19,8 @@ fpprec : 24$
 clabels : ["x","y","z"]$
 pt_conf_total : [1,6,18]$ 
 dx1 : [dx10, dx11, dx12]$
-dv1 : [dv10, dv11, dv12]$
-vTrans  : [vx*dv1[1]/2+wx1, vy*dv1[2]/2+wx2, vz*dv1[3]/2+wx3]$
+dv1_inv : [dv10, dv11, dv12]$
+vTrans  : [vx*dv0/2+wx1, vy*dv1/2+wx2, vz*dv2/2+wx3]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
@@ -126,6 +126,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
   cid : cidx(cdim),
   vid : vidx(cdim,vdim), 
   for dir : 1 thru cdim do printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  for dir : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", dir-1, vid[dir]),
   for dir : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
 
   /* Create a projection of the momentum */
@@ -165,8 +166,8 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
       printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", pt_index - 1, NC*(pt_index-1)),
 
       /* Compute the volume element */
-      if (dir1 <= vdim ) then dz_val1 : dx1[dir1] else dz_val1 : dv1[dir1-vdim],
-      if (dir2 <= vdim ) then dz_val2 : dx1[dir2] else dz_val2 : dv1[dir2-vdim],
+      if (dir1 <= vdim ) then dz_val1 : dx1[dir1] else dz_val1 : dv1_inv[dir1-vdim],
+      if (dir2 <= vdim ) then dz_val2 : dx1[dir2] else dz_val2 : dv1_inv[dir2-vdim],
       dvol : dz_val1*dz_val2, 
 
       /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.

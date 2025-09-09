@@ -152,7 +152,7 @@ calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
   printf(fh, "~%"),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
-  printf(fh, "  return fabs(~a*~a*~a*alpha_max);~%", float(0.5*(2*polyOrder+1)), dv11[dir], dx11[dir]), 
+  printf(fh, "  return fabs(~a*~a*alpha_max);~%", float(0.5*(2*polyOrder+1)), dx11[dir]), 
   printf(fh, "~%"),
 
   printf(fh, "} ~%")

@@ -32,8 +32,8 @@ fpprec : 24$
 
 clabels : ["x","y","z"]$
 dx1 : [dx10, dx11, dx12]$
-dv1 : [dv10, dv11, dv12]$
-vTrans  : [vx*dv1[1]/2+wx1, vy*dv1[2]/2+wx2, vz*dv1[3]/2+wx3]$
+dv1_inv : [dv10, dv11, dv12]$
+vTrans  : [vx*dv0/2+wx1, vy*dv1/2+wx2, vz*dv2/2+wx3]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
@@ -70,6 +70,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   /* Create a projection of the momentum */
   vid : vidx(cdim,vdim), 
   for i : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+  for i : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", i-1, vid[i]),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
 
   /* Compute the characteristic for the NC Poisson Tensor */
@@ -87,10 +88,10 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
     omega_12 : (vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_2 ),
 
     if (dir = 1) then (
-      Pi_dH_dv : omega_12 * diff(hamil,varsV[2])*dv1[2] 
+      Pi_dH_dv : omega_12 * diff(hamil,varsV[2])*dv1_inv[2] 
     ) 
     else if (dir = 2) then (
-      Pi_dH_dv : - omega_12 * diff(hamil,varsV[1])*dv1[1]
+      Pi_dH_dv : - omega_12 * diff(hamil,varsV[1])*dv1_inv[1]
     )
   ),
   if (vdim = 3) then (
@@ -121,16 +122,16 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
     omega_23 : vTrans[1]*poissonTensorConf_local_3 + vTrans[2]*poissonTensorConf_local_6 + vTrans[3]*poissonTensorConf_local_9,
 
     if (dir = 1) then (
-      Pi_dH_dv : Pi_dH_dv + omega_12 * diff(hamil,varsV[2])*dv1[2],
-      Pi_dH_dv : Pi_dH_dv + omega_13 * diff(hamil,varsV[3])*dv1[3]
+      Pi_dH_dv : Pi_dH_dv + omega_12 * diff(hamil,varsV[2])*dv1_inv[2],
+      Pi_dH_dv : Pi_dH_dv + omega_13 * diff(hamil,varsV[3])*dv1_inv[3]
     ) 
     else if (dir = 2) then (
-      Pi_dH_dv : Pi_dH_dv - omega_12 * diff(hamil,varsV[1])*dv1[1],
-      Pi_dH_dv : Pi_dH_dv + omega_23 * diff(hamil,varsV[3])*dv1[3]
+      Pi_dH_dv : Pi_dH_dv - omega_12 * diff(hamil,varsV[1])*dv1_inv[1],
+      Pi_dH_dv : Pi_dH_dv + omega_23 * diff(hamil,varsV[3])*dv1_inv[3]
     )
     else if (dir = 3) then (
-      Pi_dH_dv : Pi_dH_dv - omega_13 * diff(hamil,varsV[1])*dv1[1],
-      Pi_dH_dv : Pi_dH_dv - omega_23 * diff(hamil,varsV[2])*dv1[2]
+      Pi_dH_dv : Pi_dH_dv - omega_13 * diff(hamil,varsV[1])*dv1_inv[1],
+      Pi_dH_dv : Pi_dH_dv - omega_23 * diff(hamil,varsV[2])*dv1_inv[2]
     )
   ),
 
@@ -138,7 +139,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
      Hamiltonian at vv = -1. Note that the flux is -grad_x(H). */
   PI_dH_dv_l : float(evAtNodes(subst(vv=-1,Pi_dH_dv),surfNodes,surfVars)), 
   for i : 1 thru numNodes do (
-    printf(fh, "  alpha_quad[~a] += -~a; ~%", i-1, PI_dH_dv_l[i]) 
+    printf(fh, "  alpha_quad[~a] += ~a; ~%", i-1, PI_dH_dv_l[i]) 
   ),
   printf(fh, "~%"),
 
