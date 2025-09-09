@@ -101,6 +101,50 @@
   (lambda ()
     (display code-euler-lax-minmod-train)))
 
+;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D Euler equations.
+(define proof-euler-smooth
+  (call-with-output-file "proofs/proof_euler_smooth.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-vector3-1d-smooth pde-system-euler neural-net-shallow
+                                 #:nx nx
+                                 #:x0 x0
+                                 #:x1 x1
+                                 #:t-final t-final
+                                 #:cfl cfl
+                                 #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_smooth.rkt")
+
+;; Show the error bounds (if applicable) on smooth solutions.
+(display "Error bounds (smooth solutions): ")
+(display proof-euler-smooth)
+(display "\n")
+
+;; Attempt to prove error bounds on non-smooth solutions obtained from surrogate solvers for the 1D Euler equations.
+(define proof-euler-non-smooth
+  (call-with-output-file "proofs/proof_euler_non_smooth.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-vector3-1d-non-smooth pde-system-euler neural-net-shallow
+                                     #:nx nx
+                                     #:x0 x0
+                                     #:x1 x1
+                                     #:t-final t-final
+                                     #:cfl cfl
+                                     #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_non_smooth.rkt")
+
+;; Show the error bounds (if applicable) on non-smooth solutions.
+(display "Error bounds (non-smooth solutions): ")
+(display proof-euler-non-smooth)
+(display "\n")
+
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D Euler equations using a shallow neural network.
 (define code-euler-validate
   (validate-vector3-1d pde-system-euler neural-net-shallow
