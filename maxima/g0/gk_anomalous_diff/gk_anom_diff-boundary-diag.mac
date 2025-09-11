@@ -1,0 +1,94 @@
+load("modal-basis")$
+load("recovery")$
+load("out-scripts")$
+fpprec : 24$
+
+gk_anomalous_diff_gen_boundary_diag_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir) := block(
+  [dim,bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,numBasisC,
+   nuEdge_e,nuEdge_c,nuSkin_e,nuSkin_c,JfEdge_c,KfSkin_c,JfEdge_e,JfSkin_e,jacobgeo_inv_e,
+   fEdge_c,fSkin_c,fEdge_e,fSkin_e,fRecr_e,nuAv_r,edgeSurf_incr_c,nuSkin_l,
+   boundSurf_incr_c,edge_out,bound_out],
+
+  dim : cdim+vdim,
+
+  bType : basisType,
+  if polyOrder=1 then bType : "gkhyb",  /* Force p=1 to mean hybrid. */
+
+  [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  numBasis : length(basis),
+
+  surfVar  : vars[dir],
+  surfIntVars : delete(surfVar,vars),
+  
+  /* Here we assume diffusivity only depends on position space,
+     but it could be easily changed to vary with velocity space too. */
+  numBasisC : length(basisC),
+  nuEdge_c : makelist(nuEdge[i-1],i,1,numBasisC),
+  nuEdge_e : doExpand(nuEdge_c, basisC),
+  nuSkin_c : makelist(nuSkin[i-1],i,1,numBasisC),
+  nuSkin_e : doExpand(nuSkin_c, basisC),
+  
+  printf(fh, "GKYL_CU_DH double ~a(const double *wSkin, const double *dxSkin, const double *nuSkin, const double *nuGhost, const double *jacobgeo_inv, int edge, const double *JfSkin, const double *JfGhost, double* GKYL_RESTRICT out) ~%", funcNm),
+  printf(fh, "{~%"),
+  printf(fh, "  // w[NDIM]: Cell-center coordinate.~%"),
+  printf(fh, "  // dxv[NDIM]: Cell length.~%"),
+  printf(fh, "  // nuSkin/nuGhost: Diffusivity in skin and ghost cells.~%"),
+  printf(fh, "  // jacobgeo_inv: reciprocal of the configuration space Jacobian.~%"),
+  printf(fh, "  // edge: -1 for lower boundary, +1 for upper boundary.~%"),
+  printf(fh, "  // JfSkin/JfGhost: distribution times conf-space Jacobian in skin and ghost cells.~%"),
+  printf(fh, "  // out: Incremented output.~%~%"),
+
+  printf(fh, "  const double rdx2sq = pow(2./dxSkin[~a],2.0);~%", dir-1),
+  printf(fh, "~%"),
+
+  JfSkin_c : makelist(JfSkin[i-1], i, 1, numBasis),
+  JfSkin_e : doExpand(JfSkin_c, basis),
+
+  /* Divide jacobGeo*f by jacobGeo. */
+  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
+  
+  fSkin_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, JfSkin_e),
+
+  /* Divide jacobGeo*f by jacobGeo. */
+  printf(fh, "  double fSkin[~a];~%", numBasis),
+  writeCExprsNoExpand1(fSkin, fSkin_c),
+  fSkin_c : makelist(fSkin[i-1], i, 1, numBasis),
+  printf(fh, "~%"),
+
+  fSkin_e : doExpand(fSkin_c, basis),
+
+  printf(fh, "  double boundSurf_incr[~a] = {0.0}; ~%", numBasis),
+  printf(fh, "~%"),
+
+  /* Lower doman boundary. */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  /* Contribution from the domain boundary surface. Minus sign is because this
+     contribution ought to be the opposite of that in boundary_surf. */
+  nuSkin_l : subst(surfVar=-1,nuSkin_e),
+  boundSurf_incr_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuSkin_l*subst(surfVar=-1,diff(fSkin_e,surfVar))),
+
+  writeCExprs1(boundSurf_incr, boundSurf_incr_c),
+  printf(fh, "~%"),
+  
+  /* Upper doman boundary. */
+  printf(fh, "  } else { ~%~%"),
+
+  /* Contribution from the domain boundary surface. Minus sign is because this
+     contribution ought to be the opposite of that in boundary_surf. */
+  nuSkin_r : subst(surfVar=1,nuSkin_e),
+  boundSurf_incr_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuSkin_r*subst(surfVar=1,diff(fSkin_e,surfVar))),
+  
+  writeCExprs1(boundSurf_incr, boundSurf_incr_c),
+  printf(fh, "~%"),
+
+  printf(fh, "  }~%"),
+  printf(fh, "~%"),
+
+  bound_out : makelist(boundSurf_incr[i-1],i,1,numBasis),
+  writeCIncrExprsNoExpand1(out, rdx2sq*bound_out),
+  printf(fh, "~%"),
+  
+  printf(fh, "  return 0.;~%"),  /* Return CFL frequency in volume kernel. */
+  printf(fh, "}~%~%")
+)$
