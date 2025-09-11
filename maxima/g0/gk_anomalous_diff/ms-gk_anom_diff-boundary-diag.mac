@@ -35,11 +35,15 @@ for bInd : 1 thru length(bName) do (
         dirVar : dirVars[cdim][vdim][dir], 
 
         fname : sconcat("~/max-out/gk_anomalous_diffusion_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        funcName : sconcat("gk_anomalous_diffusion_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
         fh : openw(fname),
         printf(fh, "#include <gkyl_gk_anomalous_diffusion_kernels.h>~%~%"),
         print("Generating:", fname),
-        gk_anomalous_diff_gen_boundary_diag_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir),
+        for side in bound_side do (
+          for bc in bound_diag_bc_type do (
+            funcName : sconcat("gk_anomalous_diffusion_boundary_diag", dirVar,"_", side, "_", bc, "_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+            gk_anomalous_diff_gen_boundary_diag_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, side, bc)
+          )
+        ),
         close(fh)
 
       )

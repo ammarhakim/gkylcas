@@ -3,9 +3,19 @@ load("recovery")$
 load("out-scripts")$
 fpprec : 24$
 
-gk_anomalous_diff_gen_boundary_surf_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir) := block(
+/* Types of boundary stencils:
+     - zero_flux: we don't apply the surface term on the boundary.
+     - bound_local: use the local (skin cell) solution to compute the boundary
+       surface.
+*/
+bound_surf_bc_type : ["zero_flux","bound_local"]$
+
+/* Boundary sidex. */
+bound_side : ["lower","upper"]$
+
+gk_anomalous_diff_gen_boundary_surf_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir, side, bcType) := block(
   [dim,bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,numBasisC,
-   nuEdge_e,nuEdge_c,nuSkin_e,nuSkin_c,JfEdge_c,KfSkin_c,JfEdge_e,JfSkin_e,jacobgeo_inv_e,
+   nuEdge_e,nuEdge_c,nuSkin_e,nuSkin_c,JfEdge_c,JfSkin_c,JfEdge_e,JfSkin_e,jacobgeo_inv_e,
    fEdge_c,fSkin_c,fEdge_e,fSkin_e,fRecr_e,nuAv_r,edgeSurf_incr_c,nuSkin_l,
    boundSurf_incr_c,edge_out,bound_out],
 
@@ -66,48 +76,56 @@ gk_anomalous_diff_gen_boundary_surf_ker(fh, funcNm, cdim, vdim, basisType, polyO
   fEdge_e : doExpand(fEdge_c, basis),
 
   printf(fh, "  double edgeSurf_incr[~a] = {0.0}; ~%", numBasis),
-  printf(fh, "  double boundSurf_incr[~a] = {0.0}; ~%", numBasis),
+  if not bcType = "zero_flux" then (
+    printf(fh, "  double boundSurf_incr[~a] = {0.0}; ~%", numBasis)
+  ),
   printf(fh, "~%"),
 
-  /* Lower doman boundary. */
-  printf(fh, "  if (edge == -1) { ~%~%"),
+  if side = "lower" then (
+    /* Lower doman boundary. */
 
-  /* Contribution from the skin-edge surface. */
-  fRecr_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fSkin_c), dg(fEdge_c)),
-  nuAv_r : (subst(surfVar=1,nuSkin_e) + subst(surfVar=-1,nuEdge_e))/2,
-  edgeSurf_incr_c : calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuAv_r*subst(surfVar=0,diff(fRecr_e,surfVar))),
+    /* Contribution from the skin-edge surface. */
+    fRecr_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fSkin_c), dg(fEdge_c)),
+    nuAv_r : (subst(surfVar=1,nuSkin_e) + subst(surfVar=-1,nuEdge_e))/2,
+    edgeSurf_incr_c : calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuAv_r*subst(surfVar=0,diff(fRecr_e,surfVar))),
+  
+    /* Contribution from the domain boundary surface. */
+    if bcType = "bound_local" then (
+      nuSkin_l : subst(surfVar=-1,nuSkin_e),
+      boundSurf_incr_c : calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuSkin_l*subst(surfVar=-1,diff(fSkin_e,surfVar)))
+    ) else if bcType = "zero_flux" then (
+      boundSurf_incr_c : makelist(0,i,1,numBasis)
+    )
+  
+  ) else (
+    /* Upper doman boundary. */
 
-  /* Contribution from the domain boundary surface. */
-  nuSkin_l : subst(surfVar=-1,nuSkin_e),
-  boundSurf_incr_c : calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuSkin_l*subst(surfVar=-1,diff(fSkin_e,surfVar))),
-
+    /* Contribution from the skin-edge surface. */
+    fRecl_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fEdge_c), dg(fSkin_c)),
+    nuAv_l : (subst(surfVar=1,nuEdge_e) + subst(surfVar=-1,nuSkin_e))/2,
+    edgeSurf_incr_c : calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuAv_l*subst(surfVar=0,diff(fRecl_e,surfVar))),
+  
+    /* Contribution from the domain boundary surface. */
+    if bcType = "bound_local" then (
+      nuSkin_r : subst(surfVar=1,nuSkin_e),
+      boundSurf_incr_c : calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuSkin_r*subst(surfVar=1,diff(fSkin_e,surfVar)))
+    ) else if bcType = "zero_flux" then (
+      boundSurf_incr_c : makelist(0,i,1,numBasis)
+    )
+    
+  ),
+  
   writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
   printf(fh, "~%"),
   writeCExprs1(boundSurf_incr, boundSurf_incr_c),
-  printf(fh, "~%"),
-  
-  /* Upper doman boundary. */
-  printf(fh, "  } else { ~%~%"),
-
-  /* Contribution from the skin-edge surface. */
-  fRecl_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fEdge_c), dg(fSkin_c)),
-  nuAv_l : (subst(surfVar=1,nuEdge_e) + subst(surfVar=-1,nuSkin_e))/2,
-  edgeSurf_incr_c : calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuAv_l*subst(surfVar=0,diff(fRecl_e,surfVar))),
-
-  /* Contribution from the domain boundary surface. */
-  nuSkin_r : subst(surfVar=1,nuSkin_e),
-  boundSurf_incr_c : calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuSkin_r*subst(surfVar=1,diff(fSkin_e,surfVar))),
-  
-  writeCExprs1(edgeSurf_incr, edgeSurf_incr_c),
-  printf(fh, "~%"),
-  writeCExprs1(boundSurf_incr, boundSurf_incr_c),
-  printf(fh, "~%"),
-
-  printf(fh, "  }~%"),
   printf(fh, "~%"),
 
   edge_out  : makelist(edgeSurf_incr[i-1],i,1,numBasis),
-  bound_out : makelist(boundSurf_incr[i-1],i,1,numBasis),
+  if bcType = "zero_flux" then (
+    bound_out : makelist(0,i,1,numBasis)
+  ) else (
+    bound_out : makelist(boundSurf_incr[i-1],i,1,numBasis)
+  ),
   writeCIncrExprsNoExpand1(out, rdx2sq*(bound_out + edge_out)),
   printf(fh, "~%"),
   
