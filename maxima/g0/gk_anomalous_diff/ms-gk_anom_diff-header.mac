@@ -58,19 +58,19 @@ for bInd : 1 thru length(bName) do (
         dirVar : dirVars[cdim][vdim][dir], 
 
         funcName : sconcat("gk_anomalous_diffusion_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-        funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_inv, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out);~%"),
+        funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_invl, const double *jacobgeo_invc, const double *jacobgeo_invr, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out);~%"),
         printf(fh, funcSign),
 
         for side in bound_side do (
           for bc in bound_surf_bc_type do (
             funcName : sconcat("gk_anomalous_diffusion_boundary_surf", dirVar,"_", side, "_", bc, "_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wSkin, const double *dxSkin, const double *nuEdge, const double *nuSkin, const double *jacobgeo_inv, int edge, const double *JfEdge, const double *JfSkin, double* GKYL_RESTRICT out);~%"),
+            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wSkin, const double *dxSkin, const double *nuEdge, const double *nuSkin, const double *jacobgeo_invEdge, const double *jacobgeo_invSkin, int edge, const double *JfEdge, const double *JfSkin, double* GKYL_RESTRICT out);~%"),
             printf(fh, funcSign)
           ),
 
           for bc in bound_diag_bc_type do (
             funcName : sconcat("gk_anomalous_diffusion_boundary_diag", dirVar,"_", side, "_", bc, "_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wSkin, const double *dxSkin, const double *nuSkin, const double *nuGhost, const double *jacobgeo_inv, int edge, const double *JfSkin, const double *JfGhost, double* GKYL_RESTRICT out);~%"),
+            funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wSkin, const double *dxSkin, const double *nuSkin, const double *nuGhost, const double *jacobgeo_invSkin, const double *jacobgeo_invGhost, int edge, const double *JfSkin, const double *JfGhost, double* GKYL_RESTRICT out);~%"),
             printf(fh, funcSign)
           )
         ),

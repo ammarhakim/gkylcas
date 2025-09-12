@@ -5,7 +5,7 @@ fpprec : 24$
 
 gk_anomalous_diff_gen_surf_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir) := block(
   [dir,bType,varsC,basisC,vars,basis,vSub,numBasis,numBasisC,surfVar,surfIntVars,nul_c,nuc_c,nur_c,nul_e,nuc_e,nur_e,
-   Jfl_c,Jfc_c,Jfr_c,Jfl_e,Jfc_e,Jfr_e,jacobgeo_inv_e,fl_c,fc_c,fr_c,fl_e,fc_e,fr_e,
+   Jfl_c,Jfc_c,Jfr_c,Jfl_e,Jfc_e,Jfr_e,jacobgeo_invl_e,jacobgeo_invc_e,jacobgeo_invr_e,fl_c,fc_c,fr_c,fl_e,fc_e,fr_e,
    fRecl_e,nuAv_l,surf_incr_l_c,fRecr_e,nuAv_r,surf_incr_r_c,surf_l_out,surf_r_out],
 
   dir : 1,
@@ -21,14 +21,16 @@ gk_anomalous_diff_gen_surf_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
   surfVar  : vars[dir],
   surfIntVars : delete(surfVar,vars),
   
-  printf(fh, "GKYL_CU_DH double ~a(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_inv, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out) ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_invl,  const double *jacobgeo_invc, const double *jacobgeo_invr, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out) ~%", funcNm),
   printf(fh, "{~%"),
   printf(fh, "  // w[NDIM]: Cell-center coordinate.~%"),
   printf(fh, "  // dxv[NDIM]: Cell length.~%"),
   printf(fh, "  // nul: Diffusivity in the left cell.~%"),
   printf(fh, "  // nuc: Diffusivity in the center cell.~%"),
   printf(fh, "  // nur: Diffusivity in the right cell.~%"),
-  printf(fh, "  // jacobgeo_inv: one divided by the configuration space Jacobian.~%"),
+  printf(fh, "  // jacobgeo_invl: reciprocal of the conf-space Jacobian in the left cell.~%"),
+  printf(fh, "  // jacobgeo_invc: reciprocal of the conf-space Jacobian in the center cell.~%"),
+  printf(fh, "  // jacobgeo_invr: reciprocal of the conf-space Jacobian in the right cell.~%"),
   printf(fh, "  // Jfl: Input field times conf-space Jacobian in the left cell.~%"),
   printf(fh, "  // Jfc: Input field times conf-space Jacobian in the center cell.~%"),
   printf(fh, "  // Jfr: Input field times conf-space Jacobian in the right cell.~%"),
@@ -54,11 +56,13 @@ gk_anomalous_diff_gen_surf_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir
   Jfr_e : doExpand(Jfr_c, basis),
 
   /* Divide jacobGeo*f by jacobGeo. */
-  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
+  jacobgeo_invl_e : doExpand1(jacobgeo_invl, basisC),
+  jacobgeo_invc_e : doExpand1(jacobgeo_invc, basisC),
+  jacobgeo_invr_e : doExpand1(jacobgeo_invr, basisC),
   
-  fl_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, Jfl_e),
-  fc_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, Jfc_e),
-  fr_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, Jfr_e),
+  fl_c : calcInnerProdList(vars, jacobgeo_invl_e, basis, Jfl_e),
+  fc_c : calcInnerProdList(vars, jacobgeo_invc_e, basis, Jfc_e),
+  fr_c : calcInnerProdList(vars, jacobgeo_invr_e, basis, Jfr_e),
 
   /* Divide jacobGeo*f by jacobGeo. */
   printf(fh, "  double fl[~a];~%", numBasis),
