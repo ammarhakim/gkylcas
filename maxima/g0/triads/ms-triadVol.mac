@@ -51,15 +51,13 @@ for bInd : 1 thru length(bName) do (
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
       if (c+v>4 and maxPolyOrderB > 1) and (bName[bInd] = "ser") then maxPolyOrderB : 1,
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        if not(c = 3 and bName[bInd] = "ser") and not(c = 2 and v = 3 and bName[bInd] = "tensor" and polyOrder = 2) then ( /* SKIP hybrid in 3d */
-          if (bName[bInd] = "ser") then (
-            disp(printf(false,"Creating volume file: ~a",fname)),
-            fname : sconcat("~/max-out/vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            fh : openw(fname),
-            funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false),
-            close(fh) 
-          )
+        if (bName[bInd] = "ser") then (
+          fname : sconcat("~/max-out/vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          disp(printf(false,"Creating volume file: ~a",fname)),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false),
+          close(fh) 
         )
       )
     )
