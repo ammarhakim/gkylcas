@@ -38,7 +38,7 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := bl
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,pb_dim,hamil,f_e,
    fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
-   pb,pbBasis,clst_vol],
+   pb,pbBasis,clst_vol,varsPFull],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NP : length(bP), 
@@ -46,7 +46,8 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := bl
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   if (vmap) then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
@@ -230,7 +231,8 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *hamil, const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil,
+  const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
   )
