@@ -41,7 +41,7 @@ for bInd : 1 thru length(bName) do (
       print("pOrder = ",pOrder),
         vStr : "",
         if (v>0) then (vStr: sconcat(v,"v")),
-        fname : sconcat("/home/akash/max-out/bc_twistshift_gyrokinetic_", bName[bInd], "_", c, "x", vStr, "_p", pOrder, ".c"),
+        fname : sconcat("~/max-out/bc_twistshift_gyrokinetic_", bName[bInd], "_", c, "x", vStr, "_p", pOrder, ".c"),
         fh : openw(fname),
   
         disp(printf(false,sconcat("Creating ~ax", vStr, "P~a ", bName[bInd]),c,pOrder)),
@@ -50,7 +50,7 @@ for bInd : 1 thru length(bName) do (
         printf(fh, " ~%"),
         
         for pOrder1D : pOrder thru maxPolyOrder1D[bInd] do (
-        print("pOrder1D = ",pOrder1D),
+          print("pOrder1D = ",pOrder1D),
           /* Interpolation operator with unspecified (constant) y-integral limits and
              x-integral limits given by a DG expansion defined in a subregion of the source cell. */
           funcName : sconcat("twistshift_xlimdg_",c,"x", vStr, "_", bName[bInd], "_p", pOrder, "_yshift_p", pOrder1D),
