@@ -2,11 +2,21 @@ load("modal-basis");
 load("out-scripts");
 
 loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
-  [varsSubV, varsSubP],
+  [hybten, varsSubV, varsSubP],
   
-  [varsC,bC] : loadBasis(basisType, cdim, polyOrder),
-  [varsV,bV] : loadBasis(basisType, vdim, polyOrder), 
-  [varsP,bP] : loadBasis(basisType, cdim+vdim, polyOrder), 
+  /* Select Hybrid basis for tensor p = 1. */
+  hybten : (polyOrder = 1) and (basisType = "tensor"),
+  if (hybten) then (
+    [varsC,bC] : loadBasis(basisType, cdim, polyOrder),
+    [varsV,bV] : loadBasis(basisType, vdim, polyOrder+1), 
+    [varsP,bP] : loadTensorHybridBasis(basisType, cdim, vdim) 
+  )
+  else (
+    [varsC,bC] : loadBasis(basisType, cdim, polyOrder),
+    [varsV,bV] : loadBasis(basisType, vdim, polyOrder), 
+    [varsP,bP] : loadBasis(basisType, cdim+vdim, polyOrder)
+  ),
+
   /* Do a variable substitution for the lower dimensional basis functions
      to construct the correct set of variables for the subsequent operations */
   if (cdim = 1) then (
@@ -15,18 +25,22 @@ loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
       bV : subst(varsSubV, copylist(bV)),  
       varsV : subst(varsSubV, copylist(varsV)), 
 
-      varsSubP : [y=vx],
-      bP : subst(varsSubP, copylist(bP)),  
-      varsP : subst(varsSubP, copylist(varsP))
+      if not(hybten) then (
+        varsSubP : [y=vx],
+        bP : subst(varsSubP, copylist(bP)),  
+        varsP : subst(varsSubP, copylist(varsP))
+      )
     )
     else if (vdim = 2) then (
       varsSubV : [x=vx, y=vy], 
       bV : subst(varsSubV, copylist(bV)),  
       varsV : subst(varsSubV, copylist(varsV)), 
 
-      varsSubP : [y=vx, z=vy],
-      bP : subst(varsSubP, copylist(bP)),  
-      varsP : subst(varsSubP, copylist(varsP))      
+      if not(hybten) then (
+        varsSubP : [y=vx, z=vy],
+        bP : subst(varsSubP, copylist(bP)),  
+        varsP : subst(varsSubP, copylist(varsP))  
+      ) 
     )
   )
   else if (cdim = 2) then (
@@ -35,18 +49,22 @@ loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
       bV : subst(varsSubV, copylist(bV)),  
       varsV : subst(varsSubV, copylist(varsV)), 
 
-      varsSubP : [z=vx],
-      bP : subst(varsSubP, copylist(bP)),  
-      varsP : subst(varsSubP, copylist(varsP))   
+      if not(hybten) then (
+        varsSubP : [z=vx],
+        bP : subst(varsSubP, copylist(bP)),  
+        varsP : subst(varsSubP, copylist(varsP))   
+      )
     )
     else if (vdim = 2) then (
       varsSubV : [x=vx, y=vy], 
       bV : subst(varsSubV, copylist(bV)),  
       varsV : subst(varsSubV, copylist(varsV)), 
 
-      varsSubP : [vx=y, vy=vx, vz=vy],
-      bP : subst(varsSubP, copylist(bP)),  
-      varsP : subst(varsSubP, copylist(varsP)) 
+      if not(hybten) then (
+        varsSubP : [vx=y, vy=vx, vz=vy],
+        bP : subst(varsSubP, copylist(bP)),  
+        varsP : subst(varsSubP, copylist(varsP)) 
+      )
     )
   ), 
 
@@ -59,7 +77,12 @@ loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
 )$
 
 loadVlasovVelSurfBasis(vdim, basisType, polyOrder, surfVars, surfVVars, varsC) := block(
-  bSurf : basisFromVars(basisType,surfVars,polyOrder),
+  [hybten, btype],
+  hybten : (polyOrder = 1) and (basisType = "tensor"),
+  if basisType="tensor" then btype : "TensorHybrid"
+  else btype : basisType,
+
+  bSurf : basisFromVars(btype,surfVars,polyOrder),
 
     /* 4 quadrature points required for p=2, so nodal basis is a cubic for p=2. 
        5 quadrature points required for p=3, no nodal basis is a quartic for p=3. */
@@ -77,11 +100,11 @@ loadVlasovVelSurfBasis(vdim, basisType, polyOrder, surfVars, surfVVars, varsC) :
   ),
 
   if (vdim > 1) then (
-    if (polyOrder = 1) then (
+    if ((polyOrder = 1) and not(hybten)) then (
       nodes_vel : gaussOrd(2, vdim-1), 
       basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(surfVVars), 1, surfVVars, nodes_vel) 
     )
-    else if (polyOrder = 2) then (
+    else if ((polyOrder = 2) or hybten) then (
       nodes_vel : gaussOrd(4, vdim-1), 
       basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(surfVVars), 3, surfVVars, nodes_vel) 
     )
@@ -95,21 +118,29 @@ loadVlasovVelSurfBasis(vdim, basisType, polyOrder, surfVars, surfVVars, varsC) :
     basisNodalVel : [1] 
   ),
 
-
-  if (polyOrder = 1) then (
-    surfNodes : gaussOrd(2,length(surfVars))
-  )
-  else if (polyOrder = 2) then (
-    surfNodes : gaussOrd(4,length(surfVars))
-  )
-  else if (polyOrder = 3) then (
-    surfNodes : gaussOrd(5,length(surfVars))
+  if (hybten) then (
+    surfNodes : gaussOrdTenHyb(2,4,cdim,vdim)
+  ) else (
+    if (polyOrder = 1) then (
+      surfNodes : gaussOrd(2,length(surfVars))
+    )
+    else if (polyOrder = 2) then (
+      surfNodes : gaussOrd(4,length(surfVars))
+    )
+    else if (polyOrder = 3) then (
+      surfNodes : gaussOrd(5,length(surfVars))
+    )
   ),
   return([bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes])
 )$
 
 loadVlasovConfSurfBasis(cdim, basisType, polyOrder, surfVars, surfCVars, varsV) := block(
-  bSurf : basisFromVars(basisType,surfVars,polyOrder),
+  [hybten, btype],
+  hybten : (polyOrder = 1) and (basisType = "tensor"),
+  if basisType="tensor" then btype : "TensorHybrid"
+  else btype : basisType,
+
+  bSurf : basisFromVars(btype,surfVars,polyOrder),
 
     /* 4 quadrature points required for p=2, so nodal basis is a cubic for p=2. 
        5 quadrature points required for p=3, no nodal basis is a quartic for p=3. */
@@ -132,11 +163,11 @@ loadVlasovConfSurfBasis(cdim, basisType, polyOrder, surfVars, surfCVars, varsV) 
     basisNodalConf : [1] 
   ),
 
-  if (polyOrder = 1) then (
+  if ((polyOrder = 1) and not(hybten)) then (
     nodes_vel : gaussOrd(2, vdim), 
     basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 1, varsV, nodes_vel) 
   )
-  else if (polyOrder = 2) then (
+  else if ((polyOrder = 2) or hybten) then (
     nodes_vel : gaussOrd(4, vdim), 
     basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 3, varsV, nodes_vel) 
   )
@@ -145,17 +176,74 @@ loadVlasovConfSurfBasis(cdim, basisType, polyOrder, surfVars, surfCVars, varsV) 
     basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 4, varsV, nodes_vel) 
   ),
 
-  if (polyOrder = 1) then (
-    surfNodes : gaussOrd(2,length(surfVars))
-  )
-  else if (polyOrder = 2) then (
-    surfNodes : gaussOrd(4,length(surfVars))
-  )
-  else if (polyOrder = 3) then (
-    surfNodes : gaussOrd(5,length(surfVars))
-  ), 
+  if (hybten) then (
+    surfNodes : gaussOrdTenHyb(2,4,cdim,vdim)
+  ) else (
+    if (polyOrder = 1) then (
+      surfNodes : gaussOrd(2,length(surfVars))
+    )
+    else if (polyOrder = 2) then (
+      surfNodes : gaussOrd(4,length(surfVars))
+    )
+    else if (polyOrder = 3) then (
+      surfNodes : gaussOrd(5,length(surfVars))
+    )
+  ),
   return([bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes])
 )$
+
+
+loadVlasovConfBasis(cdim, basisType, polyOrder, volVars, volCVars, varsV) := block(
+  [hybten, btype],
+  hybten : (polyOrder = 1) and (basisType = "tensor"),
+  if basisType="tensor" then btype : "TensorHybrid"
+  else btype : basisType,
+
+  /* 4 quadrature points required for p=2, so nodal basis is a cubic for p=2. 
+      5 quadrature points required for p=3, no nodal basis is a quartic for p=3. */
+  if (polyOrder = 1) then (
+    nodes_conf : gaussOrd(2, cdim), 
+    basisNodalConf  : getVarsNodalBasisWithNodes("Tensor", length(volCVars), 1, volCVars, nodes_conf)
+  )
+  else if (polyOrder = 2) then (
+    nodes_conf : gaussOrd(4, cdim), 
+    basisNodalConf  : getVarsNodalBasisWithNodes("Tensor", length(volCVars), 3, volCVars, nodes_conf)
+  )
+  else if (polyOrder = 3) then (
+    nodes_conf : gaussOrd(5, cdim), 
+    basisNodalConf  : getVarsNodalBasisWithNodes("Tensor", length(volCVars), 4, volCVars, nodes_conf)
+  ),
+
+  /* if ((polyOrder = 1) and not(hybten)) then (
+    nodes_vel : gaussOrd(2, vdim), 
+    basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 1, varsV, nodes_vel) 
+  )
+  else if ((polyOrder = 2) or hybten) then (
+    nodes_vel : gaussOrd(4, vdim), 
+    basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 3, varsV, nodes_vel) 
+  )
+  else if (polyOrder = 3) then (
+    nodes_vel : gaussOrd(5, vdim), 
+    basisNodalVel  : getVarsNodalBasisWithNodes("Tensor", length(varsV), 4, varsV, nodes_vel) 
+  ),
+
+  if (hybten) then (
+    volNodes : gaussOrdTenHyb(2,4,cdim,vdim)
+  ) else (
+    if (polyOrder = 1) then (
+      volNodes : gaussOrd(2,length(volVars))
+    )
+    else if (polyOrder = 2) then (
+      volNodes : gaussOrd(4,length(volVars))
+    )
+    else if (polyOrder = 3) then (
+      volNodes : gaussOrd(5,length(volVars))
+    )
+  ), */
+  /* return([bvol,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,volNodes]) */
+  return([nodes_conf,basisNodalConf])
+)$
+
 
 loadVelJacobianBasis(polyOrder) := block(
   /* Load basis sets for mapping, which are p=3. */

@@ -19,13 +19,12 @@ load(stringproc)$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-maxCdim_Ser : 3$
+maxCdim_Ser : 0$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-/* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
 minPolyOrder_Tensor : 1$
-maxPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 1$
 minCdim_Tensor : 1$
 maxCdim_Tensor : 3$
 maxVdim_Tensor : 3$
@@ -49,16 +48,20 @@ for bInd : 1 thru length(bName) do (
     for v : c thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
-      if (c+v>4 and maxPolyOrderB > 1) and (bName[bInd] = "ser") then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
-        if (bName[bInd] = "ser") then (
-          fname : sconcat("~/max-out/vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          disp(printf(false,"Creating volume file: ~a",fname)),
-          fh : openw(fname),
-          funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false),
-          close(fh) 
-        )
+        fname : sconcat("~/max-out/vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        disp(printf(false,"Creating volume file: ~a",fname)),
+        fh : openw(fname),
+        funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        if ( bName[bInd] = "ser" ) then (
+          calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
+        ) else if ( bName[bInd] = "tensor") then (
+          /* calcHamilVolNonCanonicalN2M(fh, funcName, c, v, bName[bInd], polyOrder, false) */
+          /* calcHamilVolNonCanonicalPerComp(fh, funcName, c, v, bName[bInd], polyOrder, false) */
+          calcHamilVolNonCanonicalAlphaPreComp(fh, funcName, c, v, bName[bInd], polyOrder, false)
+        ),
+        close(fh) 
       )
     )
   )

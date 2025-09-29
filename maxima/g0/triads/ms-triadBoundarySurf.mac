@@ -10,16 +10,16 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
+maxCdim_Ser : 0$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-minPolyOrder_Tensor : 2$
-maxPolyOrder_Tensor : 2$
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 1$
+maxCdim_Tensor : 3$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -38,19 +38,16 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : c thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
-      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-      if (c+v>4 and maxPolyOrderB > 1) and (bName[bInd] = "ser") then maxPolyOrderB : 1,
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         for dir : 1 thru c do ( 
           /* Phase-space Hamiltonian surface fluxes. Only generate with Serendipity basis for now. */
-          if (bName[bInd] = "ser") then (
-            fname : sconcat("~/max-out/vlasov_nc_hamil_gen_boundary_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            fh : openw(fname),
-            funcName : sconcat("vlasov_nc_hamil_gen_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
-            close(fh) 
-          )
+          fname : sconcat("~/max-out/vlasov_nc_hamil_gen_boundary_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_nc_hamil_gen_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          close(fh) 
         )
       )
     )

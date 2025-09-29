@@ -296,6 +296,37 @@ loadBasis(basisType, dim, pOrder) := block(
   return([vars,basis])
 )$
 
+loadTensorHybridBasis(basisType, cdim, vdim) := block(
+  [modNm,varsC,basisC,varsP,basisP,bC,bP,btype,pOrderC,pOrderV],
+  /* Load phase-space basis for hybrid tensor. */
+  btype : basisType,
+  if basisType="tensor" then btype : "TensorHybrid",
+
+  kill(varsC, varsP, basisC, basisP),
+
+  /* Only for phase space where vdim & cdim >= 1 */
+  if (vdim>0 and cdim>0) then (
+    load(sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")),
+    bP : copylist(basisP[1]), varsP : copylist(varsP)
+
+  ) else if (vdim=0 and cdim>0) then (
+    pOrderC : 1,
+    btype : "Tensor",
+    load(sconcat("basis-precalc/basisTensor", cdim, "x")),
+    bC : copylist(basisC[pOrderC]),  varsC : copylist(varsC),
+    bP : bC,  varsP : varsC
+
+  ) else if (vdim>0 and cdim=0) then (
+    pOrderV : 2,
+    btype : "Tensor",
+    load(sconcat("basis-precalc/basisTensor", vdim, "x")),
+    bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[pOrderV])),
+    varsP : subst([x=vx,y=vy,z=vz],copylist(varsC))
+  ),
+
+  return([varsP,bP])
+)$
+
 loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
   [modNm,varsC,basisC,varsP,basisP,bC,bP,btype,p],
   /* Load phase-space basis. Some complication below is due to the fact
@@ -483,7 +514,7 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   elseif basisType="gkhyb" then btype : "GkHybrid",
 
   dimIn : length(varsIn),
-  if btype="Hybrid" or btype="GkHybrid" then (
+  if btype="Hybrid" or btype="GkHybrid" or btype="TensorHybrid" then (
     vdim : length(sublist(varsIn,lambda([var],charat(string(var),1)="v" or var=vpar or var=mu))),
     cdim : dimIn - vdim
   ),
@@ -495,6 +526,8 @@ basisFromVars(basisType, varsIn, pOrder) := block(
 
   if btype = "Hybrid" then (
     [varsc,bc,vars,basis] : loadPhaseBasis(btype, cdim, vdim, 1)
+  ) elseif btype = "TensorHybrid" then (
+    [vars,basis] : loadTensorHybridBasis(basisType, cdim, vdim)
   ) elseif btype = "GkHybrid" then (
     /* vdim is insufficient, because vdim=1 could mean vpar or mu,
        and one has p=2 (vpar) while the other p=1 (mu). Sort this out. */
