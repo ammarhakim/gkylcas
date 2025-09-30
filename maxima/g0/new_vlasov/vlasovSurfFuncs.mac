@@ -205,7 +205,7 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bloc
   vv : varsV[dir], 
   surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
   surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 

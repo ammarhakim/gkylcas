@@ -62,7 +62,7 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
   vv : varsV[dir], 
   surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
   surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -142,6 +142,85 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
   printf(fh, "~%  } else { ~%~%"),
 
   incr : evSurfIncr(fedge_e, fskin_e, -1.0),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+
+  printf(fh, "~%  } ~%"),
+
+  /* CFL frequency in configuration space returned by interior surface updates. */
+  printf(fh, "  return 0.0;~%"),  
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$ 
+
+
+/* Phase-space Hamiltonian boundary surface streaming */
+calcHamilGenBoundarySurfStreamNonCanonicalNodalBreakup(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
+   bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes, 
+   NSurf,num_nodes_conf,num_nodes_vel,numNodes,
+   fedge_e,fskin_e,incr],
+
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NC : length(bC),  
+
+  printf(fh, "#include <gkyl_nc_hamil_surf_comps_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  cid : cidx(cdim),
+  vid : vidx(cdim,vdim),
+  printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  hamil : doExpand1(hamil, bV), /* Hamiltonian a function of the full phase space. */
+
+  /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
+  /* cv = variable in direction of surface update. */
+  cv : varsP[dir],
+  vv : varsV[dir], 
+  surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
+  surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV),
+  NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  num_nodes_vel : length(nodes_vel), 
+  numNodes : length(surfNodes), 
+
+  printf(fh, "  double Ghat[~a]; ~%", NSurf),
+  printf(fh, "~%"),
+
+  /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
+  /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+
+  evAt : 1.0,
+  /* Build per node Ghat_r, Ghat_l, and alpha_max */
+  for nodeNum : 0 thru numNodes-1 do ( 
+    funcNameGhat_l : sconcat("vlasov_nc_hamil_gen_boundary_surf_node",nodeNum,"_",clabels[dir],"_", cdim, "x", vdim, "v_", basisFun, "_p", polyOrder),
+    printf(fh, "  ~a(w, dxv, edge, poisson_tensor_conf, hamil, fskin, fedge, Ghat); ~%",
+      funcNameGhat_l, nodeNum, nodeNum)
+  ),
+
+  Ghat_e : doExpand1(Ghat, bSurf),
+  /* Compute surface contribution integral(phi^- Ghat) on the left/right. */
+  incr : calcInnerProdList(surfVars, -evAt, subst(cv=evAt, bP), Ghat_e),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+
+  /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
+  printf(fh, "~%  } else { ~%~%"),
+
+  evAt : - 1.0,
+  /* Build per node Ghat_r, Ghat_l, and alpha_max */
+  for nodeNum : 0 thru numNodes-1 do ( 
+    funcNameGhat_l : sconcat("vlasov_nc_hamil_gen_boundary_surf_node",nodeNum,"_",clabels[dir],"_", cdim, "x", vdim, "v_", basisFun, "_p", polyOrder),
+    printf(fh, "  ~a(w, dxv, edge, poisson_tensor_conf, hamil, fedge, fskin, Ghat); ~%",
+      funcNameGhat_l, nodeNum, nodeNum)
+  ),
+
+  Ghat_e : doExpand1(Ghat, bSurf),
+  /* Compute surface contribution integral(phi^- Ghat) on the left/right. */
+  incr : calcInnerProdList(surfVars, -evAt, subst(cv=evAt, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
 
   printf(fh, "~%  } ~%"),

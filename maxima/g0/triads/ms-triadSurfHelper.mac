@@ -1,0 +1,74 @@
+load("new_vlasov/vlasov-basis");
+load("triads/triadSurfHelperFuncs")$
+load(stringproc)$
+/* This script calls the functions which calculate the
+   updates from the surface terms for the Vlasov equation. */
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 0$
+maxVdim_Ser : 3$
+
+/* Tensor product basis. */
+minPolyOrder_Tensor : 1$
+maxPolyOrder_Tensor : 1$
+minCdim_Tensor : 1$
+minVdim_Tensor : 1$    /* see begining of v loop below though. */
+maxCdim_Tensor : 1$
+maxVdim_Tensor : 3$
+
+/* ...... END OF USER INPUTS........ */
+
+bName        : ["ser","tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vx","vy","vz"]$
+
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for v : c thru maxVdim[bInd] do (
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
+        for dir : 1 thru c do ( 
+
+          /* Load the  basis for the number of specific nodal points */
+          [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(bName[bInd], c, v, polyOrder),
+          cv : varsP[dir],
+          vv : varsV[dir], 
+          surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
+          surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
+          [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(c, v, bName[bInd], polyOrder, surfVars, surfCVars, varsV),
+          numNodes : length(surfNodes), 
+
+          for nodeNum : 1 thru numNodes do ( 
+            /* Phase-space Hamiltonian surface fluxes. Only generate with Serendipity basis for now. */
+            /* fname : sconcat("~/max-out/vlasov_nc_hamil_gen_surf_node",(nodeNum -1),"_", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_nc_hamil_gen_surf_node",(nodeNum -1),"_",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcHamilGenSurfStreamNonCanonicalHelper(dir, fh, funcName, c, v, bName[bInd], nodeNum, polyOrder), 
+            close(fh), */
+            /* Boundary. */
+            fname : sconcat("~/max-out/vlasov_nc_hamil_gen_boundary_surf_node",(nodeNum -1),"_", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_nc_hamil_gen_boundary_surf_node",(nodeNum -1),"_",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcHamilGenBoundarySurfStreamNonCanonicalHelper(dir, fh, funcName, c, v, bName[bInd], nodeNum, polyOrder), 
+            close(fh) 
+          )
+        )
+      )
+    )
+  )
+);

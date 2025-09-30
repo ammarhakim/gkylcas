@@ -297,7 +297,7 @@ loadBasis(basisType, dim, pOrder) := block(
 )$
 
 loadTensorHybridBasis(basisType, cdim, vdim) := block(
-  [modNm,varsC,basisC,varsP,basisP,bC,bP,btype,pOrderC,pOrderV],
+  [varsC,basisC,varsP,basisP,bC,bP,btype,pOrderC,pOrderV],
   /* Load phase-space basis for hybrid tensor. */
   btype : basisType,
   if basisType="tensor" then btype : "TensorHybrid",
@@ -307,7 +307,8 @@ loadTensorHybridBasis(basisType, cdim, vdim) := block(
   /* Only for phase space where vdim & cdim >= 1 */
   if (vdim>0 and cdim>0) then (
     load(sconcat("basis-precalc/basis", btype, cdim, "x", vdim, "v")),
-    bP : copylist(basisP[1]), varsP : copylist(varsP)
+    bP : copylist(basisP[1]), varsP : copylist(varsP),
+    bC : copylist(basisC[1]), varsC : copylist(varsC)
 
   ) else if (vdim=0 and cdim>0) then (
     pOrderC : 1,
@@ -321,10 +322,11 @@ loadTensorHybridBasis(basisType, cdim, vdim) := block(
     btype : "Tensor",
     load(sconcat("basis-precalc/basisTensor", vdim, "x")),
     bP    : subst([x=vx,y=vy,z=vz],copylist(basisC[pOrderV])),
-    varsP : subst([x=vx,y=vy,z=vz],copylist(varsC))
+    varsP : subst([x=vx,y=vy,z=vz],copylist(varsC)),
+    bC : [],  varsC : []
   ),
 
-  return([varsP,bP])
+  return([varsC, bC, varsP,bP])
 )$
 
 loadPhaseBasis(basisType, cdim, vdim, pOrder) := block(
@@ -527,7 +529,7 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   if btype = "Hybrid" then (
     [varsc,bc,vars,basis] : loadPhaseBasis(btype, cdim, vdim, 1)
   ) elseif btype = "TensorHybrid" then (
-    [vars,basis] : loadTensorHybridBasis(basisType, cdim, vdim)
+    [varsc,bc,vars,basis] : loadTensorHybridBasis(basisType, cdim, vdim)
   ) elseif btype = "GkHybrid" then (
     /* vdim is insufficient, because vdim=1 could mean vpar or mu,
        and one has p=2 (vpar) while the other p=1 (mu). Sort this out. */

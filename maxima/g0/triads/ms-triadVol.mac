@@ -57,8 +57,6 @@ for bInd : 1 thru length(bName) do (
         if ( bName[bInd] = "ser" ) then (
           calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
         ) else if ( bName[bInd] = "tensor") then (
-          /* calcHamilVolNonCanonicalN2M(fh, funcName, c, v, bName[bInd], polyOrder, false) */
-          /* calcHamilVolNonCanonicalPerComp(fh, funcName, c, v, bName[bInd], polyOrder, false) */
           calcHamilVolNonCanonicalAlphaPreComp(fh, funcName, c, v, bName[bInd], polyOrder, false)
         ),
         close(fh) 
