@@ -15,7 +15,7 @@ maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 2$
 maxCdim_Tensor : 0$
 
-gkVdims : [[0], [0,0]]$
+gkVdims : [[0], [0,2]]$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -24,7 +24,7 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-maxPolyOrder1D : makelist(maxPolyOrder[i],i,1,length(maxPolyOrder))$
+maxPolyOrder1D : makelist(1,i,1,length(maxPolyOrder))$
 
 for bInd : 1 thru length(bName) do (
      
