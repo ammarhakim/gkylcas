@@ -91,7 +91,7 @@ gk_anomalous_diff_gen_boundary_diag_ker(fh, funcNm, cdim, vdim, basisType, polyO
 
       fRecl_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fGhost_c), dg(fSkin_c)),
       nuAv_l  : (subst(surfVar=1,nuGhost_e) + subst(surfVar=-1,nuSkin_e))/2,
-      boundSurf_incr_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuAv_l*subst(surfVar=-1,diff(fRecl_e,surfVar)))
+      boundSurf_incr_c : -calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,basis), nuAv_l*subst(surfVar=0,diff(fRecl_e,surfVar)))
 
     ) else if bcType = "bound_local" then (
 
@@ -110,7 +110,7 @@ gk_anomalous_diff_gen_boundary_diag_ker(fh, funcNm, cdim, vdim, basisType, polyO
 
       fRecr_e : calcRecov2CellGen(bType, surfVar, vars, polyOrder, dg(fSkin_c), dg(fGhost_c)),
       nuAv_r  : (subst(surfVar=1,nuSkin_e) + subst(surfVar=-1,nuGhost_e))/2,
-      boundSurf_incr_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuAv_r*subst(surfVar=1,diff(fRecr_e,surfVar)))
+      boundSurf_incr_c : -calcInnerProdList(surfIntVars, 1, subst(surfVar=1,basis), nuAv_r*subst(surfVar=0,diff(fRecr_e,surfVar)))
 
     ) else if bcType = "bound_local" then (
 
