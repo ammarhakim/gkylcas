@@ -27,7 +27,7 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 printPKPMPrototype(deco, ci, bStr, pi) := block([si],
-  printf(fh, "~avoid pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections); ~%", deco, ci, bStr, pi),
+  printf(fh, "~avoid pkpm_self_prim_moments_~ax1v_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *vlasov_pkpm_moms, const double *boundary_corrections, const double *nu); ~%", deco, ci, bStr, pi),
   printf(fh, "~%")  
 )$
 
