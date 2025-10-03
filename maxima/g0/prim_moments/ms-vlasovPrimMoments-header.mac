@@ -32,8 +32,8 @@ maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
 printPrototype(deco, ci, vi, bStr, pi) := block([si],
   /* Primitive moments for collision terms. */
-  printf(fh, "~avoid vlasov_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
-  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_self_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs,~%  const double *moms, const double *boundary_corrections, const double *nu); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~avoid vlasov_cross_prim_moments_~ax~av_~a_p~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections, const double *nu); ~%", deco, ci, vi, bStr, pi),
   printf(fh, "~%")  
 )$
 
