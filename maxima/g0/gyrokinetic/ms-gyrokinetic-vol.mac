@@ -1,6 +1,5 @@
 /*
-  Generate the volume kernels for electromagnetic (with Apar)
-  gyrokinetics with general geometry.
+  Generate the volume kernels for collisionless gyrokinetic terms.
 
   The functions called in this file are in gkFuncs-vol.mac.
 */
@@ -53,10 +52,6 @@ for bInd : 1 thru length(bName) do (
 
         funcName : sconcat("gyrokinetic_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
-
-        /* Generate the kernel for the second step of GK with Apar. */
-        funcName : sconcat("gyrokinetic_step2_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        buildGKStep2VolKernel(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh),
 
         /* if cdim > 1, also generate a set of kernels for the case where there is no toroidal field (by = 0) */

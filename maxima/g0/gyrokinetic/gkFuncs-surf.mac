@@ -1,5 +1,5 @@
 /* 
-   Create kernels for the surface term of the gyrokinetic equation.
+   Create kernels for the surface term of the gyrokinetic collisionless terms.
 */
 load("modal-basis")$
 load("out-scripts")$
@@ -9,7 +9,7 @@ load("gyrokinetic/gkUtil")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
    surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,basisStr,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
@@ -127,7 +127,7 @@ calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vars
 
 )$
 
-calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+calcGKBoundarySurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
    surfIntVars,surf_cvars,surf_vvars,surfNodes,bSurf,basisStr,NSurf,numNodes,
    tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
