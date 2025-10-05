@@ -5,9 +5,18 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("gyrokinetic/gkUtil")$
+load("utilities_gyrokinetic")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
+
+/* Types of boundary stencils:
+     - domain_bound: Domain boundary.
+     - interblock_bound: Interblock boundary.
+*/
+bound_surf_bc_type : ["domain_bound","interblock_bound"]$
+
+/* Boundary sidex. */
+bound_side : ["lower","upper"]$
 
 calcGKSurfUpdateInDir(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB) := block(
   [pDim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
