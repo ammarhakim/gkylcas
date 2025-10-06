@@ -68,15 +68,12 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   printf(fh, "  // vmap: velocity space mapping.~%"),
   printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
-  printf(fh, "  // bmag: magnetic field amplitude.~%"),
-  printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
-  printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
-  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
+  printf(fh, "  // dgs: surface DG geometry.~%"),
+  printf(fh, "  // gkdgs: gyrokinetic surface DG geometry.~%"),
+  printf(fh, "  // bmag: bmag represented on the surface.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
-  printf(fh, "  // bmag_surf: bmag represented on the surface.~%"),
-  printf(fh, "  // jacobtot_inv_surf: jacobtot_inv represented on the surface.~%"),
-  printf(fh, "  // cmag_surf: cmag represented on the surface.~%"),
-  printf(fh, "  // b_i_surf: b_i represented on the surface.~%"),
+  printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
+  printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
   printf(fh, "  //            Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "~%"),
@@ -106,8 +103,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
   if edge = true then (
     evPoint : 1
-  )
-  else (
+  ) else (
     evPoint : -1
   ),
 
@@ -126,7 +122,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   hamil_e : hamilNoZero_c . bSurf,
 
 
-  /*fl and fr */
+  /* fl and fr */
   JfL_e : doExpand1(JfL, bP),
   JfR_e : doExpand1(JfR, bP),
   JfL_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=1,JfL_e)),

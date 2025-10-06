@@ -75,13 +75,12 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   printf(fh, "  // vmap: velocity space mapping.~%"),
   printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "  // dgv: volume DG geometry.~%"),
+  printf(fh, "  // gkdgv: gyrokinetic volume DG geometry.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
-  printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
-  printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
-  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
-  printf(fh, "  // bmag_surf: bmag represented on the surface.~%"),
-  printf(fh, "  // jacobtot_inv_surf: jacobtot_inv represented on the surface.~%"),
+  printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
+  printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
   printf(fh, "  //            Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "~%"),
@@ -112,8 +111,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
 
   if edge = true then (
     evPoint : 1
-  )
-  else (
+  ) else (
     evPoint : -1
   ),
 
