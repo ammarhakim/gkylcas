@@ -5,14 +5,14 @@ load("scifac")$
 load("utilities_gyrokinetic")$
 fpprec : 24$
 
-buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,vpardim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
-   tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
-   rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
-   bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
-   BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,fluxSurf_e],
+buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge) := block(
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
+   surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
+   numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
+   bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
+   hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+  ],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -67,7 +67,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     const double *vmap_prime_l, const double *vmap_prime_r,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-    const double *bmag, const double *phi, const double *JfL, const double *JfR, 
+    const double *bmag, const double *phi, const double *JfL, const double *JfR,
     double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -135,8 +135,6 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   JfR_e : doExpand1(JfR, bP),
   JfL_c : calcInnerProdList(varsP, 1, bP, JfL_e),
   JfR_c : calcInnerProdList(varsP, 1, bP, JfR_e),
-  JfL_e : JfL_c . bP,
-  JfR_e : JfR_c . bP,
    
   JfL_e : subst(surfVar=1,JfL_e),
   JfR_e : subst(surfVar=-1,JfR_e),

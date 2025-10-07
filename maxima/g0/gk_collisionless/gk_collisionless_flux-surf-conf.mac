@@ -6,15 +6,14 @@ load("utilities_gyrokinetic")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,vpardim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
-   tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
-   rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
-   bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
-   BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,fluxSurf_e,
-   mvpar_nodes,numMuNodes,numVparNodes],
+buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge, mb_bound) := block(
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
+   surfNodes,nodeVars,bSurf,basisNodal,surfConfigNodes,numSurfNodes,numSurfConfigNodes,numVelNodes,
+   numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,bmagSurf_e,vmap_e,vmapSq_e,
+   vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
+   jacobgeo_surfL_e,jacobgeo_inv_surfR_e,jacobgeo_inv_surfL_e,jacobgeo_surfR_e,JfL_nodes,JfR_nodes,
+   vmap_prime_nodes,vpardim,dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   ],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -61,8 +60,9 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     const double *w, const double *dxv,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs, 
-    const double *bmag, const double *phi, const double *JfL, const double *JfR, 
-    double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
+    const double *bmag, const double *jacobgeo_surfL, const double *jacobgeo_surfR,
+    const double *jacobgeo_inv_surfL, const double *jacobgeo_inv_surfR, const double *phi,
+    const double *JfL, const double *JfR, double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
   printf(fh, "  // vmap: velocity space mapping.~%"),
@@ -71,6 +71,10 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   printf(fh, "  // dgs: surface DG geometry.~%"),
   printf(fh, "  // gkdgs: gyrokinetic surface DG geometry.~%"),
   printf(fh, "  // bmag: bmag represented on the surface.~%"),
+  printf(fh, "  // jacobgeo_surfL: Surface conf-space Jacobian in left cell.~%"),
+  printf(fh, "  // jacobgeo_surfR: Surface conf-space Jacobian in right cell.~%"),
+  printf(fh, "  // jacobgeo_inv_surfL: Reciprocal surface conf-space Jacobian in left cell.~%"),
+  printf(fh, "  // jacobgeo_inv_surfR: Reciprocal surface conf-space Jacobian in right cell.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
@@ -121,7 +125,6 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   /* Expand projected Hamiltonian on basis. */
   hamil_e : hamilNoZero_c . bSurf,
 
-
   /* fl and fr */
   JfL_e : doExpand1(JfL, bP),
   JfR_e : doExpand1(JfR, bP),
@@ -129,6 +132,34 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   JfR_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=-1,JfR_e)),
   JfL_e : JfL_c . bSurf,
   JfR_e : JfR_c . bSurf,
+
+  if (mb_bound = true) then (
+    /* Rescale ghost cell by ratio of the Jacobians at multiblock boundaries. */
+
+    if (edge = true) then (
+      /* Upper boundary. */
+      jacobgeo_surfL_e     : doExpand1(jacobgeo_surfL, bSurfC),
+      jacobgeo_inv_surfR_e : doExpand1(jacobgeo_inv_surfR, bSurfC),
+
+      JfR_c : calcInnerProdList(surfIntVars, jacobgeo_inv_surfR_e*jacobgeo_surfL_e, bSurf, JfR_e),
+      printf(fh, "  double JRatfR[~a] = {0.}; ~%", length(bSurf)),
+      writeCExprsNoExpand1(JRatfR, fullratsimp(JfR_c)),
+      printf(fh, "~%"),
+      JfR_c : makelistNoZeros1(JfR_c, JRatfR),
+      JfR_e : doExpand(JfR_c, bSurf)
+    ) else (
+      /* Lower boundary. */
+      jacobgeo_inv_surfL_e : doExpand1(jacobgeo_inv_surfL, bSurfC),
+      jacobgeo_surfR_e     : doExpand1(jacobgeo_surfR, bSurfC),
+
+      JfL_c : calcInnerProdList(surfIntVars, jacobgeo_inv_surfL_e*jacobgeo_surfR_e, bSurf, JfL_e),
+      printf(fh, "  double JRatfL[~a] = {0.}; ~%", length(bSurf)),
+      writeCExprsNoExpand1(JRatfL, fullratsimp(JfL_c)),
+      printf(fh, "~%"),
+      JfL_c : makelistNoZeros1(JfL_c, JRatfL),
+      JfL_e : doExpand(JfL_c, bSurf)
+    )
+  ),
 
   JfL_nodes : gcfac(float(expand(evAtNodes(JfL_e,surfNodes,surfIntVars)))),
   JfR_nodes : gcfac(float(expand(evAtNodes(JfR_e,surfNodes,surfIntVars)))),
