@@ -11,8 +11,8 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    surfNodes,nodeVars,bSurf,basisNodal,surfConfigNodes,numSurfNodes,numSurfConfigNodes,numVelNodes,
    numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,bmagSurf_e,vmap_e,vmapSq_e,
    vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
-   jacobgeo_surfL_e,jacobgeo_inv_surfR_e,jacobgeo_inv_surfL_e,jacobgeo_surfR_e,JfL_nodes,JfR_nodes,
-   vmap_prime_nodes,vpardim,dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   jacobgeo_rat_surfR_e,jacobgeo_rat_surfL_e,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
+   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
    ],
 
   kill(varsC,varsP,bC,bP),
@@ -60,8 +60,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     const double *w, const double *dxv,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs, 
-    const double *bmag, const double *jacobgeo_surfL, const double *jacobgeo_surfR,
-    const double *jacobgeo_inv_surfL, const double *jacobgeo_inv_surfR, const double *phi,
+    const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR, const double *phi,
     const double *JfL, const double *JfR, double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -71,10 +70,8 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "  // dgs: surface DG geometry.~%"),
   printf(fh, "  // gkdgs: gyrokinetic surface DG geometry.~%"),
   printf(fh, "  // bmag: bmag represented on the surface.~%"),
-  printf(fh, "  // jacobgeo_surfL: Surface conf-space Jacobian in left cell.~%"),
-  printf(fh, "  // jacobgeo_surfR: Surface conf-space Jacobian in right cell.~%"),
-  printf(fh, "  // jacobgeo_inv_surfL: Reciprocal surface conf-space Jacobian in left cell.~%"),
-  printf(fh, "  // jacobgeo_inv_surfR: Reciprocal surface conf-space Jacobian in right cell.~%"),
+  printf(fh, "  // jacobgeo_rat_surfL: Ratio of surface conf-space Jacobians in left cell.~%"),
+  printf(fh, "  // jacobgeo_rat_surfR: Ratio of surface conf-space Jacobians in right cell.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
@@ -95,7 +92,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   bmagBasis : getAxisymmetricConfBasis(bC),
 
   /* Expand input fields for Hamiltonian calculation */
-  phi_e     : doExpand1(phi,bC),
+  phi_e      : doExpand1(phi,bC),
   bmagSurf_e : doExpand1(bmag, bmagBasis),
 
   /* Velocity mapping fields. */
@@ -138,10 +135,9 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
 
     if (edge = true) then (
       /* Upper boundary. */
-      jacobgeo_surfL_e     : doExpand1(jacobgeo_surfL, bSurfC),
-      jacobgeo_inv_surfR_e : doExpand1(jacobgeo_inv_surfR, bSurfC),
+      jacobgeo_rat_surfR_e : doExpand1(jacobgeo_rat_surfR, bSurfC),
 
-      JfR_c : calcInnerProdList(surfIntVars, jacobgeo_inv_surfR_e*jacobgeo_surfL_e, bSurf, JfR_e),
+      JfR_c : calcInnerProdList(surfIntVars, jacobgeo_rat_surfR_e, bSurf, JfR_e),
       printf(fh, "  double JRatfR[~a] = {0.}; ~%", length(bSurf)),
       writeCExprsNoExpand1(JRatfR, fullratsimp(JfR_c)),
       printf(fh, "~%"),
@@ -149,10 +145,9 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
       JfR_e : doExpand(JfR_c, bSurf)
     ) else (
       /* Lower boundary. */
-      jacobgeo_inv_surfL_e : doExpand1(jacobgeo_inv_surfL, bSurfC),
-      jacobgeo_surfR_e     : doExpand1(jacobgeo_surfR, bSurfC),
+      jacobgeo_rat_surfL_e : doExpand1(jacobgeo_rat_surfL, bSurfC),
 
-      JfL_c : calcInnerProdList(surfIntVars, jacobgeo_inv_surfL_e*jacobgeo_surfR_e, bSurf, JfL_e),
+      JfL_c : calcInnerProdList(surfIntVars, jacobgeo_rat_surfL_e, bSurf, JfL_e),
       printf(fh, "  double JRatfL[~a] = {0.}; ~%", length(bSurf)),
       writeCExprsNoExpand1(JRatfL, fullratsimp(JfL_c)),
       printf(fh, "~%"),
