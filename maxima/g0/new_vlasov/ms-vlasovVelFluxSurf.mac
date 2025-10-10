@@ -11,20 +11,20 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 1$
+minPolyOrder_Ser : 2$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
+minCdim_Ser : 2$
+minVdim_Ser : 3$    /* see begining of v loop below though. */
 maxCdim_Ser : 2$
-maxVdim_Ser : 1$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
-minCdim_Tensor : 1$
-minVdim_Tensor : 1$    /* see begining of v loop below though. */
+minCdim_Tensor : 2$
+minVdim_Tensor : 3$    /* see begining of v loop below though. */
 maxCdim_Tensor : 2$
-maxVdim_Tensor : 1$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -35,6 +35,7 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+useHigherOrderList : [false, true]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
@@ -57,17 +58,20 @@ for bInd : 1 thru length(bName) do (
         maxC : c, /* Which directions are we generating surface kernels for? */
         if (v < c) then maxC : v, /* In 2x1v, only generate the vx surface kernel. */
         for dir : 1 thru maxC do (
+          if (0) then (
           fname : sconcat("~/max-out/phi_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("phi_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcPhiVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
-          close(fh)            
+          calcPhiVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
+          close(fh) 
+          )           
         ),
         for dir : 1 thru v do (
+          if (0) then (
           fname : sconcat("~/max-out/E_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("E_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcEVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+          calcEVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
           close(fh), 
 
           /* Magnetic force with velocity-space Hamiltonian volume component. Only valid for vdim > 1. */
@@ -76,10 +80,10 @@ for bInd : 1 thru length(bName) do (
             fh : openw(fname),
             funcName : sconcat("B_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             if (bName[bInd] = "tensor" and polyOrder > 1) then (
-              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, true)
+              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, true, false)
             )
             else (
-              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false)
+              calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false, false)
             ), 
             close(fh)
           ),
@@ -87,28 +91,36 @@ for bInd : 1 thru length(bName) do (
           fname : sconcat("~/max-out/rad_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("rad_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcRadVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
-          close(fh), 
+          calcRadVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
+          close(fh)
+          ),
+          for hoInd : 1 thru length(useHigherOrderList) do (
+            useHigherOrder : useHigherOrderList[hoInd],
+            if useHigherOrder then si : "ho_" else si : "",
+            if not((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = true)) then (
+              if ((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = false)) then si : "",
 
-          if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            fh : openw(fname),
-            funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, true), 
-            close(fh)  
-          )
-          else (
-            fname : sconcat("~/max-out/lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            fh : openw(fname),
-            funcName : sconcat("lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
-            close(fh)  
-          )            
+              if (bName[bInd] = "tensor" and polyOrder > 1) then (
+                fname : sconcat("~/max-out/",si,"lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                fh : openw(fname),
+                funcName : sconcat(si,"lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, true, useHigherOrder), 
+                close(fh)  
+              )
+              else (
+                fname : sconcat("~/max-out/",si,"lax_flux_nodal_to_modal_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                fh : openw(fname),
+                funcName : sconcat(si,"lax_flux_nodal_to_modal_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                calcNodalLaxToModalVelFlux(dir, fh, funcName, c, v, bName[bInd], polyOrder, false, useHigherOrder), 
+                close(fh)  
+              )   
+            )  
+          )       
         )
       ),
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating hamiltonian force velocity flux ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         /* Can only have Hamiltonian force in directions where we can take configuration space gradients. */
@@ -117,11 +129,13 @@ for bInd : 1 thru length(bName) do (
         for dir : 1 thru maxC do (
           /* Phase-space Hamiltonian surface component. Only generate with Serendipity basis for now. */
           if (bName[bInd] = "ser") then (
+            if (0) then (
             fname : sconcat("~/max-out/hamil_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("hamil_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcHamilGenVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
+            calcHamilGenVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
             close(fh)
+            )
           )
         )
       )

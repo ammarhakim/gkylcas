@@ -301,6 +301,7 @@ loadTensorHybridBasis(basisType, cdim, vdim) := block(
   /* Load phase-space basis for hybrid tensor. */
   btype : basisType,
   if basisType="tensor" then btype : "TensorHybrid",
+  if basisType="tenhyb" then btype : "TensorHybrid",
 
   kill(varsC, varsP, basisC, basisP),
 
@@ -513,7 +514,8 @@ basisFromVars(basisType, varsIn, pOrder) := block(
   if basisType="ser" then btype : "Ser"
   elseif basisType="tensor" then btype : "Tensor"
   elseif basisType="hyb" then btype : "Hybrid"
-  elseif basisType="gkhyb" then btype : "GkHybrid",
+  elseif basisType="gkhyb" then btype : "GkHybrid"
+  elseif basisType="tenhyb" then btype : "TensorHybrid",
 
   dimIn : length(varsIn),
   if btype="Hybrid" or btype="GkHybrid" or btype="TensorHybrid" then (

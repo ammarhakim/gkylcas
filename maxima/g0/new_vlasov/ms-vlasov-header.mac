@@ -66,12 +66,28 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
     const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
     const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
     if ((ci <= vi  and pi < 3) and not(pi = 2 and bStr = "tensor")) then (
-      printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-      const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-      const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-      const double *jacob_vel, const double *poisson_tensor_conf,  const double *hamil, 
-      const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      if ((bStr = "ser")and (pi = 1)) then ( 
+        printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf,  const double *hamil, 
+        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      ) 
+      else (
+        printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf,  const double *hamil, 
+        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~adouble vlasov_nc_hamil_gen_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
+        const double *jacob_vel, const double *poisson_tensor_conf,  const double *hamil, 
+        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      )
     ),
     if (bStr = "ser") then (
       printf(fh, "~adouble vlasov_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
@@ -84,8 +100,16 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   ),
   for si : 1 thru vi do (
     if ((ci <= vi  and pi < 3) and not(pi = 2 and bStr = "tensor")) then (
-      printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
-      const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      if ((bStr = "ser") and (pi = 1)) then ( 
+        printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+          const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      )
+      else (
+        printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~avoid nc_hamil_ho_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
+      )
     ),
     if (bStr = "ser") then (
       printf(fh, "~avoid hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
@@ -99,14 +123,34 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
     const double *hamil, const double *qmem, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),   
     printf(fh, "~avoid rad_alpha_quad_v~a_~ax~av_~a_p~a(const double *dxv, 
     const double *rad, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi), 
-    printf(fh, "~adouble lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
-    const double *jacob_vel, const double *alpha_quad, 
-    const double *f_l, const double *f_r, double *lax_nodal_quad, 
-    double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
-    const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-    printf(fh, "~adouble vlasov_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
-    const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    if ((bStr = "ser") and (pi = 1)) then ( 
+      printf(fh, "~adouble lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      const double *jacob_vel, const double *alpha_quad, 
+      const double *f_l, const double *f_r, double *lax_nodal_quad, 
+      double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    )
+    else (
+      printf(fh, "~adouble lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      const double *jacob_vel, const double *alpha_quad, 
+      const double *f_l, const double *f_r, double *lax_nodal_quad, 
+      double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble ho_lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      const double *jacob_vel, const double *alpha_quad, 
+      const double *f_l, const double *f_r, double *lax_nodal_quad, 
+      double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_boundary_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_ho_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~adouble vlasov_boundary_ho_surfv~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+      const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
+    )
   ),
 
   printf(fh, "~%")
