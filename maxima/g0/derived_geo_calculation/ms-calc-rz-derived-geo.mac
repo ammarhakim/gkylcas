@@ -1,7 +1,7 @@
 /* Create kernels to calculate derived geometric quantities from the
    metric coefficients and magnetic field strength. This is specialized
-   to tokamaks where J is already known*/
-load("derived_geo_calculation/calc-tok-derived_geo.mac")$
+   to numerical geometry (tokamaks or mirrors) where J is already known*/
+load("derived_geo_calculation/calc-rz-derived_geo.mac")$
 load(stringproc)$
 
 
@@ -24,10 +24,10 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 for bInd : 1 thru 1 do (
   for cD : minCdim[bInd] thru maxCdim[bInd] do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      disp(printf(false,sconcat("Creating tok_derived_geo_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
-      fName : sconcat("~/max-out/tok_derived_geo_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
+      disp(printf(false,sconcat("Creating rz_derived_geo_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+      fName : sconcat("~/max-out/rz_derived_geo_calc_", bName[bInd], "_", cD, "x_",  "p", polyOrder, ".c"),
       fh : openw(fName),
-      printf(fh, "#include \"gkyl_tok_calc_derived_geo_kernels.h\"~%~%"),
+      printf(fh, "#include \"gkyl_rz_calc_derived_geo_kernels.h\"~%~%"),
       calcDerivedGeo(fh, cD, bName[bInd], polyOrder),
       if (polyOrder = 1) then (
         calcDerivedGeo_quad(fh, cD, bName[bInd], polyOrder)
