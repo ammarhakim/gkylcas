@@ -6,11 +6,11 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 2$
-minVdim_Ser : 3$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -52,12 +52,13 @@ for bInd : 1 thru length(bName) do (
               fname : sconcat("~/max-out/vlasov_nc_hamil_gen_boundary_",si,"surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
               fh : openw(fname),
               funcName : sconcat("vlasov_nc_hamil_gen_boundary_",si,"surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-              if ( bName[bInd] = "ser"  and not(c+v>4 and polyOrder > 1) ) then (
+              calcSurfStreamFluxBoundary(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder),
+              /* if ( bName[bInd] = "ser"  and not(c+v>4 and polyOrder > 1) ) then (
                 calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder)
               ) 
               else (
                 calcHamilGenBoundarySurfStreamNonCanonicalNodalBreakup(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder)
-              ),
+              ), */
               close(fh)
             )
           )

@@ -25,6 +25,7 @@ load("out-scripts");
 load("utilities")$
 load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
+load("triads/triad-util")$
 load(stringproc)$
 fpprec : 24$
 
@@ -33,6 +34,58 @@ dx11 : [dx10, dx11, dx12]$
 dv11 : [dv10, dv11, dv12]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+/* Configuration-space surface update from pre-computed flux. */
+calcSurfStreamFluxBoundary(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,vid,cv,surfVars,bSurf,NSurf,Fhat_nodal_e,incr,
+   nodes_conf,nodes_vel,num_nodes_conf,num_nodes_vel,numNodes,basisNodalConf,basisNodalVel,
+   surfCVars],
+
+  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
+  toc("loadVlasovBasis"),
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const int edge, const double *flux, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  cid : cidx(cdim),
+  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "~%"),
+
+  /* Surface contribution setup */
+  cv : varsC[dir],
+  surfVars : delete(cv, varsP),
+  surfCVars : delete(cv, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes]
+    : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV, useHigherOrder),
+  NSurf : length(bSurf),
+  num_nodes_conf : length(nodes_conf),
+  num_nodes_vel : length(nodes_vel),
+  numNodes : length(surfNodes),
+
+  printf(fh, "  const double *Fhat_nodal = &flux[~a]; ~%", (dir-1)*numNodes),
+
+  /* Build tensor-product nodal expansion */
+  Fhat_nodal_list : makelist(Fhat_nodal[i], i, 0, numNodes-1),
+  Fhat_nodal_e : 0,
+  for i : 1 thru num_nodes_conf do (
+    for j : 1 thru num_nodes_vel do (
+      Fhat_nodal_e : ratsimp(Fhat_nodal_e + Fhat_nodal_list[j + (i-1)*num_nodes_vel] * basisNodalVel[j]*basisNodalConf[i])
+    )
+  ),
+
+  /* NOTE: L = left of cell interface, R = right of cell interface */
+  printf(fh, "  if (edge == -1) { ~%~%"),
+  incr : calcInnerProdListTriad(surfVars, -1, subst(cv=1, bP), Fhat_nodal_e),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+  printf(fh, "~%  } else { ~%~%"),
+  incr : calcInnerProdListTriad(surfVars, 1, subst(cv=-1, bP), Fhat_nodal_e),
+  writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
+  printf(fh, "~%  } ~%"),
+  printf(fh, "  return 0.0;~%"),
+  printf(fh, "~%"),
+  printf(fh, "} ~%")
+)$
+
 
 /* Phase-space Hamiltonian boundary surface streaming */
 calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(

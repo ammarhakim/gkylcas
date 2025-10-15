@@ -58,16 +58,13 @@ for bInd : 1 thru length(bName) do (
         maxC : c, /* Which directions are we generating surface kernels for? */
         if (v < c) then maxC : v, /* In 2x1v, only generate the vx surface kernel. */
         for dir : 1 thru maxC do (
-          if (0) then (
           fname : sconcat("~/max-out/phi_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("phi_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           calcPhiVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
-          close(fh) 
-          )           
+          close(fh)         
         ),
         for dir : 1 thru v do (
-          if (0) then (
           fname : sconcat("~/max-out/E_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("E_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
@@ -92,8 +89,7 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("rad_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           calcRadVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
-          close(fh)
-          ),
+          close(fh),
           for hoInd : 1 thru length(useHigherOrderList) do (
             useHigherOrder : useHigherOrderList[hoInd],
             if useHigherOrder then si : "ho_" else si : "",
@@ -129,13 +125,11 @@ for bInd : 1 thru length(bName) do (
         for dir : 1 thru maxC do (
           /* Phase-space Hamiltonian surface component. Only generate with Serendipity basis for now. */
           if (bName[bInd] = "ser") then (
-            if (0) then (
             fname : sconcat("~/max-out/hamil_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("hamil_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcHamilGenVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, false), 
             close(fh)
-            )
           )
         )
       )

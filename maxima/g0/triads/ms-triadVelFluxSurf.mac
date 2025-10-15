@@ -42,7 +42,7 @@ vlabels : ["vx","vy","vz"]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    or v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
