@@ -1,17 +1,17 @@
 /*
-   Create kernels for the volume term of the gyrokinetic equation.
+   Create kernels for the volume term of the gyrokinetic collisionless terms.
 */
 
 load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("gyrokinetic/gkUtil")$
+load("utilities_gyrokinetic")$
 load("utilities")$
 fpprec : 24$
 
 buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
-  [pDim,varsC,bC,varsP,bP,varsV,vmapBasis,vmapSqBasis,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
+  [pDim,varsC,bC,varsP,bP,varsV,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
    dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,hamil2_c,isqlist,mvpar_e,mvparsq_e],
@@ -59,14 +59,14 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a];~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
   ),
   printf(fh, "~%"),
 
   /* Create pointers to the components of dualcurlbhatoverB. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a];~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
   ),
   printf(fh, "~%"),
 
@@ -86,20 +86,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   dualcurlbhatoverB_list : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
   bioverJB_list : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e],
 
-  /* Basis for the velocity space mapping. */
-  [jnk,vmapBasis] : loadBasis("Ser", 1, 1),  [jnk,vmapSqBasis] : loadBasis("Ser", 1, 2),
-  vmapBnum        : length(vmapBasis),       vmapSqBnum        : length(vmapSqBasis),
-
-  vmap_e : [],  vmapSq_e : [],  vmap_prime_e : [],
-  for d : 1 thru vdim do (
-    vmap_c : makelist(vmap[(d-1)*vmapBnum+i-1],i,1,vmapBnum),
-    vmap_e : endcons(doExpand(vmap_c,subst(x=varsP[cdim+d],vmapBasis)), vmap_e),
-
-    vmapSq_c : makelist(vmapSq[(d-1)*vmapSqBnum+i-1],i,1,vmapSqBnum),
-    vmapSq_e : endcons(doExpand(vmapSq_c,subst(x=varsP[cdim+d],vmapSqBasis)), vmapSq_e),
-
-    vmap_prime_e : endcons(vmap_prime[d-1], vmap_prime_e)
-  ),
+  /* Velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
   vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
@@ -133,7 +121,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       dH_dz_e[i] : diff(hamil_e*rdx2vec[i],varsP[i])
     )
   ),
-
 
   /*Make sure to avoid having hamil[i]^2 or vmap[i]^2 in expressions*/
   replaceListVpar : [vmap[1]^2=vmap2],
@@ -269,59 +256,4 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   printf(fh, "  return 0.; ~%"),
   printf(fh, "} ~%")
 
-)$
-
-buildGKStep2VolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,f_e,dApardt_e,
-   volTerm_c,replaceList,alpha_e,dir,dirVar],
-  /* Generate the volume kernel for the 2nd step in gyrokinetics with Apar. */
-
-  pDim : cdim+vdim,
-
-  [varsC,bC,varsP,bP,vSub] : loadGkBasis(basisFun, cdim, vdim, polyOrder),
-  numC : length(bC),  numP : length(bP),
-
-  print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double q_, const double m_, const double *apardot, const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  printf(fh, "  // w[NDIM]: cell-center.~%"),
-  printf(fh, "  // dxv[NDIM]: cell length.~%"),
-  printf(fh, "  // q_,m_: species charge and mass.~%"),
-  printf(fh, "  // apardot: time derivative of Apar.~%"),
-  printf(fh, "  // fIn: Distribution function.~%"),
-  printf(fh, "  // out: output increment.~%"),
-  printf(fh, "~%"),
-
-  printf(fh, "  double rdvpar2 = 2.0/dxv[~a]; ~%", cdim),
-
-  /* Expand distribution function on basis. */
-  f_e : doExpand1(fin,bP),
-
-  /* Expand dApar/dt. */
-  dApardt_e : doExpand1(apardot,bC),
-
-  /* Calculate volume term, which is inner product
-     < - f (q/m) dApar/dt d/dvpar(bP) > */
-  volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,vpar), -(q_/m_)*dApardt_e*rdvpar2*f_e)),
-
-  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
-  /* Write C increment expressions for volume term. */
-  writeCIncrExprsNoExpand(float(subst(replaceList, facsum(volTerm_c,rdvpar2)))),
-
-  alpha_e : - (q_/m_)*dApardt_e*rdvpar2,
-
-  /* CFL calculation. */
-  /* Calculate cflFreq = sum_d alpha_d / dxv[d]. */
-  printf(fh, "  double cflFreq = 0.0; ~%"),
-  printf(fh, "  double alphaL = 0.0; ~%"),
-  printf(fh, "  double alphaR = 0.0; ~%"),
-
-  dir    : cdim+1,
-  dirVar : varsP[dir],         /* Variable in current direction. */
-
-  /* Evaluate cfl by evaluating at all surface quadrature points. */
-  calcAndWrite_quadCFLfreq_wPhaseAlpha(basisFun,polyOrder,bP,dir,alpha_e),
-  printf(fh, "~%"),
-
-  printf(fh, "  return cflFreq; ~%"),
-  printf(fh, "} ~%")
 )$

@@ -2,17 +2,17 @@ load("modal-basis")$
 load("out-scripts")$
 load(stringproc)$
 load("scifac")$
-load("gyrokinetic/gkUtil")$
+load("utilities_gyrokinetic")$
 fpprec : 24$
 
-buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by, edge) := block(
-  [pDim,vpardim,varsC,bC,varsP,bP,vSub,surfVar,varLabel,dirLabel,
-   surfIntVars,surfIntVarsC,surf_cvars,surf_vvars,surfNodes,bSurf,bSurfC,NSurf,numNodes,
-   tempVars,tempBasis,NSurfIndexing,numNodesIndexing,
-   rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,bmagSurfBasis,ignoreVars,inFlds_e,geoSurfFlds_e,bmag_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,
-   bmagSurf_e,cmagSurf_e,b_xSurf_e,b_ySurf_e,b_zSurf_e,jacobTotInvSurf_e,
-   BstarXdBmag_e,BstarYdBmag_e,BstarZdBmag_e,BstardBmag_e,hamil_e,fluxSurf_e],
+buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge) := block(
+  [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
+   surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
+   numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
+   bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
+   hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+  ],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -61,14 +61,13 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
     numNodesIndexing : numNodes
   ),
 
-
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(
     const double *w, const double *dxv, 
     const double *vmap_prime_l, const double *vmap_prime_r,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-    const double *bmag, const double *phi, const double *JfL, const double *JfR, 
+    const double *bmag, const double *phi, const double *JfL, const double *JfR,
     double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -76,15 +75,14 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   printf(fh, "  // vmap: velocity space mapping.~%"),
   printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
+  printf(fh, "  // dgv: volume DG geometry.~%"),
+  printf(fh, "  // gkdgv: gyrokinetic volume DG geometry.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
-  printf(fh, "  // jacobtot_inv: reciprocal of the conf-space jacobian time the guiding center coordinate Jacobian.~%"),
-  printf(fh, "  // cmag: coefficient multiplying parallel gradient.~%"),
-  printf(fh, "  // b_i: covariant components of the field aligned unit vector.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
-  printf(fh, "  // bmag_surf: bmag represented on the surface.~%"),
-  printf(fh, "  // jacobtot_inv_surf: jacobtot_inv represented on the surface.~%"),
+  printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
+  printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
-  printf(fh, "  //             Note: Each cell owns their *lower* edge surface evaluation.~%"),
+  printf(fh, "  //            Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "~%"),
 
   /* Declare cell-center variables and variables multiplying gradients. */
@@ -101,34 +99,20 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   bmagBasis : getAxisymmetricConfBasis(bC),
 
   /* Expand input fields for Hamiltonian calculation */
-  phi_e     : doExpand1(phi,bC),
+  phi_e  : doExpand1(phi,bC),
   bmag_e : doExpand1(bmag, bmagBasis),
 
-  /* Basis for the velocity space mapping. */
-  [jnk,vmapBasis] : loadBasis("Ser", 1, 1),  [jnk,vmapSqBasis] : loadBasis("Ser", 1, 2),
-  vmapBnum        : length(vmapBasis),       vmapSqBnum        : length(vmapSqBasis),
-
-  vmap_e : [],  vmapSq_e : [],  vmap_prime_e : [],
-  for d : 1 thru vdim do (
-    vmap_c : makelist(vmap[(d-1)*vmapBnum+i-1],i,1,vmapBnum),
-    vmap_e : endcons(doExpand(vmap_c,subst(x=varsP[cdim+d],vmapBasis)), vmap_e),
-
-    vmapSq_c : makelist(vmapSq[(d-1)*vmapSqBnum+i-1],i,1,vmapSqBnum),
-    vmapSq_e : endcons(doExpand(vmapSq_c,subst(x=varsP[cdim+d],vmapSqBasis)), vmapSq_e),
-
-    vmap_prime_e : endcons(vmap_prime[d-1], vmap_prime_e)
-  ),
-
+  /* Velocity mapping fields. */
+  [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
 
   /* Redefine vmap_prime to exploit the relationship between it and vmap. */
   /*vmap_prime_e : makelist((2/dxv[cdim+d-1])*diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),*/
   vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   if edge = true then (
-      evPoint : 1
-  )
-  else (
-      evPoint : -1
+    evPoint : 1
+  ) else (
+    evPoint : -1
   ),
 
   /* Finally write out the hamiltonian*/
@@ -151,15 +135,12 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   JfR_e : doExpand1(JfR, bP),
   JfL_c : calcInnerProdList(varsP, 1, bP, JfL_e),
   JfR_c : calcInnerProdList(varsP, 1, bP, JfR_e),
-  JfL_e : JfL_c . bP,
-  JfR_e : JfR_c . bP,
    
   JfL_e : subst(surfVar=1,JfL_e),
   JfR_e : subst(surfVar=-1,JfR_e),
 
   JfL_nodes : float(evAtNodes(JfL_e,surfNodes,surfIntVars)),
   JfR_nodes : float(evAtNodes(JfR_e,surfNodes,surfIntVars)),
-
 
   vmap_prime_nodes : float(evAtNodes(vmap_prime_e[1],surfNodes,surfIntVars)),
 
@@ -175,7 +156,6 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       dH_dz_nodes[i] : float(evAtNodes(diff(hamil_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
     )
   ),
-
 
   /* Now calculate apha at all quadrature nodes */
   /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
@@ -194,7 +174,6 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
-    printf(fh, "~%~%"),
     printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
     printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i-1), 
     printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i-1), 
@@ -233,7 +212,8 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, va
       printf(fh, "  Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
       printf(fh, "  Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
       printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
-    )
+    ),
+    printf(fh, "~%")
   ),
 
   /* Do the quad nodal to modal ops directly here*/ 
