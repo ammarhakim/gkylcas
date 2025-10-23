@@ -5,7 +5,7 @@
 
   The functions called in this file are in gkFuncs-surf.mac.
 */
-load("gk_collisionless/dg_gk-surf")$
+load("gk_collisionless/em/dg_gk-surf_em")$
 
 /* ...... USER INPUTS........ */
 

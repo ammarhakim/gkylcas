@@ -3,16 +3,17 @@ load("out-scripts")$
 load(stringproc)$
 load("scifac")$
 load("utilities_gyrokinetic")$
+load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-buildGKFluxVparAddEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge) := block(
+buildGKFluxConfAddEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge, mb_bound) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
-   surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
-   numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
-   bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
-   hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
-  ],
+   surfNodes,nodeVars,bSurf,basisNodal,surfConfigNodes,numSurfNodes,numSurfConfigNodes,numVelNodes,
+   numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,bmagSurf_e,vmap_e,vmapSq_e,
+   vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
+   jacobgeo_rat_surfR_e,jacobgeo_rat_surfL_e,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
+   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   ],
 
   kill(varsC,varsP,bC,bP),
   pDim : cdim+vdim,
@@ -35,55 +36,49 @@ buildGKFluxVparAddEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     surfNodes : gaussOrdGkHyb(1+1, surf_cvars, surf_vvars),
     nodeVars  : surfIntVars, 
     bSurf     : basisFromVars("gkhyb",surfIntVars,polyOrder),
-    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim, vdim-1, surfIntVars, surfNodes)
+    basisNodal  : getVarsNodalBasisWithNodesHyb("gkhyb", cdim-1, vdim, surfIntVars, surfNodes)
   ) else (
     surfNodes : gaussOrd(polyOrder+1, pDim-1),
     nodeVars  : surfIntVars,
     bSurf     : basisFromVars(basisFun,surfIntVars,polyOrder)
   ),
-  configNodes : gaussOrd(polyOrder+1, cdim),
-  numSurfNodes : length(surfNodes),  
-  numConfigNodes : length(configNodes), 
-  numVelNodes : numSurfNodes/numConfigNodes, 
-
-  /* if polyOrder = 1, we need to be careful about
-     indexing input arrays since the surface hybrid basis has a different size in the
-     vparallel surfaces and/or we are more directly exploiting the sparsity of 
-     alpha (e.g., in the x and z direction when no toroidal field, by=0) 
-     and thus utilize fewer coefficients to reduce the number of operations */
-  if (polyOrder = 1) then (
-    tempVars         : delete(x,varsP), 
-    tempBasis        : basisFromVars("gkhyb",tempVars,polyOrder),
-    NSurfIndexing    : length(tempBasis),
-    numNodesIndexing : length(tempBasis)
-  ) else (
-    NSurfIndexing    : NSurf,
-    numNodesIndexing : numNodes
+  if cdim = 1 then (
+    surfConfigNodes : [1]
+  )
+  else (
+    surfConfigNodes : gaussOrd(polyOrder+1, cdim-1)
   ),
+  numSurfNodes : length(surfNodes),  
+  numSurfConfigNodes : length(surfConfigNodes), 
+  numVelNodes : numSurfNodes/numSurfConfigNodes, 
+  numMuNodes : 1,
+  if vdim > 1 then ( numMuNodes : 2),
+  numVparNodes : numVelNodes/numMuNodes,
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(
-    const double *w, const double *dxv, 
-    const double *vmap_prime_l, const double *vmap_prime_r,
+    const double *w, const double *dxv,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
-    const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-    const double *bmag, const double *phi, const double *JfL, const double *JfR,
-    double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
+    const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs, 
+    const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR, const double *phi,
+    const double *JfL, const double *JfR, double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
-  printf(fh, "  // vmap_prime_l,vmap_prime_r: velocity space mapping derivative in left and right cells.~%"),
   printf(fh, "  // vmap: velocity space mapping.~%"),
   printf(fh, "  // vmapSq: velocity space mapping squared.~%"),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
-  printf(fh, "  // dgv: volume DG geometry.~%"),
-  printf(fh, "  // gkdgv: gyrokinetic volume DG geometry.~%"),
-  printf(fh, "  // bmag: magnetic field amplitude.~%"),
+  printf(fh, "  // dgs: surface DG geometry.~%"),
+  printf(fh, "  // gkdgs: gyrokinetic surface DG geometry.~%"),
+  printf(fh, "  // bmag: bmag represented on the surface.~%"),
+  printf(fh, "  // jacobgeo_rat_surfL: Ratio of surface conf-space Jacobians in left cell.~%"),
+  printf(fh, "  // jacobgeo_rat_surfR: Ratio of surface conf-space Jacobians in right cell.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
   printf(fh, "  //            Note: Each cell owns their *lower* edge surface evaluation.~%"),
   printf(fh, "~%"),
+
 
   printf(fh, "  return 0.; ~%"),
   printf(fh, "} ~%")
