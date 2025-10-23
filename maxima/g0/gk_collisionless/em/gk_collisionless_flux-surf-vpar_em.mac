@@ -5,7 +5,7 @@ load("scifac")$
 load("utilities_gyrokinetic")$
 fpprec : 24$
 
-buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge) := block(
+buildGKFluxVparAddEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
@@ -135,7 +135,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   JfR_e : doExpand1(JfR, bP),
   JfL_c : calcInnerProdList(varsP, 1, bP, JfL_e),
   JfR_c : calcInnerProdList(varsP, 1, bP, JfR_e),
-   
+  
   JfL_e : subst(surfVar=1,JfL_e),
   JfR_e : subst(surfVar=-1,JfR_e),
 
@@ -190,18 +190,18 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
       ),
       if no_by = false then (
         printf(fh, "  alpha_quad = -(~a)/m_/bmag_quad * B3_quad ", dH_dz_nodes[cdim][j1index]),
-         if cdim = 3 then (
-           for k : 1 thru cdim do (
-             printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
-           )
-         ),
-         if cdim = 2 then (
-             printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 0, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
-             printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[2][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
-         ),
-         if cdim = 1 then (
-             printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
-         ),
+        if cdim = 3 then (
+          for k : 1 thru cdim do (
+            printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
+          )
+        ),
+        if cdim = 2 then (
+            printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 0, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
+            printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[2][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
+        ),
+        if cdim = 1 then (
+            printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
+        ),
         printf(fh, ";~%")
       ),
 
@@ -235,7 +235,9 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "~%"),
   printf(fh, "  return cfl~a*~a; ~%", vprimeStr, float(0.5*(2*pOrderCFL+1)*rdSurfVar2)),
 
-  printf(fh, "~%"),
+  printf(fh, "~%")
+
+  printf(fh, "  return 0.; ~%")
   flush_output(fh),
   printf(fh, "} ~%")
 

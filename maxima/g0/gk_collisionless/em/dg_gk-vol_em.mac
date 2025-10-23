@@ -10,7 +10,7 @@ load("utilities_gyrokinetic")$
 load("utilities")$
 fpprec : 24$
 
-buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
+buildGKAddEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
   [pDim,varsC,bC,varsP,bP,varsV,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
@@ -27,7 +27,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, const double *vmap, const double *vmapSq,
     const double q_, const double m_, const double *bmag, const double *phi,
-    const double *dualcurlbhatoverB, const double *rtg33inv, const double *bioverJB,
+    const double *apar, const double *rtg33inv, const double *bioverJB,
     const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -36,9 +36,11 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   printf(fh, "  // q_,m_: species charge and mass.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
   printf(fh, "  // phi: electrostatic potential .~%"),
+  printf(fh, "  // apar: parallel component of vector potential.~%"),
   printf(fh, "  // fin: Distribution function.~%"),
   printf(fh, "  // out: output increment.~%"),
   printf(fh, "~%"),
+
 
   /* Declare cell-center variables and variables multiplying gradients. */
   for d : 1 thru pDim do (
@@ -74,16 +76,82 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   bmagBasis : getAxisymmetricConfBasis(bC),
   /* Expand input fields for Hamiltonian calculation */
   phi_e     : doExpand1(phi,bC),
+  apar_e    : doExpand1(apar,bC),
   bmag_e : doExpand1(bmag, bmagBasis),
-  dualcurlbhatoverB_x_e : doExpand1(dualcurlbhatoverB_x, bmagBasis),
+
+
+  /* dualcurlbhatoverB_x_e : doExpand1(dualcurlbhatoverB_x, bmagBasis),
   dualcurlbhatoverB_y_e : doExpand1(dualcurlbhatoverB_y, bmagBasis),
-  dualcurlbhatoverB_z_e : doExpand1(dualcurlbhatoverB_z, bmagBasis),
+  dualcurlbhatoverB_z_e : doExpand1(dualcurlbhatoverB_z, bmagBasis), */
+  /* Zero out some terms below to avoid the discontinuity of alpha in the
+     parallel direction (due to the discontinuity of Apar). Otherwise some
+     other treatment of some Apar terms or alpha may be needed. Initially we
+     had a step averaging alpha across the surface (just for the parallel
+     direction), but NRM suspects this might've caused instability in some
+     cases. Hence the zeros below. */
+  discontFac : 0,
+  if cdim > 1 then (rdy2 : rdx2vec[2]) else (rdy2 : 0),
+  if cdim > 2 then (rdz2 : rdx2vec[3]) else (rdz2 : 0),
+  /* Expand e^x . \nabla \times A_\parallel / Bmag on basis. */
+  dualcurlbAparoverB_x_e : (rdy2*diff(apar_e*b_z_e,y) - discontFac*rdz2*diff(apar_e*b_y_e,z))*jacobTotInv_e,
+  /* Expand e^y . \nabla \times A_\parallel / Bmag on basis. */
+  dualcurlbAparoverB_y_e : (discontFac*rdz2*diff(apar_e*b_x_e,z) - rdx2vec[1]*diff(apar_e*b_z_e,x))*jacobTotInv_e,
+  /* Expand e^z . \nabla \times A_\parallel / Bmag on basis. */
+  dualcurlbAparoverB_z_e : (discontFac*(rdx2vec[1]*diff(apar_e*b_y_e,x) - rdy2*diff(apar_e*b_x_e,y)))*jacobTotInv_e,
+
+  varsP : listofvars(bP),
+  numP  : length(bP),
+
+  /* Project Bstar's onto basis, and print to arrays. */
+  replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
+  if cdim > 1 then (
+    dualcurlbAparoverB_c : calcInnerProdList(varsP, 1, bP, dualcurlbAparoverB_x_e),
+    if (surfDir = 0 or surfDir = 1 or surfDir = cdim+1) then (
+      printf(fh, "  double dualcurlbAparoverB~a[~a] = {0.}; ~%", sideStr,numP),
+      writeCExprsNoExpand1(eval_string(sconcat("dualcurlbAparoverB",sideStr)), gcfac(subst(replaceList, dualcurlbAparoverB_c))),
+      printf(fh, "~%"),
+      flush_output(fh)
+    ),
+    dualcurlbAparoverB_noZero_c : makelistNoZeros1(dualcurlbAparoverB_c, eval_string(sconcat("dualcurlbAparoverB",sideStr))),
+    dualcurlbAparoverB_e : dualcurlbAparoverB_noZero_c . bP,
+
+    dualcurlbAparoverB_y_c : calcInnerProdList(varsP, 1, bP, dualcurlbAparoverB_y_e),
+    if (surfDir = 0 or surfDir = 2 or surfDir = cdim+1) then (
+      printf(fh, "  double dualcurlbAparoverB_y~a[~a] = {0.}; ~%", sideStr, numP),
+      writeCExprsNoExpand1(eval_string(sconcat("dualcurlbAparoverB_y",sideStr)), gcfac(subst(replaceList, dualcurlbAparoverB_y_c))),
+      printf(fh, "~%"),
+      flush_output(fh)
+    ),
+    dualcurlbAparoverB_y_noZero_c : makelistNoZeros1(dualcurlbAparoverB_y_c, eval_string(sconcat("dualcurlbAparoverB_y",sideStr))),
+    dualcurlbAparoverB_y_e : dualcurlbAparoverB_y_noZero_c . bP
+  ),
+  if cdim # 2 then (
+    dualcurlbAparoverB_z_c : calcInnerProdList(varsP, 1, bP, dualcurlbAparoverB_z_e),
+    if (surfDir=0 or surfDir>=cdim) then (
+      printf(fh, "  double dualcurlbAparoverB_z~a[~a] = {0.}; ~%", sideStr, numP),
+      writeCExprsNoExpand1(eval_string(sconcat("dualcurlbAparoverB_z",sideStr)), gcfac(subst(replaceList, dualcurlbAparoverB_z_c))),
+      printf(fh, "~%"),
+      flush_output(fh)
+    ),
+    dualcurlbAparoverB_z_noZero_c : makelistNoZeros1(dualcurlbAparoverB_z_c, eval_string(sconcat("dualcurlbAparoverB_z",sideStr))),
+    dualcurlbAparoverB_z_e : dualcurlbAparoverB_z_noZero_c . bP
+  ),
+
+  /* Make Bstar/Bmag vector. */
+  /* if cdim = 1 then (
+    dualcurlbAparoverB_list : [dualcurlbAparoverB_z_e]
+  ) elseif cdim = 2 then (
+    dualcurlbAparoverB_list : [dualcurlbAparoverB_x_e, dualcurlbAparoverB_y_e]
+  ) elseif cdim = 3 then (
+    dualcurlbAparoverB_list : [dualcurlbAparoverB_x_e, dualcurlbAparoverB_y_e, dualcurlbAparoverB_z_e]
+  ), */
+
   rtg33inv_e : doExpand1(rtg33inv, bmagBasis),
   bioverJB_x_e : doExpand1(bioverJB_x, bmagBasis),
   bioverJB_y_e : doExpand1(bioverJB_y, bmagBasis),
   bioverJB_z_e : doExpand1(bioverJB_z, bmagBasis),
 
-  dualcurlbhatoverB_list : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
+  dualcurlbAparoverB_list : [dualcurlbAparoverB_x_e, dualcurlbAparoverB_y_e, dualcurlbAparoverB_z_e],
   bioverJB_list : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e],
 
   /* Velocity mapping fields. */
@@ -182,7 +250,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       ),
 
       if dir < vpardim then (
-        alpha_e : alpha_e + dualcurlbhatoverB_list[curvdriftdir]*dH_dz_e[vpardim]/vmap_prime_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/m_/q_
+        alpha_e : alpha_e + dualcurlbAparoverB_list[curvdriftdir]*dH_dz_e[vpardim]/vmap_prime_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/m_/q_
       ),
       if cdim = 3 then (
         if dir = 1 then (
@@ -206,14 +274,14 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       if dir = vpardim then (
         if cdim = 3 then (
           for k : 1 thru cdim do (
-            alpha_e : alpha_e - dualcurlbhatoverB_list[k]*dH_dz_e[k]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+            alpha_e : alpha_e - dualcurlbAparoverB_list[k]*dH_dz_e[k]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
           )
         ),
         if cdim = 2 then (
-            alpha_e : alpha_e - dualcurlbhatoverB_list[1]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_ - dualcurlbhatoverB_list[3]*dH_dz_e[2]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+            alpha_e : alpha_e - dualcurlbAparoverB_list[1]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_ - dualcurlbAparoverB_list[3]*dH_dz_e[2]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
         ),
         if cdim = 1 then (
-            alpha_e : alpha_e - dualcurlbhatoverB_list[3]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
+            alpha_e : alpha_e - dualcurlbAparoverB_list[3]*dH_dz_e[1]*dH_dz_e[vpardim]/vmap_prime_e[1]/q_/m_
         )
       )
 
@@ -253,7 +321,7 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
   ),
 
+
   printf(fh, "  return 0.; ~%"),
   printf(fh, "} ~%")
-
 )$
