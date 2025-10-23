@@ -1,0 +1,84 @@
+/*
+  Generate the kernel for surface expansions of the phase space characteristics.
+
+  The functions called in this file are in gkFuncs-alpha-surf.mac.
+*/
+load("gk_collisionless/gk_collisionless_flux-surf-conf")$
+load("gk_collisionless/gk_collisionless_flux-surf-vpar")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 1$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 0$
+
+/* ...... END OF USER INPUTS........ */
+
+/* Vdim possibilities for each of Cdim=[1,2,3]. */
+gkVdims : [[1,2], [2], [2]]$
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+clabels : ["x","y","z"]$
+vlabels : ["vpar","mu"]$
+
+/* Options for writing kernels with and without toroidal field (b_y=0), one per
+   dimension, or make the kernel only add electromagnetic terms. */
+byOpt : [[false, false], [false, false, false], [false, false, true]]$
+emOpt : [[false, true], [false, true, false], [false, true, false]]$
+optStr : ["", "add_em_", "no_by_"]$
+
+/* Options for writing kernels used at multiblock boundaries. One for each
+ dimension. */
+mb_bcOpt : [[false,true],[false,true],[false,true]]$
+mb_bcStr : ["", "multib_boundary_"]$
+
+/* Generate kernels of selected types. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for gkV : 1 thru length(gkVdims[c]) do (
+      v : gkVdims[c][gkV],
+
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        for byI : 1 thru length(byOpt[c]) do (
+          no_by : byOpt[c][byI],
+          add_em : emOpt[c][byI],
+          opt_str : optStr[byI],
+
+          if add_em then (
+            /* Surface flux in vparallel direction.*/
+            fname : sconcat("~/max-out/gk_collisionless_flux_",opt_str,"surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            disp(printf(false,"Creating flux surfvpar ~a file: ~a",opt_str,fname)),
+    
+            fh : openw(fname),
+            printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+
+            funcName : sconcat("gk_collisionless_flux_",opt_str,"surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            if add_em then (
+              buildGKFluxVparAddEMKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, no_by, false)
+            ) else (
+              buildGKFluxVparESKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, no_by, false)
+            ),
+            close(fh)
+          )
+        )
+      )
+    )
+  )
+)$
