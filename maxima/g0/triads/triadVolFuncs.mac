@@ -90,13 +90,14 @@ grab_dir_from_pt_index(vdim, pt_index) := block(
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
 calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := block(
-  [varsC,bC,varsV,bV,varsP,bP,NP,
-   bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
-   cid,vid,pb_dim,hamil,f_e,
-   fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
-   pb,pbBasis,clst_vol, poissonTensorConf, pdim, NC, pt_conf_comp_total,
-   dir, pt_index, dir1, dir2, index_vsum, varsP1, varsP2, dz_val1, dz_val2, dvol, p_factor,
-   poissonTensorConf_local],
+  [varsC, bC, varsV, bV, varsP, bP, NP,
+  cid, vid, pdim, NC,
+  hamil, f_e, f_vol_e,
+  poissonTensorConf, pt_conf_comp_total,
+  varsPFull, pt_index, dir1, dir2, index_vsum, varsP1, varsP2,
+  dz_val1, dz_val2, dvol, p_factor,
+  pbBasis, pb, clst_vol,
+  poissonTensorConf_local, i, dir],
 
   pdim : cdim + vdim,
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
@@ -191,4 +192,84 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
   ),
 
   printf(fh, "} ~%")
+)$  
+
+
+/* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
+   grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
+   grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
+calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+  [varsC, bC, varsV, bV, varsP, bP, NP,
+  cid, vid, pdim, NC,
+  funcNameDot, funcNameZero, funcNameComputePiDh, funcNameBracket,
+  dir, component],
+
+  pdim : cdim + vdim,
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NC : length(bC), 
+  NP : length(bP), 
+
+  printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+
+  /* Function for the inner product of pb_list and f */
+  /* Expansions of f and pb_list */
+  /* list_1_e : doExpand1(list_1, bP),
+  list_2_e : doExpand1(list_2, bP), */
+
+  funcNameDot : sconcat("dot_pb_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+  printf(fh, "GKYL_CU_DH static void ~a(const double *list_1, const double *list_2, double* GKYL_RESTRICT out) ~%{ ~%", funcNameDot),
+
+  /* Inner product of the two modal lists */
+  /* pb : fullratsimp(calcInnerProdList(varsP, 1, [list_2_e], list_1_e)), 
+  clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+  writeCIncrExprsCollect1(out, pb, clst_vol), */
+
+  printf(fh, "  for (int i = 0; i<~a; ++i) out[0] += list_1[i]*list_2[i]; ~%",NP),
+  printf(fh, "} ~%"),
+  printf(fh, "  ~%"),
+
+
+  funcNameZero : sconcat("zero_pb_list"),
+  printf(fh, "GKYL_CU_DH static inline void ~a(double *pb_list) ~%{ ~%", funcNameZero),
+
+  /* Zero out the pb_list */
+  printf(fh, "  for (int i = 0; i<~a; ++i) pb_list[i] = 0.0; ~%",NP),
+  printf(fh, "} ~%"),
+  printf(fh, "  ~%"),
+
+
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+ 
+  /* Allocate all the memory needed by the volume kernels */
+  printf(fh, "  double alphai[~a] = {0.0}; ~%", length(bP)),
+  printf(fh, "  double bracket_w_Hi[~a] = {0.0}; ~%", length(bP)),
+
+  /* Call all of the kernels for each component */
+  funcNameComputePiDh : sconcat("vlasov_nc_hamil_gen_vol_alpha_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+
+  /* Iterate over directions */
+  printf(fh, "  for (int dir = 0; dir<~a; ++dir) { ~%",pdim),
+
+  /* Grab the various components of (Pi*dH/dz)_h and save as these will remain
+   the same for all phase space basis - this is really the bulk of the calculation */
+  printf(fh, "    // Compute the per-direction charateristic ~%"),
+  printf(fh, "    ~a(alphai); ~%", funcNameZero),
+  printf(fh, "    ~a(w, dxv, dir, poisson_tensor_conf, hamil, alphai); ~%", funcNameComputePiDh),
+  printf(fh, "    ~%"),
+
+  /* iterate over the number of components */
+  /* printf(fh, "    for (int comp = 0; comp<~a; ++comp) { ~%",NP), */
+  printf(fh, "    // Compute the modal basis backet coeffcients, accumulate the outputs ~%"),
+  for component : 1 thru NP do (
+    printf(fh, "    ~a(bracket_w_Hi); ~%", funcNameZero),
+    funcNameBracket : sconcat("vlasov_nc_hamil_gen_vol_comp", (component -1),"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+    printf(fh, "    ~a(w, dxv, dir, alphai, bracket_w_Hi); ~%", funcNameBracket),
+    printf(fh, "    ~a(f, bracket_w_Hi, &out[~a]); ~%", funcNameDot, component-1),
+    flush_output(fh) 
+  ),
+  printf(fh, "    ~%"),
+  printf(fh, "  } ~%"),
+  printf(fh, "} ~%") 
 )$  

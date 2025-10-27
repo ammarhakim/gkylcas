@@ -24,6 +24,11 @@ minCdim_hyb : 1$
 maxCdim_hyb : 3$
 vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
+/* Tensor-Hybrid basis. */
+minCdim_tenhyb : 1$
+maxCdim_tenhyb : 3$
+vDims_tenhyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
+
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$
 maxCdim_gkhyb : 3$
@@ -37,10 +42,10 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
-bNameHyb   : ["hyb","gkhyb"]$
-minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
-maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
-vDims      : [vDims_hyb, vDims_gkhyb]$
+bNameHyb   : ["tenhyb","hyb","gkhyb"]$
+minCdimHyb : [minCdim_tenhyb, minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_tenhyb, maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_tenhyb, vDims_hyb, vDims_gkhyb]$
 
 genSurfQuadEvKernel(dim, basisName, pOrder) := block(
   [vars,basis,surfNodes,numNodes,f_e,dir,xv,surfVars,fOrdR_n,fOrdL_n,fname,fh,n],
@@ -94,6 +99,8 @@ genSurfQuadEvKernelHyb(cdim, vdim, basisName) := block(
 
   if basisName = "hyb" then (
     [varsC,bC,varsP,bP] : loadPhaseBasis(basisName, cdim, vdim, 1)
+  ) elseif basisName = "tenhyb" then (
+    [varsC,bC,varsP,bP] : loadTensorHybridBasis(basisName, cdim, vdim)
   ) elseif basisName = "gkhyb" then (
     [varsC,bC,varsP,bP,vsub] : loadGkBasis(basisName, cdim, vdim, 1)
   ),
@@ -109,6 +116,8 @@ genSurfQuadEvKernelHyb(cdim, vdim, basisName) := block(
     /* Surface nodes given by tensor product of Gauss-Legendre quadrature points */
     if basisName = "hyb" then (
       surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
+    ) elseif basisName = "tenhyb" then (
+      surfNodes : gaussOrdTenHyb(2, 4, surf_cdim, surf_vdim)
     ) elseif basisName = "gkhyb" then (
       varsV : listify(setdifference(setify(varsP),setify(varsC))), 
       surfcvars : delete(xv, varsC),

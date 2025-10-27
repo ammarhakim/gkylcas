@@ -15,16 +15,22 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 3$
-maxVdim_Ser : 3$
+maxCdim_Ser : 0$
+maxVdim_Ser : 1$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 1$
 maxVdim_Tensor : 3$
+
+
+/* Tensor-Hybrid basis. */
+minCdim_tenhyb : 1$
+maxCdim_tenhyb : 3$
+vDims_tenhyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
@@ -46,10 +52,10 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-bNameHyb   : ["hyb","gkhyb"]$
-minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
-maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
-vDims      : [vDims_hyb, vDims_gkhyb]$
+bNameHyb   : ["tenhyb","hyb","gkhyb"]$
+minCdimHyb : [minCdim_tenhyb, minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_tenhyb, maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_tenhyb, vDims_hyb, vDims_gkhyb]$
 
 genSurfUpdwindQuadToModalKernel(cdim, vdim, basisName, pOrder) := block(
   [pdim,vars,basis,surfNodes,numNodes,f_e,xv,surfVars,
@@ -124,6 +130,10 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     [varsc,basisc,varsp,basisp] : loadPhaseBasis(basisName, cdim, vdim, 1),
     dirlabels : ["xdir","vdir"],
     dims      : [cdim,cdim+vdim]
+  ) elseif basisName = "tenhyb" then (
+    [varsc,basisc,varsp,basisp] : loadTensorHybridBasis(basisName, cdim, vdim),
+    dirlabels : ["xdir","vdir"],
+    dims      : [cdim,cdim+vdim]
   ) elseif basisName = "gkhyb" then (
     [varsc,basisc,varsp,basisp,vsub] : loadGkBasis(basisName, cdim, vdim, 1),
     dirlabels : ["xdir","vpardir","mudir"],
@@ -143,6 +153,8 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     /* Surface nodes given by tensor product of Gauss-Legendre quadrature points. */
     if basisName = "hyb" then (
       surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
+    ) elseif basisName = "tenhyb" then (
+      surfNodes : gaussOrdTenHyb(2, 4, surf_cdim, surf_vdim)
     ) elseif basisName = "gkhyb" then (
       varsV : listify(setdifference(setify(varsp),setify(varsc))),
       surfcvars : delete(xv, varsc),

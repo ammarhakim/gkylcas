@@ -11,7 +11,7 @@ fpprec : 24$
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minDim_Ser : 1$
-maxDim_Ser : 6$
+maxDim_Ser : 0$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p = 1, is equivalent to Tensor */
@@ -19,12 +19,17 @@ maxDim_Ser : 6$
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minDim_Tensor : 2$
-maxDim_Tensor : 4$
+maxDim_Tensor : 0$
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
 maxCdim_hyb : 3$
 vDims_hyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
+
+/* Tensor-Hybrid basis. */
+minCdim_tenhyb : 1$
+maxCdim_tenhyb : 3$
+vDims_tenhyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* GK hybrid basis. */
 minCdim_gkhyb : 1$
@@ -39,10 +44,10 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minDim       : [minDim_Ser, minDim_Tensor]$
 maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
-bNameHyb   : ["hyb","gkhyb"]$
-minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
-maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
-vDims      : [vDims_hyb, vDims_gkhyb]$
+bNameHyb   : ["tenhyb","hyb","gkhyb"]$
+minCdimHyb : [minCdim_tenhyb, minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_tenhyb, maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_tenhyb, vDims_hyb, vDims_gkhyb]$
 
 writeNod2ModKernel(dim, basisName, pOrder) := block([nodes,numNodes,nodToMod,fmod_e],
   printf(fh, "GKYL_CU_DH~%"),
@@ -82,6 +87,8 @@ writeNod2ModKernelHyb(cdim, vdim, basisName) := block([nodes,numNodes,nodToMod,f
   /* Get equi-distant node locations */
   if basisName = "hyb" then (
     nodes : getNodesHyb(cdim, vdim)
+  ) elseif basisName = "tenhyb" then (
+    nodes : getNodesTenHyb(cdim, vdim)
   ) elseif basisName = "gkhyb" then (
     nodes : getNodesGkHyb(cdim, vdim)
   ),
