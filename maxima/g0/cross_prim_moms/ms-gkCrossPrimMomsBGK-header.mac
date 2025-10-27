@@ -1,7 +1,9 @@
 load("cross_prim_moms/gkCrossPrimMomsBGKFuncs")$
 load(stringproc)$
 
-/* Generate a header file for cross moment kernels in the GkBGK. */
+/* Generate a header file for cross primitive moments kernels in the GkBGK. */
+
+/* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
@@ -27,6 +29,22 @@ maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
+printPrototypeGK(deco, ci, vi, bStr, pi) := block([si],
+  printf(fh, "~avoid gyrokinetic_cross_prim_moms_bgk_~ax~av_~a_p~a(const double delta_sr, const double betaGreenep1, const double m_self, const double *prim_moms_self, const double m_other, const double *prim_moms_other, double *prim_moms_cross); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%") 
+)$
+
+fh : openw("~/max-out/gkyl_gyrokinetic_cross_prim_moms_bgk_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, " ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
+
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for gkV : 1 thru length(gkVdims[c]) do (
@@ -36,14 +54,14 @@ for bInd : 1 thru length(bName) do (
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
 
-        fname : sconcat("~/max-out/gyrokinetic_cross_prim_moms_bgk_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-        fh : openw(fname),
-        funcName : sconcat("gyrokinetic_cross_prim_moms_bgk_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
-        calcGKCrossPrimMomsBGK(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh)
-      )   
+        printPrototypeGK(decorator, c, v, bName[bInd], polyOrder)
+
+      )
     )
   )
-); 
+);
+
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$
 
 /* gkyl_gyrokinetic_cross_prim_moms_bgk_kernels.h */
