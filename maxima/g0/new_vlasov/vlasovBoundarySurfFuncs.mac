@@ -46,7 +46,7 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *hamil, 
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
   const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -165,7 +165,7 @@ calcHamilGenBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder)
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *hamil, 
+  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
   const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),

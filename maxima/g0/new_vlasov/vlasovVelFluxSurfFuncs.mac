@@ -45,7 +45,7 @@ calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *dxv, 
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
   const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -163,7 +163,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   NC : length(bC), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *dxv, const double *jacob_vel_surf, 
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *jacob_vel_surf, const double *poisson_tensor_conf,
   const double *hamil, const double *qmem, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   printf(fh, "~%"),

@@ -1,0 +1,147 @@
+/* Functions which compute the components of the surface flux in velocity space. 
+   The procedure we utilize to generalize to the presence of different forces/different
+   flavors of the Vlasov equation is a set of functions that compute the characteristics
+   alpha_v at surface quadrature points of the needed order, accumulating each component, 
+   e.g., Hamiltonian forces, the Lorentz force, or forces due to a scalar potential, 
+   into a total alpha_v at the surface. 
+
+   We then evaluate the Lax-Friedrichs flux G = alpha/2*(f^+ + f^-) - |alpha|/2*(f^+ - f^-)
+   at each quadrature point, and then convert that back to a modal expansion of the 
+   velocity-space flux for use in the final update in hyper_dg. 
+
+   Note that we do not make any assumptions on the order of the phase space expansion
+   and thus to evaluate G, we must utilize enough Gauss-Legendre quadrature points
+   to integrate a 3*p polynomial (cubic for p=1, sixth order for p=2, ninth order for p=3). 
+   We thus must use 2, 4, and 5 Gauss-Legendre points respectively. 
+
+   In velocity space, certain Hamiltonians such as H = v^2/2 require fewer velocity space
+   quadrature points since these Hamiltonians are "sparse." We separate the velocity space
+   vs. configuration space quadrature loops and generate separate nodal configuration space
+   and nodal velocity space surface bases. Since these quadrature rules are all tensor products
+   of configuration space and velocity space, the final phase space basis is simply a tensor
+   product of the configuration space and velocity space bases.  
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load("nodal_operations/nodal_functions")$
+load("new_vlasov/vlasov-basis");
+load(stringproc)$
+fpprec : 24$
+
+clabels : ["x","y","z"]$
+dx1 : [dx10, dx11, dx12]$
+dv1_inv : [dv10, dv11, dv12]$
+vTrans  : [vx*dv0/2+wx1, vy*dv1/2+wx2, vz*dv2/2+wx3]$
+cidx(cdim) := makelist(i,i,0,cdim-1)$
+vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
+
+/* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
+calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,vv,surfVars,surfVVars,bSurf,NSurf,
+   nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
+   surfNodes,numNodes,PI_dH_dx_l],
+
+  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  NC : length(bC), 
+
+  printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
+  const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+
+  printf(fh, "~%"),
+  hamil : doExpand1(hamil, bV), /* Hamiltonian is a function of phase space. */
+
+  /* Save enough names for 3D */
+  poissonTensorConf : [poisson_tensor_conf_0, poisson_tensor_conf_1, poisson_tensor_conf_2, 
+    poisson_tensor_conf_3, poisson_tensor_conf_4, poisson_tensor_conf_5, poisson_tensor_conf_6,
+    poisson_tensor_conf_7, poisson_tensor_conf_8],
+
+  vv : varsV[dir], 
+  surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
+  surfVVars : delete(vv,varsV), /* Remaining variables in v. */
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  num_nodes_vel : length(nodes_vel), 
+  numNodes : length(surfNodes), 
+
+  /* Create a projection of the momentum */
+  vid : vidx(cdim,vdim), 
+  for i : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
+  for i : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", i-1, vid[i]),
+  for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
+
+  /* Compute the characteristic for the NC Poisson Tensor */
+  Pi_dH_dv : 0,
+  /* vdim = 1 has no contributions, hence is zero */
+  if (vdim = 2) then (
+
+    /* Offset the row by vdim*vdim*NC components so we are in the bottom right block */
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 0, vdim*vdim*NC ),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 1, vdim*vdim*NC + NC),
+
+    poissonTensorConf_local_1 : doExpand1(poissonTensorConf[1],bC),
+    poissonTensorConf_local_2 : doExpand1(poissonTensorConf[2],bC),
+
+    omega_12 : (vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_2 ),
+
+    if (dir = 1) then (
+      Pi_dH_dv : omega_12 * diff(hamil,varsV[2])*dv1_inv[2] 
+    ) 
+    else if (dir = 2) then (
+      Pi_dH_dv : - omega_12 * diff(hamil,varsV[1])*dv1_inv[1]
+    )
+  ),
+  if (vdim = 3) then (
+
+    /* Offset the row by vdim*vdim*NC components so we are in the bottom right block */
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 0, vdim*vdim*NC ),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 1, vdim*vdim*NC + NC),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 2, vdim*vdim*NC + NC*2),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 3, vdim*vdim*NC + NC*3),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 4, vdim*vdim*NC + NC*4),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 5, vdim*vdim*NC + NC*5),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 6, vdim*vdim*NC + NC*6),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 7, vdim*vdim*NC + NC*7),
+    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", 8, vdim*vdim*NC + NC*8),
+
+    poissonTensorConf_local_1 : doExpand1(poissonTensorConf[1],bC),
+    poissonTensorConf_local_2 : doExpand1(poissonTensorConf[2],bC),
+    poissonTensorConf_local_3 : doExpand1(poissonTensorConf[3],bC),
+    poissonTensorConf_local_4 : doExpand1(poissonTensorConf[4],bC),
+    poissonTensorConf_local_5 : doExpand1(poissonTensorConf[5],bC),
+    poissonTensorConf_local_6 : doExpand1(poissonTensorConf[6],bC),
+    poissonTensorConf_local_7 : doExpand1(poissonTensorConf[7],bC),
+    poissonTensorConf_local_8 : doExpand1(poissonTensorConf[8],bC),
+    poissonTensorConf_local_9 : doExpand1(poissonTensorConf[9],bC),
+
+    omega_12 : vTrans[1]*poissonTensorConf_local_1 + vTrans[2]*poissonTensorConf_local_4 + vTrans[3]*poissonTensorConf_local_7,
+    omega_13 : vTrans[1]*poissonTensorConf_local_2 + vTrans[2]*poissonTensorConf_local_5 + vTrans[3]*poissonTensorConf_local_8,
+    omega_23 : vTrans[1]*poissonTensorConf_local_3 + vTrans[2]*poissonTensorConf_local_6 + vTrans[3]*poissonTensorConf_local_9,
+
+    if (dir = 1) then (
+      Pi_dH_dv : Pi_dH_dv + omega_12 * diff(hamil,varsV[2])*dv1_inv[2],
+      Pi_dH_dv : Pi_dH_dv + omega_13 * diff(hamil,varsV[3])*dv1_inv[3]
+    ) 
+    else if (dir = 2) then (
+      Pi_dH_dv : Pi_dH_dv - omega_12 * diff(hamil,varsV[1])*dv1_inv[1],
+      Pi_dH_dv : Pi_dH_dv + omega_23 * diff(hamil,varsV[3])*dv1_inv[3]
+    )
+    else if (dir = 3) then (
+      Pi_dH_dv : Pi_dH_dv - omega_13 * diff(hamil,varsV[1])*dv1_inv[1],
+      Pi_dH_dv : Pi_dH_dv - omega_23 * diff(hamil,varsV[2])*dv1_inv[2]
+    )
+  ),
+
+  /* Each cells owns its *lower* edge fluxes, so we evaluate the derivative of the 
+     Hamiltonian at vv = -1. Note that the flux is -grad_x(H). */
+  PI_dH_dv_l : float(evAtNodes(subst(vv=-1,Pi_dH_dv),surfNodes,surfVars)), 
+  for i : 1 thru numNodes do (
+    printf(fh, "  alpha_quad[~a] += ~a; ~%", i-1, PI_dH_dv_l[i]) 
+  ),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$ 
