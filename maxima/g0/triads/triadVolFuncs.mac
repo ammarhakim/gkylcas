@@ -266,7 +266,8 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
     printf(fh, "    ~a(bracket_w_Hi); ~%", funcNameZero),
     funcNameBracket : sconcat("vlasov_nc_hamil_gen_vol_comp", (component -1),"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
     printf(fh, "    ~a(w, dxv, dir, alphai, bracket_w_Hi); ~%", funcNameBracket),
-    printf(fh, "    ~a(f, bracket_w_Hi, &out[~a]); ~%", funcNameDot, component-1)
+    printf(fh, "    ~a(f, bracket_w_Hi, &out[~a]); ~%", funcNameDot, component-1),
+    flush_output(fh) 
   ),
   printf(fh, "    ~%"),
   printf(fh, "  } ~%"),

@@ -75,10 +75,10 @@ calcSurfStreamFluxBoundary(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
 
   /* NOTE: L = left of cell interface, R = right of cell interface */
   printf(fh, "  if (edge == -1) { ~%~%"),
-  incr : calcInnerProdListTriad(surfVars, -1, subst(cv=1, bP), Fhat_nodal_e),
+  incr : calcInnerProdListTriadVlasov(surfVars, -1, subst(cv=1, bP), Fhat_nodal_e),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
   printf(fh, "~%  } else { ~%~%"),
-  incr : calcInnerProdListTriad(surfVars, 1, subst(cv=-1, bP), Fhat_nodal_e),
+  incr : calcInnerProdListTriadVlasov(surfVars, 1, subst(cv=-1, bP), Fhat_nodal_e),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr),
   printf(fh, "~%  } ~%"),
   printf(fh, "  return 0.0;~%"),

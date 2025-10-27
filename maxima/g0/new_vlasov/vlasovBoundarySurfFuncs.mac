@@ -271,6 +271,8 @@ calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
   num_nodes_vel : length(nodes_vel), 
   numNodes : length(surfNodes), 
 
+  printf(fh, "  double Ghat[~a] = {0.0}; ~%", NSurf),
+
   printf(fh, "  const double *Fhat_nodal = &flux[~a]; ~%", (dir-1)*numNodes),
   /* Construct the nodal expansion from a tensor product of the configuration-space nodal basis 
       and velocity-space nodal basis. We do this separation because Maxima struggles to make
@@ -284,17 +286,23 @@ calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
     )
   ),
 
+
+  Ghat_d : calcInnerProdList(surfVars, 1, bSurf, Fhat_nodal_e),
+  writeCExprs1(Ghat, Ghat_d), 
+
+  Ghat_e : doExpand1(Ghat, bSurf),
+
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
 
-  incr : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Fhat_nodal_e),
+  incr : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
 
-  incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Fhat_nodal_e),
+  incr : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_e),
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr),
 
   printf(fh, "~%  } ~%"),

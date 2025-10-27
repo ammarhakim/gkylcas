@@ -4,9 +4,9 @@ load("new_vlasov/vlasov-basis");
 
 /* Serendipity basis. */
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 2$
+minCdim_Ser : 1$
 minVdim_Ser : 3$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
 maxVdim_Ser : 3$
@@ -63,12 +63,14 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(bName[bInd], c, v, polyOrder), 
-        for component : 0 thru (length(bP)-1) do( 
-          printPrototype(component, decorator, c, v, bName[bInd], polyOrder)
-        ),
-        kill(bP),
-        printf(fh, "~%")
+        if ((c+v>=4) or (v = 3) ) and (( polyOrder > 1 and c+v < 6) or (c+v = 6))then (
+          [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(bName[bInd], c, v, polyOrder), 
+          for component : 0 thru (length(bP)-1) do( 
+            printPrototype(component, decorator, c, v, bName[bInd], polyOrder)
+          ),
+          kill(bP),
+          printf(fh, "~%")
+        )
       )
     )
   )  

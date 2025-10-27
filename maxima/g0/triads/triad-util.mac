@@ -3,12 +3,6 @@ load("utilities")$
 load(stringproc)$
 fpprec : 24$
 
-clabels : ["x","y","z"]$
-dx11 : [dx10, dx11, dx12]$
-dv11 : [dv10, dv11, dv12]$
-cidx(cdim) := makelist(i,i,0,cdim-1)$
-vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
-
 /* exact rationalization in f over integration vars, then return the expression in 
 a form that splitFuncIntoTerms() can identify terms */
 exact_rat(expr, vars) := block([r], r : rat(expr, vars), ratdisrep(r))$
@@ -23,7 +17,7 @@ splitFuncIntoTerms(f, vars) := block([g],
    This function breaks f up into a list of indificdual terms and then computes the inner product
    for each term individually. This has been verified to give the same result as calcInnerProd list
    and returns out in the same order. */
-calcInnerProdListTriad(vars, w, funcList, f) := block(
+calcInnerProdListTriadVlasov(vars, w, funcList, f) := block(
   [terms, nI, nT, out : [], i, j, acc],
   terms : splitFuncIntoTerms(f, vars),
   nI    : length(funcList),

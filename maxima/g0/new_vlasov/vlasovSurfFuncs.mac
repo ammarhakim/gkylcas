@@ -253,8 +253,8 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigh
   Fhat_r_nodal_e : 0, 
   for i : 1 thru num_nodes_conf do (
     for j : 1 thru num_nodes_vel do (
-      Fhat_l_nodal_e : Fhat_l_nodal_e + Fhat_l_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i],
-      Fhat_r_nodal_e : Fhat_r_nodal_e + Fhat_r_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i]
+      Fhat_l_nodal_e : ratsimp(Fhat_l_nodal_e + Fhat_l_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i]),
+      Fhat_r_nodal_e : ratsimp(Fhat_r_nodal_e + Fhat_r_nodal_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i])
     )
   ),
 
@@ -273,7 +273,11 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigh
 
 /* Velocity-space surface update from pre-computed flux. */
 calcVelSurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,vid,vv,surfVars,bSurf,NSurf,
+  [varsC,bC,varsV,bV,varsP,bP, vid,vv, surfVars,surfVVars,
+   bSurf,NSurf, nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,
+   surfNodes, num_nodes_conf,num_nodes_vel,numNodes,Fhat_l_nodal_c,
+   Fhat_r_nodal_c,Fhat_l_nodal_list,Fhat_r_nodal_list,
+   Fhat_l_nodal_e,Fhat_r_nodal_e, Ghat_l_d,Ghat_r_d,Ghat_l,Ghat_r,
    Ghat_l_e,Ghat_r_e,incr_l,incr_r],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
@@ -294,6 +298,9 @@ calcVelSurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
   num_nodes_vel : length(nodes_vel), 
   numNodes : length(surfNodes), 
 
+  printf(fh, "  double Ghat_l[~a] = {0.0}; ~%", NSurf),
+  printf(fh, "  double Ghat_r[~a] = {0.0}; ~%", NSurf),
+
   printf(fh, "  const double *Fhat_l_nodal_c = &Fhat_l_nodal[~a]; ~%", (dir-1)*numNodes),
   printf(fh, "  const double *Fhat_r_nodal_c = &Fhat_r_nodal[~a]; ~%", (dir-1)*numNodes),
 
@@ -308,8 +315,17 @@ calcVelSurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
     )
   ),
 
-  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Fhat_l_nodal_e),
-  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Fhat_r_nodal_e),
+  Ghat_l_d : calcInnerProdList(surfVars, 1, bSurf, Fhat_l_nodal_e),
+  Ghat_r_d : calcInnerProdList(surfVars, 1, bSurf, Fhat_r_nodal_e),
+  writeCExprs1(Ghat_l, Ghat_l_d), 
+  writeCExprs1(Ghat_r, Ghat_r_d), 
+
+  Ghat_l_e : doExpand1(Ghat_l, bSurf),
+  Ghat_r_e : doExpand1(Ghat_r, bSurf),
+
+  incr_l : calcInnerProdList(surfVars, 1, subst(vv=-1.0, bP), Ghat_l_e),
+  incr_r : calcInnerProdList(surfVars, -1, subst(vv=1.0, bP), Ghat_r_e),
+
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*incr_l + dv11[dir]*incr_r),    
   printf(fh, "~%"),
 

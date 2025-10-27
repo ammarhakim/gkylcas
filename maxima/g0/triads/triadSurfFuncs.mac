@@ -74,10 +74,10 @@ calcSurfStreamFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOr
   ),
 
   /* New with progress: tune chunk sizes to your problem size */
-  incr_l : calcInnerProdListTriad(surfVars,1,subst(cv=-1, bP),Fhat_l_nodal_e),
+  incr_l : calcInnerProdListTriadVlasov(surfVars,1,subst(cv=-1, bP),Fhat_l_nodal_e),
 
   /* New with progress: tune chunk sizes to your problem size */
-  incr_r : calcInnerProdListTriad(surfVars,-1,subst(cv=1, bP),Fhat_r_nodal_e),
+  incr_r : calcInnerProdListTriadVlasov(surfVars,-1,subst(cv=1, bP),Fhat_r_nodal_e),
 
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*incr_l + dx11[dir]*incr_r),    
   printf(fh, "~%"),

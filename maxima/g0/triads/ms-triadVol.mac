@@ -18,24 +18,26 @@ load(stringproc)$
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 2$
-maxCdim_Ser : 2$
+minCdim_Ser : 3$
+minVdim_Ser : 3$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 1$
 minCdim_Tensor : 1$
+minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 0$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
-/* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser","tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser, minCdim_Tensor]$
+minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
@@ -45,7 +47,7 @@ vlabels : ["vx","vy","vz"]$
 /* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
-    or v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
+    for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
@@ -54,7 +56,7 @@ for bInd : 1 thru length(bName) do (
         disp(printf(false,"Creating volume file: ~a",fname)),
         fh : openw(fname),
         funcName : sconcat("vlasov_nc_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-        if ( bName[bInd] = "ser"  and not(c+v>4 and polyOrder > 1) ) then (
+        if ( (bName[bInd] = "ser") and not(c+v>4) and not(v = 3 and polyOrder = 2) and not(v = 3 and c = 1 and polyOrder = 1) ) then (
           calcHamilVolNonCanonical(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
         ) else  (
           calcHamilVolNonCanonicalAlphaPreComp(fh, funcName, c, v, bName[bInd], polyOrder, false)
