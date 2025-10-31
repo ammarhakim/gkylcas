@@ -23,7 +23,7 @@
    ))
 
 ;; Define simulation parameters.
-(define nx 200)
+(define nx 400)
 (define x0 0.0)
 (define x1 2.0)
 (define t-final 0.5)
@@ -37,10 +37,9 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 4             ; total number of layers: 4
+   'depth 6             ; total number of layers: 4
    ))
    
-
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D linear advection equation using a shallow neural network.
 (define code-linear-advection-lax-train
   (train-lax-friedrichs-scalar-1d pde-linear-advection neural-net-shallow
@@ -158,3 +157,57 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-minmod-validate)))
+
+;; Define the 2D linear advection equation: du/dt + d(au)/dx + d(bu)/dy = 0.
+(define pde-linear-advection-2d
+  (hash
+   'name "linear-advection-2d"
+   'cons-expr `u                     ; conserved variable: u
+   'flux-expr-x `(* a u)             ; x-flux function: f(u) = a * u
+   'flux-expr-y `(* b u)             ; y-flux function: f(u) = b * u
+   'max-speed-expr-x `(abs a)        ; local x wave-speed: alpha_x = |a|
+   'max-speed-expr-y `(abs b)        ; local y wave-speed: alpha_y = |b|
+   'parameters (list
+                `(define a 1.0)
+                `(define b 1.0))     ; advection speesd: a = 1.0, b = 1.0
+   ))
+
+;; Define 2D simulation parameters.
+(define nx-2d 50)
+(define ny-2d 50)
+(define x0-2d 0.0)
+(define x1-2d 2.0)
+(define y0-2d 0.0)
+(define y1-2d 2.0)
+(define t-final-2d 0.5)
+(define cfl-2d 0.95)
+(define init-func-2d `(cond
+                        [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                        [else 0.0]))
+
+;; Define (shallow) neural network hyperparameters for 2D.
+(define neural-net-shallow-2d
+  (hash
+   'max-trains 10000    ; maximum number of training steps: 10000
+   'width 64            ; number of neurons in each layer: 64
+   'depth 6             ; total number of layers: 4
+   ))
+   
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D linear advection equation using a shallow neural network.
+(define code-linear-advection-lax-train-2d
+  (train-lax-friedrichs-scalar-2d pde-linear-advection-2d neural-net-shallow-2d
+                                  #:nx nx-2d
+                                  #:ny ny-2d
+                                  #:x0 x0-2d
+                                  #:x1 x1-2d
+                                  #:y0 y0-2d
+                                  #:y1 y1-2d
+                                  #:t-final t-final-2d
+                                  #:cfl cfl-2d
+                                  #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_lax_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-lax-train-2d)))
