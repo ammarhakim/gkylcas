@@ -828,7 +828,7 @@ int main() {
   // Initialize neural network architecture.
   kad_node_t *t_net;
   kann_t *ann;
-  t_net = kann_layer_input(2);
+  t_net = kann_layer_input(3);
   
   for (int i = 0; i < nn_depth; i++) {
     t_net = kann_layer_dense(t_net, nn_width);
@@ -1218,7 +1218,7 @@ int main() {
   // Initialize neural network architecture.
   kad_node_t *t_net;
   kann_t *ann;
-  t_net = kann_layer_input(2);
+  t_net = kann_layer_input(3);
   
   for (int i = 0; i < nn_depth; i++) {
     t_net = kann_layer_dense(t_net, nn_width);
@@ -1401,7 +1401,7 @@ int main() {
       }
     }
 
-    // Apply simple boundary conditions in the x-direction (transmissive).
+    // Apply simple boundary conditions in the y-direction (transmissive).
     for (int i = 0; i <= nx + 3; i++) {
       u[i][0] = u[i][2];
       u[i][1] = u[i][2];
