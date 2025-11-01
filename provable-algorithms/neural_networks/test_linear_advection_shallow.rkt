@@ -173,8 +173,8 @@
    ))
 
 ;; Define 2D simulation parameters.
-(define nx-2d 50)
-(define ny-2d 50)
+(define nx-2d 100)
+(define ny-2d 100)
 (define x0-2d 0.0)
 (define x1-2d 2.0)
 (define y0-2d 0.0)
@@ -182,7 +182,7 @@
 (define t-final-2d 0.5)
 (define cfl-2d 0.95)
 (define init-func-2d `(cond
-                        [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                        [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 1.0]
                         [else 0.0]))
 
 ;; Define (shallow) neural network hyperparameters for 2D.
@@ -211,3 +211,23 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-train-2d)))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-linear-advection-lax-minmod-train-2d
+  (train-lax-friedrichs-scalar-2d-second-order pde-linear-advection-2d limiter-minmod neural-net-shallow-2d
+                                               #:nx nx-2d
+                                               #:ny ny-2d
+                                               #:x0 x0-2d
+                                               #:x1 x1-2d
+                                               #:y0 y0-2d
+                                               #:y1 y1-2d
+                                               #:t-final t-final-2d
+                                               #:cfl cfl-2d
+                                               #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_lax_minmod_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-lax-minmod-train-2d)))
