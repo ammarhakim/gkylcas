@@ -19,6 +19,9 @@
          prove-lax-friedrichs-scalar-1d-hyperbolicity
          prove-lax-friedrichs-scalar-1d-cfl-stability
          prove-lax-friedrichs-scalar-1d-local-lipschitz
+         prove-lax-friedrichs-scalar-2d-hyperbolicity
+         prove-lax-friedrichs-scalar-2d-cfl-stability
+         prove-lax-friedrichs-scalar-2d-local-lipschitz
          prove-roe-scalar-1d-hyperbolicity
          prove-roe-scalar-1d-flux-conservation
          prove-flux-limiter-symmetry
@@ -689,6 +692,206 @@
 
   out)
 (trace prove-lax-friedrichs-scalar-1d-local-lipschitz)
+
+;; ----------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 2D Scalar PDE
+;; ----------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-2d-hyperbolicity pde
+                                                      #:nx [nx 200]
+                                                      #:ny [ny 200]
+                                                      #:x0 [x0 0.0]
+                                                      #:x1 [x1 2.0]
+                                                      #:y0 [y0 0.0]
+                                                      #:y1 [y1 2.0]
+                                                      #:t-final [t-final 1.0]
+                                                      #:cfl [cfl 0.95]
+                                                      #:init-func [init-func `(cond
+                                                                                [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                                                [else 0.0])])
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 2D scalar PDE specified by `pde`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the derivatives of the flux function are real (otherwise, return false).
+    [(not (is-real (symbolic-simp (symbolic-diff flux-expr-x cons-expr)) (list cons-expr) parameters)) #f]
+    [(not (is-real (symbolic-simp (symbolic-diff flux-expr-y cons-expr)) (list cons-expr) parameters)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  
+  out)
+(trace prove-lax-friedrichs-scalar-2d-hyperbolicity)
+
+;; ----------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for 2D Scalar PDE
+;; ----------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-2d-cfl-stability pde
+                                                      #:nx [nx 200]
+                                                      #:ny [ny 200]
+                                                      #:x0 [x0 0.0]
+                                                      #:x1 [x1 2.0]
+                                                      #:y0 [y0 0.0]
+                                                      #:y1 [y1 2.0]
+                                                      #:t-final [t-final 1.0]
+                                                      #:cfl [cfl 0.95]
+                                                      #:init-func [init-func `(cond
+                                                                                [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                                                [else 0.0])])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 2D scalar PDE specified by `pde`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define max-speed-expr-x (hash-ref pde 'max-speed-expr-x))
+  (define max-speed-expr-y (hash-ref pde 'max-speed-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the absolute value sof the derivatives of the flux function are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
+    [(not (equal? (symbolic-simp `(abs ,(symbolic-diff flux-expr-x cons-expr)))
+                  (symbolic-simp max-speed-expr-x))) #f]
+    [(not (equal? (symbolic-simp `(abs ,(symbolic-diff flux-expr-y cons-expr)))
+                  (symbolic-simp max-speed-expr-y))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+
+  out)
+(trace prove-lax-friedrichs-scalar-2d-cfl-stability)
+
+;; ------------------------------------------------------------------------------------------------------------------------------------
+;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 2D Scalar PDE
+;; ------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-scalar-2d-local-lipschitz pde
+                                                        #:nx [nx 200]
+                                                        #:ny [ny 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:y0 [y0 0.0]
+                                                        #:y1 [y1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-func [init-func `(cond
+                                                                                  [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                                                  [else 0.0])])
+   "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 2D scalar PDE specified by `pde`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace is-non-negative)
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the flux functions are convex, i.e. that the second derivatives of the flux functions are strictly non-negative (otherwise, return false).
+    [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr-x cons-expr)) cons-expr))])
+       (not (is-non-negative deriv parameters))) #f]
+    [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr-y cons-expr)) cons-expr))])
+       (not (is-non-negative deriv parameters))) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace is-non-negative)
+
+  out)
+(trace prove-lax-friedrichs-scalar-2d-local-lipschitz)
 
 ;; -------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Scalar PDE

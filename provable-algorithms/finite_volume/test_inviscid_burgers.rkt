@@ -46,7 +46,7 @@
   (lambda ()
     (display code-inviscid-burgers-lax)))
 
-(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+(display "1D Lax-Friedrichs (finite-difference) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-lax-hyperbolicity
@@ -130,7 +130,7 @@
   (lambda ()
     (display code-inviscid-burgers-roe)))
 
-(display "Roe (finite-volume) properties: \n\n")
+(display "1D Roe (finite-volume) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-roe-hyperbolicity
@@ -174,7 +174,7 @@
 ;; Show whether flux conservation (jump continuity) is preserved.
 (display "Flux conservation (jump continuity): ")
 (display proof-inviscid-burgers-roe-flux-conservation)
-(display "\n")
+(display "\n\n\n")
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod
@@ -215,3 +215,143 @@
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-roe-minmod)))
+
+;; Define the 2D inviscid Burgers' equation: du/dt + u du/dx + u du/dy = 0.
+(define pde-inviscid-burgers-2d
+  (hash
+   'name "burgers-2d"
+   'cons-expr `u                ; conserved variable: u
+   'flux-expr-x `(* 0.5 u u)    ; x-flux function: f(u) = 0.5 * u^2
+   'flux-expr-y `(* 0.5 u u)    ; y-flux function: f(u) = 0.5 * u^2
+   'max-speed-expr-x `(abs u)   ; local wave-speed: alpha_x = |u|
+   'max-speed-expr-y `(abs u)   ; local wave-speed: alpha_y = |u|
+   'parameters `()
+   ))
+
+;; Define 2D simulation parameters.
+(define nx-2d 100)
+(define ny-2d 100)
+(define x0-2d 0.0)
+(define x1-2d 2.0)
+(define y0-2d 0.0)
+(define y1-2d 2.0)
+(define t-final-2d 0.5)
+(define cfl-2d 0.95)
+(define init-func-2d `(cond
+                        [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 2.0]
+                        [else 0.0]))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 2D inviscid Burgers' equation.
+(define code-inviscid-burgers-lax-2d
+  (generate-lax-friedrichs-scalar-2d pde-inviscid-burgers-2d
+                                     #:nx nx-2d
+                                     #:ny ny-2d
+                                     #:x0 x0-2d
+                                     #:x1 x1-2d
+                                     #:y0 y0-2d
+                                     #:y1 y1-2d
+                                     #:t-final t-final-2d
+                                     #:cfl cfl-2d
+                                     #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/invisicid_burgers_lax_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-2d)))
+
+(display "2D Lax-Friedrichs (finite-difference) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 2D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lax-hyperbolicity-2d
+  (call-with-output-file "proofs/proof_inviscid_burgers_lax_hyperbolicity_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-hyperbolicity pde-inviscid-burgers-2d
+                                                      #:nx nx-2d
+                                                      #:ny ny-2d
+                                                      #:x0 x0-2d
+                                                      #:x1 x1-2d
+                                                      #:y0 y0-2d
+                                                      #:y1 y1-2d
+                                                      #:t-final t-final-2d
+                                                      #:cfl cfl-2d
+                                                      #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_inviscid_burgers_lax_hyperbolicity_2d.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-inviscid-burgers-lax-hyperbolicity-2d)
+(display "\n")
+
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 2D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lax-cfl-stability-2d
+  (call-with-output-file "proofs/proof_inviscid_burgers_lax_cfl_stability_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-cfl-stability pde-inviscid-burgers-2d
+                                                      #:nx nx-2d
+                                                      #:ny ny-2d
+                                                      #:x0 x0-2d
+                                                      #:x1 x1-2d
+                                                      #:y0 y0-2d
+                                                      #:y1 y1-2d
+                                                      #:t-final t-final-2d
+                                                      #:cfl cfl-2d
+                                                      #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_inviscid_burgers_lax_cfl_stability_2d.rkt")
+
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-inviscid-burgers-lax-cfl-stability-2d)
+(display "\n")
+
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 2D inviscid Burgers' equation.
+(define proof-inviscid-burgers-lax-local-lipschitz-2d
+  (call-with-output-file "proofs/proof_inviscid_burgers_lax_local_lipschitz_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-local-lipschitz pde-inviscid-burgers-2d
+                                                        #:nx nx-2d
+                                                        #:ny ny-2d
+                                                        #:x0 x0-2d
+                                                        #:x1 x1-2d
+                                                        #:y0 y0-2d
+                                                        #:y1 y1-2d
+                                                        #:t-final t-final-2d
+                                                        #:cfl cfl-2d
+                                                        #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_inviscid_burgers_lax_local_lipschitz_2d.rkt")
+
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-inviscid-burgers-lax-local-lipschitz-2d)
+(display "\n")
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 2D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-inviscid-burgers-lax-minmod-2d
+  (generate-lax-friedrichs-scalar-2d-second-order pde-inviscid-burgers-2d limiter-minmod
+                                                  #:nx nx-2d
+                                                  #:ny ny-2d
+                                                  #:x0 x0-2d
+                                                  #:x1 x1-2d
+                                                  #:y0 y0-2d
+                                                  #:y1 y1-2d
+                                                  #:t-final t-final-2d
+                                                  #:cfl cfl-2d
+                                                  #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_lax_minmod_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-minmod-2d)))

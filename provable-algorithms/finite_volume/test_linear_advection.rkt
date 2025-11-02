@@ -47,7 +47,7 @@
   (lambda ()
     (display code-linear-advection-lax)))
 
-(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+(display "1D Lax-Friedrichs (finite-difference) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D linear advection equation.
 (define proof-linear-advection-lax-hyperbolicity
@@ -131,7 +131,7 @@
   (lambda ()
     (display code-linear-advection-roe)))
 
-(display "Roe (finite-volume) properties: \n\n")
+(display "1D Roe (finite-volume) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D linear advection equation.
 (define proof-linear-advection-roe-hyperbolicity
@@ -175,7 +175,7 @@
 ;; Show whether flux conservation (jump continuity) is preserved.
 (display "Flux conservation (jump continuity): ")
 (display proof-linear-advection-roe-flux-conservation)
-(display "\n")
+(display "\n\n\n")
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod
@@ -262,6 +262,83 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-2d)))
+
+(display "2D Lax-Friedrichs (finite-difference) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 2D linear advection equation.
+(define proof-linear-advection-lax-hyperbolicity-2d
+  (call-with-output-file "proofs/proof_linear_advection_lax_hyperbolicity_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-hyperbolicity pde-linear-advection-2d
+                                                      #:nx nx-2d
+                                                      #:ny ny-2d
+                                                      #:x0 x0-2d
+                                                      #:x1 x1-2d
+                                                      #:y0 y0-2d
+                                                      #:y1 y1-2d
+                                                      #:t-final t-final-2d
+                                                      #:cfl cfl-2d
+                                                      #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_hyperbolicity_2d.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-linear-advection-lax-hyperbolicity-2d)
+(display "\n")
+
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 2D linear advection equation.
+(define proof-linear-advection-lax-cfl-stability-2d
+  (call-with-output-file "proofs/proof_linear_advection_lax_cfl_stability_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-cfl-stability pde-linear-advection-2d
+                                                      #:nx nx-2d
+                                                      #:ny ny-2d
+                                                      #:x0 x0-2d
+                                                      #:x1 x1-2d
+                                                      #:y0 y0-2d
+                                                      #:y1 y1-2d
+                                                      #:t-final t-final-2d
+                                                      #:cfl cfl-2d
+                                                      #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_cfl_stability_2d.rkt")
+
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-linear-advection-lax-cfl-stability-2d)
+(display "\n")
+
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 2D linear advection equation.
+(define proof-linear-advection-lax-local-lipschitz-2d
+  (call-with-output-file "proofs/proof_linear_advection_lax_local_lipschitz_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-lax-friedrichs-scalar-2d-local-lipschitz pde-linear-advection-2d
+                                                        #:nx nx-2d
+                                                        #:ny ny-2d
+                                                        #:x0 x0-2d
+                                                        #:x1 x1-2d
+                                                        #:y0 y0-2d
+                                                        #:y1 y1-2d
+                                                        #:t-final t-final-2d
+                                                        #:cfl cfl-2d
+                                                        #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_lax_local_lipschitz_2d.rkt")
+
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-linear-advection-lax-local-lipschitz-2d)
+(display "\n")
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 2D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter).
 (define code-linear-advection-lax-minmod-2d
