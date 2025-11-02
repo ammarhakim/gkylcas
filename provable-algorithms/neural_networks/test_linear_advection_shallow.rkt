@@ -81,6 +81,8 @@
   (lambda ()
     (display code-linear-advection-lax-minmod-train)))
 
+(display "1D linear advection properties: \n\n")
+
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D linear advection equation.
 (define proof-linear-advection-smooth
   (call-with-output-file "proofs/proof_linear_advection_smooth.rkt"
@@ -123,7 +125,7 @@
 ;; Show the error bound (if applicable) on non-smooth solutions.
 (display "Error bound (non-smooth solutions): ")
 (display proof-linear-advection-non-smooth)
-(display "\n")
+(display "\n\n\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D linear advection equation using a shallow neural network.
 (define code-linear-advection-validate
@@ -231,6 +233,58 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-lax-minmod-train-2d)))
+
+(display "2D linear advection properties: \n\n")
+
+;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 2D linear advection equation.
+(define proof-linear-advection-smooth-2d
+  (call-with-output-file "proofs/proof_linear_advection_smooth_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-scalar-2d-smooth pde-linear-advection-2d neural-net-shallow-2d
+                                #:nx nx-2d
+                                #:ny ny-2d
+                                #:x0 x0-2d
+                                #:x1 x1-2d
+                                #:y0 y0-2d
+                                #:y1 y1-2d
+                                #:t-final t-final-2d
+                                #:cfl cfl-2d
+                                #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_smooth_2d.rkt")
+
+;; Show the error bound (if applicable) on smooth solutions.
+(display "Error bound (smooth solutions): ")
+(display proof-linear-advection-smooth-2d)
+(display "\n")
+
+;; Attempt to prove error bounds on non-smooth solutions obtained from surrogate solvers for the 2D linear advection equation.
+(define proof-linear-advection-non-smooth-2d
+  (call-with-output-file "proofs/proof_linear_advection_non_smooth_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-scalar-2d-non-smooth pde-linear-advection-2d neural-net-shallow-2d
+                                    #:nx nx-2d
+                                    #:ny ny-2d
+                                    #:x0 x0-2d
+                                    #:x1 x1-2d
+                                    #:y0 y0-2d
+                                    #:y1 y1-2d
+                                    #:t-final t-final-2d
+                                    #:cfl cfl-2d
+                                    #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_non_smooth_2d.rkt")
+
+;; Show the error bound (if applicable) on non-smooth solutions.
+(display "Error bound (non-smooth solutions): ")
+(display proof-linear-advection-non-smooth-2d)
+(display "\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 2D linear advection equation using a shallow neural network.
 (define code-linear-advection-validate-2d
