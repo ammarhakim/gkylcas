@@ -22,7 +22,7 @@
    ))
 
 ;; Define simulation parameters.
-(define nx 200)
+(define nx 400)
 (define x0 -3.0)
 (define x1 3.0)
 (define t-final 0.5)
@@ -36,7 +36,7 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 6             ; total number of layers: 6
+   'depth 8             ; total number of layers: 8
    ))
    
 
@@ -81,6 +81,8 @@
   (lambda ()
     (display code-inviscid-burgers-lax-minmod-train)))
 
+(display "1D inviscid Burgers' properties: \n\n")
+
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D inviscid Burgers' equation.
 (define proof-inviscid-burgers-smooth
   (call-with-output-file "proofs/proof_inviscid_burgers_smooth.rkt"
@@ -123,7 +125,7 @@
 ;; Show the error bound (if applicable) on non-smooth solutions.
 (display "Error bound (non-smooth solutions): ")
 (display proof-inviscid-burgers-non-smooth)
-(display "\n")
+(display "\n\n\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D inviscid Burgers' equation using a shallow neural network.
 (define code-inviscid-burgers-validate
@@ -157,3 +159,166 @@
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-minmod-validate)))
+
+;; Define the 2D inviscid Burgers' equation: du/dt + u du/dx + u du/dy = 0.
+(define pde-inviscid-burgers-2d
+  (hash
+   'name "burgers-2d"
+   'cons-expr `u                ; conserved variable: u
+   'flux-expr-x `(* 0.5 u u)    ; x-flux function: f(u) = 0.5 * u^2
+   'flux-expr-y `(* 0.5 u u)    ; y-flux function: f(u) = 0.5 * u^2
+   'max-speed-expr-x `(abs u)   ; local wave-speed: alpha_x = |u|
+   'max-speed-expr-y `(abs u)   ; local wave-speed: alpha_y = |u|
+   'parameters `()
+   ))
+
+;; Define 2D simulation parameters.
+(define nx-2d 100)
+(define ny-2d 100)
+(define x0-2d 0.0)
+(define x1-2d 2.0)
+(define y0-2d 0.0)
+(define y1-2d 2.0)
+(define t-final-2d 0.5)
+(define cfl-2d 0.95)
+(define init-func-2d `(cond
+                        [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 2.0]
+                        [else 0.0]))
+
+;; Define (shallow) neural network hyperparameters for 2D.
+(define neural-net-shallow-2d
+  (hash
+   'max-trains 10000    ; maximum number of training steps: 10000
+   'width 64            ; number of neurons in each layer: 64
+   'depth 10            ; total number of layers: 10
+   ))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-lax-train-2d
+  (train-lax-friedrichs-scalar-2d pde-inviscid-burgers-2d neural-net-shallow-2d
+                                  #:nx nx-2d
+                                  #:ny ny-2d
+                                  #:x0 x0-2d
+                                  #:x1 x1-2d
+                                  #:y0 y0-2d
+                                  #:y1 y1-2d
+                                  #:t-final t-final-2d
+                                  #:cfl cfl-2d
+                                  #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_lax_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-train-2d)))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-inviscid-burgers-lax-minmod-train-2d
+  (train-lax-friedrichs-scalar-2d-second-order pde-inviscid-burgers-2d limiter-minmod neural-net-shallow-2d
+                                               #:nx nx-2d
+                                               #:ny ny-2d
+                                               #:x0 x0-2d
+                                               #:x1 x1-2d
+                                               #:y0 y0-2d
+                                               #:y1 y1-2d
+                                               #:t-final t-final-2d
+                                               #:cfl cfl-2d
+                                               #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_lax_minmod_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-lax-minmod-train-2d)))
+
+(display "2D inviscid Burgers' properties: \n\n")
+
+;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 2D inviscid Burgers' equation.
+(define proof-inviscid-burgers-smooth-2d
+  (call-with-output-file "proofs/proof_inviscid_burgers_smooth_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-scalar-2d-smooth pde-inviscid-burgers-2d neural-net-shallow-2d
+                                #:nx nx-2d
+                                #:ny ny-2d
+                                #:x0 x0-2d
+                                #:x1 x1-2d
+                                #:y0 y0-2d
+                                #:y1 y1-2d
+                                #:t-final t-final-2d
+                                #:cfl cfl-2d
+                                #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_inviscid_burgers_smooth_2d.rkt")
+
+;; Show the error bound (if applicable) on smooth solutions.
+(display "Error bound (smooth solutions): ")
+(display proof-inviscid-burgers-smooth-2d)
+(display "\n")
+
+;; Attempt to prove error bounds on non-smooth solutions obtained from surrogate solvers for the 2D inviscid Burgers' equation.
+(define proof-inviscid-burgers-non-smooth-2d
+  (call-with-output-file "proofs/proof_inviscid_burgers_non_smooth_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover.rkt\")\n\n")
+        (prove-scalar-2d-non-smooth pde-inviscid-burgers-2d neural-net-shallow-2d
+                                    #:nx nx-2d
+                                    #:ny ny-2d
+                                    #:x0 x0-2d
+                                    #:x1 x1-2d
+                                    #:y0 y0-2d
+                                    #:y1 y1-2d
+                                    #:t-final t-final-2d
+                                    #:cfl cfl-2d
+                                    #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_inviscid_burgers_non_smooth_2d.rkt")
+
+;; Show the error bound (if applicable) on non-smooth solutions.
+(display "Error bound (non-smooth solutions): ")
+(display proof-inviscid-burgers-non-smooth-2d)
+(display "\n")
+
+;; Synthesize the code to validate any first-order surrogate solver for the 2D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-validate-2d
+  (validate-scalar-2d pde-inviscid-burgers-2d neural-net-shallow-2d
+                      #:nx nx-2d
+                      #:ny ny-2d
+                      #:x0 x0-2d
+                      #:x1 x1-2d
+                      #:y0 y0-2d
+                      #:y1 y1-2d
+                      #:t-final t-final-2d
+                      #:cfl cfl-2d
+                      #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_validate_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-validate-2d)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 2D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-inviscid-burgers-minmod-validate-2d
+  (validate-scalar-2d-second-order pde-inviscid-burgers-2d limiter-minmod neural-net-shallow-2d
+                                   #:nx nx-2d
+                                   #:ny ny-2d
+                                   #:x0 x0-2d
+                                   #:x1 x1-2d
+                                   #:y0 y0-2d
+                                   #:y1 y1-2d
+                                   #:t-final t-final-2d
+                                   #:cfl cfl-2d
+                                   #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_minmod_validate_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-minmod-validate-2d)))

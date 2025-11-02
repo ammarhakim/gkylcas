@@ -37,7 +37,7 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 6             ; total number of layers: 4
+   'depth 6             ; total number of layers: 6
    ))
    
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D linear advection equation using a shallow neural network.
@@ -192,7 +192,7 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 6             ; total number of layers: 4
+   'depth 6             ; total number of layers: 6
    ))
    
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D linear advection equation using a shallow neural network.

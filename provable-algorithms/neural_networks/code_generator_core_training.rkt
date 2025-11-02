@@ -80,6 +80,10 @@
     [`(>= ,arg1 ,arg2)
      (format "~a >= ~a" (convert-expr arg1) (convert-expr arg2))]
 
+    ;; If expr is a logical conjunction of the form (and expr1 expr2), then convert it to "expr1 && expr2" in C.
+    [`(and ,arg1 ,arg2)
+     (format "~a && ~a" (convert-expr arg1) (convert-expr arg2))]
+
     ;; If expr is an equality comparison of the form (equal? expr1 expr2), then convert it to "expr1 == expr2" in C.
     [`(equal? ,arg1 ,arg2)
      (format "~a == ~a" (convert-expr arg1) (convert-expr arg2))]
