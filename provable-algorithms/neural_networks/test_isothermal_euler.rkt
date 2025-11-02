@@ -31,7 +31,7 @@
    ))
 
 ;; Define simulation parameters.
-(define nx 200)
+(define nx 400)
 (define x0 0.0)
 (define x1 1.0)
 (define t-final 0.1)
@@ -49,7 +49,7 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 6             ; total number of layers: 6
+   'depth 8             ; total number of layers: 8
    ))
 
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 1D isothermal Euler equations using a shallow neural network.
@@ -169,3 +169,74 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-minmod-validate)))
+
+;; Define the 2D isothermal Euler equations (density, x-momentum and y-momentum components).
+(define pde-system-isothermal-euler-2d
+  (hash
+   'name "isothermal-euler-2d"
+   'cons-exprs (list
+                `rho
+                `mom_x
+                `mom_y)                                        ; conserved variables: density, x-momentum, y-momentum
+   'flux-exprs-x (list
+                  `mom_x
+                  `(+ (/ (* mom_x mom_x) rho) (* rho vt vt))
+                  `(* mom_y (/ mom_x rho)))                    ; x-flux vector
+   'flux-exprs-y (list
+                  `mom_y
+                  `(* mom_x (/ mom_y rho))
+                  `(+ (/ (* mom_y mom_y) rho) (* rho vt vt)))  ; y-flux vector
+   'max-speed-exprs-x (list
+                       `(abs (- (/ mom_x rho) vt))
+                       `(/ mom_x rho)
+                       `(abs (+ (/ mom_x rho) vt)))            ; local wave-speeds (x-direction)
+   'max-speed-exprs-y (list
+                       `(abs (- (/ mom_y rho) vt))
+                       `(/ mom_y rho)
+                       `(abs (+ (/ mom_y rho) vt)))            ; local wave-speeds (y-direction)
+   'parameters (list
+                `(define vt 1.0))                              ; thermal velocity: vt = 1.0
+   ))
+
+;; Define 2D simulation parameters.
+(define nx-2d 100)
+(define ny-2d 100)
+(define x0-2d 0.0)
+(define x1-2d 2.0)
+(define y0-2d 0.0)
+(define y1-2d 2.0)
+(define t-final-2d 0.5)
+(define cfl-2d 0.95)
+(define init-funcs-2d (list
+                       `(cond
+                          [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 3.0]
+                          [else 1.0])
+                       `0.0
+                       `0.0))
+
+;; Define (shallow) neural network hyperparameters for 2D.
+(define neural-net-shallow-2d
+  (hash
+   'max-trains 10000    ; maximum number of training steps: 10000
+   'width 64            ; number of neurons in each layer: 64
+   'depth 8             ; total number of layers: 8
+   ))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D isothermal Euler equations using a shallow neural network.
+(define code-isothermal-euler-lax-train-2d
+  (train-lax-friedrichs-vector3-2d pde-system-isothermal-euler-2d neural-net-shallow-2d
+                                   #:nx nx-2d
+                                   #:ny ny-2d
+                                   #:x0 x0-2d
+                                   #:x1 x1-2d
+                                   #:y0 y0-2d
+                                   #:y1 y1-2d
+                                   #:t-final t-final-2d
+                                   #:cfl cfl-2d
+                                   #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-train-2d)))

@@ -826,6 +826,7 @@ int main() {
       double y = y0 + (j - 0.5) * dy;
     
       u[i][j] = ~a; // init-func in C.
+      un[i][j] = ~a; // init-func in C.
     }
   }
 
@@ -1050,6 +1051,7 @@ int main() {
            depth
            ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
+           init-func-code
            ;; Expressions for local wave-speed estimates.
            max-speed-local-x
            max-speed-local-y
@@ -1216,6 +1218,7 @@ int main() {
       double y = y0 + (j - 1.5) * dy;
     
       u[i][j] = ~a; // init-func in C.
+      un[i][j] = ~a; // init-func in C.
     }
   }
 
@@ -1469,9 +1472,13 @@ int main() {
   for (int i = 0; i <= nx + 3; i++) {
     free(u[i]);
     free(un[i]);
+    free(slope_x[i]);
+    free(slope_y[i]);
   }
   free(u);
   free(un);
+  free(slope_x);
+  free(slope_y);
 
   kann_delete(ann);
   
@@ -1513,10 +1520,11 @@ int main() {
            depth
            ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
+           init-func-code
            ;; Expressions for local wave-speed estimates.
            max-speed-local-x
            max-speed-local-y
-           ;; Expression for flux limiter function.
+           ;; Expressions for flux limiter function.
            limiter-r
            limiter-r
            ;; Left/right negative fluxes in x-direction f(u_{i - 1, L}), f(u_{i - 1, R}).
