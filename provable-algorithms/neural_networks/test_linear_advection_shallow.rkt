@@ -250,3 +250,23 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-validate-2d)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 2D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-linear-advection-minmod-validate-2d
+  (validate-scalar-2d-second-order pde-linear-advection-2d limiter-minmod neural-net-shallow-2d
+                                   #:nx nx-2d
+                                   #:ny ny-2d
+                                   #:x0 x0-2d
+                                   #:x1 x1-2d
+                                   #:y0 y0-2d
+                                   #:y1 y1-2d
+                                   #:t-final t-final-2d
+                                   #:cfl cfl-2d
+                                   #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_minmod_validate_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-minmod-validate-2d)))
