@@ -336,7 +336,7 @@
 
   (cond
     [(or (equal? diff-expr 0.0) (equal? diff-expr 0)) (+ order 1)]
-    [(> order 1) #f]
+    [(> order 1) +inf.0]
     [else (symbolic-diff-order diff-expr var (+ order 1))]))
 
 ;; --------------------------------------------------------------------------------------------
@@ -391,8 +391,8 @@
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
-    ;; Check whether the neural network depth is at least equal to 2 + the order of the derivative of the flux function (otherwise, return false).
-    [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,flux-deriv-order))) #f)) #f]
+    ;; Check whether the neural network depth is at least equal to 2 + the order of the derivative of the flux function (otherwise, return infinity).
+    [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,flux-deriv-order))) #f)) +inf.0]
 
     ;; Otherwise, return the bound.
     [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,flux-deriv-order)))))]))
@@ -458,8 +458,8 @@
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
-    ;; Check whether the neural network depth is at least equal to 2 * the order of the derivative of the flux function (otherwise, return false).
-    [(not (equal? (symbolic-simp `(< ,depth (* 2 ,flux-deriv-order))) #f)) #f]
+    ;; Check whether the neural network depth is at least equal to 2 * the order of the derivative of the flux function (otherwise, return infinity).
+    [(not (equal? (symbolic-simp `(< ,depth (* 2 ,flux-deriv-order))) #f)) +inf.0]
 
     ;; Otherwise, return the bound.
     [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,flux-deriv-order)))))]))
@@ -530,12 +530,12 @@
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
-    ;; Check whether the neural network depth is at least equal to 3 + the order of the derivative of the flux function (otherwise, return false).
-    [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,flux-deriv-order-x))) #f)) #f]
-    [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,flux-deriv-order-y))) #f)) #f]
+    ;; Check whether the neural network depth is at least equal to 3 + the order of the derivative of the flux function (otherwise, return infinity).
+    [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,flux-deriv-order-x))) #f)) +inf.0]
+    [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,flux-deriv-order-y))) #f)) +inf.0]
 
     ;; Otherwise, return the bound.
-    [else (min (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,flux-deriv-order-x)))))
+    [else (max (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,flux-deriv-order-x)))))
                (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,flux-deriv-order-y))))))]))
 
   (untrace is-real)
@@ -604,12 +604,12 @@
     ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
     [(not (is-real init-func (list cons-expr) parameters)) #f]
 
-    ;; Check whether the neural network depth is at least equal to 3 * the order of the derivative of the flux function (otherwise, return false).
-    [(not (equal? (symbolic-simp `(< ,depth (* 3 ,flux-deriv-order-x))) #f)) #f]
-    [(not (equal? (symbolic-simp `(< ,depth (* 3 ,flux-deriv-order-y))) #f)) #f]
+    ;; Check whether the neural network depth is at least equal to 3 * the order of the derivative of the flux function (otherwise, return infinity).
+    [(not (equal? (symbolic-simp `(< ,depth (* 3 ,flux-deriv-order-x))) #f)) +inf.0]
+    [(not (equal? (symbolic-simp `(< ,depth (* 3 ,flux-deriv-order-y))) #f)) +inf.0]
 
     ;; Otherwise, return the bound.
-    [else (min (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,flux-deriv-order-x)))))
+    [else (max (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,flux-deriv-order-x)))))
                (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,flux-deriv-order-y))))))]))
 
   (untrace is-real)
