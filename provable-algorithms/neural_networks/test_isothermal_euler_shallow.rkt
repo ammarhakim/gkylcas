@@ -199,8 +199,8 @@
    ))
 
 ;; Define 2D simulation parameters.
-(define nx-2d 200)
-(define ny-2d 200)
+(define nx-2d 100)
+(define ny-2d 100)
 (define x0-2d 0.0)
 (define x1-2d 2.0)
 (define y0-2d 0.0)
@@ -282,3 +282,23 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-minmod-train-2d)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 2D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-isothermal-euler-minmod-validate-2d
+  (validate-vector3-2d-second-order pde-system-isothermal-euler-2d limiter-minmod neural-net-shallow-2d
+                                    #:nx nx-2d
+                                    #:ny ny-2d
+                                    #:x0 x0-2d
+                                    #:x1 x1-2d
+                                    #:y0 y0-2d
+                                    #:y1 y1-2d
+                                    #:t-final t-final-2d
+                                    #:cfl cfl-2d
+                                    #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_minmod_validate_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-minmod-validate-2d)))
