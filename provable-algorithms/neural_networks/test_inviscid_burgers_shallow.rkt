@@ -1,8 +1,8 @@
 #lang racket
 
 (require "code_generator_core_training.rkt")
-(require "code_generator_validation.rkt")
-(require "prover.rkt")
+(require "code_generator_core_validation.rkt")
+(require "prover_core.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
