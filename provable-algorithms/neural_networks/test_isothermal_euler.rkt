@@ -199,20 +199,42 @@
    ))
 
 ;; Define 2D simulation parameters.
-(define nx-2d 100)
-(define ny-2d 100)
+(define nx-2d 200)
+(define ny-2d 200)
 (define x0-2d 0.0)
 (define x1-2d 2.0)
 (define y0-2d 0.0)
 (define y1-2d 2.0)
-(define t-final-2d 0.5)
+(define t-final-2d 0.2)
 (define cfl-2d 0.95)
 (define init-funcs-2d (list
                        `(cond
-                          [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 3.0]
-                          [else 1.0])
-                       `0.0
-                       `0.0))
+                          [(> y 1.0)
+                           (cond
+                             [(< x 1.0) 0.5323]
+                             [else 1.5])]
+                          [else
+                           (cond
+                             [(< x 1.0) 0.138]
+                             [else 0.5323])])
+                       `(cond
+                          [(> y 1.0)
+                           (cond
+                             [(< x 1.0) 1.206]
+                             [else 0.0])]
+                          [else
+                           (cond
+                             [(< x 1.0) 1.206]
+                             [else 0.0])])
+                       `(cond
+                          [(> y 1.0)
+                           (cond
+                             [(< x 1.0) 0.0]
+                             [else 0.0])]
+                          [else
+                           (cond
+                             [(< x 1.0) 1.206]
+                             [else 1.206])])))
 
 ;; Define (shallow) neural network hyperparameters for 2D.
 (define neural-net-shallow-2d
@@ -240,3 +262,23 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-train-2d)))
+
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-isothermal-euler-lax-minmod-train-2d
+  (train-lax-friedrichs-vector3-2d-second-order pde-system-isothermal-euler-2d limiter-minmod neural-net-shallow-2d
+                                                #:nx nx-2d
+                                                #:ny ny-2d
+                                                #:x0 x0-2d
+                                                #:x1 x1-2d
+                                                #:y0 y0-2d
+                                                #:y1 y1-2d
+                                                #:t-final t-final-2d
+                                                #:cfl cfl-2d
+                                                #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_minmod_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-minmod-train-2d)))
