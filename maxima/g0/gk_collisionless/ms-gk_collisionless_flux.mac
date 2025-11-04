@@ -84,7 +84,30 @@ for bInd : 1 thru length(bName) do (
   
               funcName : sconcat("gk_collisionless_flux_",no_byStr,mb_boundStr,"edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
               buildGKFluxConfESKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, no_by, true, mb_bound),
-              close(fh)
+              close(fh),
+              
+              /* EM terms */
+              if (no_by = false) then (
+                fname : sconcat("~/max-out/gk_collisionless_flux_add_apar_",no_byStr,mb_boundStr,"surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                disp(printf(false,"Creating flux surf~a ~a ~a file: ~a",clabels[dir],no_byStr,mb_boundStr,fname)),
+        
+                fh : openw(fname),
+                printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+    
+                funcName : sconcat("gk_collisionless_flux_add_apar_",no_byStr,mb_boundStr,"surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                AddAparGKEMFluxConfKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, no_by, false, mb_bound),
+                close(fh),
+
+                fname : sconcat("~/max-out/gk_collisionless_flux_add_apar_",no_byStr,mb_boundStr,"edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                disp(printf(false,"Creating flux edge surf~a ~a ~a file: ~a",clabels[dir],no_byStr,mb_boundStr,fname)),
+        
+                fh : openw(fname),
+                printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+    
+                funcName : sconcat("gk_collisionless_flux_add_apar_",no_byStr,mb_boundStr,"edge_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                AddAparGKEMFluxConfKernel(dir, fh, funcName, c, v, bName[bInd], polyOrder, no_by, true, mb_bound),
+                close(fh)
+              )
             )
           ),
 
@@ -97,7 +120,30 @@ for bInd : 1 thru length(bName) do (
 
           funcName : sconcat("gk_collisionless_flux_",no_byStr,"surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           buildGKFluxVparESKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, no_by, false),
-          close(fh)
+          close(fh),
+
+          if (no_by = false) then (
+            /* EM terms */
+            fname : sconcat("~/max-out/gk_collisionless_flux_add_apar_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            disp(printf(false,"Creating flux surfvpar file: ~a",fname)),
+    
+            fh : openw(fname),
+            printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+
+            funcName : sconcat("gk_collisionless_flux_add_apar_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            AddAparGKEMFluxVparKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, false),
+            close(fh),
+
+            fname : sconcat("~/max-out/gk_collisionless_flux_add_apardot_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            disp(printf(false,"Creating flux surfvpar file: ~a",fname)),
+    
+            fh : openw(fname),
+            printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+
+            funcName : sconcat("gk_collisionless_flux_add_apardot_surf",vlabels[1],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            AddApardotGKEMFluxVparKernel(c+1, fh, funcName, c, v, bName[bInd], polyOrder, false),
+            close(fh)
+          )
         )
       )
     )
