@@ -562,8 +562,9 @@
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
     [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
@@ -692,8 +693,9 @@
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
     [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]

@@ -1995,7 +1995,7 @@ int main() {
     kann_save(file_nm, ann[i]);
   }
 
-  for (int i = 0; i <= nx + 1; i++) {
+  for (int i = 0; i <= nx + 3; i++) {
     free(u[i]);
     free(un[i]);
     free(slope_x[i]);
