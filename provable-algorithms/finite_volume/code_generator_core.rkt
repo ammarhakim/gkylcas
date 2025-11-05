@@ -186,6 +186,7 @@ int main() {
     double x = x0 + (i - 0.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   double t = 0.0;
@@ -287,7 +288,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
@@ -398,6 +400,7 @@ int main() {
     double x = x0 + (i - 1.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   double t = 0.0;
@@ -538,7 +541,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
@@ -667,6 +671,7 @@ int main() {
       double y = y0 + (j - 0.5) * dy;
     
       u[i][j] = ~a; // init-func in C.
+      un[i][j] = ~a; // init-func in C.
     }
   }
 
@@ -831,7 +836,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expressions for local wave-speed estimates.
            max-speed-local-x
@@ -981,6 +987,7 @@ int main() {
       double y = y0 + (j - 1.5) * dy;
     
       u[i][j] = ~a; // init-func in C.
+      un[i][j] = ~a; // init-func in C.
     }
   }
 
@@ -1222,7 +1229,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expressions for local wave-speed estimates.
            max-speed-local-x
@@ -1349,6 +1357,7 @@ int main() {
     double x = x0 + (i - 0.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   double t = 0.0;
@@ -1457,7 +1466,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
@@ -1582,6 +1592,7 @@ int main() {
     double x = x0 + (i - 1.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   double t = 0.0;
@@ -1731,7 +1742,8 @@ int main() {
            cfl
            ;; Final time.
            t-final
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local

@@ -131,6 +131,8 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
+    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
+    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   // Initialize neural network architecture.
@@ -342,6 +344,8 @@ int main() {
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
+           (list-ref init-func-codes 0)
+           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
@@ -539,6 +543,8 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
+    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
+    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   // Initialize neural network architecture.
@@ -812,6 +818,8 @@ int main() {
            ;; Neural network depth.
            depth
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           (list-ref init-func-codes 0)
+           (list-ref init-func-codes 1)
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.

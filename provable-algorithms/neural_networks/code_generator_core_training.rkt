@@ -202,6 +202,7 @@ int main() {
     double x = x0 + (i - 0.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   // Initialize neural network architecture.
@@ -357,7 +358,8 @@ int main() {
            width
            ;; Neural network depth.
            depth
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
@@ -486,6 +488,7 @@ int main() {
     double x = x0 + (i - 1.5) * dx;
     
     u[i] = ~a; // init-func in C.
+    un[i] = ~a; // init-func in C.
   }
 
   // Initialize neural network architecture.
@@ -679,7 +682,8 @@ int main() {
            width
            ;; Neural network depth.
            depth
-           ;; Initial condition expression (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
            init-func-code
            ;; Expression for local wave-speed estimate.
            max-speed-local
