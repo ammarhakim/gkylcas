@@ -94,15 +94,15 @@ printPrototypes() := block([],
         v : gkVdims[c][gkV],
   
         maxPolyOrderB : maxPolyOrder[bInd],
-        if (c=3) then maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x2v */
+        maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x2v */
         for polyOrder : 1 thru maxPolyOrderB do (
           printf(fh, "GKYL_CU_DH double dg_gyrokinetic_add_apar_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
             const double *vmap, const double *vmapSq, const double q_, const double m_, 
             const double *bmag, const double *jacobtot_inv,
             const double *b_i, const double *phi, const double *apar,
             const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
-          printf(fh, "GKYL_CU_DH double dg_gyrokinetic_add_apardot_vol_~ax~av_~a_p~a(const double q_, const double m_,
-            const double *apardot, const double *fin, double* GKYL_RESTRICT out) ; ~%", c, v, bName[bInd], polyOrder),
+          printf(fh, "GKYL_CU_DH double dg_gyrokinetic_add_apardot_vol_~ax~av_~a_p~a(const double *vmap, const double q_, const double m_,
+            const double *apardot, const double *fin, double* GKYL_RESTRICT out); ~%", c, v, bName[bInd], polyOrder),
           printf(fh, "~%")
         )
       )   
@@ -110,7 +110,7 @@ printPrototypes() := block([],
   )
 )$
 
-fh : openw("~/max-out/gkyl_dg_gyrokinetic_kernels.h")$
+fh : openw("/Users/ahoffman/gkeyll_dev/gkeyll/gyrokinetic/ker/dg_gyrokinetic/gkyl_dg_gyrokinetic_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <math.h>~%")$
