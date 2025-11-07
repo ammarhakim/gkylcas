@@ -520,7 +520,7 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   Jf_e : doExpand1(fin,bP),
 
   /* Expand Apardot */
-  apardot_e : doExpand1(apardot,bP),
+  apardot_e : doExpand1(apardot,bC),
 
   /* Note: only a vpar contribution. */
   dir : cdim+1,
