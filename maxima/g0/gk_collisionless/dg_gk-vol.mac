@@ -505,7 +505,7 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   varLabel : makelist(string(varsP[d]),d,1,pDim),
 
   print("Working on ", funcNm),
-  printf(fh, "GKYL_CU_DH double ~a(const double q_, const double m_, const double *apardot,
+  printf(fh, "GKYL_CU_DH double ~a(const double *vmap, const double q_, const double m_, const double *apardot,
     const double *fin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   printf(fh, "  // q_,m_: species charge and mass.~%"),
   printf(fh, "  // apardot: time derivative of parallel component of magnetic vector potential.~%"),
@@ -513,8 +513,13 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   printf(fh, "  // out: output increment.~%"),
   printf(fh, "~%"),
 
+  rdx2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,1,cdim),
+  rdv2vec : makelist(eval_string(sconcat("rd",varLabel[i],"2")),i,cdim+1,pDim),
+
+
   /* Velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
+  vmap_prime_e : makelist(diff(vmap_e[d],varsP[cdim+d]),d,1,vdim),
 
   /*Expand Jf*/
   Jf_e : doExpand1(fin,bP),
@@ -527,6 +532,14 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   dirLabel : varLabel[dir],
 
   alpha_e : -q_/m_ * apardot_e,
+
+  vpardim : pDim-1,
+  if dir < vpardim then (
+    alpha_e : alpha_e*rdx2vec[dir]
+  )
+  else if dir = vpardim then (
+    alpha_e : alpha_e/vmap_prime_e[1]
+  ),
 
   /* Project alpha on basis and write to array. */
   printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
