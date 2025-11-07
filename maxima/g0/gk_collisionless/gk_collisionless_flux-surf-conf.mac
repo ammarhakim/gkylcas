@@ -12,7 +12,8 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,bmagSurf_e,vmap_e,vmapSq_e,
    vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
    jacobgeo_rat_surfR_e,jacobgeo_rat_surfL_e,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL,
+   surfIntVarsC,bSurfC,hamilCvar
    ],
 
   kill(varsC,varsP,bC,bP),
@@ -306,7 +307,8 @@ buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    bmagSurf_e,vmap_e,vmapSq_e,
    vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
    jacobgeo_rat_surfR_e,jacobgeo_rat_surfL_e,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL,
+   surfIntVarsC,bSurfC,hamilCvar,aparCvar,apar_nodes,dA_dx_nodes
    ],
 
   kill(varsC,varsP,bC,bP),
@@ -635,7 +637,8 @@ AddAparGKEMFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
    numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,bmagSurf_e,vmap_e,vmapSq_e,
    vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,
    jacobgeo_rat_surfR_e,jacobgeo_rat_surfL_e,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL
+   dH_dz_nodes,mvpar_nodes,di3,i,j,j0index,j1index,vparindex,vpar0index,pOrderCFL,
+   surfIntVarsC,bSurfC,hamilCvar,aparCvar,apar_e,apar_nodes,dA_dx_nodes,apar_c
    ],
 
   kill(varsC,varsP,bC,bP),

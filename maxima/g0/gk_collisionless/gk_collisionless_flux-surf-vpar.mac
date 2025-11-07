@@ -11,7 +11,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,k
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -248,7 +248,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_c,apar_nodes,dA_dx_nodes,k
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -549,7 +549,7 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,apar_e,apar_c,apar_nodes,dA_dx_nodes,k
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -822,7 +822,8 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   [pDim,varsC,bC,varsP,bP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfNodes,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdSurfVar2,
-   JfL_e,JfR_e,JfL_nodes,JfR_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr
+   JfL_e,JfR_e,JfL_nodes,JfR_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,
+   numC,numP,vSub,NSurf,numNodes,apardot_e,apardot_c,apardot_nodes
   ],
 
   kill(varsC,varsP,bC,bP),
