@@ -127,7 +127,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   flush_output(fh),
   hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
   /* Expand projected Hamiltonian on basis. */
-  hamil_e : hamilNoZero_c . bP,
+  hamil_e : doExpand(hamilNoZero_c,bP),
   /*hamil_e : subst(surfVar=evPoint,hamil_e),*/
 
   /*fl and fr */
@@ -248,7 +248,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_c,apar_nodes,dA_dx_nodes,k
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_nodes,dA_dx_nodes,k
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -365,14 +365,11 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   flush_output(fh),
   hamilNoZero_c : makelistNoZeros1(hamil_c, hamilCvar),
   /* Expand projected Hamiltonian on basis. */
-  hamil_e : hamilNoZero_c . bP,
+  hamil_e : doExpand(hamilNoZero_c,bP),
   /*hamil_e : subst(surfVar=evPoint,hamil_e),*/
 
   /* Expand Apar */
   apar_e : doExpand1(apar, bC),
-  /* I don't know if this is necessary but let's copy the Hamiltonian treatment */
-  apar_c : calcInnerProdList(varsP, 1, bP, apar_e),
-  apar_e : apar_c . bP, 
   apar_nodes : makelist(0, i, 1, cdim),  
   for i : 1 thru cdim do (
     apar_nodes[i] : float(evAtNodes(apar_e,surfNodes,surfIntVars))
@@ -549,7 +546,7 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,apar_e,apar_c,apar_nodes,dA_dx_nodes,k
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,apar_e,apar_nodes,dA_dx_nodes,k
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -670,10 +667,7 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
   /*hamil_e : subst(surfVar=evPoint,hamil_e),*/
 
   /* Expand Apar */
-  apar_e : doExpand1(apar, bC),
-  /* I don't know if this is necessary but let's copy the Hamiltonian treatment */
-  apar_c : calcInnerProdList(varsP, 1, bP, apar_e),
-  apar_e : apar_c . bP, 
+  apar_e : doExpand1(apar, bC), 
   apar_nodes : makelist(0, i, 1, cdim),  
   for i : 1 thru cdim do (
     apar_nodes[i] : float(evAtNodes(apar_e,surfNodes,surfIntVars))
@@ -823,7 +817,7 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
    surfNodes,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdSurfVar2,
    JfL_e,JfR_e,JfL_nodes,JfR_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,
-   numC,numP,vSub,NSurf,numNodes,apardot_e,apardot_c,apardot_nodes
+   numC,numP,vSub,NSurf,numNodes,apardot_e,apardot_nodes
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -902,9 +896,6 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
   /* Expand Apardot */
   apardot_e : doExpand1(apar, bC),
-  /* I don't know if this is necessary but let's copy the Hamiltonian treatment */
-  apardot_c : calcInnerProdList(varsP, 1, bP, apardot_e),
-  apardot_e : apardot_c . bP, 
   apardot_nodes : float(evAtNodes(apardot_e,surfNodes,surfIntVars)),
 
   /*fl and fr */
