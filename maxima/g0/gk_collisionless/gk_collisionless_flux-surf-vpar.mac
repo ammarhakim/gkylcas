@@ -370,14 +370,11 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
 
   /* Expand Apar */
   apar_e : doExpand1(apar, bC),
-  apar_nodes : makelist(0, i, 1, cdim),  
-  for i : 1 thru cdim do (
-    apar_nodes[i] : float(evAtNodes(apar_e,surfNodes,surfIntVars))
-  ),
+  apar_nodes : float(evAtNodes(apar_e,configNodes,surf_cvars)),
   /* Compute gradient of Aparallel */
   dA_dx_nodes : makelist(0, i, 1, cdim),  
   for i : 1 thru cdim do (
-    dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
+    dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsC[i]),configNodes,surf_cvars))
   ),
 
   /*fl and fr */
@@ -430,12 +427,15 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
-    printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
-    printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i-1), 
-    printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
+    i0index : i-1,
+    i1index : i,
+    printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i0index), 
+    printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i0index), 
+    printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i0index), 
+
 
     printf(fh, "  m_bmag_inv = 1.0/(m_*bmag_quad); ~%"),
     /* 
@@ -476,12 +476,12 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
             /* EM term curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
             for k : 1 thru cdim do (
               /* Apar * curl(b) */
-              printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[k][j1index], k-1)
+              printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[i1index], k-1)
             ),
             /* grad(Apar) x b */
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_33 * (~a) - g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][j1index], dA_dx_nodes[3][j1index]),
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_13 * (~a) - g_33 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[3][j1index], dA_dx_nodes[1][j1index]),
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_23 * (~a) - g_13 * (~a)); ~%", dH_dz_nodes[3][j1index], dA_dx_nodes[1][j1index], dA_dx_nodes[2][j1index])
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_33 * (~a) - g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][i1index], dA_dx_nodes[3][i1index]),
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_13 * (~a) - g_33 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[3][i1index], dA_dx_nodes[1][i1index]),
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_23 * (~a) - g_13 * (~a)); ~%", dH_dz_nodes[3][j1index], dA_dx_nodes[1][i1index], dA_dx_nodes[2][i1index])
           )
         ),
         if cdim = 2 then (
@@ -492,11 +492,11 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
           if em = true then (
             /* EM term curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
             /* Apar * curl(b) */
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[1][j1index], 0),
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[2][j1index], 2),
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 0),
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[i1index], 2),
             /* grad(Apar) x b */
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (-g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][j1index]),
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * ( g_23 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[1][j1index])
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (-g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][i1index]),
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * ( g_23 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[1][i1index])
           )
         ),
         if cdim = 1 then (
@@ -506,7 +506,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
           if em = true then (
             /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
             /* Apar * curl(b) */
-            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[1][j1index], 2)
+            printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 2)
             /* grad(Apar) x b */
             /* none */
           )
@@ -668,14 +668,11 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
 
   /* Expand Apar */
   apar_e : doExpand1(apar, bC), 
-  apar_nodes : makelist(0, i, 1, cdim),  
-  for i : 1 thru cdim do (
-    apar_nodes[i] : float(evAtNodes(apar_e,surfNodes,surfIntVars))
-  ),
+  apar_nodes : float(evAtNodes(apar_e,configNodes,surf_cvars)),
   /* Compute gradient of Aparallel */
   dA_dx_nodes : makelist(0, i, 1, cdim),  
   for i : 1 thru cdim do (
-    dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
+    dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsC[i]),configNodes,surf_cvars))
   ),
 
   /*fl and fr */
@@ -728,12 +725,14 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
-    printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i-1), 
-    printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i-1), 
-    printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i-1), 
-    printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i-1), 
+    i0index : i-1,
+    i1index : i,
+    printf(fh, "  bmag_quad = gkdgv[~a].bmag; ~%", i0index), 
+    printf(fh, "  B3_quad = gkdgv[~a].B3; ~%", i0index), 
+    printf(fh, "  Jc_quad = dgv[~a].Jc; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[0] = gkdgv[~a].dualcurlbhat.x[0]; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i0index), 
+    printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i0index), 
 
     printf(fh, "  m_bmag_inv = 1.0/(m_*bmag_quad); ~%"),
     /* 
@@ -759,29 +758,29 @@ AddAparGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, 
 
       printf(fh, "  alpha_quad = 0.0; ~%"),
       if cdim = 3 then (
-        /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
+        /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
         for k : 1 thru cdim do (
           /* Apar * curl(b) */
-          printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[k][j1index], k-1)
+          printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[i1index], k-1)
         ),
         /* grad(Apar) x b */
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_33 * (~a) - g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][j1index], dA_dx_nodes[3][j1index]),
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_13 * (~a) - g_33 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[3][j1index], dA_dx_nodes[1][j1index]),
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (g_23 * (~a) - g_13 * (~a)); ~%", dH_dz_nodes[3][j1index], dA_dx_nodes[1][j1index], dA_dx_nodes[2][j1index])
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_33 * (~a) - g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][i1index], dA_dx_nodes[3][i1index]),
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_13 * (~a) - g_33 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[3][i1index], dA_dx_nodes[1][i1index]),
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (g_23 * (~a) - g_13 * (~a)); ~%", dH_dz_nodes[3][j1index], dA_dx_nodes[1][i1index], dA_dx_nodes[2][i1index])
       ),
       if cdim = 2 then (
         /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
         /* Apar * curl(b) */
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[1][j1index], 0),
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[2][j1index], 2),
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 0),
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[i1index], 2),
         /* grad(Apar) x b */
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * (-g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][j1index]),
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * Jc_quad/mag_e_3 * ( g_23 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[1][j1index])
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * (-g_23 * (~a)); ~%", dH_dz_nodes[1][j1index], dA_dx_nodes[2][i1index]),
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * 1/mag_e_3/Jc_quad * ( g_23 * (~a)); ~%", dH_dz_nodes[2][j1index], dA_dx_nodes[1][i1index])
       ),
       if cdim = 1 then (
         /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
         /* Apar * curl(b) */
-        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[1][j1index], 2)
+        printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 2)
         /* grad(Apar) x b */
         /* none */
       ),
@@ -896,7 +895,7 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
 
   /* Expand Apardot */
   apardot_e : doExpand1(apar, bC),
-  apardot_nodes : float(evAtNodes(apardot_e,surfNodes,surfIntVars)),
+  apardot_nodes : float(evAtNodes(apardot_e,configNodes,surf_cvars)),
 
   /*fl and fr */
   JfL_e : doExpand1(JfL, bP),
@@ -920,6 +919,8 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
+    i0index : i-1,
+    i1index : i,
     printf(fh, "~%"),
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
@@ -927,7 +928,7 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
       printf(fh, "~%"),
 
       /* Compute the contribution of Apardot */
-      printf(fh, "  alpha_quad = -q_/m_*(~a); ~%", apardot_nodes[j1index]),
+      printf(fh, "  alpha_quad = -q_/m_*(~a); ~%", apardot_nodes[i1index]),
 
       printf(fh, "~%"),
       printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%", j0index),
