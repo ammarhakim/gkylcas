@@ -339,7 +339,7 @@
 ;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-linear-advection-lax-local-lipschitz-2d)
-(display "\n")
+(display "\n\n\n")
 
 ;; Synthesize the code for a Roe solver for the 2D linear advection equation.
 (define code-linear-advection-roe-2d
@@ -359,6 +359,58 @@
   #:exists 'replace
   (lambda ()
     (display code-linear-advection-roe-2d)))
+
+(display "2D Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 2D linear advection equation.
+(define proof-linear-advection-roe-hyperbolicity-2d
+  (call-with-output-file "proofs/proof_linear_advection_roe_hyperbolicity_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-roe-scalar-2d-hyperbolicity pde-linear-advection-2d
+                                           #:nx nx-2d
+                                           #:ny ny-2d
+                                           #:x0 x0-2d
+                                           #:x1 x1-2d
+                                           #:y0 y0-2d
+                                           #:y1 y1-2d
+                                           #:t-final t-final-2d
+                                           #:cfl cfl-2d
+                                           #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_roe_hyperbolicity_2d.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-linear-advection-roe-hyperbolicity-2d)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 2D linear advection equation.
+(define proof-linear-advection-roe-flux-conservation-2d
+  (call-with-output-file "proofs/proof_linear_advection_roe_flux_conservation_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n\n")
+        (prove-roe-scalar-2d-flux-conservation pde-linear-advection-2d
+                                               #:nx nx-2d
+                                               #:ny ny-2d
+                                               #:x0 x0-2d
+                                               #:x1 x1-2d
+                                               #:y0 y0-2d
+                                               #:y1 y1-2d
+                                               #:t-final t-final-2d
+                                               #:cfl cfl-2d
+                                               #:init-func init-func-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_linear_advection_roe_flux_conservation_2d.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-linear-advection-roe-flux-conservation-2d)
+(display "\n")
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 2D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter).
 (define code-linear-advection-lax-minmod-2d

@@ -24,6 +24,8 @@
          prove-lax-friedrichs-scalar-2d-local-lipschitz
          prove-roe-scalar-1d-hyperbolicity
          prove-roe-scalar-1d-flux-conservation
+         prove-roe-scalar-2d-hyperbolicity
+         prove-roe-scalar-2d-flux-conservation
          prove-flux-limiter-symmetry
          prove-flux-limiter-tvd)
 
@@ -729,8 +731,9 @@
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
     [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
@@ -795,8 +798,9 @@
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
     [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
@@ -862,8 +866,9 @@
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
     [(or (<= cfl 0) (> cfl 1)) #f]
     
-    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
     [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
     
     ;; Check whether the final simulation time is non-negative (otherwise, return false).
     [(< t-final 0) #f]
@@ -1029,6 +1034,163 @@
   
   out)
 (trace prove-roe-scalar-1d-flux-conservation)
+
+;; -------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 2D Scalar PDE
+;; -------------------------------------------------------------------------
+(define (prove-roe-scalar-2d-hyperbolicity pde
+                                           #:nx [nx 200]
+                                           #:ny [ny 200]
+                                           #:x0 [x0 0.0]
+                                           #:x1 [x1 2.0]
+                                           #:y0 [y0 0.0]
+                                           #:y1 [y1 2.0]
+                                           #:t-final [t-final 1.0]
+                                           #:cfl [cfl 0.95]
+                                           #:init-func [init-func `(cond
+                                                                     [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                                     [else 0.0])])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 2D scalar PDE specified by `pde`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-roe-function)
+  (trace flux-deriv-replace)
+
+  (define flux-deriv-x (symbolic-simp (symbolic-diff flux-expr-x cons-expr)))
+  (define flux-deriv-y (symbolic-simp (symbolic-diff flux-expr-y cons-expr)))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the Roe functions are real (otherwise, return false).
+    [(not (is-real (symbolic-roe-function flux-deriv-x cons-expr) (list
+                                                                   (string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                                   (string->symbol (string-append (symbol->string cons-expr) "R"))) parameters)) #f]
+    [(not (is-real (symbolic-roe-function flux-deriv-y cons-expr) (list
+                                                                   (string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                                   (string->symbol (string-append (symbol->string cons-expr) "R"))) parameters)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-roe-function)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-scalar-2d-hyperbolicity)
+
+;; -----------------------------------------------------------------------------------------------
+;; Prove flux conservation (jump continuity) of the Roe (Finite-Volume) Solver for a 2D Scalar PDE
+;; -----------------------------------------------------------------------------------------------
+(define (prove-roe-scalar-2d-flux-conservation pde
+                                               #:nx [nx 200]
+                                               #:ny [ny 200]
+                                               #:x0 [x0 0.0]
+                                               #:x1 [x1 2.0]
+                                               #:y0 [y0 0.0]
+                                               #:y1 [y1 2.0]
+                                               #:t-final [t-final 1.0]
+                                               #:cfl [cfl 0.95]
+                                               #:init-func [init-func `(cond
+                                                                         [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                                         [else 0.0])])
+   "Prove that the Roe finite-volume method preserves flux conservation (jump continuity) for the 2D scalar PDE specified by `pde`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-roe-function)
+  (trace flux-deriv-replace)
+
+  (define flux-deriv-x (symbolic-simp (symbolic-diff flux-expr-x cons-expr)))
+  (define flux-deriv-y (symbolic-simp (symbolic-diff flux-expr-y cons-expr)))
+
+  (define roe-jump-x (symbolic-simp `(* ,(symbolic-roe-function flux-deriv-x cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                                                           ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  (define roe-jump-y (symbolic-simp `(* ,(symbolic-roe-function flux-deriv-y cons-expr) (- ,(string->symbol (string-append (symbol->string cons-expr) "L"))
+                                                                                           ,(string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  (define flux-jump-x (symbolic-simp `(- ,(flux-deriv-replace flux-expr-x cons-expr (string->symbol (string-append (symbol->string cons-expr) "L")))
+                                         ,(flux-deriv-replace flux-expr-x cons-expr (string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  (define flux-jump-y (symbolic-simp `(- ,(flux-deriv-replace flux-expr-y cons-expr (string->symbol (string-append (symbol->string cons-expr) "L")))
+                                         ,(flux-deriv-replace flux-expr-y cons-expr (string->symbol (string-append (symbol->string cons-expr) "R"))))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) (list cons-expr) parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(not (is-real init-func (list cons-expr) parameters)) #f]
+    
+    ;; Check whether the jumps in the flux functions are equal to the product of the Roe functions and the jumps in the conserved variable (otherwise, return false).
+    [(not (equal? roe-jump-x flux-jump-x)) #f]
+    [(not (equal? roe-jump-y flux-jump-y)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-roe-function)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-scalar-2d-flux-conservation)
 
 ;; -------------------------------------------------
 ;; Prove symmetry for a High-Resolution Flux Limiter
