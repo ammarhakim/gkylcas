@@ -927,7 +927,7 @@ int main() {
       slope[i] = limiter * (0.5 * ((u[i] - u[i - 1]) + (u[i + 1] - u[i])));
     }
 
-    // Compute fluxes with Roe approximation and update the conserved variable.
+    // Compute fluxes with Roe approximation (with a second-order flux extrapolation) and update the conserved variable.
     for (int i = 2; i <= nx + 1; i++) {
       // Extrapolate boundary states.
       double umL = u[i - 1] - (0.5 * slope[i - 1]);
