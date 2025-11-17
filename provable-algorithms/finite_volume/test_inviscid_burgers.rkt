@@ -1,6 +1,7 @@
 #lang racket
 
 (require "code_generator_core.rkt")
+(require "code_generator_core_roe.rkt")
 (require "prover_core.rkt")
 (provide (all-from-out "code_generator_core.rkt"))
 
@@ -255,7 +256,7 @@
                                      #:init-func init-func-2d))
 
 ;; Output the code to a file.
-(with-output-to-file "code/invisicid_burgers_lax_2d.c"
+(with-output-to-file "code/inviscid_burgers_lax_2d.c"
   #:exists 'replace
   (lambda ()
     (display code-inviscid-burgers-lax-2d)))
