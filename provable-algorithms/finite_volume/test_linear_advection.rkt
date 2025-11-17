@@ -1,7 +1,7 @@
 #lang racket
 
 (require "code_generator_core.rkt")
-(require "code_generator_core_roe.rkt")
+(require "code_generator_core_2d.rkt")
 (require "prover_core.rkt")
 (provide (all-from-out "code_generator_core.rkt"))
 
@@ -340,6 +340,25 @@
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-linear-advection-lax-local-lipschitz-2d)
 (display "\n")
+
+;; Synthesize the code for a Roe solver for the 2D linear advection equation.
+(define code-linear-advection-roe-2d
+  (generate-roe-scalar-2d pde-linear-advection-2d
+                          #:nx nx-2d
+                          #:ny ny-2d
+                          #:x0 x0-2d
+                          #:x1 x1-2d
+                          #:y0 y0-2d
+                          #:y1 y1-2d
+                          #:t-final t-final-2d
+                          #:cfl cfl-2d
+                          #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_roe_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-2d)))
 
 ;; Synthesize the code for a Lax-Friedrichs solver for the 2D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter).
 (define code-linear-advection-lax-minmod-2d
