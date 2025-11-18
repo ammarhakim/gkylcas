@@ -31,11 +31,11 @@
                   `(+ (/ (* mom_y mom_y) rho) (* rho vt vt)))  ; y-flux vector
    'max-speed-exprs-x (list
                        `(abs (- (/ mom_x rho) vt))
-                       `(/ mom_x rho)
+                       `(abs (/ mom_x rho))
                        `(abs (+ (/ mom_x rho) vt)))            ; local wave-speeds (x-direction)
    'max-speed-exprs-y (list
                        `(abs (- (/ mom_y rho) vt))
-                       `(/ mom_y rho)
+                       `(abs (/ mom_y rho))
                        `(abs (+ (/ mom_y rho) vt)))            ; local wave-speeds (y-direction)
    'parameters (list
                 `(define vt 1.0))                              ; thermal velocity: vt = 1.0

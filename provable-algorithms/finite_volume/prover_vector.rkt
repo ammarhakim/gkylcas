@@ -8,6 +8,7 @@
          symbolic-gradient
          symbolic-hessian
          symbolic-eigvals2
+         symbolic-eigvals3
          is-non-zero
          are-distinct
          symbolic-roe-matrix
@@ -381,6 +382,30 @@
       [else (list `(* 0.5 (+ (- ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
                   `(* 0.5 (+ (+ ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))])))
 
+;; Compute symbolic eigenvalues of a 3x3 symbolic matrix (in restricted cases) via explicit solution of the characteristic polynomial.
+(define (symbolic-eigvals3 matrix)
+  (let ([a (list-ref (list-ref matrix 0) 0)]
+        [b (list-ref (list-ref matrix 0) 1)]
+        [c (list-ref (list-ref matrix 0) 2)]
+        [d (list-ref (list-ref matrix 1) 0)]
+        [e (list-ref (list-ref matrix 1) 1)]
+        [f (list-ref (list-ref matrix 1) 2)]
+        [g (list-ref (list-ref matrix 2) 0)]
+        [h (list-ref (list-ref matrix 2) 1)]
+        [i (list-ref (list-ref matrix 2) 2)])
+    (cond
+      ;; Optimization to shorten certain proofs: if the matrix consists solely of zeroes, then just output a triple of zeroes.
+      [(and (equal? a 0.0) (equal? b 0.0) (equal? c 0.0) (equal? d 0.0) (equal? e 0.0) (equal? f 0.0) (equal? g 0.0) (equal? h 0.0) (equal? i 0.0)) (list 0.0 0.0 0.0)]
+
+      ;; If the matrix is in a restricted (tractable) form, calculate the eigenvalues explicitly.
+      [(and (equal? a 0.0) (equal? b 1.0) (equal? c 0.0) (equal? f 0.0))
+       (list `(* 0.5 (- ,e (sqrt (+ (* 4.0 ,d) (* ,e ,e))))) `(* 0.5 (+ ,e (sqrt (+ (* 4.0 ,d) (* ,e ,e))))) i)]
+      [(and (equal? a 0.0) (equal? b 0.0) (equal? c 1.0) (equal? h 0.0))
+       (list e `(* 0.5 (- ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))) `(* 0.5 (+ ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))))]
+
+      ;; Otherwise, return false(s).
+      [else (list #f #f #f)])))
+
 ;; Determine whether an expression is non-zero.
 (define (is-non-zero expr parameters)
   (match expr
@@ -417,6 +442,14 @@
     ;; Expressions of the form ((x + y), (x - y)) or ((x - y), (x + y)) are distinct, so long as y is non-zero.
     [`((+ ,x ,y) (- ,x ,y)) (is-non-zero y parameters)]
     [`((- ,x ,y) (+ ,x ,y)) (is-non-zero y parameters)]
+
+    ;; Expressions of the form (x, (x - y)) or (x, (x + y)) are distinct, so long as y is non-zero.
+    [`(,x (- ,x ,y)) (is-non-zero y parameters)]
+    [`(,x (+ ,x ,y)) (is-non-zero y parameters)]
+
+    ;; Expressions of the form ((x - y), x) or ((x + y), x) are distinct, so long as y is non-zero.
+    [`((- ,x ,y) ,x) (is-non-zero y parameters)]
+    [`((+ ,x ,y) ,x) (is-non-zero y parameters)]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -813,18 +846,18 @@
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
   (trace symbolic-jacobian)
-  (trace symbolic-eigvals2)
+  (trace symbolic-eigvals3)
 
-  (define flux-eigvals-x (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-x 0) (list-ref flux-exprs-x 1))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 1)))))
-  (define flux-eigvals-y (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-y 0) (list-ref flux-exprs-y 2))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 2)))))
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
   (define flux-eigvals-simp-x (list
                                (symbolic-simp (list-ref flux-eigvals-x 0))
-                               (symbolic-simp (list-ref flux-eigvals-x 1))))
+                               (symbolic-simp (list-ref flux-eigvals-x 1))
+                               (symbolic-simp (list-ref flux-eigvals-x 2))))
   (define flux-eigvals-simp-y (list
                                (symbolic-simp (list-ref flux-eigvals-y 0))
-                               (symbolic-simp (list-ref flux-eigvals-y 1))))
+                               (symbolic-simp (list-ref flux-eigvals-y 1))
+                               (symbolic-simp (list-ref flux-eigvals-y 2))))
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -848,9 +881,11 @@
     
     ;; Check whether the eigenvalues of the flux Jacobians are all real (otherwise, return false).
     [(or (not (is-real (list-ref flux-eigvals-simp-x 0) cons-exprs parameters))
-         (not (is-real (list-ref flux-eigvals-simp-x 1) cons-exprs parameters))) #f]
+         (not (is-real (list-ref flux-eigvals-simp-x 1) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp-x 2) cons-exprs parameters))) #f]
     [(or (not (is-real (list-ref flux-eigvals-simp-y 0) cons-exprs parameters))
-         (not (is-real (list-ref flux-eigvals-simp-y 1) cons-exprs parameters))) #f]
+         (not (is-real (list-ref flux-eigvals-simp-y 1) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp-y 2) cons-exprs parameters))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
@@ -860,7 +895,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
-  (untrace symbolic-eigvals2)
+  (untrace symbolic-eigvals3)
   
   out)
 (trace prove-lax-friedrichs-vector3-2d-hyperbolicity)
@@ -900,20 +935,20 @@
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
   (trace symbolic-jacobian)
-  (trace symbolic-eigvals2)
+  (trace symbolic-eigvals3)
   (trace is-non-zero)
   (trace are-distinct)
 
-  (define flux-eigvals-x (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-x 0) (list-ref flux-exprs-x 1))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 1)))))
-  (define flux-eigvals-y (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-y 0) (list-ref flux-exprs-y 2))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 2)))))
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
   (define flux-eigvals-simp-x (list
                                (symbolic-simp (list-ref flux-eigvals-x 0))
-                               (symbolic-simp (list-ref flux-eigvals-x 1))))
+                               (symbolic-simp (list-ref flux-eigvals-x 1))
+                               (symbolic-simp (list-ref flux-eigvals-x 2))))
   (define flux-eigvals-simp-y (list
                                (symbolic-simp (list-ref flux-eigvals-y 0))
-                               (symbolic-simp (list-ref flux-eigvals-y 1))))
+                               (symbolic-simp (list-ref flux-eigvals-y 1))
+                               (symbolic-simp (list-ref flux-eigvals-y 2))))
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -937,13 +972,19 @@
     
     ;; Check whether the eigenvalues of the flux Jacobians are all real (otherwise, return false).
     [(or (not (is-real (list-ref flux-eigvals-simp-x 0) cons-exprs parameters))
-         (not (is-real (list-ref flux-eigvals-simp-x 1) cons-exprs parameters))) #f]
+         (not (is-real (list-ref flux-eigvals-simp-x 1) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp-x 2) cons-exprs parameters))) #f]
     [(or (not (is-real (list-ref flux-eigvals-simp-y 0) cons-exprs parameters))
-         (not (is-real (list-ref flux-eigvals-simp-y 1) cons-exprs parameters))) #f]
+         (not (is-real (list-ref flux-eigvals-simp-y 1) cons-exprs parameters))
+         (not (is-real (list-ref flux-eigvals-simp-y 2) cons-exprs parameters))) #f]
 
     ;; Check whether the eigenvalues of the flux Jacobians are all distinct (otherwise, return false).
-    [(not (are-distinct flux-eigvals-simp-x parameters)) #f]
-    [(not (are-distinct flux-eigvals-simp-y parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-x 0) (list-ref flux-eigvals-simp-x 1)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-x 0) (list-ref flux-eigvals-simp-x 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-x 1) (list-ref flux-eigvals-simp-x 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-y 0) (list-ref flux-eigvals-simp-y 1)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-y 0) (list-ref flux-eigvals-simp-y 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp-y 1) (list-ref flux-eigvals-simp-y 2)) parameters)) #f]
     
     ;; Otherwise, return true.
     [else #t]))
@@ -953,7 +994,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
-  (untrace symbolic-eigvals2)
+  (untrace symbolic-eigvals3)
   (untrace is-non-zero)
   (untrace are-distinct)
   
@@ -997,24 +1038,26 @@
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
   (trace symbolic-jacobian)
-  (trace symbolic-eigvals2)
+  (trace symbolic-eigvals3)
 
-  (define flux-eigvals-x (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-x 0) (list-ref flux-exprs-x 1))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 1)))))
-  (define flux-eigvals-y (symbolic-eigvals2 (symbolic-jacobian (list (list-ref flux-exprs-y 0) (list-ref flux-exprs-y 2))
-                                                               (list (list-ref cons-exprs 0) (list-ref cons-exprs 2)))))
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
   (define max-speed-exprs-simp-x (list
                                   (symbolic-simp (list-ref max-speed-exprs-x 0))
+                                  (symbolic-simp (list-ref max-speed-exprs-x 1))
                                   (symbolic-simp (list-ref max-speed-exprs-x 2))))
   (define max-speed-exprs-simp-y (list
                                   (symbolic-simp (list-ref max-speed-exprs-y 0))
+                                  (symbolic-simp (list-ref max-speed-exprs-y 1))
                                   (symbolic-simp (list-ref max-speed-exprs-y 2))))
   (define flux-eigvals-simp-x (list
                                (symbolic-simp `(abs ,(list-ref flux-eigvals-x 0)))
-                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 1)))))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 1)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 2)))))
   (define flux-eigvals-simp-y (list
                                (symbolic-simp `(abs ,(list-ref flux-eigvals-y 0)))
-                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 1)))))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 1)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 2)))))
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -1038,9 +1081,11 @@
     
     ;; Check whether the absolute eigenvalues of the flux Jacobians are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
     [(or (equal? (member (list-ref flux-eigvals-simp-x 0) max-speed-exprs-simp-x) #f)
-         (equal? (member (list-ref flux-eigvals-simp-x 1) max-speed-exprs-simp-x) #f)) #f]
+         (equal? (member (list-ref flux-eigvals-simp-x 1) max-speed-exprs-simp-x) #f)
+         (equal? (member (list-ref flux-eigvals-simp-x 2) max-speed-exprs-simp-x) #f)) #f]
     [(or (equal? (member (list-ref flux-eigvals-simp-y 0) max-speed-exprs-simp-y) #f)
-         (equal? (member (list-ref flux-eigvals-simp-y 1) max-speed-exprs-simp-y) #f)) #f]
+         (equal? (member (list-ref flux-eigvals-simp-y 1) max-speed-exprs-simp-y) #f)
+         (equal? (member (list-ref flux-eigvals-simp-y 2) max-speed-exprs-simp-y) #f)) #f]
 
     ;; Otherwise, return true.
     [else #t]))
@@ -1050,7 +1095,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
-  (untrace symbolic-eigvals2)
+  (untrace symbolic-eigvals3)
 
   out)
 (trace prove-lax-friedrichs-vector3-2d-cfl-stability)
@@ -1090,33 +1135,47 @@
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
   (trace symbolic-jacobian)
-  (trace symbolic-eigvals2)
+  (trace symbolic-eigvals3)
   (trace symbolic-gradient)
   (trace symbolic-hessian)
   (trace is-non-negative)
 
   (define hessian-mats-x (list
-                          (symbolic-hessian (list-ref flux-exprs-x 0) (list (list-ref cons-exprs 0) (list-ref cons-exprs 1)))
-                          (symbolic-hessian (list-ref flux-exprs-x 1) (list (list-ref cons-exprs 0) (list-ref cons-exprs 1)))))
+                          (symbolic-hessian (list-ref flux-exprs-x 0) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-x 1) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-x 2) cons-exprs)))
   (define hessian-mats-y (list
-                          (symbolic-hessian (list-ref flux-exprs-y 0) (list (list-ref cons-exprs 0) (list-ref cons-exprs 2)))
-                          (symbolic-hessian (list-ref flux-exprs-y 2) (list (list-ref cons-exprs 0) (list-ref cons-exprs 2)))))
+                          (symbolic-hessian (list-ref flux-exprs-y 0) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-y 1) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-y 2) cons-exprs)))
   (define hessian-eigvals-x (list
-                             (symbolic-eigvals2 (list-ref hessian-mats-x 0))
-                             (symbolic-eigvals2 (list-ref hessian-mats-x 1))))
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 0))
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 1))
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 2))))
   (define hessian-eigvals-y (list
-                             (symbolic-eigvals2 (list-ref hessian-mats-y 0))
-                             (symbolic-eigvals2 (list-ref hessian-mats-y 1))))
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 0))
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 1))
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 2))))
   (define hessian-eigvals-simp-x (list
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 0))
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 2))
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 0))
-                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 1))))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 2))))
   (define hessian-eigvals-simp-y (list
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 0))
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 2))
                                   (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 0))
-                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 1))))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 2))))
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -1140,9 +1199,15 @@
     
     ;; Check whether the flux functions are convex, i.e. that the Hessian matrices for each flux component are positive semidefinite (otherwise, return false).
     [(or (not (is-non-negative (list-ref hessian-eigvals-simp-x 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 1) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-x 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 3) parameters))) #f]
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 3) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 4) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 5) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 6) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 7) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 8) parameters))) #f]
     [(or (not (is-non-negative (list-ref hessian-eigvals-simp-y 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 1) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-y 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 3) parameters))) #f]
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 3) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 4) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 5) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 6) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 7) parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 8) parameters))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
@@ -1152,7 +1217,7 @@
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
-  (untrace symbolic-eigvals2)
+  (untrace symbolic-eigvals3)
   (untrace symbolic-gradient)
   (untrace symbolic-hessian)
   (untrace is-non-negative)
