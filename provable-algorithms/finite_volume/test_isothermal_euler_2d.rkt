@@ -1,11 +1,11 @@
 #lang racket
 
 (require "code_generator_core.rkt")
-(require "code_generator_vector.rkt")
+(require "code_generator_vector_2d.rkt")
 (require "prover_core.rkt")
 (require "prover_vector.rkt")
 (provide (all-from-out "code_generator_core.rkt"))
-(provide (all-from-out "code_generator_vector.rkt"))
+(provide (all-from-out "code_generator_vector_2d.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond
@@ -97,3 +97,30 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-2d)))
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 2D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-isothermal-euler-lax-minmod-2d
+  (generate-lax-friedrichs-vector3-2d-second-order pde-system-isothermal-euler-2d limiter-minmod
+                                                   #:nx nx-2d
+                                                   #:ny ny-2d
+                                                   #:x0 x0-2d
+                                                   #:x1 x1-2d
+                                                   #:y0 y0-2d
+                                                   #:y1 y1-2d
+                                                   #:t-final t-final-2d
+                                                   #:cfl cfl-2d
+                                                   #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_minmod_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-minmod-2d)))
