@@ -329,3 +329,22 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-minmod-2d)))
+
+;; Synthesize the code for a Roe solver for the 2D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter).
+(define code-isothermal-euler-roe-minmod-2d
+  (generate-roe-vector3-2d-second-order pde-system-isothermal-euler-2d limiter-minmod
+                                        #:nx nx-2d
+                                        #:ny ny-2d
+                                        #:x0 x0-2d
+                                        #:x1 x1-2d
+                                        #:y0 y0-2d
+                                        #:y1 y1-2d
+                                        #:t-final t-final-2d
+                                        #:cfl cfl-2d
+                                        #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe_minmod_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe-minmod-2d)))
