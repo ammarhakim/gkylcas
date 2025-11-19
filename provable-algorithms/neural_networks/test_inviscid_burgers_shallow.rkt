@@ -57,6 +57,22 @@
   (lambda ()
     (display code-inviscid-burgers-lax-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-roe-train
+  (train-roe-scalar-1d pde-inviscid-burgers neural-net-shallow
+                       #:nx nx
+                       #:x0 x0
+                       #:x1 x1
+                       #:t-final t-final
+                       #:cfl cfl
+                       #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_roe_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-train)))
+
 ;; Define the minmod flux limiter.
 (define limiter-minmod
   (hash

@@ -57,6 +57,22 @@
   (lambda ()
     (display code-linear-advection-lax-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D linear advection equation using a shallow neural network.
+(define code-linear-advection-roe-train
+  (train-roe-scalar-1d pde-linear-advection neural-net-shallow
+                       #:nx nx
+                       #:x0 x0
+                       #:x1 x1
+                       #:t-final t-final
+                       #:cfl cfl
+                       #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_roe_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-train)))
+
 ;; Define the minmod flux limiter.
 (define limiter-minmod
   (hash
