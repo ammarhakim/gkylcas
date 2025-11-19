@@ -22,7 +22,10 @@
          prove-lax-friedrichs-vector3-2d-local-lipschitz
          prove-roe-vector2-1d-hyperbolicity
          prove-roe-vector2-1d-strict-hyperbolicity
-         prove-roe-vector2-1d-flux-conservation)
+         prove-roe-vector2-1d-flux-conservation
+         prove-roe-vector3-2d-hyperbolicity
+         prove-roe-vector3-2d-strict-hyperbolicity
+         prove-roe-vector3-2d-flux-conservation)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -1441,9 +1444,9 @@
 
   (define roe-matrix (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs))
   (define cons-jump (list (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
-                                                  ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))))
-                               (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
-                                                  ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))))
+                          (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))
   
   (define roe-jump (list (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix 0) 0) ,(list-ref cons-jump 0))
                                             (* ,(list-ref (list-ref roe-matrix 0) 1) ,(list-ref cons-jump 1))))
@@ -1501,3 +1504,413 @@
   
   out)
 (trace prove-roe-vector2-1d-flux-conservation)
+
+;; ----------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 2D Coupled Vector System of 3 PDEs
+;; ----------------------------------------------------------------------------------------------
+(define (prove-roe-vector3-2d-hyperbolicity pde-system
+                                            #:nx [nx 200]
+                                            #:ny [ny 200]
+                                            #:x0 [x0 0.0]
+                                            #:x1 [x1 2.0]
+                                            #:y0 [y0 0.0]
+                                            #:y1 [y1 2.0]
+                                            #:t-final [t-final 1.0]
+                                            #:cfl [cfl 0.95]
+                                            #:init-funcs [init-funcs (list
+                                                                      `(cond
+                                                                         [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                         [else 1.0])
+                                                                      `0.0
+                                                                      `0.0)])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 2D coupled vector system of 3 PDEs specified by `pde-system`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+
+  (define roe-matrix-eigvals-x (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-y (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp-x (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 2))))
+  (define roe-matrix-eigvals-simp-y (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 2))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 2) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrices are all real (otherwise, return false).
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp-x 0) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-x 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp-y 0) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-y 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-vector3-2d-hyperbolicity)
+
+;; -----------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Roe (Finite-Volume) Solver for a 2D Coupled Vector System of 3 PDEs
+;; -----------------------------------------------------------------------------------------------------
+(define (prove-roe-vector3-2d-strict-hyperbolicity pde-system
+                                                   #:nx [nx 200]
+                                                   #:ny [ny 200]
+                                                   #:x0 [x0 0.0]
+                                                   #:x1 [x1 2.0]
+                                                   #:y0 [y0 0.0]
+                                                   #:y1 [y1 2.0]
+                                                   #:t-final [t-final 1.0]
+                                                   #:cfl [cfl 0.95]
+                                                   #:init-funcs [init-funcs (list
+                                                                             `(cond
+                                                                                [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                [else 1.0])
+                                                                             `0.0
+                                                                             `0.0)])
+   "Prove that the Roe finite-volume method preserves strict hyperbolicity for the 2D coupled vector system of 3 PDEs specified by `pde-system`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-zero)
+  (trace are-distinct)
+
+  (define roe-matrix-eigvals-x (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-y (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp-x (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 2))))
+  (define roe-matrix-eigvals-simp-y (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 2))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 2) cons-exprs parameters))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrices are all real (otherwise, return false).
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp-x 0) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-x 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
+    [(or (not (is-real (list-ref roe-matrix-eigvals-simp-y 0) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-y 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
+
+    ;; Check whether the eigenvalues of the Roe matrices are all distinct (otherwise, return false).
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-x 0) (list-ref roe-matrix-eigvals-simp-x 1)) parameters)) #f]
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-x 0) (list-ref roe-matrix-eigvals-simp-x 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-x 1) (list-ref roe-matrix-eigvals-simp-x 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-y 0) (list-ref roe-matrix-eigvals-simp-y 1)) parameters)) #f]
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-y 0) (list-ref roe-matrix-eigvals-simp-y 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref roe-matrix-eigvals-simp-y 1) (list-ref roe-matrix-eigvals-simp-y 2)) parameters)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-zero)
+  (untrace are-distinct)
+  
+  out)
+(trace prove-roe-vector3-2d-strict-hyperbolicity)
+
+;; --------------------------------------------------------------------------------------------------------------------
+;; Prove flux conservation (jump continuity) of the Roe (Finite-Volume) Solver for a 2D Coupled Vector System of 3 PDEs
+;; --------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector3-2d-flux-conservation pde-system
+                                                #:nx [nx 200]
+                                                #:ny [ny 200]
+                                                #:x0 [x0 0.0]
+                                                #:x1 [x1 2.0]
+                                                #:y0 [y0 0.0]
+                                                #:y1 [y1 2.0]
+                                                #:t-final [t-final 1.0]
+                                                #:cfl [cfl 0.95]
+                                                #:init-funcs [init-funcs (list
+                                                                          `(cond
+                                                                             [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                             [else 1.0])
+                                                                          `0.0
+                                                                          `0.0)])
+  "Prove that the Roe finite-volume method preserves flux conservation (jump continuity) for the 2D coupled vector system of 3 PDEs specified by `pde-system`. 
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+
+  (define roe-matrix-x (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs))
+  (define roe-matrix-y (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs))
+  (define cons-jump (list (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))))
+                          (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))
+                          (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))))))
+  
+  (define roe-jump-x (list (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-x 0) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-x 0) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-x 0) 2) ,(list-ref cons-jump 2))))
+                           (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-x 1) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-x 1) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-x 1) 2) ,(list-ref cons-jump 1))))
+                           (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-x 2) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-x 2) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-x 2) 2) ,(list-ref cons-jump 1))))))
+  (define roe-jump-y (list (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-y 0) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-y 0) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-y 0) 2) ,(list-ref cons-jump 2))))
+                           (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-y 1) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-y 1) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-y 1) 2) ,(list-ref cons-jump 1))))
+                           (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix-y 2) 0) ,(list-ref cons-jump 0))
+                                              (* ,(list-ref (list-ref roe-matrix-y 2) 1) ,(list-ref cons-jump 1))
+                                              (* ,(list-ref (list-ref roe-matrix-y 2) 2) ,(list-ref cons-jump 1))))))
+  (define flux-jump-x (list (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 0) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 0) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))
+                            (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 1) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 1) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))
+                            (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 2) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-x 2) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))))
+  (define flux-jump-y (list (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 0) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 0) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))
+                            (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 1) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 1) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))
+                            (symbolic-simp `(- ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 2) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L")))
+                                               ,(flux-deriv-replace (flux-deriv-replace
+                                                                     (flux-deriv-replace (list-ref flux-exprs-y 2) (list-ref cons-exprs 0)
+                                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                     (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                    (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R")))))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real (list-ref parameter 2) cons-exprs parameters)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real (list-ref init-funcs 0) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 1) cons-exprs parameters))
+         (not (is-real (list-ref init-funcs 2) cons-exprs parameters))) #f]
+
+    ;; Check whether the jumps in the flux vectors are equal to the products of the Roe matrices and the jumps in the conserved variable vector (otherwise, return false).
+    [(or (not (equal? (list-ref roe-jump-x 0) (list-ref flux-jump-x 0)))
+         (not (equal? (list-ref roe-jump-x 1) (list-ref flux-jump-x 1)))
+         (not (equal? (list-ref roe-jump-x 2) (list-ref flux-jump-x 2)))) #f]
+    [(or (not (equal? (list-ref roe-jump-y 0) (list-ref flux-jump-y 0)))
+         (not (equal? (list-ref roe-jump-y 1) (list-ref flux-jump-y 1)))
+         (not (equal? (list-ref roe-jump-y 2) (list-ref flux-jump-y 2)))) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  
+  out)
+(trace prove-roe-vector3-2d-flux-conservation)

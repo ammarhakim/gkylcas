@@ -98,6 +98,8 @@
   (lambda ()
     (display code-isothermal-euler-lax-2d)))
 
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 2D isothermal Euler equations.
 (define proof-isothermal-euler-lax-hyperbolicity-2d
   (call-with-output-file "proofs/proof_isothermal_euler_lax_hyperbolicity_2d.rkt"
@@ -220,6 +222,86 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-roe-2d)))
+
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 2D isothermal Euler equations.
+(define proof-isothermal-euler-roe-hyperbolicity-2d
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_hyperbolicity_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector3-2d-hyperbolicity pde-system-isothermal-euler-2d
+                                            #:nx nx-2d
+                                            #:ny ny-2d
+                                            #:x0 x0-2d
+                                            #:x1 x1-2d
+                                            #:y0 y0-2d
+                                            #:y1 y1-2d
+                                            #:t-final t-final-2d
+                                            #:cfl cfl-2d
+                                            #:init-funcs init-funcs-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_hyperbolicity_2d.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-hyperbolicity-2d)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 2D isothermal Euler equations.
+(define proof-isothermal-euler-roe-strict-hyperbolicity-2d
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector3-2d-strict-hyperbolicity pde-system-isothermal-euler-2d
+                                                   #:nx nx-2d
+                                                   #:ny ny-2d
+                                                   #:x0 x0-2d
+                                                   #:x1 x1-2d
+                                                   #:y0 y0-2d
+                                                   #:y1 y1-2d
+                                                   #:t-final t-final-2d
+                                                   #:cfl cfl-2d
+                                                   #:init-funcs init-funcs-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_2d.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-strict-hyperbolicity-2d)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 2D isothermal Euler equations.
+(define proof-isothermal-euler-roe-flux-conservation-2d
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_flux_conservation_2d.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector.rkt\")\n\n")
+        (prove-roe-vector3-2d-flux-conservation pde-system-isothermal-euler-2d
+                                                #:nx nx-2d
+                                                #:ny ny-2d
+                                                #:x0 x0-2d
+                                                #:x1 x1-2d
+                                                #:y0 y0-2d
+                                                #:y1 y1-2d
+                                                #:t-final t-final-2d
+                                                #:cfl cfl-2d
+                                                #:init-funcs init-funcs-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_flux_conservation_2d.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-isothermal-euler-roe-flux-conservation-2d)
+(display "\n")
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod
