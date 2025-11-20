@@ -98,6 +98,23 @@
   (lambda ()
     (display code-inviscid-burgers-lax-minmod-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-inviscid-burgers-roe-minmod-train
+  (train-roe-scalar-1d-second-order pde-inviscid-burgers limiter-minmod neural-net-shallow
+                                    #:nx nx
+                                    #:x0 x0
+                                    #:x1 x1
+                                    #:t-final t-final
+                                    #:cfl cfl
+                                    #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_roe_minmod_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-minmod-train)))
+
 (display "1D inviscid Burgers' properties: \n\n")
 
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D inviscid Burgers' equation.

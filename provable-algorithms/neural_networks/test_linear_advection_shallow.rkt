@@ -98,6 +98,23 @@
   (lambda ()
     (display code-linear-advection-lax-minmod-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D linear advection equation (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-linear-advection-roe-minmod-train
+  (train-roe-scalar-1d-second-order pde-linear-advection limiter-minmod neural-net-shallow
+                                    #:nx nx
+                                    #:x0 x0
+                                    #:x1 x1
+                                    #:t-final t-final
+                                    #:cfl cfl
+                                    #:init-func init-func))
+
+;; Output the code to a file.
+(with-output-to-file "code/linear_advection_roe_minmod_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-linear-advection-roe-minmod-train)))
+
 (display "1D linear advection properties: \n\n")
 
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D linear advection equation.
