@@ -5,6 +5,8 @@
 (require "code_generator_core_validation.rkt")
 (require "prover_core.rkt")
 (provide (all-from-out "code_generator_core_training.rkt"))
+(provide (all-from-out "code_generator_core_training_2d.rkt"))
+(provide (all-from-out "code_generator_core_validation.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond
