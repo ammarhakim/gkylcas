@@ -246,6 +246,25 @@
   (lambda ()
     (display code-inviscid-burgers-lax-train-2d)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 2D inviscid Burgers' equation using a shallow neural network.
+(define code-inviscid-burgers-roe-train-2d
+  (train-roe-scalar-2d pde-inviscid-burgers-2d neural-net-shallow-2d
+                       #:nx nx-2d
+                       #:ny ny-2d
+                       #:x0 x0-2d
+                       #:x1 x1-2d
+                       #:y0 y0-2d
+                       #:y1 y1-2d
+                       #:t-final t-final-2d
+                       #:cfl cfl-2d
+                       #:init-func init-func-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/inviscid_burgers_roe_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-inviscid-burgers-roe-train-2d)))
+
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D inviscid Burgers' equation (with a second-order flux extrapolation using the minmod flux limiter)
 ;; using a shallow neural network.
 (define code-inviscid-burgers-lax-minmod-train-2d

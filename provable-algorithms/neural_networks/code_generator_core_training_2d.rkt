@@ -1,8 +1,10 @@
 #lang racket
 
+(require "prover_core.rkt")
 (require "code_generator_core_training.rkt")
 (provide train-lax-friedrichs-scalar-2d
-         train-lax-friedrichs-scalar-2d-second-order)
+         train-lax-friedrichs-scalar-2d-second-order
+         train-roe-scalar-2d)
 
 ;; -------------------------------------------------------------------------------
 ;; Train a Lax–Friedrichs (Finite-Difference) Surrogate Solver for a 2D Scalar PDE
@@ -849,6 +851,399 @@ int main() {
            flux-uiR-evol-y
            ;; Evolved left positive flux in y-direction f(u_{j + 1, L+}).
            flux-upL-evol-y
+           ;; PDE name for file output.
+           name
+           name
+           ;; PDE name for neural network output.
+           name
+           name
+           ))
+  code)
+
+;; ----------------------------------------------------------------
+;; Train a Roe (Finite-Volume) Surrogate Solver for a 2D Scalar PDE
+;; ----------------------------------------------------------------
+(define (train-roe-scalar-2d pde neural-net
+                             #:nx [nx 200]
+                             #:ny [ny 200]
+                             #:x0 [x0 0.0]
+                             #:x1 [x1 2.0]
+                             #:y0 [y0 0.0]
+                             #:y1 [y1 2.0]
+                             #:t-final [t-final 1.0]
+                             #:cfl [cfl 0.95]
+                             #:init-func [init-func `(cond
+                                                       [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.5) 1.0]
+                                                       [else 0.0])])
+ "Generate C code that trains a surrogate solver for the 2D scalar PDE specified by `pde` using the Roe finite-volume method,
+  with neural network architecture `neural-net`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-func`: Racket expression for the initial condition, e.g. piecewise constant."
+
+  (define name (hash-ref pde 'name))
+  (define cons-expr (hash-ref pde 'cons-expr))
+  (define flux-expr-x (hash-ref pde 'flux-expr-x))
+  (define flux-expr-y (hash-ref pde 'flux-expr-y))
+  (define max-speed-expr-x (hash-ref pde 'max-speed-expr-x))
+  (define max-speed-expr-y (hash-ref pde 'max-speed-expr-y))
+  (define parameters (hash-ref pde 'parameters))
+
+  (define max-trains (hash-ref neural-net 'max-trains))
+  (define width (hash-ref neural-net 'width))
+  (define depth (hash-ref neural-net 'depth))
+
+  (define flux-deriv-x (symbolic-simp (symbolic-diff flux-expr-x cons-expr)))
+  (define flux-deriv-y (symbolic-simp (symbolic-diff flux-expr-y cons-expr)))
+
+  (define cons-code (convert-expr cons-expr))
+  (define flux-code-x (convert-expr flux-expr-x))
+  (define flux-code-y (convert-expr flux-expr-y))
+  (define flux-deriv-code-x (convert-expr flux-deriv-x))
+  (define flux-deriv-code-y (convert-expr flux-deriv-y))
+  (define max-speed-code-x (convert-expr max-speed-expr-x))
+  (define max-speed-code-y (convert-expr max-speed-expr-y))
+  (define init-func-code (convert-expr init-func))
+
+  (define flux-um-x (flux-substitute flux-code-x cons-code "um_x"))
+  (define flux-ui-x (flux-substitute flux-code-x cons-code "ui_x"))
+  (define flux-up-x (flux-substitute flux-code-x cons-code "up_x"))
+
+  (define flux-um-y (flux-substitute flux-code-y cons-code "um_y"))
+  (define flux-ui-y (flux-substitute flux-code-y cons-code "ui_y"))
+  (define flux-up-y (flux-substitute flux-code-y cons-code "up_y"))
+
+  (define flux-deriv-um-x (flux-substitute flux-deriv-code-x cons-code "um_x"))
+  (define flux-deriv-ui-x (flux-substitute flux-deriv-code-x cons-code "ui_x"))
+  (define flux-deriv-up-x (flux-substitute flux-deriv-code-x cons-code "up_x"))
+
+  (define flux-deriv-um-y (flux-substitute flux-deriv-code-y cons-code "um_y"))
+  (define flux-deriv-ui-y (flux-substitute flux-deriv-code-y cons-code "ui_y"))
+  (define flux-deriv-up-y (flux-substitute flux-deriv-code-y cons-code "up_y"))
+
+  (define max-speed-local-x (flux-substitute max-speed-code-x cons-code "u[i][j]"))
+  (define max-speed-local-y (flux-substitute max-speed-code-y cons-code "u[i][j]"))
+
+  (define parameter-code (cond
+                           [(not (empty? parameters)) (string-join (map (lambda (parameter)
+                                                                          (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
+                           [else ""]))
+
+  (define code
+    (format "
+// AUTO-GENERATED CODE FOR TRAINING ON SCALAR PDE: ~a
+// Train a Roe higher-order finite-volume surrogate solver for a scalar PDE in 2D.
+
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include \"kann.h\"
+
+// Additional PDE parameters (if any).
+~a
+
+int main() {
+  // Spatial domain setup.
+  const int nx = ~a;
+  const int ny = ~a;
+  const double x0 = ~a;
+  const double x1 = ~a;
+  const double y0 = ~a;
+  const double y1 = ~a;
+  const double Lx = (x1 - x0);
+  const double Ly = (y1 - y0);
+  const double dx = Lx / nx;
+  const double dy = Ly / ny;
+
+  // Time-stepper setup.
+  const double cfl = ~a;
+  const double t_final = ~a;
+
+  // Neural network hyperparameters.
+  const double num_trains = ~a;
+  const int nn_width = ~a;
+  const int nn_depth = ~a;
+
+  // Arrays for storing solution.
+  double **u = (double**) malloc((nx + 2) * sizeof(double*));
+  double **un = (double**) malloc((nx + 2) * sizeof(double*));
+  for (int i = 0; i <= nx + 1; i++) {
+    u[i] = (double*) malloc((ny + 2) * sizeof(double));
+    un[i] = (double*) malloc((ny + 2) * sizeof(double));
+  }
+
+  // Arrays for storing training data.
+  float **input_data = (float**) malloc(nx * ny * num_trains * sizeof(float*));
+  float **output_data = (float**) malloc(nx * ny * num_trains * sizeof(float*));
+
+  // Initialize grid and set initial conditions.
+  for (int i = 0; i <= nx + 1; i++) {
+    for (int j = 0; j <= ny + 1; j++) {
+      double x = x0 + (i - 0.5) * dx;
+      double y = y0 + (j - 0.5) * dy;
+    
+      u[i][j] = ~a; // init-func in C.
+      un[i][j] = ~a; // init-func in C.
+    }
+  }
+
+  // Initialize neural network architecture.
+  kad_node_t *t_net;
+  kann_t *ann;
+  t_net = kann_layer_input(3);
+  
+  for (int i = 0; i < nn_depth; i++) {
+    t_net = kann_layer_dense(t_net, nn_width);
+    t_net = kad_tanh(t_net);
+  }
+
+  t_net = kann_layer_cost(t_net, 1, KANN_C_MSE);
+  ann = kann_new(t_net, 0);
+
+  double t = 0.0;
+  int n = 0;
+  while (t < t_final) {
+    // Determine global maximum wave-speed alpha (for stable dt).
+    // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
+    double alpha_x = 0.0;
+    double alpha_y = 0.0;
+    
+    for (int i = 1; i <= nx; i++) {
+      for (int j = 1; j <= ny; j++) {
+        double local_alpha_x = ~a; // max-speed-expr-x in C.
+        double local_alpha_y = ~a; // max-speed-expr-y in C.
+      
+        if (local_alpha_x > alpha_x) {
+          alpha_x = local_alpha_x;
+        }
+        if (local_alpha_y > alpha_y) {
+          alpha_y = local_alpha_y;
+        }
+      }
+    }
+
+    // Avoid division by zero.
+    if (alpha_x < 1e-14) {
+      alpha_x = 1e-14;
+    }
+    if (alpha_y < 1e-14) {
+      alpha_y = 1e-14;
+    }
+
+    // Compute stable time step from alpha.
+    double dt = fmin(cfl * dx / alpha_x, cfl * dy / alpha_y);
+
+    // If stepping beyond t_final, adjust dt accordingly.
+    if (t + dt > t_final) {
+      dt = t_final - t;
+    }
+
+    // Compute fluxes with Roe approximation and update the conserved variable in the x-direction.
+    for (int i = 1; i <= nx; i++) {
+      for (int j = 1; j <= ny; j++) {
+        double um_x = u[i - 1][j];
+        double ui_x = u[i][j];
+        double up_x = u[i + 1][j];
+
+        // Evaluate flux for each value of the conserved variable.
+        double f_um_x = ~a; // f(u_{i - 1}).
+        double f_ui_x = ~a; // f(u_i).
+        double f_up_x = ~a; // f(u_{i + 1}).
+
+        // Evaluate flux derivative for each value of the conserved variable.
+        double f_deriv_um_x = ~a; // f'(u_{i - 1}).
+        double f_deriv_ui_x = ~a; // f'(u_i).
+        double f_deriv_up_x = ~a; // f'(u_{i + 1}).
+
+        // Left interface flux: F_{i - 1/2} = 0.5 * (f(u_{i - 1}) + f(u_i)) - 0.5 * |aL_roe_x| * (u_i - u_{i - 1}).
+        double aL_roe_x = 0.5 * (f_deriv_um_x + f_deriv_ui_x);
+        double fluxL_x = 0.5 * (f_um_x + f_ui_x) - 0.5 * fabs(aL_roe_x) * (ui_x - um_x);
+
+        // Right interface flux: F_{i + 1/2} = 0.5 * (f(u_{i + 1}) + f(u_i)) - 0.5 * |aR_roe_x| * (u_{i + 1} - u_i).
+        double aR_roe_x = 0.5 * (f_deriv_ui_x + f_deriv_up_x);
+        double fluxR_x = 0.5 * (f_ui_x + f_up_x) - 0.5 * fabs(aR_roe_x) * (up_x - ui_x);
+
+        // Update the conserved variable.
+        un[i][j] = ui_x - (dt / dx) * (fluxR_x - fluxL_x);
+      }
+    }
+
+    // Copy un -> u (updated conserved variables to new conserved variables).
+    for (int i = 0; i <= nx + 1; i++) {
+      for (int j = 0; j <= ny + 1; j++) {
+        u[i][j] = un[i][j];
+      }
+    }
+
+    // Apply simple boundary conditions in the x-direction (transmissive).
+    for (int j = 0; j <= ny + 1; j++) {
+      u[0][j] = u[1][j];
+      u[nx + 1][j] = u[nx][j];
+    }
+
+    // Compute fluxes with Roe approximation and update the conserved variable in the y-direction.
+    for (int i = 1; i <= nx; i++) {
+      for (int j = 1; j <= ny; j++) {
+        double um_y = u[i][j - 1];
+        double ui_y = u[i][j];
+        double up_y = u[i][j + 1];
+
+        // Evaluate flux for each value of the conserved variable.
+        double f_um_y = ~a; // f(u_{j - 1}).
+        double f_ui_y = ~a; // f(u_j).
+        double f_up_y = ~a; // f(u_{j + 1}).
+
+        // Evaluate flux derivative for each value of the conserved variable.
+        double f_deriv_um_y = ~a; // f'(u_{j - 1}).
+        double f_deriv_ui_y = ~a; // f'(u_j).
+        double f_deriv_up_y = ~a; // f'(u_{j + 1}).
+
+        // Left interface flux: F_{j - 1/2} = 0.5 * (f(u_{j - 1}) + f(u_j)) - 0.5 * |aL_roe_y| * (u_j - u_{j - 1}).
+        double aL_roe_y = 0.5 * (f_deriv_um_y + f_deriv_ui_y);
+        double fluxL_y = 0.5 * (f_um_y + f_ui_y) - 0.5 * fabs(aL_roe_y) * (ui_y - um_y);
+
+        // Right interface flux: F_{j + 1/2} = 0.5 * (f(u_{j + 1}) + f(u_j)) - 0.5 * |aR_roe_y| * (u_{j + 1} - u_j).
+        double aR_roe_y = 0.5 * (f_deriv_ui_y + f_deriv_up_y);
+        double fluxR_y = 0.5 * (f_ui_y + f_up_y) - 0.5 * fabs(aR_roe_y) * (up_y - ui_y);
+
+        // Update the conserved variable.
+        un[i][j] = ui_y - (dt / dy) * (fluxR_y - fluxL_y);
+      }
+    }
+
+    // Copy un -> u (updated conserved variables to new conserved variables).
+    for (int i = 0; i <= nx + 1; i++) {
+      for (int j = 0; j <= ny + 1; j++) {
+        u[i][j] = un[i][j];
+      }
+    }
+
+    // Apply simple boundary conditions in the y-direction (transmissive).
+    for (int i = 0; i <= nx + 1; i++) {
+      u[i][0] = u[i][1];
+      u[i][ny + 1] = u[i][ny];
+    }
+
+    // Accumulate to training data.
+    if (n < num_trains) {
+      for (int i = 1; i <= nx; i++) {
+        for (int j = 1; j<= ny; j++) {
+          double x = x0 + (i - 0.5) * dx;
+          double y = y0 + (j - 0.5) * dy;
+
+          input_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)] = (float*) malloc(3 * sizeof(float));
+          output_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)] = (float*) malloc(sizeof(float));
+      
+          input_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)][0] = t;
+          input_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)][1] = x;
+          input_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)][2] = y;
+          output_data[(n * nx * ny) + ((i - 1) * ny) + (j - 1)][0] = u[i][j];
+        }
+      }
+    }
+
+    // Output solution to disk.
+    const char *fmt = \"%s_output_%d.csv\";
+    int sz = snprintf(0, 0, fmt, \"~a\", n);
+    char file_nm[sz + 1];
+    snprintf(file_nm, sizeof file_nm, fmt, \"~a\", n);
+    
+    FILE *fptr = fopen(file_nm, \"w\");
+    if (fptr != NULL) {
+      for (int i = 1; i <= nx; i++) {
+        for (int j = 1; j <= ny; j++) {
+          double x = x0 + (i - 0.5) * dx;
+          double y = y0 + (j - 0.5) * dy;
+          fprintf(fptr, \"%f, %f, %f\\n\", x, y, u[i][j]);
+        }
+      }
+
+      fclose(fptr);
+    }
+
+    // Increment time.
+    t += dt;
+    n += 1;
+  }
+
+  // Train neural network.
+  kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx * ny, input_data, output_data);
+
+  // Output neural network to disk.
+  const char *fmt = \"%s_neural_net.dat\";
+  int sz = snprintf(0, 0, fmt, \"~a\");
+  char file_nm[sz + 1];
+  snprintf(file_nm, sizeof file_nm, fmt, \"~a\");
+  
+  kann_save(file_nm, ann);
+
+  for (int i = 0; i <= nx + 1; i++) {
+    free(u[i]);
+    free(un[i]);
+  }
+  free(u);
+  free(un);
+
+  kann_delete(ann);
+  
+  for (int i = 0; i < nx * ny * num_trains; i++) {
+    free(input_data[i]);
+    free(output_data[i]);
+  }
+
+  free(input_data);
+  free(output_data);
+   
+  return 0;
+}
+"
+           ;; PDE name for code comments.
+           name
+           ;; Additional PDE parameters (e.g. a = 1.0 for linear advection).
+           parameter-code
+           ;; Number of cells in each coordinate direction.
+           nx
+           ny
+           ;; Left/right boundaries.
+           x0
+           x1
+           ;; Up/down boundaries
+           y0
+           y1
+           ;; CFL coefficient.
+           cfl
+           ;; Final time.
+           t-final
+           ;; Maximum number of time-steps to train on.
+           max-trains
+           ;; Neural network width.
+           width
+           ;; Neural network depth.
+           depth
+           ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
+           init-func-code
+           init-func-code
+           ;; Expressions for local wave-speed estimates.
+           max-speed-local-x
+           max-speed-local-y
+           ;; Left, middle, right fluxes in x-direction f(u_{i - 1}), f(u_i), f(u_{i + 1}).
+           flux-um-x
+           flux-ui-x
+           flux-up-x
+           ;; Left, middle, right flux derivatives in x-direction f'(u_{i - 1}), f'(u_i), f'(u_{i + 1}).
+           flux-deriv-um-x
+           flux-deriv-ui-x
+           flux-deriv-up-x
+           ;; Left, middle, right fluxes in y-direction f(u_{j - 1}), f(u_j), f(u_{j + 1}).
+           flux-um-y
+           flux-ui-y
+           flux-up-y
+           ;; Left, middle, right flux derivatives in y-direction f'(u_{j - 1}), f'(u_j), f'(u_{j + 1}).
+           flux-deriv-um-y
+           flux-deriv-ui-y
+           flux-deriv-up-y
            ;; PDE name for file output.
            name
            name
