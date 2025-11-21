@@ -71,6 +71,22 @@
   (lambda ()
     (display code-isothermal-euler-lax-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D isothermal Euler equations using a shallow neural network.
+(define code-isothermal-euler-roe-train
+  (train-roe-vector2-1d pde-system-isothermal-euler neural-net-shallow
+                        #:nx nx
+                        #:x0 x0
+                        #:x1 x1
+                        #:t-final t-final
+                        #:cfl cfl
+                        #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe-train)))
+
 ;; Define the minmod flux limiter.
 (define limiter-minmod
   (hash

@@ -10,6 +10,8 @@
          is-real
          symbolic-diff-order
          symbolic-jacobian-order
+         symbolic-jacobian
+         symbolic-eigvals2
          prove-vector2-1d-smooth
          prove-vector2-1d-non-smooth
          prove-vector3-2d-smooth
@@ -347,6 +349,28 @@
                 (symbolic-diff-order expr var 0))
               vars))
        exprs))
+
+;; Compute symbolic Jacobian matrix by mapping symbolic differentiation over exprs with respect to vars.
+(define (symbolic-jacobian exprs vars)
+  (map (lambda (expr)
+         (map (lambda (var)
+                (symbolic-simp (symbolic-diff expr var)))
+              vars))
+       exprs))
+
+;; Compute symbolic eigenvalues of a 2x2 symbolic matrix via explicit solution of the characteristic polynomial.
+(define (symbolic-eigvals2 matrix)
+  (let ([a (list-ref (list-ref matrix 0) 0)]
+        [b (list-ref (list-ref matrix 0) 1)]
+        [c (list-ref (list-ref matrix 1) 0)]
+        [d (list-ref (list-ref matrix 1) 1)])
+    (cond
+      ;; Optimization to shorten certain proofs: if the matrix consists solely of zeroes, then just output a pair of zeroes.
+      [(and (equal? a 0.0) (equal? b 0.0) (equal? c 0.0) (equal? d 0.0)) (list 0.0 0.0)]
+
+      ;; Otherwise, calculate the eigenvalues explicitly.
+      [else (list `(* 0.5 (+ (- ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
+                  `(* 0.5 (+ (+ ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))])))
 
 ;; -----------------------------------------------------------------------------------------------------------------
 ;; Prove Error Bounds on Smooth Solutions for an Arbitrary Surrogate Solver for a 1D Coupled Vector System of 2 PDEs
