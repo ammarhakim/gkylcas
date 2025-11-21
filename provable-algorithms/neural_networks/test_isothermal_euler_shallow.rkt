@@ -112,6 +112,23 @@
   (lambda ()
     (display code-isothermal-euler-lax-minmod-train)))
 
+;; Synthesize the code to train a Roe surrogate solver for the 1D isothermal Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-isothermal-euler-roe-minmod-train
+  (train-roe-vector2-1d-second-order pde-system-isothermal-euler limiter-minmod neural-net-shallow
+                                     #:nx nx
+                                     #:x0 x0
+                                     #:x1 x1
+                                     #:t-final t-final
+                                     #:cfl cfl
+                                     #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe_minmod_train.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe-minmod-train)))
+
 (display "1D isothermal Euler properties: \n\n")
 
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D isothermal Euler equations.
