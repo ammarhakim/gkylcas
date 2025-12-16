@@ -37,7 +37,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,dH_dx_l_n],
@@ -57,7 +57,7 @@ calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -75,7 +75,7 @@ calcHamilGenVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := bl
 )$ 
 
 /* Scalar potential forces at velocity-space surface quadrature points. */
-calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,phi,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,dphi_dx_l_n],
@@ -92,7 +92,7 @@ calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -112,7 +112,7 @@ calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
 /* Total bulk forces, i.e., forces which are only a function of configuration space
    (electric fields, external acceleration), at velocity-space surface quadrature points. */
-calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,NC,Ex_e,Ey_e,Ez_e,E_e,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,E_l_n],
@@ -134,7 +134,7 @@ calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -153,7 +153,7 @@ calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 )$ 
 
 /* Magnetic force with velocity-space Hamiltonian at velocity-space surface quadrature points. */
-calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,NC,vid,hamil,Bx_e,By_e,Bz_e,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    Bx_l_n,By_l_n,Bz_l_n,dH_dvx_l_n,dH_dvy_l_n,dH_dvz_l_n,
@@ -163,7 +163,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   NC : length(bC), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *jacob_vel_surf, const double *poisson_tensor_conf,
+  printf(fh, "GKYL_CU_DH void ~a(const double *dxv, const double *jacob_vel_surf, 
   const double *hamil, const double *qmem, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   printf(fh, "~%"),
@@ -176,7 +176,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -316,7 +316,7 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
 
 /* Radiation drag force, F_rad(v) where F_rad(v) is only a function of velocity space,
    at velocity-space surface quadrature points. */
-calcRadVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcRadVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,NV,rad_vx_e,rad_vy_e,rad_vz_e,rad_v_e,
    vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
@@ -339,7 +339,7 @@ calcRadVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
@@ -357,7 +357,7 @@ calcRadVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 )$ 
 
 /* Nodal Lax-Friedrichs to modal velocity-space flux. */
-calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,vid,
    vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
@@ -369,7 +369,7 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vma
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf, 
   const double *alpha_quad, const double *f_l, const double *f_r, 
-  double *lax, double* GKYL_RESTRICT vel_flux_surf) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  double *lax, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   vid : vidx(cdim,vdim),
   printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
   printf(fh, "~%"),
@@ -377,12 +377,12 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vma
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
   numNodes : length(surfNodes), 
-  printf(fh, "  double *Ghat = &vel_flux_surf[~a]; ~%", (dir-1)*NSurf),
+  printf(fh, "  double *out = &Fhat_nodal[~a]; ~%", (dir-1)*numNodes),
 
   if (vmap) then (
     [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, polyOrder, dir, nodes_vel, surfVVars, surfNodes, surfVars, true), 
@@ -407,28 +407,13 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vma
     printf(fh, "  f_l_quad = ~a; ~%", f_l_n[i]), 
     printf(fh, "  f_r_quad = ~a; ~%", f_r_n[i]), 
     if (vmap) then (
-      printf(fh, "  lax[~a] = 0.5*(~a)*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, jacob_surf_tot[i], i-1, i-1)
+      printf(fh, "  out[~a] = 0.5*(~a)*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, jacob_surf_tot[i], i-1, i-1)
     )
     else (
-      printf(fh, "  lax[~a] = 0.5*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, i-1, i-1) 
+      printf(fh, "  out[~a] = 0.5*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, i-1, i-1) 
     ),
     printf(fh, "~%")    
   ), 
-  /* Construct the nodal expansion from a tensor product of the configuration-space nodal basis 
-     and velocity-space nodal basis. We do this separation to accommodate the fact that we may 
-     require fewer quadrature points in velocity space than configuration space. */
-  lax_list : makelist(lax[i], i, 0, numNodes-1), 
-  lax_e : 0, 
-  for i : 1 thru num_nodes_conf do (
-    for j : 1 thru num_nodes_vel do (
-      lax_e : lax_e + lax_list[j + (i-1)*num_nodes_vel]*basisNodalVel[j]*basisNodalConf[i]
-    )
-  ),
-  /* Project nodal basis back onto modal basis */
-  Ghat_c : calcInnerProdList(surfVars, 1, bSurf, lax_e),
-  writeCExprs1(Ghat, Ghat_c), 
-  printf(fh, "~%"),
-  flush_output(fh),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
   if (vmap) then (

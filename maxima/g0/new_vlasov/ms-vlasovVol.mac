@@ -20,15 +20,15 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
-maxVdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
+maxCdim_Tensor : 0$
 maxVdim_Tensor : 1$
 
 /* ...... END OF USER INPUTS........ */
@@ -152,10 +152,10 @@ for bInd : 1 thru length(bName) do (
         ),
         close(fh)                   
       ),
-      if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
+      if (v=1) then maxPolyOrderB : 3 /* Generate p=3 kernels if vdim = 1 */
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do ( 
         /* Phase-space Hamiltonian volume component. Only generate with Serendipity basis for now. */
         if (bName[bInd] = "ser") then (
           fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
@@ -164,7 +164,7 @@ for bInd : 1 thru length(bName) do (
           calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, false),
           close(fh)
         )
-      )
+      ) 
     )
   )
 );

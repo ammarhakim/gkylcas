@@ -64,7 +64,11 @@ calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
                               [-1,1],[-sqrt(1/5),1],[sqrt(1/5),1],[1,1])
       )
     )
-  )
+  ) 
+  else if (polyOrder = 1) and basisFun = "tensor" then (
+    /* Choose hybrid tensor, p = 2 velocity space */
+    nodes_lobatto : getNodes(basisFun, vdim, polyOrder + 1)
+  ) 
   else (
     nodes_lobatto : getNodes(basisFun, vdim, polyOrder)
   ),
@@ -119,7 +123,12 @@ calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
   ),
   printf(fh, "~%"), 
   
-  basis_nodal_lobatto : getVarsNodalBasisWithNodes(basisFun, vdim, polyOrder, varsV, nodes_lobatto), 
+  if (polyOrder = 1) and basisFun = "tensor" then (
+    basis_nodal_lobatto : getVarsNodalBasisWithNodes(basisFun, vdim, polyOrder+1, varsV, nodes_lobatto)
+  ) 
+  else (
+    basis_nodal_lobatto : getVarsNodalBasisWithNodes(basisFun, vdim, polyOrder, varsV, nodes_lobatto)
+  ),
   hamil_nodal_e : doExpand1(hamil_nodal, basis_nodal_lobatto),
   hamil_c : calcInnerProdList(varsV, 1, bV, hamil_nodal_e), 
   writeCExprs1(hamil, hamil_c), 

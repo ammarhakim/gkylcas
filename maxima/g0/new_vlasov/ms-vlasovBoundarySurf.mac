@@ -6,20 +6,20 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 1$
+minPolyOrder_Ser : 2$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 1$
-minVdim_Ser : 1$    /* see begining of v loop below though. */
+minCdim_Ser : 2$
+minVdim_Ser : 2$    /* see begining of v loop below though. */
 maxCdim_Ser : 2$
-maxVdim_Ser : 1$
+maxVdim_Ser : 2$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 2$
-maxVdim_Tensor : 1$
+maxCdim_Tensor : 0$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -30,6 +30,7 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+useHigherOrderList : [false, true]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
@@ -38,7 +39,7 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minVdimB : max(c,minVdim[bInd]), 
     maxVdimB : maxVdim[bInd], 
-    if (c = 2) then minVdimB : 1, /* We support 2x1v. */
+    if (c = 2) then minVdimB : 2, /* We support 2x1v. */
     for v : minVdimB thru maxVdimB do (
 
       minPolyOrderB : minPolyOrder[bInd],
@@ -64,28 +65,48 @@ for bInd : 1 thru length(bName) do (
           close(fh)
         ), 
         for dir : 1 thru v do (
-          fname : sconcat("~/max-out/vlasov_boundary_surf", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          fh : openw(fname),
-          funcName : sconcat("vlasov_boundary_surf",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcVelBoundarySurf(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
-          close(fh)            
+
+          /* Higher-order integration logic*/
+          for hoInd : 1 thru length(useHigherOrderList) do (
+            useHigherOrder : useHigherOrderList[hoInd],
+            if useHigherOrder then si : "ho_" else si : "",
+            if (not((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = true)) and not((useHigherOrder = false) and (bName[bInd] = "tensor")) and not((bName[bInd] = "ser") and (polyOrder = 2) and (c = 2) and (v = 3) and (useHigherOrder = true))) then (
+              if ((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = false)) or ((useHigherOrder = true) and (bName[bInd] = "tensor")) then si : "",
+
+              fname : sconcat("~/max-out/vlasov_boundary_",si,"surf", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+              fh : openw(fname),
+              funcName : sconcat("vlasov_boundary_",si,"surf",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+              calcVelBoundarySurf(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder), 
+              close(fh)    
+            )
+          )
         )
       ),
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
-      if (c+v>4 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
-        maxC : c, /* Which directions are we generating surface kernels for? */
-        if (v < c) then maxC : v, /* In 2x1v, only generate the vx surface kernel. */
-        for dir : 1 thru maxC do ( 
-          /* Phase-space Hamiltonian surface fluxes. Only generate with Serendipity basis for now. */
-          if (bName[bInd] = "ser") then (
-            fname : sconcat("~/max-out/vlasov_hamil_gen_boundary_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            fh : openw(fname),
-            funcName : sconcat("vlasov_hamil_gen_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcHamilGenBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder), 
-            close(fh) 
+
+        /* Higher-order integration logic*/
+        for hoInd : 1 thru length(useHigherOrderList) do (
+          useHigherOrder : useHigherOrderList[hoInd],
+          if useHigherOrder then si : "ho_" else si : "",
+          if (not((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = true)) and not((useHigherOrder = false) and (bName[bInd] = "tensor")) and not((bName[bInd] = "ser") and (polyOrder = 2) and (c = 2) and (v = 3) and (useHigherOrder = true))) then (
+            if ((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = false)) or ((useHigherOrder = true) and (bName[bInd] = "tensor")) then si : "",
+
+            disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
+            maxC : c, /* Which directions are we generating surface kernels for? */
+            if (v < c) then maxC : v, /* In 2x1v, only generate the vx surface kernel. */
+            for dir : 1 thru maxC do ( 
+              /* Phase-space Hamiltonian surface fluxes. Only generate with Serendipity basis for now. */
+              if (bName[bInd] = "ser") then (
+                fname : sconcat("~/max-out/vlasov_hamil_gen_boundary_",si,"surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                fh : openw(fname),
+                funcName : sconcat("vlasov_hamil_gen_boundary_",si,"surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                calcHamilGenBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder), 
+                close(fh) 
+              )
+            )
           )
         )
       )

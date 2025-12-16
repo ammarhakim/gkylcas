@@ -38,7 +38,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dx_l],
@@ -61,7 +61,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   vv : varsV[dir], 
   surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
   surfVVars : delete(vv,varsV), /* Remaining variables in v. */
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(vdim, basisFun, polyOrder, surfVars, surfVVars, varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
   NSurf : length(bSurf), 
   num_nodes_conf : length(nodes_conf), 
   num_nodes_vel : length(nodes_vel), 
