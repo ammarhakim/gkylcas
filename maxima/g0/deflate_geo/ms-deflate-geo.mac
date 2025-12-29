@@ -8,7 +8,7 @@ load(stringproc)$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -23,6 +23,17 @@ for bInd : 1 thru length(bName) do (
     fh : openw(fName),
     printf(fh, "#include \"gkyl_deflate_geo_kernels.h\"~%~%"),
     deflateGeo(fh, bName[bInd], polyOrder),
+    close(fh)
+  )
+);
+
+for bInd : 1 thru length(bName) do (
+  for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+    disp(printf(false,sconcat("Creating deflate_geo_calc_",bName[bInd]," ~axp~a"),cD,polyOrder)),
+    fName : sconcat("~/max-out/deflate_geo_surf_", bName[bInd], "_", "p", polyOrder, ".c"),
+    fh : openw(fName),
+    printf(fh, "#include \"gkyl_deflate_geo_surf_kernels.h\"~%~%"),
+    deflateGeoSurf(fh, bName[bInd], polyOrder),
     close(fh)
   )
 );

@@ -48,12 +48,26 @@ calcSelfPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   NC : length(bC),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *boundary_corrections) ~%{ ~%", funcNm, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *moms, const double *boundary_corrections, const double *nu) ~%{ ~%", funcNm, polyOrder),
   printf(fh, "  // A:                    Matrix to be inverted to solve Ax = rhs (set by this function). ~%"),
   printf(fh, "  // rhs:                  right-hand side of Ax = rhs (set by this function). ~%"),
   printf(fh, "  // moms:                 moments of the distribution function (Zeroth, First, and Second in single array). ~%"),
   printf(fh, "  // boundary_corrections: boundary corrections to u and vtSq. ~%"),
+  printf(fh, "  // nu:                   collision frequency. ~%"),
   printf(fh, " ~%"),
+
+  /* Declare new buffers where moments and boundary corrections are stored. */
+  printf(fh, "  double m0r[~a] = {0.0}; ~%", NC),
+  printf(fh, "  double m1r[~a] = {0.0}; ~%", udim*NC),
+  printf(fh, "  double cMr[~a] = {0.0}; ~%", udim*NC),
+  printf(fh, "  double cEr[~a] = {0.0}; ~%", NC),
+  printf(fh, "  ~%"),
+
+  /* If cell average collsion frequency is not positive, set moments to 1 and
+     corrections to 0 to avoid inversion of singular system. In this case the
+     collision operator will be turned off anyway. */
+  printf(fh, "  if (nu[0] > 0.0) { ~%"),
+  printf(fh, "  ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities
      use the cell average operations when m0,m2<0 at one of the corners. */
@@ -71,12 +85,6 @@ calcSelfPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", m2Corners[i])
   ),
   printf(fh, " ~%"),
-
-  /* Declare new buffers where moments and boundary corrections are stored. */
-  printf(fh, "  double m0r[~a] = {0.0}; ~%", NC),
-  printf(fh, "  double m1r[~a] = {0.0}; ~%", udim*NC),
-  printf(fh, "  double cMr[~a] = {0.0}; ~%", udim*NC),
-  printf(fh, "  double cEr[~a] = {0.0}; ~%", NC),
 
   printf(fh, "  if (notCellAvg) { ~%"),
   /* Use the original expansion polynomial. */
@@ -115,8 +123,37 @@ calcSelfPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   for i : 1 thru length(expr) do (
     printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
   ),
-  printf(fh, "  } ~%"),
+  printf(fh, "  }~%"),
   printf(fh, " ~%"),
+
+  printf(fh, "  } else { ~%"),
+  printf(fh, "  ~%"),
+
+  /* Use the cell average of m0 and m1. */
+  writeCExprs1s(m0r,append([1.0],makelist(0.0,i,1,NC-1))),
+  for vd : 1 thru udim do (
+    expr : float(expand(append([1.0],makelist(0.0,i,1,NC-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", m1r[(vd-1)*NC+i-1], expr[i])
+    ),
+    for i : 1 thru length(expr) do (
+      printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1, expr[i])
+    ),
+    expr : float(expand(append([0.0],makelist(0.0,i,1,NC-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", cMr[(vd-1)*NC+i-1], expr[i])
+    )
+  ),
+  writeCExprs1s(cEr,append([0.0],makelist(0.0,i,1,NC-1))),
+  /* Use cell average of 2nd moment. */
+  expr : float(expand(append([1.0],makelist(0.0,i,1,NC-1)))),
+  for i : 1 thru length(expr) do (
+    printf(fh,"    gkyl_mat_set(rhs,~a,0,~a); ~%", i-1+udim*NC, expr[i])
+  ),
+
+  printf(fh, "  ~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"),
 
   /* Expansion in configuration space basis and coefficients of m0. */
   m0_e : doExpand1(m0r, bC),
