@@ -189,6 +189,7 @@ for bInd : 1 thru length(bName) do (
 
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
+      if (c+v<4) then maxPolyOrderB : 3,
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating quad_to_modal ",bName[bInd]," ~ax_p~a"),c+v,polyOrder)),

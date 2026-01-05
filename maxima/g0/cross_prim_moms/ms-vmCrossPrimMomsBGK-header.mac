@@ -1,8 +1,4 @@
-load("lbo_vlasov/vmLBOFuncs-diff-vol")$
-load(stringproc)$
-
-/* This script calls the functions which calculate the
-   updates from the volume term contributions. */
+/* Generate the header file for cross primitive moments kernels in the Vlasov BGK. */
 
 /* ...... USER INPUTS........ */
 
@@ -19,7 +15,7 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$ 
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* but see v loop below. */
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -31,6 +27,22 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+
+printPrototypeVM(deco, ci, vi, bStr, pi) := block([si],
+  printf(fh, "~avoid vlasov_cross_prim_moms_bgk_~ax~av_~a_p~a(const double delta_sr, const double betaGreenep1, const double m_self, const double *prim_moms_self, const double m_other, const double *prim_moms_other, double *prim_moms_cross); ~%", deco, ci, vi, bStr, pi),
+  printf(fh, "~%") 
+)$
+
+fh : openw("~/max-out/gkyl_vlasov_cross_prim_moms_bgk_kernels.h")$
+printf(fh, "#pragma once ~%")$
+printf(fh, "#include <math.h> ~%")$
+printf(fh, "#include <gkyl_mat.h> ~%")$
+printf(fh, "#include <gkyl_util.h> ~%")$
+printf(fh, " ~%")$
+printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "~%")$
+
+decorator : "GKYL_CU_DH "$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -44,15 +56,11 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating diff volume VmLBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
-        funcName : sconcat("lbo_vlasov_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
-        fname : sconcat("~/max-out/",funcName, ".c"),
-        fh : openw(fname),
-        calcVmLBODiffVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh) 
+        printPrototypeVM(decorator, c, v, bName[bInd], polyOrder)
       )
     )
   )
 );
 
-
+printf(fh, "EXTERN_C_END ~%")$
+close(fh)$

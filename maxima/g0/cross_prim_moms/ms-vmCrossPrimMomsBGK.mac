@@ -1,8 +1,7 @@
-load("lbo_vlasov/vmLBOFuncs-diff-vol")$
+load("cross_prim_moms/vmCrossPrimMomsBGKFuncs")$
 load(stringproc)$
 
-/* This script calls the functions which calculate the
-   updates from the volume term contributions. */
+/* Generate cross moment kernels in the Vlasov BGK. */
 
 /* ...... USER INPUTS........ */
 
@@ -19,7 +18,7 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$ 
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* but see v loop below. */
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 2$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -44,15 +43,12 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        disp(printf(false,sconcat("Creating diff volume VmLBO ",bName[bInd]," ~ax~av p~a"),c,v,polyOrder)),
-        funcName : sconcat("lbo_vlasov_diff_vol_", c, "x", v, "v_", bName[bInd],"_p",polyOrder),
-        fname : sconcat("~/max-out/",funcName, ".c"),
+        fname : sconcat("~/max-out/vlasov_cross_prim_moms_bgk_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        calcVmLBODiffVolUpdater(fh, funcName, c, v, bName[bInd], polyOrder),
-        close(fh) 
-      )
+        funcName : sconcat("vlasov_cross_prim_moms_bgk_", c, "x", v,  "v_", bName[bInd], "_p", polyOrder),
+        calcVMCrossPrimMomsBGK(fh, funcName, c, v, bName[bInd], polyOrder),
+        close(fh)
+      )   
     )
   )
-);
-
-
+); 
