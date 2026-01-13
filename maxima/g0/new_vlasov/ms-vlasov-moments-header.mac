@@ -12,7 +12,7 @@ maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 /* Note that Serendipity, p=1, is hybrid and p=1 Tensor is *pure* p=1 */
-minPolyOrder_Tensor : 2$
+minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */

@@ -293,6 +293,57 @@ gaussOrdHyb(n,cdim,vdim) := block(
   return(ord)
 )$
 
+/* Like gaussOrdWeightHyb but only return ordinates. */
+gaussOrdTenHyb(nc,nv,cdim,vdim) := block(
+  [ord1Dc,ord1Dv,ordc,ordv,ord,labOrd1Dc,labOrdc,labOrd1Dv,labOrdv,
+   labOrd,d,i,flatOrd],
+
+  ord1Dc : gaussOrd1D(nc),
+  ord1Dv : gaussOrd1D(nv),
+
+  ordc : copylist(ord1Dc),
+  ordv : copylist(ord1Dv),
+    
+  if cdim=0 then (
+    ord : gaussOrd(nv,vdim)
+  ) elseif vdim=0 then (
+    ord : gaussOrd(nc,cdim)
+  ) else (
+    /* MF: this may seem more complicated than it needs to be, but I
+           kept it this way to ensure nodes are ordered in the same
+           way as those returned by gaussOrdWeightHyb. */ 
+    
+    /* In order to use cartesian_product below we need to make
+      the weights distinct. Use a distinct label.
+      Unfortunately this doesn't guarantee the weights are ordered
+      so they match the ordinates. Try labeling the ordinates too. */
+    labOrd1Dc : makelist([string(i),ord1Dc[i]],i,1,length(ord1Dc)),        
+    labOrd1Dv : makelist([string(i),ord1Dv[i]],i,1,length(ord1Dv)),        
+        
+    labOrdc : copylist(labOrd1Dc),
+    labOrdv : copylist(labOrd1Dv),
+    
+    labOrd1Dc : setify(labOrd1Dc),
+    for d : 2 thru cdim do (
+      labOrdc : listify(cartesian_product(setify(labOrdc),labOrd1Dc))
+    ),
+
+    labOrd1Dv : setify(labOrd1Dv),
+    for d : 2 thru vdim do (
+      labOrdv : listify(cartesian_product(setify(labOrdv),labOrd1Dv))
+    ),
+
+    labOrd : listify(cartesian_product(setify(labOrdc),setify(labOrdv))),
+
+    ord : makelist(0,i,1,length(labOrd)),
+    for i : 1 thru length(labOrd) do (
+      flatOrd : makelist(flatten(labOrd[i])[2*j],j,1,length(flatten(labOrd[i]))/2),
+      ord[i]  : copylist(flatOrd)
+    )
+  ),
+  return(ord)
+)$
+
 /* Like gaussOrdWeightGkHyb but only return ordinates. */
 gaussOrdGkHyb(n,cvars,vvars) := block([cdim,vdim,nc,nv,ord_flipped,ord],
   cdim : length(cvars),  vdim : length(vvars),

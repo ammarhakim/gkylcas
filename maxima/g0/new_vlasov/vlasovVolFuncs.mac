@@ -231,7 +231,7 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, vmap) := 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil,
+  const double *jacob_vel, const double *hamil,
   const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)

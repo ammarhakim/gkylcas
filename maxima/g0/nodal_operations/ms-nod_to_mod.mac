@@ -82,6 +82,8 @@ writeNod2ModKernelHyb(cdim, vdim, basisName) := block([nodes,numNodes,nodToMod,f
   /* Get equi-distant node locations */
   if basisName = "hyb" then (
     nodes : getNodesHyb(cdim, vdim)
+  ) elseif basisName = "tenhyb" then (
+    nodes : getNodesTenHyb(cdim, vdim)
   ) elseif basisName = "gkhyb" then (
     nodes : getNodesGkHyb(cdim, vdim)
   ),

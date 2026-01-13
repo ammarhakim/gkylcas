@@ -61,6 +61,9 @@ genQuadToModalKernelHyb(fh, cdim, vdim, basisName) := block(
   if basisName = "hyb" then (
     [varsc,basisc,varsp,basisp] : loadPhaseBasis(basisName, cdim, vdim, 1),
     nodes : gaussOrdHyb(1+1, cdim, vdim)
+  ) elseif basisName = "tenhyb" then (
+    [varsc,basisc,varsp,basisp] : loadTensorHybridBasis(basisName, cdim, vdim),
+    nodes : gaussOrdTenHyb(2, 4, cdim, vdim)
   ) elseif basisName = "gkhyb" then (
     [varsc,basisc,varsp,basisp,vsub] : loadGkBasis(basisName, cdim, vdim, 1),
     varsv : listify(setdifference(setify(varsp),setify(varsc))),

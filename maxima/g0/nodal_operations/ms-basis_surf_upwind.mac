@@ -124,6 +124,10 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     [varsc,basisc,varsp,basisp] : loadPhaseBasis(basisName, cdim, vdim, 1),
     dirlabels : ["xdir","vdir"],
     dims      : [cdim,cdim+vdim]
+  ) elseif basisName = "tenhyb" then (
+    [varsc,basisc,varsp,basisp] : loadTensorHybridBasis(basisName, cdim, vdim),
+    dirlabels : ["xdir","vdir"],
+    dims      : [cdim,cdim+vdim]
   ) elseif basisName = "gkhyb" then (
     [varsc,basisc,varsp,basisp,vsub] : loadGkBasis(basisName, cdim, vdim, 1),
     dirlabels : ["xdir","vpardir","mudir"],
@@ -143,6 +147,8 @@ genSurfUpdwindQuadToModalKernelHyb(cdim, vdim, basisName) := block(
     /* Surface nodes given by tensor product of Gauss-Legendre quadrature points. */
     if basisName = "hyb" then (
       surfNodes : gaussOrdHyb(1+1, surf_cdim, surf_vdim)
+    ) elseif basisName = "tenhyb" then (
+      surfNodes : gaussOrdTenHyb(2, 4, surf_cdim, surf_vdim)
     ) elseif basisName = "gkhyb" then (
       varsV : listify(setdifference(setify(varsp),setify(varsc))),
       surfcvars : delete(xv, varsc),
