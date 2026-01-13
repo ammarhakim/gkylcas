@@ -15,22 +15,16 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 0$
-maxVdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 1$
+maxCdim_Tensor : 3$
 maxVdim_Tensor : 3$
-
-
-/* Tensor-Hybrid basis. */
-minCdim_tenhyb : 1$
-maxCdim_tenhyb : 3$
-vDims_tenhyb : [[1,2,3], [1,2,3], [1,2,3]]$  /* Vdim for each of Cdim. */
 
 /* Hybrid basis. */
 minCdim_hyb : 1$
@@ -52,10 +46,10 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 
-bNameHyb   : ["tenhyb","hyb","gkhyb"]$
-minCdimHyb : [minCdim_tenhyb, minCdim_hyb, minCdim_gkhyb]$
-maxCdimHyb : [maxCdim_tenhyb, maxCdim_hyb, maxCdim_gkhyb]$
-vDims      : [vDims_tenhyb, vDims_hyb, vDims_gkhyb]$
+bNameHyb   : ["hyb","gkhyb"]$
+minCdimHyb : [minCdim_hyb, minCdim_gkhyb]$
+maxCdimHyb : [maxCdim_hyb, maxCdim_gkhyb]$
+vDims      : [vDims_hyb, vDims_gkhyb]$
 
 genSurfUpdwindQuadToModalKernel(cdim, vdim, basisName, pOrder) := block(
   [pdim,vars,basis,surfNodes,numNodes,f_e,xv,surfVars,
