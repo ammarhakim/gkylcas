@@ -12,6 +12,7 @@
    second correction is - D_ii f_(vmax) or -(v_i D_ii f)_(vmax)
    where D_ii is the diagonal component at the v surface (e.g., Dxx at vx surface). */
 
+load("fpo/fpo-utils");
 load("modal-basis");
 load("out-scripts");
 load(stringproc)$
@@ -36,9 +37,10 @@ calcFPOMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    temp_1_c,temp_2_c,temp_3_c,temp_4_c,temp_5_c,temp_6_c,
    temp_7_c,temp_8_c,temp_9_c,temp_10_c,temp_11_c,temp_12_c,corr_c],
 
-  if (polyOrder = 1) then (basisFun : "hyb"),
-
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+   /* if (polyOrder = 1) then (basisFun : "hyb"), */
+  /*  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder), */
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsP, bP] : loadBasis(basisFun, cdim+vdim, polyOrder),
 
   /* Number of basis monomials. */
   NP : length(bP),
@@ -137,14 +139,14 @@ calcFPOMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     Dzi_e : Dij_e_lst[3][d],
 
     temp_1_c : calcInnerProdList(varsP, 1, bC, ai_e*f_e),
-    temp_2_c : calcInnerProdList(varsP, 2.0/dv1, bC, diff(Dxi_e, vx)*f_e),
-    temp_3_c : calcInnerProdList(varsP, 2.0/dv2, bC, diff(Dyi_e, vy)*f_e),
-    temp_4_c : calcInnerProdList(varsP, 2.0/dv3, bC, diff(Dzi_e, vz)*f_e),
+    temp_2_c : calcInnerProdList(varsP, 2/dv1, bC, diff(Dxi_e, vx)*f_e),
+    temp_3_c : calcInnerProdList(varsP, 2/dv2, bC, diff(Dyi_e, vy)*f_e),
+    temp_4_c : calcInnerProdList(varsP, 2/dv3, bC, diff(Dzi_e, vz)*f_e),
 
-    writeCExprsCollect1(temp_1, temp_1_c, clst), 
-    writeCExprsCollect1(temp_2, temp_2_c, clst),
-    writeCExprsCollect1(temp_3, temp_3_c, clst),
-    writeCExprsCollect1(temp_4, temp_4_c, clst),
+    factorAndWriteCExprsCollect1(temp_1, temp_1_c, clst), 
+    factorAndWriteCExprsCollect1(temp_2, temp_2_c, clst),
+    factorAndWriteCExprsCollect1(temp_3, temp_3_c, clst),
+    factorAndWriteCExprsCollect1(temp_4, temp_4_c, clst),
 
     t : [temp_2_e, temp_3_e, temp_4_e],
 
@@ -153,7 +155,7 @@ calcFPOMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     corr_c : calcInnerProdList(varsC, 1, bC, temp_1_e + t[d]),
     */
     corr_c : calcInnerProdList(varsC, 1, bC, temp_1_e + temp_2_e + temp_3_e + temp_4_e),
-    writeCIncrExprsCollect1(ai_corr_lst[d], volFact*corr_c, clst),
+    factorAndWriteCIncrExprsCollect1(ai_corr_lst[d], volFact*corr_c, clst),
     printf(fh, "~%") 
   ),
 
@@ -162,35 +164,36 @@ calcFPOMoms(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   temp_2_c : calcInnerProdList(varsP, 1, bC, vTrans[2]*ay_e*f_e),
   temp_3_c : calcInnerProdList(varsP, 1, bC, vTrans[3]*az_e*f_e),
 
-  temp_4_c : calcInnerProdList(varsP, 2.0/dv1, bC, diff(vTrans[1]*Dxx_e, vx)*f_e),
-  temp_5_c : calcInnerProdList(varsP, 2.0/dv1, bC, diff(vTrans[2]*Dxy_e, vx)*f_e),
-  temp_6_c : calcInnerProdList(varsP, 2.0/dv1, bC, diff(vTrans[3]*Dxz_e, vx)*f_e),
+  temp_4_c : calcInnerProdList(varsP, 2/dv1, bC, diff(vTrans[1]*Dxx_e, vx)*f_e),
+  temp_5_c : calcInnerProdList(varsP, 2/dv1, bC, diff(vTrans[2]*Dxy_e, vx)*f_e),
+  temp_6_c : calcInnerProdList(varsP, 2/dv1, bC, diff(vTrans[3]*Dxz_e, vx)*f_e),
 
-  temp_7_c : calcInnerProdList(varsP, 2.0/dv2, bC, diff(vTrans[1]*Dyx_e, vy)*f_e),
-  temp_8_c : calcInnerProdList(varsP, 2.0/dv2, bC, diff(vTrans[2]*Dyy_e, vy)*f_e),
-  temp_9_c : calcInnerProdList(varsP, 2.0/dv2, bC, diff(vTrans[3]*Dyz_e, vy)*f_e),
+  temp_7_c : calcInnerProdList(varsP, 2/dv2, bC, diff(vTrans[1]*Dyx_e, vy)*f_e),
+  temp_8_c : calcInnerProdList(varsP, 2/dv2, bC, diff(vTrans[2]*Dyy_e, vy)*f_e),
+  temp_9_c : calcInnerProdList(varsP, 2/dv2, bC, diff(vTrans[3]*Dyz_e, vy)*f_e),
 
-  temp_10_c : calcInnerProdList(varsP, 2.0/dv3, bC, diff(vTrans[1]*Dzx_e, vz)*f_e),
-  temp_11_c : calcInnerProdList(varsP, 2.0/dv3, bC, diff(vTrans[2]*Dzy_e, vz)*f_e),
-  temp_12_c : calcInnerProdList(varsP, 2.0/dv3, bC, diff(vTrans[3]*Dzz_e, vz)*f_e),
+  temp_10_c : calcInnerProdList(varsP, 2/dv3, bC, diff(vTrans[1]*Dzx_e, vz)*f_e),
+  temp_11_c : calcInnerProdList(varsP, 2/dv3, bC, diff(vTrans[2]*Dzy_e, vz)*f_e),
+  temp_12_c : calcInnerProdList(varsP, 2/dv3, bC, diff(vTrans[3]*Dzz_e, vz)*f_e),
 
-  writeCExprsCollect1(temp_1, temp_1_c, clst), 
-  writeCExprsCollect1(temp_2, temp_2_c, clst), 
-  writeCExprsCollect1(temp_3, temp_3_c, clst), 
-  writeCExprsCollect1(temp_4, temp_4_c, clst), 
-  writeCExprsCollect1(temp_5, temp_5_c, clst), 
-  writeCExprsCollect1(temp_6, temp_6_c, clst), 
-  writeCExprsCollect1(temp_7, temp_7_c, clst), 
-  writeCExprsCollect1(temp_8, temp_8_c, clst), 
-  writeCExprsCollect1(temp_9, temp_9_c, clst), 
-  writeCExprsCollect1(temp_10, temp_10_c, clst), 
-  writeCExprsCollect1(temp_11, temp_11_c, clst), 
-  writeCExprsCollect1(temp_12, temp_12_c, clst), 
+
+  factorAndWriteCExprsCollect1(temp_1, temp_1_c, clst), 
+  factorAndWriteCExprsCollect1(temp_2, temp_2_c, clst), 
+  factorAndWriteCExprsCollect1(temp_3, temp_3_c, clst), 
+  factorAndWriteCExprsCollect1(temp_4, temp_4_c, clst), 
+  factorAndWriteCExprsCollect1(temp_5, temp_5_c, clst), 
+  factorAndWriteCExprsCollect1(temp_6, temp_6_c, clst), 
+  factorAndWriteCExprsCollect1(temp_7, temp_7_c, clst), 
+  factorAndWriteCExprsCollect1(temp_8, temp_8_c, clst), 
+  factorAndWriteCExprsCollect1(temp_9, temp_9_c, clst), 
+  factorAndWriteCExprsCollect1(temp_10, temp_10_c, clst), 
+  factorAndWriteCExprsCollect1(temp_11, temp_11_c, clst), 
+  factorAndWriteCExprsCollect1(temp_12, temp_12_c, clst), 
 
   corr_c : calcInnerProdList(varsC, 1, bC, 
     temp_1_e + temp_2_e + temp_3_e + temp_4_e + temp_5_e + temp_6_e 
   + temp_7_e + temp_8_e + temp_9_e + temp_10_e + temp_11_e + temp_12_e),
-  writeCIncrExprsCollect1(energy_corr, volFact*corr_c, clst),
+  factorAndWriteCIncrExprsCollect1(energy_corr, volFact*corr_c, clst),
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
@@ -204,10 +207,12 @@ calcFPOBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
    mBlo_e,mBup_e,Dlo_e,Dup_e,fBlo_c,fBup_c,Dlo_c,Dup_c,
    dvSurf,surfExpr,clst, t],
     
-  if (polyOrder = 1) then (basisFun : "hyb"),
+   /* if (polyOrder = 1) then (basisFun : "hyb"), */
 
   /* Load basis of dimensionality requested. */
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /*  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder), */
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsP, bP] : loadBasis(basisFun, cdim+vdim, polyOrder),
 
   /* Number of basis monomials. */
   NP : length(bP),
@@ -389,28 +394,28 @@ calcFPOBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       )
     ),
 
-    writeCExprsCollect1(temp1, temp1_lower_c, clst),
-    writeCExprsCollect1(temp2, temp2_lower_c, clst),
-    writeCExprsCollect1(temp3, temp3_lower_c, clst),
-    writeCExprsCollect1(temp4, temp4_lower_c, clst),
-    writeCExprsCollect1(temp5, temp5_lower_c, clst),
-    writeCExprsCollect1(temp6, temp6_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp1, temp1_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp2, temp2_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp3, temp3_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp4, temp4_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp5, temp5_lower_c, clst),
+    factorAndWriteCExprsCollect1(temp6, temp6_lower_c, clst),
 
     temp1_lst : makelist(temp1[i], i, 0, NC-1),
     temp2_lst : makelist(temp2[i], i, 0, NC-1),
     temp3_lst : makelist(temp3[i], i, 0, NC-1),
 
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(ai_corr_lst[dir], -dS*f_bound_lower_c, clst),
+    factorAndWriteCIncrExprsCollect1(ai_corr_lst[dir], -dS*f_bound_lower_c, clst),
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[1], -dS*temp1_lower_c, clst), 
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[2], -dS*temp2_lower_c, clst), 
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[3], -dS*temp3_lower_c, clst), 
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[1], -dS*temp1_lower_c, clst), 
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[2], -dS*temp2_lower_c, clst), 
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[3], -dS*temp3_lower_c, clst), 
     printf(fh, " ~%"),
 
-    writeCIncrExprsCollect1(energy_corr, -dS*(vBoundary[dir-1]*f_bound_lower_c), clst),
+    factorAndWriteCIncrExprsCollect1(energy_corr, -dS*(vBoundary[dir-1]*f_bound_lower_c), clst),
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(energy_D_ij_corr, -dS*fviDij_sum_lst, clst),
+    factorAndWriteCIncrExprsCollect1(energy_D_ij_corr, -dS*fviDij_sum_lst, clst),
     printf(fh, " ~%"),
 
     printf(fh, "  } else if (edge == GKYL_~a_UPPER) {~%", supcase(string(vvarsAll[dir]))),
@@ -423,24 +428,24 @@ calcFPOBoundaryIntegral(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
       )
     ),
 
-    writeCExprsCollect1(temp1, temp1_upper_c, clst),
-    writeCExprsCollect1(temp2, temp2_upper_c, clst),
-    writeCExprsCollect1(temp3, temp3_upper_c, clst),
-    writeCExprsCollect1(temp4, temp4_upper_c, clst),
-    writeCExprsCollect1(temp5, temp5_upper_c, clst),
-    writeCExprsCollect1(temp6, temp6_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp1, temp1_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp2, temp2_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp3, temp3_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp4, temp4_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp5, temp5_upper_c, clst),
+    factorAndWriteCExprsCollect1(temp6, temp6_upper_c, clst),
 
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(ai_corr_lst[dir], dS*f_bound_upper_c, clst),
+    factorAndWriteCIncrExprsCollect1(ai_corr_lst[dir], dS*f_bound_upper_c, clst),
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[1], dS*temp1_upper_c, clst), 
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[2], dS*temp2_upper_c, clst), 
-    writeCIncrExprsCollect1(ai_D_ij_corr_lst[3], dS*temp3_upper_c, clst), 
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[1], dS*temp1_upper_c, clst),
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[2], dS*temp2_upper_c, clst),
+    factorAndWriteCIncrExprsCollect1(ai_D_ij_corr_lst[3], dS*temp3_upper_c, clst),
     printf(fh, " ~%"),
 
-    writeCIncrExprsCollect1(energy_corr, dS*(vBoundary[dir+vdim-1]*f_bound_upper_c), clst),
+    factorAndWriteCIncrExprsCollect1(energy_corr, dS*(vBoundary[dir+vdim-1]*f_bound_upper_c), clst),
     printf(fh, " ~%"),
-    writeCIncrExprsCollect1(energy_D_ij_corr, dS*fviDij_sum_lst, clst),
+    factorAndWriteCIncrExprsCollect1(energy_D_ij_corr, dS*fviDij_sum_lst, clst),
     printf(fh, " ~%"),
 
     printf(fh, "  }~%"),

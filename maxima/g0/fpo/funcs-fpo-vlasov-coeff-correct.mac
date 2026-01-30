@@ -2,7 +2,7 @@
   Set matrices for linear solve of equations to correct drag and diffusion coefficients
   for momentum and energy conservation in the FPO.
 */
-
+load("fpo/fpo-utils");
 load("modal-basis");
 load("out-scripts");
 load(stringproc);
@@ -22,12 +22,14 @@ setFpoConservationMatrices(fh, funcNm, cdim, basisFun, polyOrder) := block(
   bcorr_energy_e, bcorr_ai_D_ij_lst, acorr_e, acorr_c, block_offset, weak_mul_c, 
   weak_mul_mat, weak_mul_mat_flat, m1i_e],
 
-  if (polyOrder = 1) then (basisFun : "hyb"),
+  /* if (polyOrder = 1) then (basisFun : "hyb"), */
 
   /* FPO is always 3V */
   vdim : 3,
 
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /*  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder), */
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsP, bP] : loadBasis(basisFun, cdim+vdim, polyOrder),
 
   /* Number of basis monomials. */
   NP : length(bP),
@@ -198,12 +200,14 @@ accumulateFpoConservationCorrs(fh, funcNm, cdim, basisFun, polyOrder) := block(
   az_accum_out_c, D_accum_out_c, ax_surf_accum_out_c, ay_surf_accum_out_c, az_surf_accum_out_c,
   Dxx_surf_accum_out_c, Dyy_surf_accum_out_c, Dzz_surf_accum_out_c],
 
-  if (polyOrder = 1) then (basisFun : "hyb"),
+  /* if (polyOrder = 1) then (basisFun : "hyb"), */
 
   /* FPO is always 3V */
   vdim : 3,
 
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /*  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder), */
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsP, bP] : loadBasis(basisFun, cdim+vdim, polyOrder),
 
   surfVarsvx : delete(vx, varsP),
   surfVarsvy : delete(vy, varsP),
@@ -260,18 +264,18 @@ accumulateFpoConservationCorrs(fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   D_accum_out_c : calcInnerProdList(varsP, 1, bP, D_corr_e),
 
-  writeCIncrExprs1(ax, ax_accum_out_c),
+  factorAndWriteCIncrExprs1(ax, ax_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(ay, ay_accum_out_c),
+  factorAndWriteCIncrExprs1(ay, ay_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(az, az_accum_out_c),
+  factorAndWriteCIncrExprs1(az, az_accum_out_c),
   printf(fh, " ~%"),
   
-  writeCIncrExprs1(Dxx, D_accum_out_c),
+  factorAndWriteCIncrExprs1(Dxx, D_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(Dyy, D_accum_out_c),
+  factorAndWriteCIncrExprs1(Dyy, D_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(Dzz, D_accum_out_c),
+  factorAndWriteCIncrExprs1(Dzz, D_accum_out_c),
   printf(fh, " ~%"),
 
   /* Accumulate corrections onto surface expansions of drag and diffusion coefficients */
@@ -283,18 +287,18 @@ accumulateFpoConservationCorrs(fh, funcNm, cdim, basisFun, polyOrder) := block(
   Dyy_surf_accum_out_c : calcInnerProdList(surfVarsvy, 1, bSurfvy, D_corr_e),
   Dzz_surf_accum_out_c : calcInnerProdList(surfVarsvz, 1, bSurfvz, D_corr_e),
 
-  writeCIncrExprs1(ax_surf, ax_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(ax_surf, ax_surf_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(ay_surf, ay_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(ay_surf, ay_surf_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(az_surf, az_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(az_surf, az_surf_accum_out_c),
   printf(fh, " ~%"),
 
-  writeCIncrExprs1(Dxx_surf, Dxx_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(Dxx_surf, Dxx_surf_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(Dyy_surf, Dyy_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(Dyy_surf, Dyy_surf_accum_out_c),
   printf(fh, " ~%"),
-  writeCIncrExprs1(Dzz_surf, Dzz_surf_accum_out_c),
+  factorAndWriteCIncrExprs1(Dzz_surf, Dzz_surf_accum_out_c),
 
   printf(fh, "} ~%"),
   printf(fh, "~%"),

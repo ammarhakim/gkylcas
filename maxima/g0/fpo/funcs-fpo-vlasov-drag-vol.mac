@@ -3,7 +3,7 @@
   drag contribution for the Rosenbluth/Fokker-Planck Operator
 
 */
-
+load("fpo/fpo-utils")$
 load("modal-basis")$
 load("out-scripts")$
 
@@ -15,13 +15,15 @@ generateFpoVlasovDragVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
   [vdim, NC, fh, f_e, a_vx_e, a_vy_e, a_vz_e, a_comps, dv1_comps, a_e, dv1, dir,
     kernel, zr, polyFact, facDrag_mid, facDrag_e],
 
-  if (polyOrder = 1) then ( basisFun : "hyb" ),
+  /* if (polyOrder = 1) then ( basisFun : "hyb" ), */
 
   /* FPO is always 3V */
   vdim : 3,
 
   /* Load basis of dimensionality requested. */
-  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder),
+  /*  [varsC,bC,varsP,bP] : loadPhaseBasis(basisFun, cdim, vdim, polyOrder), */
+  [varsC, bC] : loadBasis(basisFun, cdim, polyOrder),
+  [varsP, bP] : loadBasis(basisFun, cdim+vdim, polyOrder),
   NC : length(bP),
 
   disp(printf(false, "creating ~a", fname)),
@@ -73,7 +75,7 @@ generateFpoVlasovDragVol(fname, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  // ~a contribution ~%", dir),
 
     /* Write out increment for direction */
-    writeCIncrExprsCollect1(out, kernel, [dv1]),
+    factorAndWriteCIncrExprsCollect1(out, kernel, [dv1]),
     printf(fh, "~%") 
   ),
 
