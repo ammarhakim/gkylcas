@@ -1,20 +1,31 @@
 #!/bin/bash
 
-maxima -r 'load("ms-fpo-vlasov-header.mac");quit();'
+# Drag Coeff and Sign
+maxima -b ms-fpo-drag-coeff.mac
 
-maxima -r 'load("ms-fpo-drag-coeff.mac");quit();'
-maxima -r 'load("ms-fpo-diff-coeff.mac");quit();'
-maxima -r 'load("ms-fpo-diff-coeff-surf.mac");quit();'
+# Diffusion tensor
+maxima -b ms-fpo-diff-coeff.mac
 
-maxima -r 'load("ms-fpo-vlasov-coeff-correct.mac");quit();'
+# Diff coeff surf
+maxima -b ms-fpo-diff-coeff-surf.mac
 
-maxima -r 'load("ms-fpo-vlasov-drag-vol.mac");quit();'
-maxima -r 'load("ms-fpo-vlasov-drag-surf.mac");quit();'
-maxima -r 'load("ms-fpo-vlasov-drag-boundary-surf.mac");quit();'
+# Conservation Moments
+maxima -b ms-moments-vlasov-fpo.mac
 
-maxima -r 'load("ms-fpo-vlasov-diff-vol.mac");quit();'
-maxima -r 'load("ms-fpo-vlasov-diff-surf.mac");quit();'
-maxima -r 'load("ms-fpo-vlasov-diff-boundary-surf.mac");quit();'
+# Conservation corrections
+maxima -b ms-fpo-vlasov-coeff-correct.mac
 
-maxima -r 'load("ms-moments-vlasov-fpo.mac");quit();'
-maxima -r 'load("ms-moments-vlasov-fpo-header.mac");quit();'
+# Drag terms
+maxima -b ms-fpo-vlasov-drag-vol.mac
+maxima -b ms-fpo-vlasov-drag-surf.mac
+maxima -b ms-fpo-vlasov-drag-boundary-surf.mac
+
+# Diffusion terms
+maxima -b ms-fpo-vlasov-diff-vol.mac
+maxima -b ms-fpo-vlasov-diff-surf.mac
+maxima -b ms-fpo-vlasov-diff-boundar-surf.mac
+
+# Headers
+maxima -b ms-fpo-vlasov-header.mac
+maxima -b ms-moments-vlasov-fpo-header.mac
+
