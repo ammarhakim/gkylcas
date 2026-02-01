@@ -258,12 +258,12 @@
                        `(cond
                           [(> y 0.8)
                            (cond
-                             [(< x 0.8) 1.1371]
+                             [(< x 0.8) 1.137098]
                              [else 3.75])]
                           [else
                            (cond
                              [(< x 0.8) 0.273212]
-                             [else 1.1371])])))
+                             [else 1.137098])])))
 
 ;; Define (shallow) neural network hyperparameters for 2D.
 (define neural-net-shallow-2d
@@ -291,3 +291,22 @@
   #:exists 'replace
   (lambda ()
     (display code-euler-lax-train-2d)))
+
+;; Synthesize the code to validate any first-order surrogate solver for the 2D Euler equations using a shallow neural network.
+(define code-euler-validate-2d
+  (validate-vector4-2d pde-system-euler-2d neural-net-shallow-2d
+                       #:nx nx-2d
+                       #:ny ny-2d
+                       #:x0 x0-2d
+                       #:x1 x1-2d
+                       #:y0 y0-2d
+                       #:y1 y1-2d
+                       #:t-final t-final-2d
+                       #:cfl cfl-2d
+                       #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_validate_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-validate-2d)))
