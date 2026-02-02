@@ -242,6 +242,76 @@ int main() {
       dt = t_final - t;
     }
 
+    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction by half a time-step.
+    for (int i = 1; i <= nx; i++) {
+      for (int j = 1; j <= ny; j++) {
+        for (int k = 0; k < 3; k++) {
+          um_y[k] = u[i][((j - 1) * 3) + k];
+          ui_y[k] = u[i][(j * 3) + k];
+          up_y[k] = u[i][((j + 1) * 3) + k];
+        }
+
+        // Evaluate flux vector for each value of the conserved variable vector.
+        f_um_y[0] = ~a;
+        f_um_y[1] = ~a;
+        f_um_y[2] = ~a; // F(U_{j - 1}).
+      
+        f_ui_y[0] = ~a;
+        f_ui_y[1] = ~a;
+        f_ui_y[2] = ~a; // F(U_j).
+      
+        f_up_y[0] = ~a;
+        f_up_y[1] = ~a;
+        f_up_y[2] = ~a; // F(U_{j + 1}).
+
+        // Left interface flux: F_{j - 1/2} = 0.5 * (F(U_{j - 1}) + F(U_j)) - 0.5 * alpha_y * (U_j - U_{j - 1}).
+        for (int k = 0; k < 3; k++) {
+          fluxL_y[k] = 0.5 * (f_um_y[k] + f_ui_y[k]) - 0.5 * alpha_y * (ui_y[k] - um_y[k]);
+        }
+
+        // Right interface flux: F_{j + 1/2} = 0.5 * (F(U_{j + 1}) + F(U_j)) - 0.5 * alpha_y * (U_{j + 1} - U_j).
+        for (int k = 0; k < 3; k++) {
+          fluxR_y[k] = 0.5 * (f_ui_y[k] + f_up_y[k]) - 0.5 * alpha_y * (up_y[k] - ui_y[k]);
+        }
+
+        // Update the conserved variable vector.
+        for (int k = 0; k < 3; k++) {
+          un[i][(j * 3) + k] = ui_y[k] - (dt / (2.0 * dy)) * (fluxR_y[k] - fluxL_y[k]);
+        }
+      }
+    }
+
+    // Copy un -> u (updated conserved variable vector to new conserved variable vector).
+    for (int i = 0; i <= nx + 1; i++) {
+      for (int j = 0; j <= ny + 1; j++) {
+        for (int k = 0; k < 3; k++) {
+          u[i][(j * 3) + k] = un[i][(j * 3) + k];
+        }
+      }
+    }
+
+    // Apply simple boundary conditions in the x-direction (transmissive).
+    for (int j = 0; j <= ny + 1; j++) {
+      for (int k = 0; k < 3; k++) {
+        u[0][(j * 3) + k] = u[1][(j * 3) + k];
+        u[nx + 1][(j * 3) + k] = u[nx][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[1][(j * 3) + k];
+        un[nx + 1][(j * 3) + k] = un[nx][(j * 3) + k];
+      }
+    }
+
+    // Apply simple boundary conditions in the y-direction (transmissive).
+    for (int i = 0; i <= nx + 1; i++) {
+      for (int k = 0; k < 3; k++) {
+        u[i][(0 * 3) + k] = u[i][(1 * 3) + k];
+        u[i][((ny + 1) * 3) + k] = u[i][(ny * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(1 * 3) + k];
+        un[i][((ny + 1) * 3) + k] = un[i][(ny * 3) + k];
+      }
+    }
+
     // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the x-direction.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
@@ -295,10 +365,24 @@ int main() {
       for (int k = 0; k < 3; k++) {
         u[0][(j * 3) + k] = u[1][(j * 3) + k];
         u[nx + 1][(j * 3) + k] = u[nx][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[1][(j * 3) + k];
+        un[nx + 1][(j * 3) + k] = un[nx][(j * 3) + k];
       }
     }
 
-    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction.
+    // Apply simple boundary conditions in the y-direction (transmissive).
+    for (int i = 0; i <= nx + 1; i++) {
+      for (int k = 0; k < 3; k++) {
+        u[i][(0 * 3) + k] = u[i][(1 * 3) + k];
+        u[i][((ny + 1) * 3) + k] = u[i][(ny * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(1 * 3) + k];
+        un[i][((ny + 1) * 3) + k] = un[i][(ny * 3) + k];
+      }
+    }
+
+    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction by half a time-step.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
         for (int k = 0; k < 3; k++) {
@@ -332,7 +416,7 @@ int main() {
 
         // Update the conserved variable vector.
         for (int k = 0; k < 3; k++) {
-          un[i][(j * 3) + k] = ui_y[k] - (dt / dy) * (fluxR_y[k] - fluxL_y[k]);
+          un[i][(j * 3) + k] = ui_y[k] - (dt / (2.0 * dy)) * (fluxR_y[k] - fluxL_y[k]);
         }
       }
     }
@@ -346,11 +430,25 @@ int main() {
       }
     }
 
+    // Apply simple boundary conditions in the x-direction (transmissive).
+    for (int j = 0; j <= ny + 1; j++) {
+      for (int k = 0; k < 3; k++) {
+        u[0][(j * 3) + k] = u[1][(j * 3) + k];
+        u[nx + 1][(j * 3) + k] = u[nx][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[1][(j * 3) + k];
+        un[nx + 1][(j * 3) + k] = un[nx][(j * 3) + k];
+      }
+    }
+
     // Apply simple boundary conditions in the y-direction (transmissive).
     for (int i = 0; i <= nx + 1; i++) {
       for (int k = 0; k < 3; k++) {
         u[i][(0 * 3) + k] = u[i][(1 * 3) + k];
         u[i][((ny + 1) * 3) + k] = u[i][(ny * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(1 * 3) + k];
+        un[i][((ny + 1) * 3) + k] = un[i][(ny * 3) + k];
       }
     }
 
@@ -506,6 +604,16 @@ int main() {
            (list-ref max-speed-locals-y 0)
            (list-ref max-speed-locals-y 1)
            (list-ref max-speed-locals-y 2)
+           ;; Left, middle, right flux vectors in y-direction F(u_{j - 1}), F(u_j), F(u_{j + 1}).
+           (list-ref flux-ums-y 0)
+           (list-ref flux-ums-y 1)
+           (list-ref flux-ums-y 2)
+           (list-ref flux-uis-y 0)
+           (list-ref flux-uis-y 1)
+           (list-ref flux-uis-y 2)
+           (list-ref flux-ups-y 0)
+           (list-ref flux-ups-y 1)
+           (list-ref flux-ups-y 2)
            ;; Left, middle, right flux vectors in x-direction F(u_{i - 1}), F(u_i), F(u_{i + 1}).
            (list-ref flux-ums-x 0)
            (list-ref flux-ums-x 1)
@@ -871,15 +979,139 @@ int main() {
     for (int i = 1; i <= nx + 2; i++) {
       for (int j = 1; j <= ny + 2; j++) {
         for (int k = 0; k < 3; k++) {
+          double r = (u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) / (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k]);
+          double limiter = ~a; // limiter-r in C.
+
+          slope_y[i][(j * 3) + k] = limiter * (0.5 * ((u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) + (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k])));
+        }
+      }
+    }
+
+    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction by half a time-step.
+    for (int i = 2; i <= nx + 1; i++) {
+      for (int j = 2; j <= ny + 1; j++) {
+        // Extrapolate boundary states.
+        for (int k = 0; k < 3; k++) {
+          umL_y[k] = u[i][((j - 1) * 3) + k] - (0.5 * slope_y[i][((j - 1) * 3) + k]);
+          umR_y[k] = u[i][((j - 1) * 3) + k] + (0.5 * slope_y[i][((j - 1) * 3) + k]);
+
+          uiL_y[k] = u[i][(j * 3) + k] - (0.5 * slope_y[i][(j * 3) + k]);
+          uiR_y[k] = u[i][(j * 3) + k] + (0.5 * slope_y[i][(j * 3) + k]);
+
+          upL_y[k] = u[i][((j + 1) * 3) + k] - (0.5 * slope_y[i][((j + 1) * 3) + k]);
+          upR_y[k] = u[i][((j + 1) * 3) + k] + (0.5 * slope_y[i][((j + 1) * 3) + k]);
+        }
+
+        // Evaluate flux vector for each extrapolated boundary state.
+        f_umL_y[0] = ~a;
+        f_umL_y[1] = ~a;
+        f_umL_y[2] = ~a;
+        f_umR_y[0] = ~a;
+        f_umR_y[1] = ~a;
+        f_umR_y[2] = ~a;
+
+        f_uiL_y[0] = ~a;
+        f_uiL_y[1] = ~a;
+        f_uiL_y[2] = ~a;
+        f_uiR_y[0] = ~a;
+        f_uiR_y[1] = ~a;
+        f_uiR_y[2] = ~a;
+
+        f_upL_y[0] = ~a;
+        f_upL_y[1] = ~a;
+        f_upL_y[2] = ~a;
+        f_upR_y[0] = ~a;
+        f_upR_y[1] = ~a;
+        f_upR_y[2] = ~a;
+
+        // Evolve each extrapolated boundary state.
+        for (int k = 0; k < 3; k++) {
+          umR_evol_y[k] = umR_y[k] + ((dt / (4.0 * dy)) * (f_umL_y[k] - f_umR_y[k]));
+
+          uiL_evol_y[k] = uiL_y[k] + ((dt / (4.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
+          uiR_evol_y[k] = uiR_y[k] + ((dt / (4.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
+
+          upL_evol_y[k] = upL_y[k] + ((dt / (4.0 * dy)) * (f_upL_y[k] - f_upR_y[k]));
+        }
+
+        // Evaluate flux vector for each value of the (evolved) conserved variable vector.
+        f_umR_evol_y[0] = ~a;
+        f_umR_evol_y[1] = ~a;
+        f_umR_evol_y[2] = ~a; // F(U_{j - 1, R+})
+        f_uiL_evol_y[0] = ~a;
+        f_uiL_evol_y[1] = ~a;
+        f_uiL_evol_y[2] = ~a; // F(U_{j, L+})
+      
+        f_uiR_evol_y[0] = ~a;
+        f_uiR_evol_y[1] = ~a;
+        f_uiR_evol_y[2] = ~a; // F(U_{j, R+})
+        f_upL_evol_y[0] = ~a;
+        f_upL_evol_y[1] = ~a;
+        f_upL_evol_y[2] = ~a; // F(U_{j + 1, L+})
+
+        // Left interface flux: F_{j - 1/2} = 0.5 * (F(U_{j - 1, R+}) + F(U_{j, L+})) - 0.5 * alpha_y * (U_{j, L+} - U_{j - 1, R+}).
+        for (int k = 0; k < 3; k++) {
+          fluxL_y[k] = 0.5 * (f_umR_evol_y[k] + f_uiL_evol_y[k]) - 0.5 * alpha_y * (uiL_evol_y[k] - umR_evol_y[k]);
+        }
+
+        // Right interface flux: F_{j + 1/2} = 0.5 * (F(U_{j + 1, L+}) + F(U_{j, R+})) - 0.5 * alpha_y * (U_{j + 1, L+} - U_{j, R+}).
+        for (int k = 0; k < 3; k++) {
+          fluxR_y[k] = 0.5 * (f_uiR_evol_y[k] + f_upL_evol_y[k]) - 0.5 * alpha_y * (upL_evol_y[k] - uiR_evol_y[k]);
+        }
+
+        // Update the conserved variable vector.
+        for (int k = 0; k < 3; k++) {
+          un[i][(j * 3) + k] = u[i][(j * 3) + k] - (dt / (2.0 * dy)) * (fluxR_y[k] - fluxL_y[k]);
+        }
+      }
+    }
+
+    // Copy un -> u (updated conserved variable vector to new conserved variable vector).
+    for (int i = 0; i <= nx + 3; i++) {
+      for (int j = 0; j <= ny + 3; j++) {
+        for (int k = 0; k < 3; k++) {
+          u[i][(j * 3) + k] = un[i][(j * 3) + k];
+        }
+      }
+    }
+
+    // Apply simple boundary conditions in the x-direction (transmissive).
+    for (int j = 0; j <= ny + 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        u[0][(j * 3) + k] = u[2][(j * 3) + k];
+        u[1][(j * 3) + k] = u[2][(j * 3) + k];
+        u[nx + 2][(j * 3) + k] = u[nx + 1][(j * 3) + k];
+        u[nx + 3][(j * 3) + k] = u[nx + 1][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[2][(j * 3) + k];
+        un[1][(j * 3) + k] = un[2][(j * 3) + k];
+        un[nx + 2][(j * 3) + k] = un[nx + 1][(j * 3) + k];
+        un[nx + 3][(j * 3) + k] = un[nx + 1][(j * 3) + k];
+      }
+    }
+
+    // Apply simple boundary conditions in the y-direction (transmissive).
+    for (int i = 0; i <= nx + 3; i++) {
+      for (int k = 0; k < 3; k++) {
+        u[i][(0 * 3) + k] = u[i][(2 * 3) + k];
+        u[i][(1 * 3) + k] = u[i][(2 * 3) + k];
+        u[i][((ny + 2) * 3) + k] = u[i][((ny + 1) * 3) + k];
+        u[i][((ny + 3) * 3) + k] = u[i][((ny + 1) * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][(1 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][((ny + 2) * 3) + k] = un[i][((ny + 1) * 3) + k];
+        un[i][((ny + 3) * 3) + k] = un[i][((ny + 1) * 3) + k];
+      }
+    }
+
+    for (int i = 1; i <= nx + 2; i++) {
+      for (int j = 1; j <= ny + 2; j++) {
+        for (int k = 0; k < 3; k++) {
           double r = (u[i][(j * 3) + k] - u[i - 1][(j * 3) + k]) / (u[i + 1][(j * 3) + k] - u[i][(j * 3) + k]);
           double limiter = ~a; // limiter-r in C.
 
           slope_x[i][(j * 3) + k] = limiter * (0.5 * ((u[i][(j * 3) + k] - u[i - 1][(j * 3) + k]) + (u[i + 1][(j * 3) + k] - u[i][(j * 3) + k])));
-
-          r = (u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) / (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k]);
-          limiter = ~a; // limiter-r in C.
-
-          slope_y[i][(j * 3) + k] = limiter * (0.5 * ((u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) + (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k])));
         }
       }
     }
@@ -979,10 +1211,42 @@ int main() {
         u[1][(j * 3) + k] = u[2][(j * 3) + k];
         u[nx + 2][(j * 3) + k] = u[nx + 1][(j * 3) + k];
         u[nx + 3][(j * 3) + k] = u[nx + 1][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[2][(j * 3) + k];
+        un[1][(j * 3) + k] = un[2][(j * 3) + k];
+        un[nx + 2][(j * 3) + k] = un[nx + 1][(j * 3) + k];
+        un[nx + 3][(j * 3) + k] = un[nx + 1][(j * 3) + k];
       }
     }
 
-    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction.
+    // Apply simple boundary conditions in the y-direction (transmissive).
+    for (int i = 0; i <= nx + 3; i++) {
+      for (int k = 0; k < 3; k++) {
+        u[i][(0 * 3) + k] = u[i][(2 * 3) + k];
+        u[i][(1 * 3) + k] = u[i][(2 * 3) + k];
+        u[i][((ny + 2) * 3) + k] = u[i][((ny + 1) * 3) + k];
+        u[i][((ny + 3) * 3) + k] = u[i][((ny + 1) * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][(1 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][((ny + 2) * 3) + k] = un[i][((ny + 1) * 3) + k];
+        un[i][((ny + 3) * 3) + k] = un[i][((ny + 1) * 3) + k];
+      }
+    }
+
+    // Compute appropriately flux-limited slopes within each cell.
+    for (int i = 1; i <= nx + 2; i++) {
+      for (int j = 1; j <= ny + 2; j++) {
+        for (int k = 0; k < 3; k++) {
+          double r = (u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) / (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k]);
+          double limiter = ~a; // limiter-r in C.
+
+          slope_y[i][(j * 3) + k] = limiter * (0.5 * ((u[i][(j * 3) + k] - u[i][((j - 1) * 3) + k]) + (u[i][((j + 1) * 3) + k] - u[i][(j * 3) + k])));
+        }
+      }
+    }
+
+    // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector in the y-direction by half a time-step.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j <= ny + 1; j++) {
         // Extrapolate boundary states.
@@ -1021,12 +1285,12 @@ int main() {
 
         // Evolve each extrapolated boundary state.
         for (int k = 0; k < 3; k++) {
-          umR_evol_y[k] = umR_y[k] + ((dt / (2.0 * dy)) * (f_umL_y[k] - f_umR_y[k]));
+          umR_evol_y[k] = umR_y[k] + ((dt / (4.0 * dy)) * (f_umL_y[k] - f_umR_y[k]));
 
-          uiL_evol_y[k] = uiL_y[k] + ((dt / (2.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
-          uiR_evol_y[k] = uiR_y[k] + ((dt / (2.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
+          uiL_evol_y[k] = uiL_y[k] + ((dt / (4.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
+          uiR_evol_y[k] = uiR_y[k] + ((dt / (4.0 * dy)) * (f_uiL_y[k] - f_uiR_y[k]));
 
-          upL_evol_y[k] = upL_y[k] + ((dt / (2.0 * dy)) * (f_upL_y[k] - f_upR_y[k]));
+          upL_evol_y[k] = upL_y[k] + ((dt / (4.0 * dy)) * (f_upL_y[k] - f_upR_y[k]));
         }
 
         // Evaluate flux vector for each value of the (evolved) conserved variable vector.
@@ -1056,7 +1320,7 @@ int main() {
 
         // Update the conserved variable vector.
         for (int k = 0; k < 3; k++) {
-          un[i][(j * 3) + k] = u[i][(j * 3) + k] - (dt / dy) * (fluxR_y[k] - fluxL_y[k]);
+          un[i][(j * 3) + k] = u[i][(j * 3) + k] - (dt / (2.0 * dy)) * (fluxR_y[k] - fluxL_y[k]);
         }
       }
     }
@@ -1070,6 +1334,21 @@ int main() {
       }
     }
 
+    // Apply simple boundary conditions in the x-direction (transmissive).
+    for (int j = 0; j <= ny + 3; j++) {
+      for (int k = 0; k < 3; k++) {
+        u[0][(j * 3) + k] = u[2][(j * 3) + k];
+        u[1][(j * 3) + k] = u[2][(j * 3) + k];
+        u[nx + 2][(j * 3) + k] = u[nx + 1][(j * 3) + k];
+        u[nx + 3][(j * 3) + k] = u[nx + 1][(j * 3) + k];
+
+        un[0][(j * 3) + k] = un[2][(j * 3) + k];
+        un[1][(j * 3) + k] = un[2][(j * 3) + k];
+        un[nx + 2][(j * 3) + k] = un[nx + 1][(j * 3) + k];
+        un[nx + 3][(j * 3) + k] = un[nx + 1][(j * 3) + k];
+      }
+    }
+
     // Apply simple boundary conditions in the y-direction (transmissive).
     for (int i = 0; i <= nx + 3; i++) {
       for (int k = 0; k < 3; k++) {
@@ -1077,6 +1356,11 @@ int main() {
         u[i][(1 * 3) + k] = u[i][(2 * 3) + k];
         u[i][((ny + 2) * 3) + k] = u[i][((ny + 1) * 3) + k];
         u[i][((ny + 3) * 3) + k] = u[i][((ny + 1) * 3) + k];
+
+        un[i][(0 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][(1 * 3) + k] = un[i][(2 * 3) + k];
+        un[i][((ny + 2) * 3) + k] = un[i][((ny + 1) * 3) + k];
+        un[i][((ny + 3) * 3) + k] = un[i][((ny + 1) * 3) + k];
       }
     }
 
@@ -1272,6 +1556,42 @@ int main() {
            (list-ref max-speed-locals-y 2)
            ;; Expression for flux limiter function.
            limiter-r
+           ;; Left/right negative flux vectors in y-direction F(U_{j - 1, L}), F(U_{j - 1, R}).
+           (list-ref flux-umLs-y 0)
+           (list-ref flux-umLs-y 1)
+           (list-ref flux-umLs-y 2)
+           (list-ref flux-umRs-y 0)
+           (list-ref flux-umRs-y 1)
+           (list-ref flux-umRs-y 2)
+           ;; Left/right central flux vectors in y-direction F(U_{j, L}), F(U_{j, R}).
+           (list-ref flux-uiLs-y 0)
+           (list-ref flux-uiLs-y 1)
+           (list-ref flux-uiLs-y 2)
+           (list-ref flux-uiRs-y 0)
+           (list-ref flux-uiRs-y 1)
+           (list-ref flux-uiRs-y 2)
+           ;; Left/right positive flux vectors in y-direction F(U_{j + 1, L}), F(U_{j + 1, R}).
+           (list-ref flux-upLs-y 0)
+           (list-ref flux-upLs-y 1)
+           (list-ref flux-upLs-y 2)
+           (list-ref flux-upRs-y 0)
+           (list-ref flux-upRs-y 1)
+           (list-ref flux-upRs-y 2)
+           ;; Evolved right negative/left central flux vectors in y-direction F(U_{j - 1, R+}), F(U_{j, L+}).
+           (list-ref flux-umR-evols-y 0)
+           (list-ref flux-umR-evols-y 1)
+           (list-ref flux-umR-evols-y 2)
+           (list-ref flux-uiL-evols-y 0)
+           (list-ref flux-uiL-evols-y 1)
+           (list-ref flux-uiL-evols-y 2)
+           ;; Evolved right central/left positive flux vectors in y-direction F(U_{j, R+}), F(U_{j + 1, L+}).
+           (list-ref flux-uiR-evols-y 0)
+           (list-ref flux-uiR-evols-y 1)
+           (list-ref flux-uiR-evols-y 2)
+           (list-ref flux-upL-evols-y 0)
+           (list-ref flux-upL-evols-y 1)
+           (list-ref flux-upL-evols-y 2)
+           ;; Expression for flux limiter function.
            limiter-r
            ;; Left/right negative flux vectors in x-direction F(U_{i - 1, L}), F(U_{i - 1, R}).
            (list-ref flux-umLs-x 0)
@@ -1308,6 +1628,8 @@ int main() {
            (list-ref flux-upL-evols-x 0)
            (list-ref flux-upL-evols-x 1)
            (list-ref flux-upL-evols-x 2)
+           ;; Expression for flux limiter function.
+           limiter-r
            ;; Left/right negative flux vectors in y-direction F(U_{j - 1, L}), F(U_{j - 1, R}).
            (list-ref flux-umLs-y 0)
            (list-ref flux-umLs-y 1)
