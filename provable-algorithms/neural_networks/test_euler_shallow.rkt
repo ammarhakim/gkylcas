@@ -292,6 +292,26 @@
   (lambda ()
     (display code-euler-lax-train-2d)))
 
+;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D Euler equations (with a second-order flux extrapolation using the minmod flux limiter)
+;; using a shallow neural network.
+(define code-euler-lax-minmod-train-2d
+  (train-lax-friedrichs-vector4-2d-second-order pde-system-euler-2d limiter-minmod neural-net-shallow-2d
+                                                #:nx nx-2d
+                                                #:ny ny-2d
+                                                #:x0 x0-2d
+                                                #:x1 x1-2d
+                                                #:y0 y0-2d
+                                                #:y1 y1-2d
+                                                #:t-final t-final-2d
+                                                #:cfl cfl-2d
+                                                #:init-funcs init-funcs-2d))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_lax_minmod_train_2d.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-lax-minmod-train-2d)))
+
 ;; Synthesize the code to validate any first-order surrogate solver for the 2D Euler equations using a shallow neural network.
 (define code-euler-validate-2d
   (validate-vector4-2d pde-system-euler-2d neural-net-shallow-2d
