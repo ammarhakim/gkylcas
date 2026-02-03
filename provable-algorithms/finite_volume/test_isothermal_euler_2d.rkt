@@ -49,7 +49,7 @@
 (define y0-2d 0.0)
 (define y1-2d 2.0)
 (define t-final-2d 0.2)
-(define cfl-2d 0.95)
+(define cfl-2d 0.9)
 (define init-funcs-2d (list
                        `(cond
                           [(> y 1.0)
