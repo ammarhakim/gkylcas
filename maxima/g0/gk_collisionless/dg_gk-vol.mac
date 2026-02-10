@@ -491,7 +491,7 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
 addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
   [pDim,varsC,bC,varsP,bP,varsV,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,BstardBmag_e,
-   hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
+   hamil_e,pbAuxFlds,alphaSum_e,vd,vpardir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
    dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, dH_dz_e, 
    alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,hamil2_c,isqlist,mvpar_e,mvparsq_e,
    vmapSq_e,vmap_prime_e,apardot_e,clst],
@@ -528,18 +528,10 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   apardot_e : doExpand1(apardot,bC),
 
   /* Note: only a vpar contribution. */
-  dir : cdim+1,
-  dirLabel : varLabel[dir],
+  vpardir : cdim+1,
+  dirLabel : varLabel[vpardir],
 
-  alpha_e : -q_/m_ * apardot_e,
-
-  vpardim : pDim-1,
-  if dir < vpardim then (
-    alpha_e : alpha_e*rdx2vec[dir]
-  )
-  else if dir = vpardim then (
-    alpha_e : alpha_e/vmap_prime_e[1]
-  ),
+  alpha_e : -q_/m_ * apardot_e /vmap_prime_e[1],
 
   /* Project alpha on basis and write to array. */
   printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
@@ -556,7 +548,7 @@ addApardotGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no
   alphaJf_e : alpha_e*Jf_e,
 
   printf(fh, "~%"),
-  volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,varsP[dir]), alphaJf_e)),
+  volTerm_c : fullratsimp(calcInnerProdList(varsP, 1, diff(bP,varsP[vpardir]), alphaJf_e)),
   writeCIncrExprsNoExpand(gcfac(float(expand(volTerm_c)))),
   flush_output(fh),
   printf(fh, "~%"),

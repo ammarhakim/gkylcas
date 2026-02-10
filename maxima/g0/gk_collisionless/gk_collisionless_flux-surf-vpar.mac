@@ -412,18 +412,19 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "  double B3_quad = 0.0; ~%"),
   printf(fh, "  double Jc_quad = 0.0; ~%"),
   printf(fh, "  double dualcurlbhat_quad[3] = {0.0}; ~%"),
-  printf(fh, "  double m_bmag_inv = 0.0; ~%"),
-  printf(fh, "  double mvpar_over_q = 0.0; ~%"),
-
   printf(fh, "  double alpha_quad = 0.0; ~%"),
   printf(fh, "  double JfL_quad = 0.0; ~%"),
   printf(fh, "  double JfR_quad = 0.0; ~%"),
   printf(fh, "  double Jfavg_quad = 0.0; ~%"),
   printf(fh, "  double Jfjump_quad = 0.0; ~%"),
-  printf(fh, "  double  g_13 = 0.0; ~%"),
-  printf(fh, "  double  g_23 = 0.0; ~%"),
-  printf(fh, "  double  g_33 = 0.0; ~%"),
-  printf(fh, "  double  mag_e_3 = 0.0; ~%"),
+  if em = true then (
+    printf(fh, "  double m_bmag_inv = 0.0; ~%"),
+    printf(fh, "  double mvpar_over_q = 0.0; ~%"),
+    printf(fh, "  double  g_13 = 0.0; ~%"),
+    printf(fh, "  double  g_23 = 0.0; ~%"),
+    printf(fh, "  double  g_33 = 0.0; ~%"),
+    printf(fh, "  double  mag_e_3 = 0.0; ~%")
+  ),
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
@@ -436,22 +437,23 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i0index), 
     printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i0index), 
 
-
-    printf(fh, "  m_bmag_inv = 1.0/(m_*bmag_quad); ~%"),
-    /* 
-      We develop the component grad(Apar) x b as
-        e^m . grad(Apar) x b = e^m x grad(Apar) . b = e^m x e^i dApar/dx^i . e_3/|e_3| 
-      which gives 
-        coeff * (g_33 dApar/dx2 - g_23 dApar/dx3) for m=1
-        coeff * (g_13 dApar/dx3 - g_33 dApar/dx1) for m=2
-        coeff * (g_23 dApar/dx1 - g_13 dApar/dx2) for m=3
-      with 
-        coeff = Jc/sqrt(g_33)
-    */
-    printf(fh, "  g_13 = gkdgv[~a].g_13; ~%", i-1),
-    printf(fh, "  g_23 = gkdgv[~a].g_23; ~%", i-1),
-    printf(fh, "  g_33 = gkdgv[~a].g_33; ~%", i-1),
-    printf(fh, "  mag_e_3 = gkdgv[~a].mag_e_3; ~%", i-1),
+    if em = true then (
+      printf(fh, "  m_bmag_inv = 1.0/(m_*bmag_quad); ~%"),
+      /* 
+        We develop the component grad(Apar) x b as
+          e^m . grad(Apar) x b = e^m x grad(Apar) . b = e^m x e^i dApar/dx^i . e_3/|e_3| 
+        which gives 
+          coeff * (g_33 dApar/dx2 - g_23 dApar/dx3) for m=1
+          coeff * (g_13 dApar/dx3 - g_33 dApar/dx1) for m=2
+          coeff * (g_23 dApar/dx1 - g_13 dApar/dx2) for m=3
+        with 
+          coeff = Jc/sqrt(g_33)
+      */
+      printf(fh, "  g_13 = gkdgv[~a].g_13; ~%", i-1),
+      printf(fh, "  g_23 = gkdgv[~a].g_23; ~%", i-1),
+      printf(fh, "  g_33 = gkdgv[~a].g_33; ~%", i-1),
+      printf(fh, "  mag_e_3 = gkdgv[~a].mag_e_3; ~%", i-1)
+    ),
 
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
@@ -504,7 +506,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
           printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
           printf(fh, ";~%"),
           if em = true then (
-            /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
+            /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             /* Apar * curl(b) */
             printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 2)
             /* grad(Apar) x b */
