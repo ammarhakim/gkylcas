@@ -157,7 +157,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     )
   ),
 
-  /* Now calculate apha at all quadrature nodes */
+  /* Now calculate alpha at all quadrature nodes */
   /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
   printf(fh, "  double *flux_surf_nodal = &flux_surf[~a]; ~%", NSurfIndexing*(surfDir-1)),
   printf(fh, "  double cfl = 0.0; ~%"),
