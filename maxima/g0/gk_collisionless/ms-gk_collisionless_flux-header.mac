@@ -2,6 +2,9 @@
 
 /* ...... USER INPUTS........ */
 
+/* Output directory for generated files. */
+outputDir : "~/max-out/"$
+
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
@@ -159,7 +162,7 @@ printf(fh,"GKYL_CU_DH double gk_collisionless_flux_surfvpar_return_zero(
     double* GKYL_RESTRICT flux_surf);~%")
 )$
 
-fh : openw("~/max-out/gkyl_gk_collisionless_flux_kernels.h")$
+fh : openw(sconcat(outputDir,"gkyl_gk_collisionless_flux_kernels.h"))$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <math.h>~%")$

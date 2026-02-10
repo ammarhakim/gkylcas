@@ -2,6 +2,9 @@
 
 /* ...... USER INPUTS........ */
 
+/* Output file path for the header file. */
+headerOutputPath : "~/max-out/gkyl_dg_gyrokinetic_kernels.h"$
+
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
@@ -110,7 +113,7 @@ printPrototypes() := block([],
   )
 )$
 
-fh : openw("/Users/ahoffman/gkeyll_dev/gkeyll/gyrokinetic/ker/dg_gyrokinetic/gkyl_dg_gyrokinetic_kernels.h")$
+fh : openw(headerOutputPath)$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <math.h>~%")$
