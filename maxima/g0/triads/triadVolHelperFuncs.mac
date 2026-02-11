@@ -135,7 +135,7 @@ calcHamilVolNonCanonicalHelper(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp
 /* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
-calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, vmap) := block(
   [varsC, bC, varsV, bV, varsP, bP, NP,
   cid, vid, pdim, NC, hamil,
   poissonTensorConf, pt_conf_comp_total,
@@ -153,7 +153,12 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap)
   printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int dir,
    const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  hamil : doExpand1(hamil, bV),
+  if (vel_hamil) then (
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    hamil : doExpand1(hamil, bP)    
+  ),
 
   /* Save enough distribution names for 3D */
   poissonTensorConf : [pt_conf_0, pt_conf_1, pt_conf_2, 

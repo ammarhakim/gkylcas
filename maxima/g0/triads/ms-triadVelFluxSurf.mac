@@ -11,11 +11,11 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 2$
-minVdim_Ser : 3$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -36,9 +36,11 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 useHigherOrderList : [false, true]$
+velHamil     : [true, false]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
+hamilLabels : ["vel", "phase"]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -54,14 +56,17 @@ for bInd : 1 thru length(bName) do (
           for hoInd : 1 thru length(useHigherOrderList) do (
             useHigherOrder : useHigherOrderList[hoInd],
             if useHigherOrder then si : "ho_" else si : "",
-            if not((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = true)) then (
-              if ((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = false)) then si : "",
-              /* Phase-space Hamiltonian surface component. Only generate with Serendipity basis for now. */
-              fname : sconcat("~/max-out/nc_hamil_",si,"alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-              fh : openw(fname),
-              funcName : sconcat("nc_hamil_",si,"alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-              calcHamilGenVelSurfForceNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder), 
-              close(fh)
+            for vhamilInd : 1 thru length(velHamil) do (
+              vel_hamil : velHamil[vhamilInd],
+              if not((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = true)) then (
+                if ((bName[bInd] = "ser")and (polyOrder = 1) and (useHigherOrder = false)) then si : "",
+                /* Phase-space Hamiltonian surface component. Only generate with Serendipity basis for now. */
+                fname : sconcat("~/max-out/nc_hamil_", hamilLabels[vhamilInd],"_",si,"alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                fh : openw(fname),
+                funcName : sconcat("nc_hamil_", hamilLabels[vhamilInd],"_",si,"alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                calcHamilGenVelSurfForceNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder, vel_hamil, useHigherOrder), 
+                close(fh)
+              )
             )
           )
         )

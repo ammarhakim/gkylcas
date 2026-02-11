@@ -38,7 +38,9 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
   printf(fh, "~avoid vlasov_hamil_vel_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
     const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
   if ((ci <= vi  and pi < 3) and not(pi = 2 and bStr = "tensor")) then (
-    printf(fh, "~avoid vlasov_nc_hamil_gen_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
+    printf(fh, "~avoid vlasov_nc_hamil_vel_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
+      const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi),
+    printf(fh, "~avoid vlasov_nc_hamil_phase_vol_~ax~av_~a_p~a(const double *w, const double *dxv, 
       const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
   ),
   if (bStr = "ser") then (
@@ -112,7 +114,9 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT conf_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~avoid hamil_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      printf(fh, "~avoid hamil_vel_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~avoid hamil_phase_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
       const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
     )
     else (
@@ -124,22 +128,32 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT conf_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~avoid hamil_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      printf(fh, "~avoid hamil_vel_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
       const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~avoid hamil_ho_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      printf(fh, "~avoid hamil_vel_ho_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~avoid hamil_phase_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
+      const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+      printf(fh, "~avoid hamil_phase_ho_alpha_quad_~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int hamil_pt_edge,
       const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
     )
   ),
   for si : 1 thru vi do (
     if ((ci <= vi  and pi < 3) and not(pi = 2 and bStr = "tensor")) then (
       if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
-        printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        printf(fh, "~avoid nc_hamil_vel_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+          const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~avoid nc_hamil_phase_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
           const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
       )
       else (
-        printf(fh, "~avoid nc_hamil_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        printf(fh, "~avoid nc_hamil_vel_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
         const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~avoid nc_hamil_ho_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        printf(fh, "~avoid nc_hamil_vel_ho_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~avoid nc_hamil_phase_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
+        const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi),
+        printf(fh, "~avoid nc_hamil_phase_ho_alpha_quad_v~a_~ax~av_~a_p~a(const double *w, const double *dxv, const double *poisson_tensor_conf, 
         const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
       )
     ),
