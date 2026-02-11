@@ -12,6 +12,7 @@
          symbolic-jacobian-order
          symbolic-jacobian
          symbolic-eigvals2
+         symbolic-eigvals3
          prove-vector2-1d-smooth
          prove-vector2-1d-non-smooth
          prove-vector3-2d-smooth
@@ -371,6 +372,30 @@
       ;; Otherwise, calculate the eigenvalues explicitly.
       [else (list `(* 0.5 (+ (- ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d))
                   `(* 0.5 (+ (+ ,a (sqrt (+ (* 4.0 ,b ,c) (* (- ,a ,d) (- ,a ,d))))) ,d)))])))
+
+;; Compute symbolic eigenvalues of a 3x3 symbolic matrix (in restricted cases) via explicit solution of the characteristic polynomial.
+(define (symbolic-eigvals3 matrix)
+  (let ([a (list-ref (list-ref matrix 0) 0)]
+        [b (list-ref (list-ref matrix 0) 1)]
+        [c (list-ref (list-ref matrix 0) 2)]
+        [d (list-ref (list-ref matrix 1) 0)]
+        [e (list-ref (list-ref matrix 1) 1)]
+        [f (list-ref (list-ref matrix 1) 2)]
+        [g (list-ref (list-ref matrix 2) 0)]
+        [h (list-ref (list-ref matrix 2) 1)]
+        [i (list-ref (list-ref matrix 2) 2)])
+    (cond
+      ;; Optimization to shorten certain proofs: if the matrix consists solely of zeroes, then just output a triple of zeroes.
+      [(and (equal? a 0.0) (equal? b 0.0) (equal? c 0.0) (equal? d 0.0) (equal? e 0.0) (equal? f 0.0) (equal? g 0.0) (equal? h 0.0) (equal? i 0.0)) (list 0.0 0.0 0.0)]
+
+      ;; If the matrix is in a restricted (tractable) form, calculate the eigenvalues explicitly.
+      [(and (equal? a 0.0) (equal? b 1.0) (equal? c 0.0) (equal? f 0.0))
+       (list `(* 0.5 (- ,e (sqrt (+ (* 4.0 ,d) (* ,e ,e))))) `(* 0.5 (+ ,e (sqrt (+ (* 4.0 ,d) (* ,e ,e))))) i)]
+      [(and (equal? a 0.0) (equal? b 0.0) (equal? c 1.0) (equal? h 0.0))
+       (list e `(* 0.5 (- ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))) `(* 0.5 (+ ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))))]
+
+      ;; Otherwise, return false(s).
+      [else (list #f #f #f)])))
 
 ;; -----------------------------------------------------------------------------------------------------------------
 ;; Prove Error Bounds on Smooth Solutions for an Arbitrary Surrogate Solver for a 1D Coupled Vector System of 2 PDEs
