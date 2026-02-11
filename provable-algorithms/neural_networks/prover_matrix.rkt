@@ -411,31 +411,31 @@
     ;; Check whether the neural network depth is at least equal to 2 + the order of each component of the Jacobian of the flux function: if so, return the bounds;
     ;; otherwise, return false.
     [else (list (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 0) 2))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 1) 2))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 2 ,(list-ref (list-ref flux-jacobian-order 2) 2))))))]))]))
 
   (untrace is-real)
@@ -513,31 +513,31 @@
     ;; Check whether the neural network depth is at least equal to 2 * the order of each component of the Jacobian of the flux function: if so, return the bounds;
     ;; otherwise, return false.
     [else (list (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 0) 2))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 1) 2))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 0)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 0)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 0))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 1)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 1)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 1))))))])
                 (cond
-                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 2)))) #f)) #f]
+                  [(not (equal? (symbolic-simp `(< ,depth (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 2)))) #f)) +inf.0]
                   [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 2 ,(list-ref (list-ref flux-jacobian-order 2) 2))))))]))]))
 
   (untrace is-real)

@@ -104,6 +104,8 @@
   (lambda ()
     (display code-euler-lax-minmod-train)))
 
+(display "1D compressible Euler properties: \n\n")
+
 ;; Attempt to prove error bounds on smooth solutions obtained from surrogate solvers for the 1D Euler equations.
 (define proof-euler-smooth
   (call-with-output-file "proofs/proof_euler_smooth.rkt"
@@ -122,8 +124,16 @@
 (remove-bracketed-expressions-from-file "proofs/proof_euler_smooth.rkt")
 
 ;; Show the error bounds (if applicable) on smooth solutions.
-(display "Error bounds (smooth solutions): ")
-(display proof-euler-smooth)
+(display "Error bound on rho (smooth solutions): ")
+(display (max (list-ref proof-euler-smooth 0) (list-ref proof-euler-smooth 1) (list-ref proof-euler-smooth 2)))
+(display "\n")
+
+(display "Error bound on mom_x (smooth solutions): ")
+(display (max (list-ref proof-euler-smooth 3) (list-ref proof-euler-smooth 4) (list-ref proof-euler-smooth 5)))
+(display "\n")
+
+(display "Error bound on energy (smooth solutions): ")
+(display (max (list-ref proof-euler-smooth 6) (list-ref proof-euler-smooth 7) (list-ref proof-euler-smooth 8)))
 (display "\n")
 
 ;; Attempt to prove error bounds on non-smooth solutions obtained from surrogate solvers for the 1D Euler equations.
@@ -144,9 +154,17 @@
 (remove-bracketed-expressions-from-file "proofs/proof_euler_non_smooth.rkt")
 
 ;; Show the error bounds (if applicable) on non-smooth solutions.
-(display "Error bounds (non-smooth solutions): ")
-(display proof-euler-non-smooth)
+(display "Error bound on rho (non-smooth solutions): ")
+(display (max (list-ref proof-euler-non-smooth 0) (list-ref proof-euler-non-smooth 1) (list-ref proof-euler-non-smooth 2)))
 (display "\n")
+
+(display "Error bound on mom_x (non-smooth solutions): ")
+(display (max (list-ref proof-euler-non-smooth 3) (list-ref proof-euler-non-smooth 4) (list-ref proof-euler-non-smooth 5)))
+(display "\n")
+
+(display "Error bound on energy (non-smooth solutions): ")
+(display (max (list-ref proof-euler-non-smooth 6) (list-ref proof-euler-non-smooth 7) (list-ref proof-euler-non-smooth 8)))
+(display "\n\n\n")
 
 ;; Synthesize the code to validate any first-order surrogate solver for the 1D Euler equations using a shallow neural network.
 (define code-euler-validate
