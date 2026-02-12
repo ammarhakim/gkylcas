@@ -39,7 +39,9 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 8             ; total number of layers: 8
+   'depth 6             ; total number of layers: 8
+   'num-threads 12      ; number of threads to use in training: 12
+   'mini-size 100       ; size of training mini-batch: 100
    ))
    
 
@@ -226,7 +228,9 @@
   (hash
    'max-trains 10000    ; maximum number of training steps: 10000
    'width 64            ; number of neurons in each layer: 64
-   'depth 10            ; total number of layers: 10
+   'depth 6            ; total number of layers: 6
+   'num-threads 12      ; number of threads to use in training: 12
+   'mini-size 100       ; size of training mini-batch: 100
    ))
 
 ;; Synthesize the code to train a Lax-Friedrichs surrogate solver for the 2D inviscid Burgers' equation using a shallow neural network.

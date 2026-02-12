@@ -144,6 +144,9 @@
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
 
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
+
   (define cons-code (convert-expr cons-expr))
   (define flux-code (convert-expr flux-expr))
   (define max-speed-code (convert-expr max-speed-expr))
@@ -189,6 +192,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Arrays for storing solution.
   double *u = (double*) malloc((nx + 2) * sizeof(double));
@@ -313,6 +319,7 @@ int main() {
   }
 
   // Train neural network.
+  kann_mt(ann, num_threads, mini_size);
   kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data, output_data);
 
   // Output neural network to disk.
@@ -359,6 +366,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
            init-func-code
@@ -416,6 +427,9 @@ int main() {
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
 
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
+
   (define cons-code (convert-expr cons-expr))
   (define flux-code (convert-expr flux-expr))
   (define max-speed-code (convert-expr max-speed-expr))
@@ -472,6 +486,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Array for storing slopes.
   double *slope = (double*) malloc((nx + 4) * sizeof(double));
@@ -635,6 +652,7 @@ int main() {
   }
 
   // Train neural network.
+  kann_mt(ann, num_threads, mini_size);
   kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data, output_data);
 
   // Output neural network to disk.
@@ -683,6 +701,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
            init-func-code
@@ -749,6 +771,9 @@ int main() {
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
 
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
+
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
 
   (define cons-code (convert-expr cons-expr))
@@ -801,6 +826,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Arrays for storing solution.
   double *u = (double*) malloc((nx + 2) * sizeof(double));
@@ -932,6 +960,7 @@ int main() {
   }
 
   // Train neural network.
+  kann_mt(ann, num_threads, mini_size);
   kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data, output_data);
 
   // Output neural network to disk.
@@ -978,6 +1007,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
            init-func-code
@@ -1040,6 +1073,9 @@ int main() {
   (define max-trains (hash-ref neural-net 'max-trains))
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
+
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
 
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
 
@@ -1105,6 +1141,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Array for storing slopes.
   double *slope = (double*) malloc((nx + 4) * sizeof(double));
@@ -1277,6 +1316,7 @@ int main() {
   }
 
   // Train neural network.
+  kann_mt(ann, num_threads, mini_size);
   kann_train_fnn1(ann, 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data, output_data);
 
   // Output neural network to disk.
@@ -1326,6 +1366,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            init-func-code
            init-func-code
