@@ -639,49 +639,49 @@
                        [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 2))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 0))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 0))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 2))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 0))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 0))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (+ 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 2))))))])))]))
 
   (untrace is-real)
@@ -767,52 +767,52 @@
                        [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 2))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 0))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 0))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 1) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 1) 2))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 0))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 0)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 0))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 1))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 1)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 1))))))]))
                 (max (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-x 2) 2))))))])
                      (cond
-                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 0) 0)))) #f)) +inf.0]
+                       [(not (equal? (symbolic-simp `(< ,depth (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 2)))) #f)) +inf.0]
                        [else (symbolic-simp `(/ 1.0 (expt (* ,width ,depth) (/ 1.0 (* 3 ,(list-ref (list-ref flux-jacobian-order-y 2) 2))))))])))]))
 
   (untrace is-real)
