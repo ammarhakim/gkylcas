@@ -431,10 +431,10 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
         curvdriftdir : 3
       ),
 
-      if dir < vpardim then (
+      if dir < vpardim then ( /* This is \rot(Apar b) dHdvpar \cdot \grad\psi from Rdot \cdot \grad\psi volume integrated */
         alpha_e : alpha_e + dBperpoverB_list[curvdriftdir]/m_ * mvpar_e
       ),
-      if dir = vpardim then (
+      if dir = vpardim then ( /* This is \rot(Apar b) \cdot \grad H from vpardot dpsi/dvpar volume integrated */
         if cdim = 3 then (
           for k : 1 thru cdim do (
             alpha_e : alpha_e - dBperpoverB_list[k]/m_ * dH_dz_e[k]

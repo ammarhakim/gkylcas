@@ -2,8 +2,8 @@
 
 /* ...... USER INPUTS........ */
 
-/* Output file path for the header file. */
-headerOutputPath : "~/max-out/gkyl_dg_gyrokinetic_kernels.h"$
+/* Output directory for generated files. */
+outputDir : "~/max-out/"$
 
 /* Serendipity basis. */
 maxPolyOrder_Ser : 2$
@@ -113,7 +113,7 @@ printPrototypes() := block([],
   )
 )$
 
-fh : openw(headerOutputPath)$
+fh : openw(sconcat(outputDir, "gkyl_dg_gyrokinetic_kernels.h"))$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <math.h>~%")$

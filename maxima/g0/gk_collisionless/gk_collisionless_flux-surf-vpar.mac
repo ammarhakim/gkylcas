@@ -404,7 +404,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     )
   ),
 
-  /* Now calculate apha at all quadrature nodes */
+  /* Now calculate alpha at all quadrature nodes */
   /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
   printf(fh, "  double *flux_surf_nodal = &flux_surf[~a]; ~%", NSurfIndexing*(surfDir-1)),
   printf(fh, "  double cfl = 0.0; ~%"),
@@ -475,7 +475,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
           ),
           printf(fh, ";~%"),
           if em = true then (
-            /* EM term curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
+            /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             for k : 1 thru cdim do (
               /* Apar * curl(b) */
               printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[i1index], k-1)
@@ -492,7 +492,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
           printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[2][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
           printf(fh, ";~%"),
           if em = true then (
-            /* EM term curl(Apar*b) = Apar * curl(b) grad(Apar) x b */
+            /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             /* Apar * curl(b) */
             printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[i1index], 0),
             printf(fh, "  alpha_quad += -(~a)*m_bmag_inv * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[i1index], 2),
