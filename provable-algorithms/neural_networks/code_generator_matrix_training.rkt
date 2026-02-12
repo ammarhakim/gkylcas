@@ -41,6 +41,9 @@
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
 
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
+
   (define cons-codes (map (lambda (cons-expr)
                             (convert-expr cons-expr)) cons-exprs))
   (define flux-codes (map (lambda (flux-expr)
@@ -98,6 +101,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Arrays for storing solution.
   double *u = (double*) malloc((nx + 2) * 3 * sizeof(double));
@@ -274,6 +280,7 @@ int main() {
 
   // Train neural network.
   for (int i = 0; i < 3; i++) {
+    kann_mt(ann[i], num_threads, mini_size);
     kann_train_fnn1(ann[i], 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data[i], output_data[i]);
   }
 
@@ -345,6 +352,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
@@ -417,6 +428,9 @@ int main() {
   (define max-trains (hash-ref neural-net 'max-trains))
   (define width (hash-ref neural-net 'width))
   (define depth (hash-ref neural-net 'depth))
+
+  (define num-threads (hash-ref neural-net 'num-threads))
+  (define mini-size (hash-ref neural-net 'mini-size))
 
   (define cons-codes (map (lambda (cons-expr)
                             (convert-expr cons-expr)) cons-exprs))
@@ -500,6 +514,9 @@ int main() {
   const double num_trains = ~a;
   const int nn_width = ~a;
   const int nn_depth = ~a;
+
+  const int num_threads = ~a;
+  const int mini_size = ~a;
 
   // Array for storing slopes.
   double *slope = (double*) malloc((nx + 4) * 3 * sizeof(double));
@@ -748,6 +765,7 @@ int main() {
 
   // Train neural network.
   for (int i = 0; i < 3; i++) {
+    kann_mt(ann[i], num_threads, mini_size);
     kann_train_fnn1(ann[i], 0.0001f, 64, 50, 10, 0.1f, n * nx, input_data[i], output_data[i]);
   }
 
@@ -838,6 +856,10 @@ int main() {
            width
            ;; Neural network depth.
            depth
+           ;; Number of threads to use during training.
+           num-threads
+           ;; Mini-batch training size.
+           mini-size
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
