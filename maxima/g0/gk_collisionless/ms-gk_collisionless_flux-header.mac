@@ -6,7 +6,7 @@
 outputDir : "~/max-out/"$
 
 /* Serendipity basis. */
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 minVdim_Ser : 1$
 maxCdim_Ser : 3$
@@ -46,10 +46,14 @@ byStr : ["", "no_by_"]$
 mb_bcOpt : [[false,true],[false,true],[false,true]]$
 mb_bcStr : ["", "multib_boundary_"]$
 
-emStr : ["", "em_"]$
+emStr : ["", "em_", "em_star_"]$
+
+/* Options for writing kernels at surface and edge surfaces. */
+edgeBool : [false, true]$
+edgeOpt : ["surf", "edge_surf"]$
 
 printPrototypes() := block([],
-  for emI : 1 thru 2 do (
+  for emI : 1 thru 3 do (
     em_label : emStr[emI],
 
     for bInd : 1 thru length(bName) do (
@@ -73,35 +77,33 @@ printPrototypes() := block([],
 
                 for surfDir : 1 thru c do (
                   dirlabel : varsC[surfDir],
-                  
-                  funcName : sconcat("gk_",em_label,"collisionless_flux_",no_byStr,mb_boundStr,"surf",dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
-                  printf(fh, "GKYL_CU_DH double ~a(
-  const double *w, const double *dxv,
-  const double *vmap, const double *vmapSq, const double q_, const double m_,
-  const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs,
-  const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR,
-  const double *phi, const double *apar, const double *JfL, const double *JfR,
-  double* GKYL_RESTRICT flux_surf); ~%", funcName),  
 
-                  funcName : sconcat("gk_",em_label,"collisionless_flux_",no_byStr,mb_boundStr,"edge_surf",dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
-                  printf(fh, "GKYL_CU_DH double ~a(
-  const double *w, const double *dxv,
-  const double *vmap, const double *vmapSq, const double q_, const double m_,
-  const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs,
-  const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR,
-  const double *phi, const double *apar, const double *JfL, const double *JfR,
-  double* GKYL_RESTRICT flux_surf); ~%", funcName)
+                  for edgeI : 1 thru 2 do (
+                    edge : edgeBool[edgeI],
+                    edgeStr : edgeOpt[edgeI],
+                  
+                    funcName : sconcat("gk_collisionless_flux_",em_label,no_byStr,mb_boundStr,edgeStr,dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
+                    printf(fh, "GKYL_CU_DH double ~a(
+    const double *w, const double *dxv,
+    const double *vmap, const double *vmapSq, const double q_, const double m_,
+    const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs,
+    const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR,
+    const double *phi, const double *apar, const double *apardot, const double *JfL, const double *JfR,
+    double* GKYL_RESTRICT flux_surf); ~%", funcName)
+                  )
                 )
               ),
 
               dirlabel : varsV[1],
-              funcName : sconcat("gk_",em_label,"collisionless_flux_",no_byStr,"surf",dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
+              edgeStr : edgeOpt[1],
+              edge : false,
+              funcName : sconcat("gk_collisionless_flux_",em_label,no_byStr,edgeStr,dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
               printf(fh, "GKYL_CU_DH double ~a(
   const double *w, const double *dxv,
   const double *vmap_prime_l, const double *vmap_prime_r,
   const double *vmap, const double *vmapSq, const double q_, const double m_,
   const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-  const double *bmag, const double *phi, const double *apar, const double *JfL, const double *JfR,
+  const double *bmag, const double *phi, const double *apar, const double *apardot, const double *JfL, const double *JfR,
   double* GKYL_RESTRICT flux_surf); ~%", funcName),
 
               printf(fh, "~%")
@@ -112,38 +114,12 @@ printPrototypes() := block([],
     )
   ),
 
-  /* EM add apardot vpar surface term */
-  for bInd : 1 thru length(bName) do (
-    for c : minCdim[bInd] thru maxCdim[bInd] do (
-      for gkV : 1 thru length(gkVdims[c]) do (
-        v : gkVdims[c][gkV],
-  
-        maxPolyOrderB : maxPolyOrder[bInd],
-        if (c=3) then maxPolyOrderB : 1, /* Only declare p=1 kernels for 3x2v */
-        for polyOrder : 1 thru maxPolyOrderB do (
-
-          dirlabel : varsV[1],
-          funcName : sconcat("gk_em_collisionless_flux_add_apardot_surf",dirlabel,"_",c,"x",v,"v_",bName[bInd],"_p",polyOrder),
-          printf(fh, "GKYL_CU_DH double ~a(
-  const double *w, const double *dxv,
-  const double *vmap_prime_l, const double *vmap_prime_r,
-  const double *vmap, const double *vmapSq, const double q_, const double m_,
-  const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-  const double *bmag, const double *phi, const double *apardot, const double *JfL, const double *JfR,
-  double* GKYL_RESTRICT flux_surf); ~%", funcName)
-        ),
-        
-        printf(fh, "~%")
-      )   
-    )
-  ),
-
   printf(fh,"GKYL_CU_DH double gk_collisionless_flux_surf_return_zero(
   const double *w, const double *dxv,
   const double *vmap, const double *vmapSq, const double q_, const double m_,
   const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs,
   const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR,
-  const double *phi, const double *apar, const double *JfL, const double *JfR,
+  const double *phi, const double *apar, const double *apardot, const double *JfL, const double *JfR,
   double* GKYL_RESTRICT flux_surf);~%")
 )$
 

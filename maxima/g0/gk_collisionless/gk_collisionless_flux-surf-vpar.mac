@@ -242,13 +242,14 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
 )$
 
 
-buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge) := block(
+buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, add_apardot, scheme) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_nodes,dA_dx_nodes,k
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_nodes,dA_dx_nodes,k,
+   apardot_e,apardot_nodes
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -300,12 +301,12 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
 
   print("Working on ", funcNm),
   printf(fh, "GKYL_CU_DH double ~a(
-    const double *w, const double *dxv, 
-    const double *vmap_prime_l, const double *vmap_prime_r,
-    const double *vmap, const double *vmapSq, const double q_, const double m_,
-    const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-    const double *bmag, const double *phi, const double *apar, const double *JfL, const double *JfR,
-    double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
+  const double *w, const double *dxv, 
+  const double *vmap_prime_l, const double *vmap_prime_r,
+  const double *vmap, const double *vmapSq, const double q_, const double m_,
+  const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
+  const double *bmag, const double *phi, const double *apar, const double *apardot, const double *JfL, const double *JfR,
+  double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
   printf(fh, "  // vmap_prime_l,vmap_prime_r: velocity space mapping derivative in left and right cells.~%"),
@@ -317,6 +318,7 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
   printf(fh, "  // apar: parallel component of vector potential.~%"),
+  printf(fh, "  // apardot: time derivative of parallel component of vector potential.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
@@ -515,13 +517,26 @@ buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
         )
       ),
 
+      /* Add apardot contribution if requested */
+      if add_apardot = true then (
+        apardot_e : doExpand1(apardot, bC),
+        apardot_nodes : float(evAtNodes(apardot_e,configNodes,surf_cvars))
+        printf(fh, "  alpha_quad += -q_/m_*(~a); ~%", apardot_nodes[i1index])
+      ),
+
       printf(fh, "~%"),
       printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%", j0index),
       printf(fh, "  JfL_quad =  (~a)/~a;~%", JfL_nodes[j1index], vmap_prime_l[surfDir-cdim-1]),
       printf(fh, "  JfR_quad =  (~a)/~a;~%", JfR_nodes[j1index], vmap_prime_r[surfDir-cdim-1]),
       printf(fh, "  Jfavg_quad = (JfL_quad + JfR_quad)/2.0 ;~%"),
       printf(fh, "  Jfjump_quad = (JfR_quad - JfL_quad)/2.0 ;~%"),
-      printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
+      if scheme = "upwind" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad ;~%", j0index)
+      ) else if scheme = "central" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad; ~%", j0index)
+      ) else if scheme = "downwind" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad + fabs(alpha_quad)*Jfjump_quad; ~%", j0index)
+      )
     ),
     printf(fh, "~%")
   ),
@@ -593,7 +608,7 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
     const double *vmap_prime_l, const double *vmap_prime_r,
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_vol_geom *dgv, const struct gkyl_gk_dg_vol_geom *gkdgv,
-    const double *bmag, const double *phi, const double *apar, const double *JfL, const double *JfR,
+    const double *bmag, const double *phi, const double *apar, const double *apardot, const double *JfL, const double *JfR,
     double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -605,7 +620,8 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   printf(fh, "  // gkdgv: gyrokinetic volume DG geometry.~%"),
   printf(fh, "  // bmag: magnetic field amplitude.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
-  printf(fh, "  // apar: parallel component of vector potential (here it will be apardot).~%"),
+  printf(fh, "  // apar: parallel component of vector potential.~%"),
+  printf(fh, "  // apardot: derivative of apar with respect to vpar.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
@@ -624,7 +640,7 @@ AddApardotGKEMFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrde
   flush_output(fh),
 
   /* Expand Apardot */
-  apardot_e : doExpand1(apar, bC),
+  apardot_e : doExpand1(apardot, bC),
   apardot_nodes : float(evAtNodes(apardot_e,configNodes,surf_cvars)),
 
   /*fl and fr */

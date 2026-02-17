@@ -300,7 +300,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
 )$
 
 
-buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, mb_bound) := block(
+buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, mb_bound, scheme) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfNodes,nodeVars,bSurf,basisNodal,surfConfigNodes,numSurfNodes,numSurfConfigNodes,numVelNodes,
    numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,apar_e,
@@ -357,7 +357,7 @@ buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     const double *vmap, const double *vmapSq, const double q_, const double m_,
     const struct gkyl_dg_surf_geom *dgs, const struct gkyl_gk_dg_surf_geom *gkdgs, 
     const double *bmag, const double *jacobgeo_rat_surfL, const double *jacobgeo_rat_surfR, 
-    const double *phi, const double *apar,
+    const double *phi, const double *apar, const double *apardot,
     const double *JfL, const double *JfR, double* GKYL_RESTRICT flux_surf) ~%{ ~%", funcNm),
   printf(fh, "  // w[NDIM]: cell-center.~%"),
   printf(fh, "  // dxv[NDIM]: cell length.~%"),
@@ -371,6 +371,7 @@ buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   printf(fh, "  // jacobgeo_rat_surfR: Ratio of surface conf-space Jacobians in right cell.~%"),
   printf(fh, "  // phi: electrostatic potential.~%"),
   printf(fh, "  // apar: parallel component of vector potential.~%"),
+  printf(fh, "  // apardot: time derivative of parallel component of vector potential.~%"),
   printf(fh, "  // JfL: distribution times total jacobian in left cell.~%"),
   printf(fh, "  // JfR: distribution times total jacobian in right cell.~%"),
   printf(fh, "  // flux_surf: output surface phase space flux in each direction (cdim + 1 components).~%"),
@@ -609,13 +610,18 @@ buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
       ),
 
       printf(fh, "~%"),
-      /*printf(fh, "  alpha_quad = alpha_quad*area_elem_quad/Jc_quad; ~%"),*/
       printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)); ~%"),
       printf(fh, "  JfL_quad = ~a; ~%", JfL_nodes[j1index]),
       printf(fh, "  JfR_quad = ~a; ~%", JfR_nodes[j1index]),
       printf(fh, "  Jfavg_quad = (JfL_quad + JfR_quad)/2.0; ~%"),
       printf(fh, "  Jfjump_quad = (JfR_quad - JfL_quad)/2.0; ~%"),
-      printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad; ~%", j0index)
+      if scheme = "upwind" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad - fabs(alpha_quad)*Jfjump_quad; ~%", j0index)
+      ) else if scheme = "central" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad; ~%", j0index)
+      )       else if scheme = "downwind" then (
+        printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad + fabs(alpha_quad)*Jfjump_quad; ~%", j0index)
+      )
     ),
     printf(fh, "~%")
   ),

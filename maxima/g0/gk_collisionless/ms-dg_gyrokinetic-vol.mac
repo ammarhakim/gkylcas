@@ -52,7 +52,6 @@ for bInd : 1 thru length(bName) do (
   
         fh : openw(fname),
         printf(fh, "#include <gkyl_dg_gyrokinetic_kernels.h> ~%"),
-
         funcName : sconcat("dg_gyrokinetic_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         buildGKVolKernel(fh, funcName, c, v, bName[bInd], polyOrder, bVarsList, false),
         close(fh),
