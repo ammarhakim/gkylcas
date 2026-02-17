@@ -327,6 +327,9 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
         printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad; ~%", j0index)
       )       else if scheme = "downwind" then (
         printf(fh, "  flux_surf_nodal[~a] = alpha_quad*Jfavg_quad + fabs(alpha_quad)*Jfjump_quad; ~%", j0index)
+      ) else (
+        /* Stop the script if an invalid scheme is provided. */
+        error("Invalid flux scheme provided. Options are: upwind, central, downwind.")
       )
     ),
     printf(fh, "~%")
