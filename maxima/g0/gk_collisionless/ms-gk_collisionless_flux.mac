@@ -98,7 +98,7 @@ for bInd : 1 thru length(bName) do (
                   fh : openw(fname),
                   printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
                   funcName : sconcat("gk_collisionless_flux_",emStr,no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                  buildGKFluxConfEMKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, "upwind"),
+                  buildGKFluxConfKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, "upwind"),
                   close(fh),
 
                   if (em) then (
@@ -107,7 +107,7 @@ for bInd : 1 thru length(bName) do (
                     fh : openw(fname),
                     printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
                     funcName : sconcat("gk_collisionless_flux_em_star_",no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                    buildGKFluxConfEMKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, "upwind"),
+                    buildGKFluxConfKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, "upwind"),
                     close(fh)
                   )
                 )
@@ -124,7 +124,7 @@ for bInd : 1 thru length(bName) do (
               fh : openw(fname),
               printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
               funcName : sconcat("gk_collisionless_flux_",emStr,no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-              buildGKFluxVparEMKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, "upwind"),
+              buildGKFluxVparKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, "upwind"),
               close(fh),
 
               if (em) then (
@@ -135,7 +135,7 @@ for bInd : 1 thru length(bName) do (
                 fh : openw(fname),
                 printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
                 funcName : sconcat("gk_collisionless_flux_em_star_",no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                buildGKFluxVparEMKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, "upwind"),
+                buildGKFluxVparKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, "upwind"),
                 close(fh)
               )
             )

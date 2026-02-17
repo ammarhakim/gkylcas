@@ -5,7 +5,7 @@ load("scifac")$
 load("utilities_gyrokinetic")$
 fpprec : 24$
 
-buildGKFluxVparEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, add_apardot, scheme) := block(
+buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, add_apardot, scheme) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,

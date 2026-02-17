@@ -6,7 +6,7 @@ load("utilities_gyrokinetic")$
 load("nodal_operations/nodal_functions")$
 fpprec : 24$
 
-buildGKFluxConfEMKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, mb_bound, scheme) := block(
+buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, mb_bound, scheme) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfNodes,nodeVars,bSurf,basisNodal,surfConfigNodes,numSurfNodes,numSurfConfigNodes,numVelNodes,
    numMuNodes,numVparNodes,d,rdx2vec,rdv2vec,rdSurfVar2,bmagBasis,phi_e,apar_e,
