@@ -78,6 +78,12 @@
 
     ;; If expr is a sign function of the form (sgn expr1), then it differentiates to 0.0.
     [`(sgn ,arg) 0.0]
+
+    ;; If expr is a sine function of the form (sin expr1), then it differentiates to (* (cos expr1) expr1').
+    [`(sin ,arg) `(* (cos ,arg) ,(symbolic-diff arg var))]
+
+    ;; If expr is a cosine function of the form (cos expr1), then it differentiates to (* (- 0.0 (sin expr1)) expr1').
+    [`(cos ,arg) `(* (- 0.0 (sin ,arg)) ,(symbolic-diff arg var))]
     
     ;; Otherwise, return false.
     [else #f]))
@@ -307,6 +313,9 @@
     ;; Real numbers are trivially real.
     [(? real?) #t]
 
+    ;; Pi is trivially real.
+    [`pi #t]
+
     ;; Conserved variables are assumed to be real (this is enforced elsewhere).
     [(? (lambda (arg)
           (not (equal? (member arg cons-vars) #f)))) #t]
@@ -321,6 +330,26 @@
         [,cond1 ,expr1]
         [else ,expr2])
      (and (is-real expr1 cons-vars parameters) (is-real expr2 cons-vars parameters))]
+
+    ;; The square root of a non-negative number is always real.
+    [`(sqrt ,arg)
+     (is-non-negative arg parameters)]
+
+    ;; The exponential of a real number is always real.
+    [`(expt ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; The sine of a real number is always real.
+    [`(sin ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; The cosine of a real number is always real.
+    [`(cos ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; Simulation coordinates are assumed to be real (this is enforced elsewhere).
+    [`x #t]
+    [`y #t]
 
     ;; The sum, difference, product, or quotient of two real numbers is always real.
     [`(+ . ,terms)
@@ -366,6 +395,9 @@
     ;; A non-negative number is, trivially, non-negative.
     [(? (lambda (arg)
           (and (number? arg) (or (>= arg 0) (>= arg 0.0))))) #t]
+
+    ;; Pi is, trivially, non-negative.
+    [`pi #t]
 
     ;; Simulation parameters that are non-negative are, trivially, non-negative.
     [(? (lambda (arg)

@@ -13,6 +13,9 @@
 ;; Lightweight converter from Racket expressions (expr) into strings representing equivalent C code.
 (define (convert-expr expr)
   (match expr
+    ;; If expr is pi, then convert it to "M_PI" in C.
+    [`pi "M_PI"]
+    
     ;; If expr is a symbol, then convert it directly to a string.
     [(? symbol? symb) (symbol->string symb)]
 
@@ -44,6 +47,18 @@
     ;; If expr is a square root of the form (sqrt expr1), then convert it to "sqrt(expr1)" in C.
     [`(sqrt ,arg)
      (format "sqrt(~a)" (convert-expr arg))]
+
+    ;; If expr is a sine function of the form (sin expr1), then convert it to "sin(expr1)" in C.
+    [`(sin ,arg)
+     (format "sin(~a)" (convert-expr arg))]
+
+    ;; If expr is a cosine function of the form (cos expr1), then convert it to "cos(expr1)" in C.
+    [`(cos ,arg)
+     (format "cos(~a)" (convert-expr arg))]
+
+    ;; If expr is an exponential function of the form (expt expr1), then convert it to "exp(expr1)" in C.
+    [`(expt ,arg)
+     (format "exp(~a)" (convert-expr arg))]
 
     ;; If expr is a maximum of the form (max expr1 expr2), then convert it to "fmax(expr1, expr2)" in C.
     [`(max ,arg1 ,arg2)

@@ -118,6 +118,9 @@ int main() {
     
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double local_alpha_x = ~a; // max-speed-expr-x in C.
         double local_alpha_y = ~a; // max-speed-expr-y in C.
       
@@ -149,6 +152,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable in the y-direction by half a time-step.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_y = u[i][j - 1];
         double ui_y = u[i][j];
         double up_y = u[i][j + 1];
@@ -197,6 +203,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable in the x-direction.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_x = u[i - 1][j];
         double ui_x = u[i][j];
         double up_x = u[i + 1][j];
@@ -245,6 +254,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable in the y-direction by half a time-step.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_y = u[i][j - 1];
         double ui_y = u[i][j];
         double up_y = u[i][j + 1];
@@ -510,6 +522,9 @@ int main() {
     
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j <= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         double local_alpha_x = ~a; // max-speed-expr-x in C.
         double local_alpha_y = ~a; // max-speed-expr-y in C.
       
@@ -551,6 +566,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation (with a second-order flux extrapolation) and update the conserved variable in the y-direction by half a time-step.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_y = u[i][j - 1] - (0.5 * slope_y[i][j - 1]);
         double umR_y = u[i][j - 1] + (0.5 * slope_y[i][j - 1]);
@@ -643,6 +661,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation (with a second-order flux extrapolation) and update the conserved variable in the x-direction.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_x = u[i - 1][j] - (0.5 * slope_x[i - 1][j]);
         double umR_x = u[i - 1][j] + (0.5 * slope_x[i - 1][j]);
@@ -735,6 +756,9 @@ int main() {
     // Compute fluxes with Lax-Friedrichs approximation (with a second-order flux extrapolation) and update the conserved variable in the y-direction by half a time-step.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_y = u[i][j - 1] - (0.5 * slope_y[i][j - 1]);
         double umR_y = u[i][j - 1] + (0.5 * slope_y[i][j - 1]);
@@ -1061,6 +1085,9 @@ int main() {
     
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double local_alpha_x = ~a; // max-speed-expr-x in C.
         double local_alpha_y = ~a; // max-speed-expr-y in C.
       
@@ -1092,6 +1119,9 @@ int main() {
     // Compute fluxes with Roe approximation and update the conserved variable in the y-direction by half a time-step.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_y = u[i][j - 1];
         double ui_y = u[i][j];
         double up_y = u[i][j + 1];
@@ -1147,6 +1177,9 @@ int main() {
     // Compute fluxes with Roe approximation and update the conserved variable in the x-direction.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_x = u[i - 1][j];
         double ui_x = u[i][j];
         double up_x = u[i + 1][j];
@@ -1202,6 +1235,9 @@ int main() {
     // Compute fluxes with Roe approximation and update the conserved variable in the y-direction by half a time-step.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
+        double x = x0 + (i - 0.5) * dx;
+        double y = y0 + (j - 0.5) * dy;
+        
         double um_y = u[i][j - 1];
         double ui_y = u[i][j];
         double up_y = u[i][j + 1];
@@ -1501,6 +1537,9 @@ int main() {
     
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j <= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         double local_alpha_x = ~a; // max-speed-expr-x in C.
         double local_alpha_y = ~a; // max-speed-expr-y in C.
       
@@ -1542,6 +1581,9 @@ int main() {
     // Compute fluxes with Roe approximation (with a second-order flux extrapolation) and update the conserved variable in the y-direction by half a time-step.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_y = u[i][j - 1] - (0.5 * slope_y[i][j - 1]);
         double umR_y = u[i][j - 1] + (0.5 * slope_y[i][j - 1]);
@@ -1643,6 +1685,9 @@ int main() {
     // Compute fluxes with Roe approximation (with a second-order flux extrapolation) and update the conserved variable in the x-direction.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_x = u[i - 1][j] - (0.5 * slope_x[i - 1][j]);
         double umR_x = u[i - 1][j] + (0.5 * slope_x[i - 1][j]);
@@ -1744,6 +1789,9 @@ int main() {
     // Compute fluxes with Roe approximation (with a second-order flux extrapolation) and update the conserved variable in the y-direction by half a time-step.
     for (int i = 2; i <= nx + 1; i++) {
       for (int j = 2; j<= ny + 1; j++) {
+        double x = x0 + (i - 1.5) * dx;
+        double y = y0 + (j - 1.5) * dy;
+        
         // Extrapolate boundary states.
         double umL_y = u[i][j - 1] - (0.5 * slope_y[i][j - 1]);
         double umR_y = u[i][j - 1] + (0.5 * slope_y[i][j - 1]);
