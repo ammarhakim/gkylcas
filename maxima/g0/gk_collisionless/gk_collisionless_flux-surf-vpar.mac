@@ -11,7 +11,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
    bmagBasis,phi_e,bmag_e,vmap_e,vmapSq_e,vmap_prime_e,evPoint,hamil_e,hamil_c,replaceList,
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
-   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,NSurf,numNodes,apar_e,apar_nodes,dA_dx_nodes,k,
+   dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,apar_e,apar_nodes,dA_dx_nodes,k,
    apardot_e,apardot_nodes
   ],
 
@@ -58,8 +58,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     NSurfIndexing    : length(tempBasis),
     numNodesIndexing : length(tempBasis)
   ) else (
-    NSurfIndexing    : NSurf,
-    numNodesIndexing : numNodes
+    error("Only p=1 is currently supported for the surfvpar kernels.")
   ),
 
   print("Working on ", funcNm),
