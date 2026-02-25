@@ -13,7 +13,8 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
    surfVarsC,bSurf,bV,bVpar,bMu,numBsurf,zvSurfVars,nodesMu,numNodesMu,bNMu,f_e,edge,
    surfPerpVal,sI,phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,fSurf_e,
    fSurfMu_q,vparLo_e,vparUp_e,fReflSurfMu_e,j,nodeIdx,fSurfMu_c,fSurfMu_e,intLims,fReflSurfMu_c,
-   xBar_v,xSqBar_v,fReflSurf_c,fReflSurf_e,fRefl_c,alphaMu_e,alphaMu_vpar0_e,alphaMu_q],
+   xBar_v,xSqBar_v,fReflSurf_c,fReflSurf_e,fRefl_c,alphaMu_e,alphaMu_vpar0_e,alphaMu_q,
+   alphaMuVpar_e,nodesVparMu,alphaMu_c,tempVars1,tempVars2],
 
   pdim : cdim+vdim,
 
