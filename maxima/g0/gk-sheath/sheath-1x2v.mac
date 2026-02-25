@@ -69,7 +69,7 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Evaluate alpha at (vpar=0, mu_j) */
   nodesVparMu : makelist([0, nodesMu[k][1]], k, 1, numNodesMu),
   alphaMu_q : evAtNodes(alphaMuVpar_e, nodesVparMu, varsV),
-  alphaMu_vpar0_e : subst(vpar=0, alphaMuVpar_e),
+  /* alphaMu_vpar0_e : subst(vpar=0, alphaMuVpar_e), */
     
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
@@ -88,9 +88,6 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     
     /* Evaluate base potential difference: deltaPhi = phiSheath - phiWall. */
     deltaPhi_q : deltaPhi_e,
-
-    /* Evaluate alpha(mu) at mu_j nodes. */
-    alphaMu_q : evAtNodes(alphaMu_vpar0_e, nodesMu, [mu]),
 
     /* Evaluate f at the z surface. */
     fSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=surfPerpVal[sI], f_e)),
@@ -137,7 +134,7 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       fSurfMu_e : doExpand(fSurfMu_c, bVpar),
 
       /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
-      alphaMu_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, alphaMu_q[nodeIdx]))),
+      alphaMu_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, alphaMu_q[j]))),
       alphaMu_e : doExpand(alphaMu_c, bVpar),
       alphaMu_vpar0_e : subst(vpar=0, alphaMu_e),
 
