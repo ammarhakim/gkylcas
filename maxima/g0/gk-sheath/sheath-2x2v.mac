@@ -14,7 +14,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
    bNMu,bNX,f_e,edge,surfPerpVal,sI,phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,
    fSurf_e,fSurfX_q,fSurfXMu_q,fReflSurfX_e,vparLo_e,vparUp_e,i,fSurfX_c,fReflSurfXMu_e,j,nodeIdx,
    fSurfXMu_c,fSurfXMu_e,intLims,fReflSurfXMu_c,xBar_v,xSqBar_v,fReflSurfX_c,fReflSurf_c,fReflSurf_e,fRefl_c,
-   alphaMu_e,alphaMu_q,nodesVparMu],
+   alphaMu_q,alphaMuVpar_e,nodesVparMu,alphaMu_c,tempVars1,tempVars2],
 
   pdim : cdim+vdim,
 
@@ -74,6 +74,13 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand input distribution function f on phase-space basis using input coeffs. */
   f_e : doExpand1(f, bP),
 
+  /* Expand alpha_mu on vpar,mu basis (bV). */
+  alphaMuVpar_e : doExpand1(alpha_mu, bV),
+
+  /* Evaluate alpha at (vpar=0, mu_j) */
+  nodesVparMu : makelist([0, nodesMu[inmu][1]], inmu, 1, numNodesMu),
+  alphaMu_q : evAtNodes(alphaMuVpar_e, nodesVparMu, varsV),
+
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
   surfPerpVal : [-1, 1],
@@ -91,14 +98,6 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
 
     /* Evaluate deltaPhi at x nodes. */
     deltaPhi_q : evAtNodes(deltaPhi_e, nodesX, surfVarsC),
-
-    /* Expand alpha_mu on vpar,mu basis (bV). */
-    alphaMu_e : doExpand1(alpha_mu, bV),
-
-    /* Evaluate alpha at (vpar=0, mu_j) nodes. Since alpha only depends on mu,
-       we evaluate at vpar=0 (cell center in vpar). */
-    nodesVparMu : makelist([0, nodesMu[j][1]], j, 1, numNodesMu),
-    alphaMu_q : evAtNodes(alphaMu_e, nodesVparMu, varsV),
 
     /* Evaluate f at the z surface. */
     fSurf_c : calcInnerProdList(surfVars, 1, bSurf, subst(surfPerpVar=surfPerpVal[sI], f_e)),
@@ -154,8 +153,12 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
         fSurfXMu_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, fSurfXMu_q[nodeIdx]))),
         fSurfXMu_e : doExpand(fSurfXMu_c, bVpar),
 
-        /* Compute vcut^2 at this (x,mu) node: vcutSq = alpha(mu) * q2Dm * deltaPhi(x). */
-        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-alphaMu_q[j]*q2Dm*deltaPhi_q[i])))),
+        /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
+        alphaMu_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, alphaMu_q[j]))),
+        alphaMu_e : doExpand(alphaMu_c, bVpar),
+        alphaMu_vpar0_e : subst(vpar=0, alphaMu_e),
+
+        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-alphaMu_vpar0_e*q2Dm*deltaPhi_q[i])))),
         printf(fh, "~%"),
 
         /* Check regime at this (x,mu) node. */
