@@ -13,8 +13,8 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
    surfVarsC,bSurf,bV,bVpar,bMu,numBsurf,zvSurfVars,nodesMu,numNodesMu,bNMu,f_e,edge,
    surfPerpVal,sI,phiSheath_e,phiWall_e,deltaPhi_e,deltaPhi_q,vcutSq_q,fSurf_c,fSurf_e,
    fSurfMu_q,vparLo_e,vparUp_e,fReflSurfMu_e,j,nodeIdx,fSurfMu_c,fSurfMu_e,intLims,fReflSurfMu_c,
-   xBar_v,xSqBar_v,fReflSurf_c,fReflSurf_e,fRefl_c,alphaMu_e,alphaMu_vpar0_e,alphaMu_q,
-   alphaMuVpar_e,nodesVparMu,alphaMu_c,tempVars1,tempVars2],
+   xBar_v,xSqBar_v,fReflSurf_c,fReflSurf_e,fRefl_c,
+   alphaMu_e,alphaMu_vpar0_e,alphaMu_q,alphaMuVpar_e,nodesVparMu,alphaMu_c,tempVars1,tempVars2],
 
   pdim : cdim+vdim,
 
@@ -68,9 +68,8 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   alphaMuVpar_e : doExpand1(alpha_mu, bV),
 
   /* Evaluate alpha at (vpar=0, mu_j) */
-  nodesVparMu : makelist([0, nodesMu[k][1]], k, 1, numNodesMu),
+  nodesVparMu : makelist([0, nodesMu[inmu][1]], inmu, 1, numNodesMu),
   alphaMu_q : evAtNodes(alphaMuVpar_e, nodesVparMu, varsV),
-  /* alphaMu_vpar0_e : subst(vpar=0, alphaMuVpar_e), */
     
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
