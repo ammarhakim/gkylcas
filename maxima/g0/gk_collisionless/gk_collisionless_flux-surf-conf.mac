@@ -297,7 +297,7 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
             if surfDir = 1 then(
               /* This term is responsible of y oscillations in the Alfven 3x2v regression test. */
               /* The oscillation appears at short time (observable frame 1). */
-              printf(fh, "  alpha_quad += 0*mvpar_quad[~a]/(m_*bmag_quad) * ((~a) * bhat_quad[2] - (~a) * bhat_quad[1]); ~%",  vpar0index, dA_dx_nodes[2][j1index], dA_dx_nodes[3][j1index])
+              printf(fh, "  alpha_quad += mvpar_quad[~a]/(m_*bmag_quad) * ((~a) * bhat_quad[2] - (~a) * bhat_quad[1]); ~%",  vpar0index, dA_dx_nodes[2][j1index], dA_dx_nodes[3][j1index])
             ),
             if surfDir = 2 then(
               printf(fh, "  alpha_quad += mvpar_quad[~a]/(m_*bmag_quad) * ((~a) * bhat_quad[0] - (~a) * bhat_quad[2]); ~%",  vpar0index, dA_dx_nodes[3][j1index], dA_dx_nodes[1][j1index])
