@@ -15,7 +15,7 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
    vcutSq_q,fSurf_c,fSurf_e,fSurfXY_q,fSurfXYMu_q,fReflSurfXY_e,vparLo_e,vparUp_e,i,fSurfXY_c,
    fReflSurfXYMu_e,j,nodeIdx,fSurfXYMu_c,fSurfXYMu_e,intLims,fReflSurfXYMu_c,xBar_v,xSqBar_v,
    fReflSurfXY_c,fReflSurf_c,fReflSurf_e,fRefl_c,
-   alphaMu_e,alphaMu_vpar0_e,alphaMu_q,alphaMuVpar_e,nodesVparMu,alphaMu_c,tempVars1,tempVars2],
+   vcutFact_e,vcutFact_vpar0_e,vcutFact_q,vcutFactVpar_e,nodesVparMu,vcutFact_c,tempVars1,tempVars2],
 
   pdim : cdim+vdim,
 
@@ -75,12 +75,12 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand input distribution function f on phase-space basis using input coeffs. */
   f_e : doExpand1(f, bP),
 
-  /* Expand alpha_mu on vpar,mu basis (bV). */
-  alphaMuVpar_e : doExpand1(alpha_mu, bV),
+  /* Expand vcut_fact on vpar,mu basis (bV). */
+  vcutFactVpar_e : doExpand1(vcut_fact, bV),
 
   /* Evaluate alpha at (vpar=0, mu_j) */
   nodesVparMu : makelist([0, nodesMu[inmu][1]], inmu, 1, numNodesMu),
-  alphaMu_q : evAtNodes(alphaMuVpar_e, nodesVparMu, varsV),
+  vcutFact_q : evAtNodes(vcutFactVpar_e, nodesVparMu, varsV),
     
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
@@ -89,7 +89,7 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   for sI : 1 thru length(edge) do (
 
     printf(fh, "~%"),
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, double q2Dm, const double *phi, const double *phiWall, const double *alpha_mu, const double *f, double *fRefl) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, double q2Dm, const double *phi, const double *phiWall, const double *vcut_fact, const double *f, double *fRefl) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
 
     /* Calculate expansion for deltaPhi = phiSheath - phiWall, evaluated at z=zVal,
        where zVal=-1 or 1 depending on if we're on the left or right edge of the global domain, respectively. */
@@ -153,11 +153,11 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
         fSurfXYMu_e : doExpand(fSurfXYMu_c, bVpar),
 
         /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
-        alphaMu_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, alphaMu_q[j]))),
-        alphaMu_e : doExpand(alphaMu_c, bVpar),
-        alphaMu_vpar0_e : subst(vpar=0, alphaMu_e),
+        vcutFact_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, vcutFact_q[j]))),
+        vcutFact_e : doExpand(vcutFact_c, bVpar),
+        vcutFact_vpar0_e : subst(vpar=0, vcutFact_e),
 
-        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-alphaMu_vpar0_e*q2Dm*deltaPhi_q[i])))),
+        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_vpar0_e*q2Dm*deltaPhi_q[i])))),
         printf(fh, "~%"),
 
         /* Check regime at this (x,y,mu) node. */

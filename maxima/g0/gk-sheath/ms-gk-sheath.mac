@@ -96,7 +96,7 @@ for bInd : 1 thru length(bName) do (
       for vI : 1 thru length(vDims[cdim]) do (
         for sI : 1 thru length(edge) do (
 
-          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, const double q2Dm, const double *phi, const double *phiWall, const double *alpha_mu, const double *f, double *fRefl); ~%", edge[sI], cdim, vDims[cdim][vI], bName[bInd], polyOrder)
+          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, const double q2Dm, const double *phi, const double *phiWall, const double *vcut_fact, const double *f, double *fRefl); ~%", edge[sI], cdim, vDims[cdim][vI], bName[bInd], polyOrder)
 
         )
       )
