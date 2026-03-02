@@ -37,12 +37,14 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     bV    : basisFromVars("gkhyb",[vpar,mu],polyOrder),
     bVpar : basisFromVars("gkhyb",[vpar],polyOrder),
     bMu   : basisFromVars("gkhyb",[mu],polyOrder),
+    bXMu   : basisFromVars("ser",[x,mu],polyOrder),
     bX    : basisFromVars("gkhyb",[x],polyOrder)
   ) else (
     bSurf : basisFromVars(basisFun,surfVars,polyOrder),
     bV    : basisFromVars(basisFun,[vpar,mu],polyOrder),
     bVpar : basisFromVars(basisFun,[vpar],polyOrder),
     bMu   : basisFromVars(basisFun,[mu],polyOrder),
+    bXMu   : basisFromVars("ser",[x,mu],polyOrder),
     bX    : basisFromVars(basisFun,[x],polyOrder)
   ),
   numBsurf : length(bSurf),
@@ -74,12 +76,11 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand input distribution function f on phase-space basis using input coeffs. */
   f_e : doExpand1(f, bP),
 
-  /* Expand vcut_fact on vpar,mu basis (bV). */
-  vcutFactVpar_e : doExpand1(vcut_fact, bV),
+  /* Expand vcut_fact on mu basis (bXMu). */
+  vcutFactVpar_e : doExpand1(vcut_fact, bXMu),
 
-  /* Evaluate alpha at (vpar=0, mu_j) */
-  nodesVparMu : makelist([0, nodesMu[inmu][1]], inmu, 1, numNodesMu),
-  vcutFact_q : evAtNodes(vcutFactVpar_e, nodesVparMu, varsV),
+  /* Evaluate vcut_fact at (x,mu)_ij nodes. */
+  vcutFact_q : evAtNodes(vcutFactVpar_e, nodesXMu, zvSurfVars),
 
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
@@ -154,11 +155,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
         fSurfXMu_e : doExpand(fSurfXMu_c, bVpar),
 
         /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
-        vcutFact_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, vcutFact_q[j]))),
-        vcutFact_e : doExpand(vcutFact_c, bVpar),
-        vcutFact_vpar0_e : subst(vpar=0, vcutFact_e),
-
-        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_vpar0_e*q2Dm*deltaPhi_q[i])))),
+        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_q[nodeIdx]*q2Dm*deltaPhi_q[i])))),
         printf(fh, "~%"),
 
         /* Check regime at this (x,mu) node. */

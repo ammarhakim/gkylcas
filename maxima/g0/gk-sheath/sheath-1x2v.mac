@@ -36,12 +36,12 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     bSurf : basisFromVars("gkhyb",surfVars,polyOrder),
     bV    : basisFromVars("gkhyb",[vpar,mu],polyOrder),
     bVpar : basisFromVars("gkhyb",[vpar],polyOrder),
-    bMu   : basisFromVars("gkhyb",[mu],polyOrder)
+    bMu   : basisFromVars("ser",[mu],polyOrder)
   ) else (
     bSurf : basisFromVars(basisFun,surfVars,polyOrder),
     bV    : basisFromVars(basisFun,[vpar,mu],polyOrder),
     bVpar : basisFromVars(basisFun,[vpar],polyOrder),
-    bMu   : basisFromVars(basisFun,[mu],polyOrder)
+    bMu   : basisFromVars("ser",[mu],polyOrder)
   ),
   numBsurf : length(bSurf),
   
@@ -64,12 +64,11 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   /* Expand input distribution function f on phase-space basis using input coeffs. */
   f_e : doExpand1(f, bP),
 
-  /* Expand vcut_fact on vpar,mu basis (bV). */
-  vcutFactVpar_e : doExpand1(vcut_fact, bV),
+  /* Expand vcut_fact on mu basis (bMu). */
+  vcutFactVpar_e : doExpand1(vcut_fact, bMu),
 
-  /* Evaluate alpha at (vpar=0, mu_j) */
-  nodesVparMu : makelist([0, nodesMu[inmu][1]], inmu, 1, numNodesMu),
-  vcutFact_q : evAtNodes(vcutFactVpar_e, nodesVparMu, varsV),
+  /* Evaluate vcut_fact at (mu_j) */
+  vcutFact_q : evAtNodes(vcutFactVpar_e, nodesMu, zvSurfVars),
     
   /* Generate separate kernels for lower/upper boundaries. */
   edge        : ["lower", "upper"],
@@ -134,11 +133,7 @@ genGkSheathKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       fSurfMu_e : doExpand(fSurfMu_c, bVpar),
 
       /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
-      vcutFact_c : gcfac(fullratsimp(calcInnerProdList([vpar], 1, bVpar, vcutFact_q[j]))),
-      vcutFact_e : doExpand(vcutFact_c, bVpar),
-      vcutFact_vpar0_e : subst(vpar=0, vcutFact_e),
-
-      printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_vpar0_e*q2Dm*deltaPhi_q)))),
+      printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_q[nodeIdx]*q2Dm*deltaPhi_q)))),
       printf(fh, "~%"),
 
       /* Check regime at this mu node. */
