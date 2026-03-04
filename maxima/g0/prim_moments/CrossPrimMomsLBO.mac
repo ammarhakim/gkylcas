@@ -37,11 +37,13 @@ writeCExprs1s(lhs, rhs) := block([expr],
 )$
 
 calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
-  [udim,vDegFreedom,basis,numB,expr,m0_e,m0_c,m2_e,m2_c,vtsq_self_e,vtsq_self_c,
-   vtsq_other_e,vtsq_other_c,vtSqCross_e,vtSqCross_c,cE_e,cE_c,N,u_self_e,u_self_c,
-   u_other_e,u_other_c,m1_e,m1_c,cM_e,cM_c,uCross_e,uCross_c,eq,E,Eflat,Elhs,momRHS_c,
-   ucMSelf_c,ucMSelf_e,ucMOther_c,ucMOther_e,uM1Self_c,uM1Self_e,uM1Other_c,uM1Other_e,
-   uSumSq_c,uSumSq_e,enRHS1_c,enRHS2_c,enRHS_c,tempVars,sqCoeffs],
+  [udim,vDegFreedom,vars,basis,numB,nodes,momsin,vtsqin,m0in_e,m0Corners,m2in_e,
+   m2Corners,vtsqin_e,vtsqCorners,alphaE_c,alphaE_e,alphaECorners,expr,m0_e,m0_c,m2_e,m2_c,
+   vtsq_self_e,vtsq_self_c,vtsq_other_e,vtsq_other_c,vtSqCross_e,vtSqCross_c,cE_e,
+   cE_c,N,u_self_e,u_self_c,u_other_e,u_other_c,m1_e,m1_c,cM_e,cM_c,uCross_e,uCross_c,
+   eq,E,Eflat,Elhs,momRHS_c,ucMSelf_c,ucMSelf_e,ucMOther_c,ucMOther_e,uM1Self_c,
+   uM1Self_e,uM1Other_c,uM1Other_e,uSumSq_c,uSumSq_e,enRHS1_c,enRHS2_c,enRHS_c,
+   tempVars,sqCoeffs],
 
   if (sequal(substring(funcNm,1,7),"vlasov")) then (
     udim : vdim,
@@ -58,13 +60,21 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   numB : length(basis),
 
   /* Function declaration with input/output variables. */
-  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *greene, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections) ~%{ ~%", funcNm),
-  printf(fh, "  // greene:               Greene's factor. ~%"),
-  printf(fh, "  // m_:                   mass. ~%"),
-  printf(fh, "  // moms:                 moments of the distribution function. ~%"),
-  printf(fh, "  // prim_mom              self primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(struct gkyl_mat *A, struct gkyl_mat *rhs, const double *alphaE, const double m_self, const double *moms_self, const double *prim_mom_self, const double m_other, const double *moms_other, const double *prim_mom_other, const double *boundary_corrections, const double *nu) ~%{ ~%", funcNm),
+  printf(fh, "  // A:                    Left-side matrix. ~%"),
+  printf(fh, "  // rhs:                  Right-side vector. ~%"),
+  printf(fh, "  // alphaE:               Morse's alpha_E factor. ~%"),
+  printf(fh, "  // m_self:               self mass. ~%"),
+  printf(fh, "  // moms_self:            self moments of the distribution function. ~%"),
+  printf(fh, "  // prim_mom_self:        self primitive moments: mean flow velocity and thermal speed squared. ~%"),
+  printf(fh, "  // m_other:              mass of other species. ~%"),
+  printf(fh, "  // moms_other:           moments of the other distribution function. ~%"),
+  printf(fh, "  // prim_mom_other:       cross primitive moments: mean flow velocity and thermal speed squared. ~%"),
   printf(fh, "  // boundary_corrections: corrections to momentum and energy conservation due to finite velocity space. ~%"),
+  printf(fh, "  // nu:                   Cross-species collision frequency. ~%"),
   printf(fh, " ~%"),
+
+  printf(fh, "  const double m_sumDms = (m_self+m_other)/m_self;~%"),
 
   /* Create pointers to u and vtsq of each species. */
   printf(fh, "  const double *u_self = &prim_mom_self[~a];~%", 0*numB),
@@ -72,6 +82,22 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   printf(fh, "  const double *u_other = &prim_mom_other[~a];~%", 0*numB),
   printf(fh, "  const double *vtsq_other = &prim_mom_other[~a];~%", udim*numB),
   printf(fh, " ~%"),
+
+  /* Declare new buffers where moments are stored. */
+  printf(fh, sconcat("  double m0r[~a] = {0.0}; ~%"), numB),
+  printf(fh, sconcat("  double m1r[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, sconcat("  double m2r[~a] = {0.0}; ~%"), numB),
+  printf(fh, sconcat("  double cMr[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, sconcat("  double cEr[~a] = {0.0}; ~%"), numB),
+  printf(fh, sconcat("  double u_selfr[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, sconcat("  double u_otherr[~a] = {0.0}; ~%"), udim*numB),
+  printf(fh, " ~%"),
+
+  /* If cell average collsion frequency is not positive, set moments to 1 and
+     corrections to 0 to avoid inversion of singular system. In this case the
+     collision operator will be turned off anyway. */
+  printf(fh, "  if (nu[0] > 0.0 && moms_self[~a] > 0.0) { ~%",numB*(1+udim)),
+  printf(fh, "  ~%"),
 
   /* In order to avoid dividing by very small, negative or zero densities
      use the cell averages when m0,m2,vtSq<0 at one of the corners. */
@@ -98,13 +124,14 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     ),
     printf(fh, " ~%")
   ),
+  /* Also check alpha_E. */
+  alphaE_c : makelist(alphaE[i-1],i,1,numB),
+  alphaE_e : doExpand(alphaE_c, basis),
+  alphaECorners : gcfac(float(fullratsimp(evAtNodes(alphaE_e,nodes,vars)))),
+  for i : 1 thru length(nodes) do (
+    printf(fh, "  if (notCellAvg && (~a < 0)) notCellAvg = false; ~%", alphaECorners[i])
+  ),
 
-  /* Declare new buffers where moments are stored. */
-  printf(fh, sconcat("  double m0r[~a] = {0.0}; ~%"), numB),
-  printf(fh, sconcat("  double m1r[~a] = {0.0}; ~%"), udim*numB),
-  printf(fh, sconcat("  double m2r[~a] = {0.0}; ~%"), numB),
-  printf(fh, sconcat("  double cMr[~a] = {0.0}; ~%"), udim*numB),
-  printf(fh, sconcat("  double cEr[~a] = {0.0}; ~%"), numB),
   printf(fh, "  if (notCellAvg) { ~%"),
   /* Use the original expansion polynomial. */
   writeCExprs1s(m0r,makelist(moms_self[i],i,0,numB-1)),
@@ -112,6 +139,8 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   writeCExprs1s(m2r,makelist(moms_self[i+numB*(1+udim)],i,0,numB-1)),
   writeCExprs1s(cMr,makelist(boundary_corrections[i],i,0,udim*numB-1)),
   writeCExprs1s(cEr,makelist(boundary_corrections[i+udim*numB],i,0,numB-1)),
+  writeCExprs1s(u_selfr,makelist(u_self[i-1],i,1,udim*numB)),
+  writeCExprs1s(u_otherr,makelist(u_other[i-1],i,1,udim*numB)),
   printf(fh, "  } else { ~%"),
   /* Use the cell average of m0, m1 and m2. */
   writeCExprs1s(m0r,append([moms_self[0]],makelist(0.0,i,1,numB-1))),
@@ -127,17 +156,42 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
   writeCExprs1s(m2r,append([moms_self[numB*(1+udim)]],makelist(0.0,i,1,numB-1))),
   writeCExprs1s(cEr,append([boundary_corrections[udim*numB]],makelist(0.0,i,1,numB-1))),
+  writeCExprs1s(u_selfr, append([u_self[0]],makelist(0.0,i,2,udim*numB))),
+  writeCExprs1s(u_otherr,append([u_other[0]],makelist(0.0,i,2,udim*numB))),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
+  printf(fh, "  } else { ~%"),
+  printf(fh, "  ~%"),
+
+  writeCExprs1s(m0r,append([1.0],makelist(0.0,i,1,numB-1))),
+  for vd : 1 thru udim do (
+    expr : float(expand(append([1.0],makelist(0.0,i,1,numB-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", m1r[(vd-1)*numB+i-1], expr[i])
+    ),
+    expr : float(expand(append([0.0],makelist(0.0,i,1,numB-1)))),
+    for i : 1 thru length(expr) do (
+      printf(fh, "    ~a = ~a; ~%", cMr[(vd-1)*numB+i-1], expr[i])
+    )
+  ),
+  writeCExprs1s(m2r,append([1.0],makelist(0.0,i,1,numB-1))),
+  writeCExprs1s(cEr,append([0.0],makelist(0.0,i,1,numB-1))),
+  writeCExprs1s(u_selfr, append([1.0],makelist(0.0,i,2,udim*numB))),
+  writeCExprs1s(u_otherr,append([1.0],makelist(0.0,i,2,udim*numB))),
+
+  printf(fh, "  ~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"),
+
   /* Expansion in configuration space basis and coefficients
-     of m0, m2 and the Greene factor. */
-  m0_c  : makelist(m0r[i-1],i,1,numB),
-  m2_c  : makelist(m2r[i-1],i,1,numB),
-  m0_e  : doExpand(m0_c, basis),
-  m2_e  : doExpand(m2_c, basis),
-  greene_c  : makelist(greene[i-1],i,1,numB),
-  greene_e  : doExpand(greene_c, basis),
+     of m0 and m2. Note we multiply by 2 
+     because the M2 moment is the 1/2 v^2 moment.*/
+  m0_c : makelist(m0r[i-1],i,1,numB),
+  m2_c : makelist(2.0*m2r[i-1],i,1,numB),
+  m0_e : doExpand(m0_c, basis),
+  m2_e : doExpand(m2_c, basis),
+
   /* Equivalently for  vtSq .*/
   vtsq_self_c  : makelist(vtsq_self[i-1],i,1,numB),
   vtsq_other_c : makelist(vtsq_other[i-1],i,1,numB),
@@ -163,14 +217,14 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 
   for vd : 1 thru udim do (
     /* Expand u function and create a list of expansion coefficients. */
-    u_self_c   : makelist(u_self[i-1],i,1,numB),
-    u_other_c  : makelist(u_other[i-1],i,1,numB),
+    u_self_c   : makelist(u_selfr[i-1],i,1,numB),
+    u_other_c  : makelist(u_otherr[i-1],i,1,numB),
     m1_c       : makelist(m1r[i-1],i,1,numB),
     cM_c       : makelist(cMr[i-1],i,1,numB),
     uCross_c   : makelist(uCross[i-1],i,1,numB),
     /* Use the vd component of u, m1 and cM. */
-    u_self_c   : subst(makelist(u_self[i]=u_self[(vd-1)*numB+i],i,0,numB-1),u_self_c),
-    u_other_c  : subst(makelist(u_other[i]=u_other[(vd-1)*numB+i],i,0,numB-1),u_other_c),
+    u_self_c   : subst(makelist(u_selfr[i]=u_selfr[(vd-1)*numB+i],i,0,numB-1),u_self_c),
+    u_other_c  : subst(makelist(u_otherr[i]=u_otherr[(vd-1)*numB+i],i,0,numB-1),u_other_c),
     m1_c       : subst(makelist(m1r[i]=m1r[(vd-1)*numB+i],i,0,numB-1),m1_c),
     cM_c       : subst(makelist(cMr[i]=cMr[(vd-1)*numB+i],i,0,numB-1),cM_c),
     uCross_c   : subst(makelist(uCross[i]=uCross[(vd-1)*numB+i],i,0,numB-1),uCross_c),
@@ -218,7 +272,7 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, " ~%"),
  
     /*....... Matrix block corresponding to RHS of momentum equation .......*/
-    expr : calcInnerProdList(vars,1,basis,2*m1_e - greene_e*(u_self_e - u_other_e)),
+    expr : calcInnerProdList(vars,1,basis,2*m1_e - alphaE_e*m_sumDms*(u_self_e - u_other_e)),
     for i : 1 thru numB do (
       printf(fh, "  ~a += ~a; ~%", momRHS[(vd-1)*numB+i-1], float(expr[i]))
     ),
@@ -228,11 +282,11 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
   ),
 
   /* Need the weak dot product of u_self and cM. */
-  u_self_e   : doExpand1(u_self,basis),
-  u_other_e  : doExpand1(u_other,basis),
+  u_self_e   : doExpand1(u_selfr,basis),
+  u_other_e  : doExpand1(u_otherr,basis),
   cM_e       : doExpand1(cMr, basis),
-  u_self_e   : psubst(makelist(u_self[i]=u_self[a0+i],i,0,numB-1),u_self_e),
-  u_other_e  : psubst(makelist(u_other[i]=u_other[a0+i],i,0,numB-1),u_other_e),
+  u_self_e   : psubst(makelist(u_selfr[i]=u_selfr[a0+i],i,0,numB-1),u_self_e),
+  u_other_e  : psubst(makelist(u_otherr[i]=u_otherr[a0+i],i,0,numB-1),u_other_e),
   cM_e       : psubst(makelist(cMr[i]=cMr[a0+i],i,0,numB-1),cM_e),
   ucMSelf_c  : calcInnerProdList(vars,u_self_e,basis,cM_e),
   ucMOther_c : calcInnerProdList(vars,u_other_e,basis,cM_e),
@@ -293,14 +347,13 @@ calcCrossPrimMomsLBO(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "    ~a += ~a; ~%", uM1Other[i-1], expr[i])
   ),
   tempVars : [],
-  sqCoeffs : [makelist(u_self[a0+k-1],k,1,numB),makelist(u_other[a0+k-1],k,1,numB)],
+  sqCoeffs : [makelist(u_selfr[a0+k-1],k,1,numB),makelist(u_otherr[a0+k-1],k,1,numB)],
   tempVars : writeCIncrExprsCollect1noPowers(uSumSq, uSumSq_c, [dx], sqCoeffs, tempVars),
   printf(fh, "  } ~%"),
   printf(fh, " ~%"),
 
-  printf(fh, "  double m_sum = ~a;~%",m_self + m_other),
   printf(fh, "  double m_diff = ~a;~%",m_other - m_self),
-  enRHS1_c : calcInnerProdList(vars,greene_e/m_sum,basis,
+  enRHS1_c : calcInnerProdList(vars,alphaE_e/m_self,basis,
                                vDegFreedom*(m_other*vtsq_other_e - m_self*vtsq_self_e) + 0.5*m_diff*uSumSq_e),
   enRHS2_c : calcInnerProdList(vars,1,basis,2*m2_e - uM1Self_e - uM1Other_e),
   enRHS_c  : enRHS1_c + enRHS2_c,

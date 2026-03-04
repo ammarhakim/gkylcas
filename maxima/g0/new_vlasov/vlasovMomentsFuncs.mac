@@ -537,16 +537,17 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
 
   if (upper) then (
     printf(fh, "GKYL_CU_DH void ~a_M0_upper_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
+    const double *vmap, const double *jacob_vel, double v_thresh, double f_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_M0_lower_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *vmap, double v_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
+    const double *vmap, const double *jacob_vel, double v_thresh, double f_thresh, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder)
   ), 
   printf(fh, "  const double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
 
   /* M0 Reduced only works for 1v, so only load the x velocity coordinate */
   printf(fh, "  const double *px = &vmap[0]; ~%"), 
+  printf(fh, "  const double *jacob_vx = &jacob_vel[0]; ~%"), 
   px_e : doExpand1(px, bV_vi[1]), 
   /* Make a set of Gauss-Legendre nodes for evaluating configuration-space basis. */
   nodes_conf : gaussOrd(polyOrder+1, cdim),
@@ -566,6 +567,7 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
   num_nodes_phase : length(nodes_phase), 
   f_ords : gcfac(float(evAtNodes(f_e,nodes_phase,varsP))),
   printf(fh, "  double f_nodes[~a] = {0.0};~%", num_nodes_phase),
+  printf(fh, "  double fquad = 0.0;~%"),
   for j : 1 thru num_nodes_vel do (
     if (upper) then (
       printf(fh, "  if ((~a) > v_thresh) { ~%", px_ords[j])
@@ -574,7 +576,8 @@ calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, upper) := block(
       printf(fh, "  if ((~a) < -v_thresh) { ~%", px_ords[j])
     ), 
     for i : 1 thru num_nodes_conf do (
-      printf(fh, "    f_nodes[~a] = ~a; ~%", (j-1)+(i-1)*num_nodes_vel, f_ords[j+(i-1)*num_nodes_vel])
+      printf(fh, "    fquad = ~a; ~%", f_ords[j+(i-1)*num_nodes_vel]),
+      printf(fh, "    f_nodes[~a] = fquad > jacob_vx[~a]*f_thresh ? fquad : 0.0; ~%", (j-1)+(i-1)*num_nodes_vel, j-1)
     ), 
     printf(fh, "  } ~%")
   ), 
