@@ -35,7 +35,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
+calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dv_l, NC, vid],
@@ -51,7 +51,12 @@ calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, u
   vid : vidx(cdim,vdim),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   printf(fh, "~%"),
-  hamil : doExpand1(hamil, bV), /* Hamiltonian a function of the *velocity* phase space. */
+  if (vel_hamil) then (
+    hamil : doExpand1(hamil, bV)
+  )
+  else (
+    hamil : doExpand1(hamil, bP)    
+  ),
 
   /* Save enough names for 3D */
   poissonTensorConf : [poisson_tensor_conf_0, poisson_tensor_conf_1, poisson_tensor_conf_2],
@@ -68,6 +73,8 @@ calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, u
   numNodes : length(surfNodes), 
 
   /* Compute the characteristic for the NC Poisson Tensor */
+  /* alpha^i = \Pi^{ij} \pfrac{H}{z^j} */
+  /* Since \Pi_{xx} = 0, we only need velocity gradients of H w.r.t. v_i*/
   Pi_dH_dv : 0,
   for j : 1 thru vdim do (
 
