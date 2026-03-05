@@ -8,10 +8,13 @@ load("gk-sheath/sheath-1x1v");
 load("gk-sheath/sheath-1x2v");
 load("gk-sheath/sheath-2x2v");
 load("gk-sheath/sheath-3x2v");
+load("gk-sheath/sheath_surrogate-1x2v");
+load("gk-sheath/sheath_surrogate-2x2v");
+load("gk-sheath/sheath_surrogate-3x2v");
 
 /* ...... USER INPUTS........ */
 
-outDir : "/Users/ahoffman/gkeyll_main/gkeyll/gyrokinetic/ker/bc_sheath_gyrokinetic"$ /* Output directory */
+outDir : "~/max-out"$ /* Output directory */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
@@ -65,6 +68,18 @@ for bInd : 1 thru length(bName) do (
         )
       )
     ),
+
+    for cdim : minDim[bInd] thru maxDim[bInd] do (
+      if (polyOrder = 1) then (
+        if cdim=1 then (
+          genGkSheathSurrKer1x2v(fh, cdim, 2, bName[bInd], polyOrder)
+        ) else if cdim=2 then (
+          genGkSheathSurrKer2x2v(fh, cdim, 2, bName[bInd], polyOrder)
+        ) else if cdim=3 then (
+          genGkSheathSurrKer3x2v(fh, cdim, 2, bName[bInd], polyOrder)
+        )
+      )
+    ),
     close(fh)
   )
 )$
@@ -74,6 +89,7 @@ for bInd : 1 thru length(bName) do (
 fh : openw(sconcat(outDir,"/gkyl_bc_sheath_gyrokinetic_kernels.h"))$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
+printf(fh, "#include <gkyl_bc_sheath_gyrokinetic_gyraze_surrogate.h> ~%"),
 printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "~%")$
@@ -101,6 +117,13 @@ for bInd : 1 thru length(bName) do (
         )
       )
     )
+  )
+)$
+
+/* surrogate kernels. */
+for cdim : minDim_Ser thru maxDim_Ser do (
+  for sI : 1 thru length(edge) do (
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_surrogate_~a_~ax2v_ser_p1(const double *vmap, const double *phi, const double *phi_wall, const double *density, const double *temperature, const double mass, const double *bmag, const double *bimpact_angle, double *vcut_fact_out) ; ~%", edge[sI], cdim)
   )
 )$
 
