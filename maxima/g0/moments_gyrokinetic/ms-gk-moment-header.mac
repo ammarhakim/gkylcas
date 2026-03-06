@@ -1,4 +1,4 @@
-/* Generate the header file for the Vlasov moment and integrated moment kernels. */
+/* Generate the header file for the Gyrokinetic moment and integrated moment kernels. */
 
 /* ...... USER INPUTS........ */
 
