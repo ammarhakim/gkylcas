@@ -1,6 +1,6 @@
 /* Generate kernels that compute the integrated moments of the distribution function. */
 
-load("moments/vlasovIntMomentsFuncs")$
+load("moments_vlasov/vlasovIntMomentsFuncs")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */

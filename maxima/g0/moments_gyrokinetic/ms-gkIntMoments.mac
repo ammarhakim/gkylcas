@@ -1,7 +1,7 @@
 /* Generate kernels that compute the integrated moments of the gyrocenter distribution function
      for use by the gyrokinetic solver. */
 
-load("moments/gkIntMomentsFuncs")$
+load("moments_gyrokinetic/gkIntMomentsFuncs")$
 load(stringproc)$
 
 /* ...... USER INPUTS........ */
@@ -45,9 +45,9 @@ for bInd : 1 thru length(bName) do (
       /* gyrokinetic moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating Integrated Gyrokinetic Moments ~ax ~av p~a ", bName[bInd]),c,v,polyOrder)),
-        fname : sconcat("~/max-out/gyrokinetic_int_mom_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/int_mom_gyrokinetic_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("gyrokinetic"),
+        funcName : "int_mom_gyrokinetic",
         calcIntMoments(fh, funcName, c, v, bName[bInd], polyOrder),
         close(fh)
       )
