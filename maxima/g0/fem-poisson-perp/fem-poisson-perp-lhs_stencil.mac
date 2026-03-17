@@ -109,9 +109,9 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
         printf(fh, "~%"),
 
         printf(fh, "  #ifdef __CUDA_ARCH__~%"),
-        printf(fh, "    double *csr_vals = out;~%"),
+        printf(fh, "    double *csr_vals = (double *) out;~%"),
         printf(fh, "  #else~%"),
-        printf(fh, "    gkyl_mat_triples *tri = out;~%"),
+        printf(fh, "    gkyl_mat_triples *tri = (gkyl_mat_triples *) out;~%"),
         printf(fh, "  #endif~%"),
         printf(fh, "~%"),
 
@@ -253,7 +253,7 @@ generate_fem_poisson_perp_lhs_stencil(funcNm, dim, basisFun, pMin, pMax) := bloc
               ** digits gave the wrong answer, but 18 sig. digits gave the correct answer.
               ** One way to fix this is by expanding so that 5/3*3. gets written
               ** as 5. */
-              printf(fh, "  ~a &csr_vals[globalIdxs[~a]],~a(~a));~%",opStr,(k-1)*numB+m-1,csrStr,expand(float(val)))
+              printf(fh, "    ~a &csr_vals[globalIdxs[~a]],~a(~a));~%",opStr,(k-1)*numB+m-1,csrStr,expand(float(val)))
             )
           ),
         printf(fh, "  #else~%"),
