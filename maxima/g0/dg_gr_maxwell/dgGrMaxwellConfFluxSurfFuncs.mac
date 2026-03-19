@@ -1,0 +1,316 @@
+/* Functions which compute the components of the surface flux in configuration space. 
+   The procedure we utilize a set of functions that compute the characteristics
+   alpha at surface quadrature points of the needed order.
+
+   We then evaluate the Lax-Friedrichs flux at each quadrature point, and then convert 
+   that back to a modal expansion of the configuration-space flux for use in the final 
+   update in hyper_dg. 
+*/
+
+load("modal-basis");
+load("out-scripts");
+load("utilities")$
+load("nodal_operations/nodal_functions")$
+load("dg_gr_maxwell/dg-gr-maxwell-basis");
+load(stringproc)$
+fpprec : 24$
+
+clabels : ["x","y","z"]$
+dx1 : [dx10, dx11, dx12]$
+cidx(cdim) := makelist(i,i,0,cdim-1)$
+
+/* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
+calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
+   nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
+   surfNodes,numNodes,max_lambda_l, NC, vid, nbasis],
+
+  printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
+      const int geom_edge, const double *lapse_nodal, const double *shift_nodal, const double *h_ij_nodal, 
+      const double *J_c, const double *field_no_J_con_l, const double *field_no_J_con_r, 
+      double* GKYL_RESTRICT flux_l, double* GKYL_RESTRICT flux_r, double* GKYL_RESTRICT max_alpha_quad) ~%{ ~%", funcNm),
+
+  /* Surface contribution is defined as integral(phi^- Fhat) over the surface. */
+  /* cv = variable in direction of surface update. */
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+  cv : varsC[dir],
+  surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
+  [bSurf, nodes_conf, basisNodalConf, surfNodes] : loadConfSurfBasis(cdim, basisFun, polyOrder, surfCVars),
+  NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  numNodes : length(surfNodes),
+  nbasis : length(bC),
+
+  /* Flux calculations */
+
+  /* 0a. Grab pointers to the metric and shift components */
+  printf(fh, "  const double *h_xx_nodal = &h_ij_nodal[~a]; ~%", 0*numNodes),
+  printf(fh, "  const double *h_xy_nodal = &h_ij_nodal[~a]; ~%", 1*numNodes),
+  printf(fh, "  const double *h_xz_nodal = &h_ij_nodal[~a]; ~%", 2*numNodes),
+  printf(fh, "  const double *h_yy_nodal = &h_ij_nodal[~a]; ~%", 3*numNodes),
+  printf(fh, "  const double *h_yz_nodal = &h_ij_nodal[~a]; ~%", 4*numNodes),
+  printf(fh, "  const double *h_zz_nodal = &h_ij_nodal[~a]; ~%", 5*numNodes),
+  printf(fh, "  const double *shift_nodal_x = &shift_nodal[~a]; ~%", 0*numNodes),
+  printf(fh, "  const double *shift_nodal_y = &shift_nodal[~a]; ~%", 1*numNodes),
+  printf(fh, "  const double *shift_nodal_z = &shift_nodal[~a]; ~%", 2*numNodes),
+  printf(fh, "  ~%"), 
+
+  /* 0b. Save memory for nodal expansions */
+  /* Save the left and right states as memory */
+  /* Should max out at (p+1)^2 * 2 * */
+  for s in ["l","r"] do (
+    printf(fh, "  double Dx_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Dy_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Dz_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Bx_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double By_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Bz_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Ex_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Ey_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Ez_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Hx_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Hy_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double Hz_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  ~%")
+  ),
+
+  /* Inline helper for computing left and right cases */
+  emit_side_flux(side) := block(
+    [fields_name,
+    Dxsym, Dysym, Dzsym, Bxsym, Bysym, Bzsym,
+    Dx_e, Dy_e, Dz_e, Bx_e, By_e, Bz_e,
+    Dx_n, Dy_n, Dz_n, Bx_n, By_n, Bz_n,
+    Ex_arr, Ey_arr, Ez_arr, Hx_arr, Hy_arr, Hz_arr,
+    Ex_nodal_list, Ey_nodal_list, Ez_nodal_list,
+    Hx_nodal_list, Hy_nodal_list, Hz_nodal_list,
+    Ex_e2, Ey_e2, Ez_e2, Hx_e2, Hy_e2, Hz_e2, side_eval,
+    flux, flux_n, flux_dir],
+
+    fields_name : sconcat("field_no_J_con_", side),
+
+    Dxsym : parse_string(sconcat("Dx", side)),
+    Dysym : parse_string(sconcat("Dy", side)),
+    Dzsym : parse_string(sconcat("Dz", side)),
+    Bxsym : parse_string(sconcat("Bx", side)),
+    Bysym : parse_string(sconcat("By", side)),
+    Bzsym : parse_string(sconcat("Bz", side)),
+
+    /* 1. Grab modal field blocks for this side */
+    printf(fh, "  const double *Dx_~a = &~a[~a]; ~%", side, fields_name, 0*nbasis),
+    printf(fh, "  const double *Dy_~a = &~a[~a]; ~%", side, fields_name, 1*nbasis),
+    printf(fh, "  const double *Dz_~a = &~a[~a]; ~%", side, fields_name, 2*nbasis),
+    printf(fh, "  const double *Bx_~a = &~a[~a]; ~%", side, fields_name, 3*nbasis),
+    printf(fh, "  const double *By_~a = &~a[~a]; ~%", side, fields_name, 4*nbasis),
+    printf(fh, "  const double *Bz_~a = &~a[~a]; ~%", side, fields_name, 5*nbasis),
+    printf(fh, "  ~%"),
+
+    /* bind symbolic names used by doExpand1 */
+    Dxsym : doExpand1(parse_string(sconcat("Dx_", side)), bC),
+    Dysym : doExpand1(parse_string(sconcat("Dy_", side)), bC),
+    Dzsym : doExpand1(parse_string(sconcat("Dz_", side)), bC),
+    Bxsym : doExpand1(parse_string(sconcat("Bx_", side)), bC),
+    Bysym : doExpand1(parse_string(sconcat("By_", side)), bC),
+    Bzsym : doExpand1(parse_string(sconcat("Bz_", side)), bC),
+
+    /* Surface data come from the left cell at cv=+1 and the right cell at cv=-1. */
+    side_eval : if side = "l" then 1 else -1,
+
+    /* 2. Nodal projection */
+    Dx_n : float(evAtNodes(subst(cv=side_eval,Dxsym), surfNodes, surfCVars)),
+    Dy_n : float(evAtNodes(subst(cv=side_eval,Dysym), surfNodes, surfCVars)),
+    Dz_n : float(evAtNodes(subst(cv=side_eval,Dzsym), surfNodes, surfCVars)),
+    Bx_n : float(evAtNodes(subst(cv=side_eval,Bxsym), surfNodes, surfCVars)),
+    By_n : float(evAtNodes(subst(cv=side_eval,Bysym), surfNodes, surfCVars)),
+    Bz_n : float(evAtNodes(subst(cv=side_eval,Bzsym), surfNodes, surfCVars)),
+
+    for i : 1 thru numNodes do (
+      printf(fh, "  Dx_con_~a_n[~a] = ~a;~%", side, i-1, Dx_n[i]),
+      printf(fh, "  Dy_con_~a_n[~a] = ~a;~%", side, i-1, Dy_n[i]),
+      printf(fh, "  Dz_con_~a_n[~a] = ~a;~%", side, i-1, Dz_n[i]),
+      printf(fh, "  Bx_con_~a_n[~a] = ~a;~%", side, i-1, Bx_n[i]),
+      printf(fh, "  By_con_~a_n[~a] = ~a;~%", side, i-1, By_n[i]),
+      printf(fh, "  Bz_con_~a_n[~a] = ~a;~%", side, i-1, Bz_n[i]),
+      printf(fh, "  ~%")
+    ),
+
+    /* 3. Constitutive relations */
+    printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
+    printf(fh, "    Hx_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_~a_n[i] + h_xy_nodal[i]*By_con_~a_n[i] + h_xz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_~a_n[i] - shift_nodal_z[i]*Dy_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    Hy_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Bx_con_~a_n[i] + h_yy_nodal[i]*By_con_~a_n[i] + h_yz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( - shift_nodal_x[i]*Dz_con_~a_n[i] + shift_nodal_z[i]*Dx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    Hz_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Bx_con_~a_n[i] + h_yz_nodal[i]*By_con_~a_n[i] + h_zz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_x[i]*Dy_con_~a_n[i] - shift_nodal_y[i]*Dx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    Ex_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Dx_con_~a_n[i] + h_xy_nodal[i]*Dy_con_~a_n[i] + h_xz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_y[i]*Bz_con_~a_n[i] - shift_nodal_z[i]*By_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    Ey_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Dx_con_~a_n[i] + h_yy_nodal[i]*Dy_con_~a_n[i] + h_yz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( - shift_nodal_x[i]*Bz_con_~a_n[i] + shift_nodal_z[i]*Bx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    Ez_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Dx_con_~a_n[i] + h_yz_nodal[i]*Dy_con_~a_n[i] + h_zz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_x[i]*By_con_~a_n[i] - shift_nodal_y[i]*Bx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "  }~%"),
+    printf(fh, "  ~%"),
+
+    /* 4. Modal reconstruction */
+    Ex_arr : parse_string(sconcat("Ex_", side, "_n")),
+    Ey_arr : parse_string(sconcat("Ey_", side, "_n")),
+    Ez_arr : parse_string(sconcat("Ez_", side, "_n")),
+    Hx_arr : parse_string(sconcat("Hx_", side, "_n")),
+    Hy_arr : parse_string(sconcat("Hy_", side, "_n")),
+    Hz_arr : parse_string(sconcat("Hz_", side, "_n")),
+
+    Ex_nodal_list : makelist(Ex_arr[i], i, 0, numNodes-1),
+    Ey_nodal_list : makelist(Ey_arr[i], i, 0, numNodes-1),
+    Ez_nodal_list : makelist(Ez_arr[i], i, 0, numNodes-1),
+    Hx_nodal_list : makelist(Hx_arr[i], i, 0, numNodes-1),
+    Hy_nodal_list : makelist(Hy_arr[i], i, 0, numNodes-1),
+    Hz_nodal_list : makelist(Hz_arr[i], i, 0, numNodes-1),
+
+    Ex_e2 : 0,
+    Ey_e2 : 0,
+    Ez_e2 : 0,
+    Hx_e2 : 0,
+    Hy_e2 : 0,
+    Hz_e2 : 0,
+
+    for i : 1 thru num_nodes_conf do (
+      Ex_e2 : ratsimp(Ex_e2 + Ex_nodal_list[i]*basisNodalConf[i]),
+      Ey_e2 : ratsimp(Ey_e2 + Ey_nodal_list[i]*basisNodalConf[i]),
+      Ez_e2 : ratsimp(Ez_e2 + Ez_nodal_list[i]*basisNodalConf[i]),
+      Hx_e2 : ratsimp(Hx_e2 + Hx_nodal_list[i]*basisNodalConf[i]),
+      Hy_e2 : ratsimp(Hy_e2 + Hy_nodal_list[i]*basisNodalConf[i]),
+      Hz_e2 : ratsimp(Hz_e2 + Hz_nodal_list[i]*basisNodalConf[i])
+    ),
+
+    /* 5. Flux */
+    flux : [
+      [  0,  Hz, -Hy,   0, -Ez,  Ey],
+      [-Hz,   0,  Hx,  Ez,   0, -Ex],
+      [ Hy, -Hx,   0, -Ey,  Ex,   0]
+    ],
+    flux_n : subst([Ex=Ex_e2, Ey=Ey_e2, Ez=Ez_e2, Hx=Hx_e2, Hy=Hy_e2, Hz=Hz_e2], flux),
+    flux_dir : flux_n[dir],
+
+    return(makelist(float(evAtNodes(flux_dir[i], surfNodes, surfCVars)), i, 1, length(flux_dir)))
+  ),
+
+  /* Left and right fluxes */
+  flux_n_l : emit_side_flux("l"),
+  flux_n_r : emit_side_flux("r"),
+
+  /* 6. Save the fluxes */
+  num_field_components : 6, 
+  printf(fh, "  double *flux_l_quad; ~%"),
+  printf(fh, "  double *flux_r_quad; ~%"),
+  for i : 1 thru num_field_components do (
+    printf(fh, "  flux_l_quad = &flux_l[~a]; ~%", (i-1)*numNodes),
+    printf(fh, "  flux_r_quad = &flux_r[~a]; ~%", (i-1)*numNodes),
+    for j : 1 thru numNodes do (
+      printf(fh, "  flux_l_quad[~a] = ~a; ~%", j-1, flux_n_l[i][j]),
+      printf(fh, "  flux_r_quad[~a] = ~a; ~%", j-1, flux_n_r[i][j])
+    )
+  ), 
+  printf(fh, "  ~%"),
+
+  /* For reference: */    
+  /* volTerms : sum(makelist(dxInv[d]*calcInnerProdList(varsC, 1, diff(bC,varsC[d]), fluxl[d][i]), i, 1, 6), d, 1, cdim), */
+
+
+  /* Characteristic Computation */
+
+  /* 1. Compute the speeds (eigenvalues) at nodal points
+    - First Eigenvalue: Repeated 0 
+    - Other two eigenvalue pairs are -\beta^i +\- \alpha Jsurf_i / Jc
+    - Six eigenvalues total for the system.
+    - Select the direction of eigenvalues using dir 
+    - Maxed over all eigenvalue magnitudes in a specific direction:
+      max|\lambda^i| = max(0,|-\beta^i + \alpha Jsurf_i / Jc|,|\beta^i - \alpha Jsurf_i / Jc|)
+      all eigenvalues have multiplicity 2 */
+  printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
+  if dir = 1 then (
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_x[i] - lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i]) );~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_x[i] + lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i]) );~%")
+  )
+  else if dir = 2 then (
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_y[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i] ) );~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_y[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i] ) );~%")
+  )
+  else if dir = 3 then (
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_z[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i] ) );~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_z[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i] ) );~%")
+  ),
+  printf(fh, "  }~%"),
+
+
+  printf(fh, "~%"),
+  printf(fh, "} ~%")
+)$ 
+
+/* Nodal Lax-Friedrichs to modal configuration-space flux. */
+calcNodalLaxToModalConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,
+   surfVars,surfCVars,bSurf,NSurf,
+   nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
+   surfNodes,numNodes,jacob_edge,jacob_vi_surf,jacob_surf_tot,
+   f_l_e,f_r_e,f_l_n,f_r_n,lax_list,lax_e,Ghat_c,nbasis],
+
+
+  printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, 
+      const double *J_c, const double *flux_l, const double *flux_r, const double *max_alpha_quad, 
+      const double *field_no_J_con_l, const double *field_no_J_con_r, double* GKYL_RESTRICT conf_flux_surf) ~%{ ~%", funcNm),
+
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder), 
+  cid : cidx(cdim),
+  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "~%"),
+
+  cv : varsC[dir], 
+  surfCVars : delete(cv,varsC), 
+  [bSurf, nodes_conf, basisNodalConf, surfNodes] : loadConfSurfBasis(cdim, basisFun, polyOrder, surfCVars),
+  NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  numNodes : length(surfNodes),
+  nbasis : length(bC),
+
+  /* Extra "8" shift is for 6 field + 2 auxiliary fields in size */
+  printf(fh, "  double *out = &conf_flux_surf[~a]; ~%", 8*(dir-1)*numNodes),
+  printf(fh, "  double alpha_max = 0.0; ~%"), 
+  printf(fh, "  const double *em_no_J_l; ~%"),
+  printf(fh, "  const double *em_no_J_r; ~%"),
+  printf(fh, "  const double *flux_l_quad; ~%"),
+  printf(fh, "  const double *flux_r_quad; ~%"),
+
+  /* Only fill first 6 em components in this kernel */
+  num_field_components : 6, 
+  printf(fh, "  for (int i=0; i<~a; ++i) {~%", num_field_components),
+  /* Grab the specific set of fields, offset by i*numnodes, 
+   so now we can just do regular iterative over the number of nodes for each field type */
+  printf(fh, "    em_no_J_l = &field_no_J_con_l[i*~a]; ~%", nbasis),
+  printf(fh, "    em_no_J_r = &field_no_J_con_r[i*~a]; ~%", nbasis),
+  printf(fh, "    flux_l_quad = &flux_l[i*~a]; ~%", numNodes),
+  printf(fh, "    flux_r_quad = &flux_r[i*~a]; ~%", numNodes),
+  /* Create expansions of fluxes on the volume basis. */
+  em_no_J_l_e : doExpand1(em_no_J_l, bC),
+  em_no_J_r_e : doExpand1(em_no_J_r, bC),
+  /* Project onto the right and left surfaces. */
+  em_no_J_l_n : float(evAtNodes(subst(cv=1,em_no_J_l_e),surfNodes,surfCVars)), 
+  em_no_J_r_n : float(evAtNodes(subst(cv=-1,em_no_J_r_e),surfNodes,surfCVars)),
+  printf(fh, "    double U_l_quad = 0.0; ~%"), 
+  printf(fh, "    double U_r_quad = 0.0; ~%"),
+  for j : 1 thru numNodes do (
+    printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 
+    printf(fh, "    U_l_quad = ~a; ~%", em_no_J_l_n[j]), 
+    printf(fh, "    U_r_quad = ~a; ~%", em_no_J_r_n[j]), 
+    /* Jc needs to be multiplied back in to convert between primitive and conserved variables */
+    printf(fh, "    out[~a+i*~a] = 0.5*((flux_r_quad[~a] + flux_l_quad[~a]) - fabs(max_alpha_quad[~a])*J_c[~a]*(U_r_quad - U_l_quad)); ~%", j-1, numNodes, j-1, j-1, j-1, j-1, j-1)
+  ), 
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"),
+
+  /* Estimate stable time step from the maximum quadrature point evaluation. */
+  printf(fh, "  return ~a*~a*alpha_max;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$ 

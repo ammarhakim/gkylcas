@@ -5,7 +5,7 @@
 
    We then evaluate the Lax-Friedrichs flux G = alpha/2*(f^+ + f^-) - |alpha|/2*(f^+ - f^-)
    at each quadrature point, and then convert that back to a modal expansion of the 
-   velocity-space flux for use in the final update in hyper_dg. 
+   configruation-space flux for use in the final update in hyper_dg. 
 
    Note that we do not make any assumptions on the order of the phase space expansion
    and thus to evaluate G, we must utilize enough Gauss-Legendre quadrature points

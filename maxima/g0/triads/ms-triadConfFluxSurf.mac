@@ -1,9 +1,9 @@
 load("triads/traidConfFluxSurfFuncs")$
 load(stringproc)$
 /* This script calls the functions which calculate the
-   components of the modal DG expansion of the velocity space 
+   components of the modal DG expansion of the configuration space 
    flux, first accumulating different forces into an array
-   storing the phase space characteristics alpha_v at quadrature
+   storing the characteristics alpha at quadrature
    points, and then constructing a nodal Lax-Friedrichs flux,
    G = alpha/2*(f^+ + f^-) - |alpha|/2*(f^+ - f^-)
    and converting that back to a modal expansion. */

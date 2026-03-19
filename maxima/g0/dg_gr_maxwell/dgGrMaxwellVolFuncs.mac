@@ -1,0 +1,160 @@
+load("modal-basis");
+load("out-scripts");
+load("nodal_operations/nodal_functions")$
+load("dg_gr_maxwell/dg-gr-maxwell-basis");
+load(stringproc)$
+fpprec : 24$
+
+/* Define variables and fluxes */
+dxInv : [dx0, dx1, dx2]$
+lhs : [outDx, outDy, outDz, outBx, outBy, outBz]$
+
+calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [bC,nbasis,Exl,Eyl,Ezl,Bxl,Byl,Bzl,phil,psil,fluxl,
+   volTerms,vt,varsC,basisC,basisConstant,d,m],
+
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder),
+
+  /* Volume nodal information. */
+  [bVol, basisNodalConf, volNodes] : loadConfVolBasis(cdim, basisFun, polyOrder, varsC),
+  NVol : length(bVol), 
+  numNodes : length(volNodes),
+  nbasis : length(bC),
+  
+  /* Include both headers since the regular maxwell creates the input func */
+  printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
+
+  printf(fh, "GKYL_CU_DH void ~a_p~a(const double *w, const double *dx, const double *lapse_nodal, const double *shift_nodal,
+  const double *h_ij_nodal, const double *J_c, const double *fields_no_J, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+
+  for d : 1 thru cdim do (
+    printf(fh, "  double dx~a = 2.0/dx[~a]; ~%", d-1, d-1)
+  ),
+
+  printf(fh, "  ~%"),
+
+  /* 0. Save memory for nodal expansions */
+  printf(fh, "  double Dx_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Dy_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Dz_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Bx_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double By_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Bz_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Ex_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Ey_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Ez_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Hx_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Hy_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double Hz_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  ~%"), 
+
+  /* 1. Grab the expansions of the isolated D and B field (contravaraint components modally) */
+  printf(fh, "  const double *Dx = &fields_no_J[~a]; ~%", 0*nbasis),
+  printf(fh, "  const double *Dy = &fields_no_J[~a]; ~%", 1*nbasis),
+  printf(fh, "  const double *Dz = &fields_no_J[~a]; ~%", 2*nbasis),
+  printf(fh, "  const double *Bx = &fields_no_J[~a]; ~%", 3*nbasis),
+  printf(fh, "  const double *By = &fields_no_J[~a]; ~%", 4*nbasis),
+  printf(fh, "  const double *Bz = &fields_no_J[~a]; ~%", 5*nbasis),
+  printf(fh, "  ~%"), 
+
+  printf(fh, "  double *outDx = &out[~a]; ~%", 0*nbasis),
+  printf(fh, "  double *outDy = &out[~a]; ~%", 1*nbasis),
+  printf(fh, "  double *outDz = &out[~a]; ~%", 2*nbasis),
+  printf(fh, "  double *outBx = &out[~a]; ~%", 3*nbasis),
+  printf(fh, "  double *outBy = &out[~a]; ~%", 4*nbasis),
+  printf(fh, "  double *outBz = &out[~a]; ~%", 5*nbasis),
+  printf(fh, "  ~%"), 
+
+  /* Expand in maxima */
+  Dxl : doExpand1(Dx,bC),
+  Dyl : doExpand1(Dy,bC),
+  Dzl : doExpand1(Dz,bC),
+  Bxl : doExpand1(Bx,bC),
+  Byl : doExpand1(By,bC),
+  Bzl : doExpand1(Bz,bC),
+
+
+  /* 2. Project the D and B (contravariant components) nodally */
+  /* Maybe replace with n2m to save kernel space */
+  Dx_n : float(evAtNodes(Dxl,volNodes,varsC)), 
+  Dy_n : float(evAtNodes(Dyl,volNodes,varsC)), 
+  Dz_n : float(evAtNodes(Dzl,volNodes,varsC)), 
+  Bx_n : float(evAtNodes(Bxl,volNodes,varsC)), 
+  By_n : float(evAtNodes(Byl,volNodes,varsC)), 
+  Bz_n : float(evAtNodes(Bzl,volNodes,varsC)), 
+  for i : 1 thru numNodes do (
+    printf(fh, "  Dx_con_n[~a] = ~a;~%", i-1, Dx_n[i]),
+    printf(fh, "  Dy_con_n[~a] = ~a;~%", i-1, Dy_n[i]),
+    printf(fh, "  Dz_con_n[~a] = ~a;~%", i-1, Dz_n[i]),
+    printf(fh, "  Bx_con_n[~a] = ~a;~%", i-1, Bx_n[i]),
+    printf(fh, "  By_con_n[~a] = ~a;~%", i-1, By_n[i]),
+    printf(fh, "  Bz_con_n[~a] = ~a;~%", i-1, Bz_n[i]),
+    printf(fh, "  ~%")
+  ),
+
+  /* 3a. Grab pointers to the metric and shift components */
+  printf(fh, "  const double *h_xx_nodal = &h_ij_nodal[~a]; ~%", 0*numNodes),
+  printf(fh, "  const double *h_xy_nodal = &h_ij_nodal[~a]; ~%", 1*numNodes),
+  printf(fh, "  const double *h_xz_nodal = &h_ij_nodal[~a]; ~%", 2*numNodes),
+  printf(fh, "  const double *h_yy_nodal = &h_ij_nodal[~a]; ~%", 3*numNodes),
+  printf(fh, "  const double *h_yz_nodal = &h_ij_nodal[~a]; ~%", 4*numNodes),
+  printf(fh, "  const double *h_zz_nodal = &h_ij_nodal[~a]; ~%", 5*numNodes),
+  printf(fh, "  const double *shift_nodal_x = &shift_nodal[~a]; ~%", 0*numNodes),
+  printf(fh, "  const double *shift_nodal_y = &shift_nodal[~a]; ~%", 1*numNodes),
+  printf(fh, "  const double *shift_nodal_z = &shift_nodal[~a]; ~%", 2*numNodes),
+  printf(fh, "  ~%"), 
+
+  /* 3b. Compute the vacuum consitutive relations to get 
+   E and H (covariant components) at nodes 
+   1.  H_i = \alpha h_{ij} B^j - J_c \epsilon_{ijk} \beta^j D^k 
+   2.  E_i = \alpha h_{ij} D^j + J_c \epsilon_{ijk} \beta^j B^k */
+  printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
+  printf(fh, "    Hx_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_n[i] + h_xy_nodal[i]*By_con_n[i] + h_xz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_n[i] - shift_nodal_z[i]*Dy_con_n[i]); ~%"),
+  printf(fh, "    Hy_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Bx_con_n[i] + h_yy_nodal[i]*By_con_n[i] + h_yz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( - shift_nodal_x[i]*Dz_con_n[i] + shift_nodal_z[i]*Dx_con_n[i]); ~%"),
+  printf(fh, "    Hz_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Bx_con_n[i] + h_yz_nodal[i]*By_con_n[i] + h_zz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( shift_nodal_x[i]*Dy_con_n[i] - shift_nodal_y[i]*Dx_con_n[i]); ~%"),
+  printf(fh, "    Ex_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Dx_con_n[i] + h_xy_nodal[i]*Dy_con_n[i] + h_xz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( shift_nodal_y[i]*Bz_con_n[i] - shift_nodal_z[i]*By_con_n[i]); ~%"),
+  printf(fh, "    Ey_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Dx_con_n[i] + h_yy_nodal[i]*Dy_con_n[i] + h_yz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( - shift_nodal_x[i]*Bz_con_n[i] + shift_nodal_z[i]*Bx_con_n[i]); ~%"),
+  printf(fh, "    Ez_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Dx_con_n[i] + h_yz_nodal[i]*Dy_con_n[i] + h_zz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( shift_nodal_x[i]*By_con_n[i] - shift_nodal_y[i]*Bx_con_n[i]); ~%"),
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"), 
+
+  /* 4. Compute modal expansions of E_i and H_i */
+  Ex_nodal_list : makelist(Ex_n[i], i, 0, numNodes-1), 
+  Ey_nodal_list : makelist(Ey_n[i], i, 0, numNodes-1), 
+  Ez_nodal_list : makelist(Ez_n[i], i, 0, numNodes-1), 
+  Hx_nodal_list : makelist(Hx_n[i], i, 0, numNodes-1), 
+  Hy_nodal_list : makelist(Hy_n[i], i, 0, numNodes-1), 
+  Hz_nodal_list : makelist(Hz_n[i], i, 0, numNodes-1), 
+  Ex_e : 0, 
+  Ey_e : 0, 
+  Ez_e : 0, 
+  Hx_e : 0, 
+  Hy_e : 0, 
+  Hz_e : 0, 
+  for i : 1 thru numNodes do (
+    Ex_e : ratsimp(Ex_e + Ex_nodal_list[i]*basisNodalConf[i]),
+    Ey_e : ratsimp(Ey_e + Ey_nodal_list[i]*basisNodalConf[i]),
+    Ez_e : ratsimp(Ez_e + Ez_nodal_list[i]*basisNodalConf[i]),
+    Hx_e : ratsimp(Hx_e + Hx_nodal_list[i]*basisNodalConf[i]),
+    Hy_e : ratsimp(Hy_e + Hy_nodal_list[i]*basisNodalConf[i]),
+    Hz_e : ratsimp(Hz_e + Hz_nodal_list[i]*basisNodalConf[i])
+  ),
+
+  /* 5. Compute the flux: F^{\xi j} =  (-\epsilon^{ijk}H_k, \epsilon^{(i+3)jk}E_k)  */
+  flux : [
+    [  0,  Hz, -Hy,   0, -Ez,  Ey],
+    [-Hz,   0,  Hx,  Ez,   0, -Ex],
+    [ Hy, -Hx,   0, -Ey,  Ex,   0]
+  ],
+
+  /* 6. Compute the projection of the components onto the modal basis:
+    \prac{\phi}{x^j} F^{\xi j} */
+  fluxl : subst([Ex=Ex_e, Ey=Ey_e, Ez=Ez_e, Hx=Hx_e, Hy=Hy_e, Hz=Hz_e], flux),
+  volTerms : sum(makelist(dxInv[d]*calcInnerProdList(varsC, 1, diff(bC,varsC[d]), fluxl[d][i]), i, 1, 6), d, 1, cdim),
+  for m : 1 thru 6 do (
+    vt : volTerms[m],
+    writeCIncrExprs1(lhs[m], vt),
+    printf(fh, "~%")
+  ),
+  printf(fh, "} ~%")
+)$
