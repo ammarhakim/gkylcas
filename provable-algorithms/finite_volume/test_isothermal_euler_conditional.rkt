@@ -1,6 +1,7 @@
 #lang racket
 
 (require "code_generator_core.rkt")
+(require "code_generator_vector_conditional.rkt")
 (require "prover_vector_conditional.rkt")
 
 ;; Construct /code and /proofs output directories if they do not already exist.
@@ -41,10 +42,30 @@
                        [else 0.0])))
 
 ;; Define algebraic constraints for the Lax-Friedrichs solver.
-(define conds-lax (list `(> rho 0.0)
-                    `(> (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
-                           (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
-                                    (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))) 0.0)))
+(define conds-lax (list `(>= rho 0.0)
+                        `(>= (+ (* 0.5 (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
+                                          (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
+                                                   (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))))
+                                (/ 1.0 rho)) 0.0)))
+
+;; Define machine epsilon.
+(define epsilon `(expt 10.0 -8.0))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components).
+(define code-isothermal-euler-lax-conditional
+  (generate-lax-friedrichs-vector2-1d-conditional pde-system-isothermal-euler conds-lax epsilon
+                                                  #:nx nx
+                                                  #:x0 x0
+                                                  #:x1 x1
+                                                  #:t-final t-final
+                                                  #:cfl cfl
+                                                  #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_conditional.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-conditional)))
 
 ;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components)
 ;; subject to certain algebraic constraints.

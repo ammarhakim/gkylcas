@@ -306,7 +306,7 @@
 
     ;; The square root of a non-negative number is always real.
     [`(sqrt ,arg)
-     (is-non-negative-conditional arg parameters conds)]
+     (is-non-negative-conditional arg cons-vars parameters conds)]
 
     ;; The exponential of a real number is always real.
     [`(expt ,arg)
@@ -394,7 +394,7 @@
       [else (list #f #f #f)])))
 
 ;; Determine whether an expression is non-negative subject to certain algebraic conditions.
-(define (is-non-negative-conditional expr parameters conds)
+(define (is-non-negative-conditional expr cons-vars parameters conds)
   (match expr
     ;; A non-negative number is, trivially, non-negative.
     [(? (lambda (arg)
@@ -408,26 +408,27 @@
                                                            (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
 
     ;; The square (or fourth power) of any real number is always non-negative.
-    [`(* ,x ,x) #t]
-    [`(* ,x (* ,x (* ,x ,x))) #t]
+    [`(* ,x ,x) (is-real-conditional x cons-vars parameters conds)]
+    [`(* ,x (* ,x (* ,x ,x))) (is-real-conditional x cons-vars parameters conds)]
 
     ;; The square root of any negative number is always non-negative.
-    [`(sqrt ,x) (is-non-negative-conditional x parameters conds)]
+    [`(sqrt ,x) (is-non-negative-conditional x cons-vars parameters conds)]
 
-    ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
-    [`(+ ,x ,y) (or (and (is-non-negative-conditional x parameters conds) (is-non-negative-conditional y parameters conds))
-                    (and (is-non-negative-conditional y parameters conds) (is-non-negative-conditional x parameters conds)))]
-    [`(* ,x ,y) (or (and (is-non-negative-conditional x parameters conds) (is-non-negative-conditional y parameters conds))
-                    (and (is-non-negative-conditional y parameters conds) (is-non-negative-conditional x parameters conds)))]
-    [`(/ ,x ,y) (or (and (is-non-negative-conditional x parameters conds) (is-non-negative-conditional y parameters conds))
-                    (and (is-non-negative-conditional y parameters conds) (is-non-negative-conditional x parameters conds)))]
-
+    ;; Expressions subject to a non-negativity condition are, trivially, non-negative.
     [(? (lambda (arg)
           (and (not (empty? conds)) (ormap (lambda (condition)
-                                             (and (equal? (list-ref condition 0) `>)
+                                             (and (equal? (list-ref condition 0) `>=)
                                                   (equal? arg (list-ref condition 1))
                                                   (or (equal? (list-ref condition 2) 0)
                                                       (equal? (list-ref condition 2) 0.0)))) conds)))) #t]
+
+    ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
+    [`(+ ,x ,y) (or (and (is-non-negative-conditional x cons-vars parameters conds) (is-non-negative-conditional y cons-vars parameters conds))
+                    (and (is-non-negative-conditional y cons-vars parameters conds) (is-non-negative-conditional x cons-vars parameters conds)))]
+    [`(* ,x ,y) (or (and (is-non-negative-conditional x cons-vars parameters conds) (is-non-negative-conditional y cons-vars parameters conds))
+                    (and (is-non-negative-conditional y cons-vars parameters conds) (is-non-negative-conditional x cons-vars parameters conds)))]
+    [`(/ ,x ,y) (or (and (is-non-negative-conditional x cons-vars parameters conds) (is-non-negative-conditional y cons-vars parameters conds))
+                    (and (is-non-negative-conditional y cons-vars parameters conds) (is-non-negative-conditional x cons-vars parameters conds)))]
     
     ;; Otherwise, assume false.
     [else #f]))
@@ -502,8 +503,10 @@
          (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
     
     ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
-    [(or (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 0) parameters conds)) (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 1) parameters conds))
-         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 2) parameters conds)) (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 3) parameters conds))) #f]
+    [(or (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 0) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 1) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 2) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 3) cons-exprs parameters conds))) #f]
 
     ;; Otherwise, return true.
     [else #t]))

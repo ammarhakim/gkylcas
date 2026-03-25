@@ -40,6 +40,15 @@
      (let ([c-terms (map convert-expr terms)])
        (string-append "(" (string-join c-terms " / ") ")"))]
 
+    ;;If expr is a conjunction of the form (and expr1 expr2 ...), then convert it to "expr1 && expr2 && ...)" in C.
+    [`(and . ,terms)
+     (let ([c-terms (map convert-expr terms)])
+       (string-append "(" (string-join c-terms " && ") ")"))]
+    ;; Likewise for disjunctions.
+    [`(or . ,terms)
+     (let ([c-terms (map convert-expr terms)])
+       (string-append "(" (string-join c-terms " || ") ")"))]
+
     ;; If expr is an absolute value of the form (abs expr1), then convert it to "fabs(expr1)" in C.
     [`(abs ,arg)
      (format "fabs(~a)" (convert-expr arg))]
@@ -59,6 +68,10 @@
     ;; If expr is an exponential function of the form (expt expr1), then convert it to "exp(expr1)" in C.
     [`(expt ,arg)
      (format "exp(~a)" (convert-expr arg))]
+
+    ;; If expr is an exponential function of the form (expt expr1 expr2), then convert it to "pow(expr1, expr2)" in C.
+    [`(expt ,arg1 ,arg2)
+     (format "pow(~a, ~a)" (convert-expr arg1) (convert-expr arg2))]
 
     ;; If expr is a maximum of the form (max expr1 expr2), then convert it to "fmax(expr1, expr2)" in C.
     [`(max ,arg1 ,arg2)
