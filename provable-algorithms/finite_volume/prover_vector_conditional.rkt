@@ -9,7 +9,9 @@
          symbolic-hessian
          symbolic-eigvals2
          symbolic-eigvals3
-         prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional)
+         symbolic-roe-matrix
+         prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional
+         prove-roe-vector2-1d-hyperbolicity-conditional)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -337,6 +339,26 @@
     ;; Otherwise, assume false.
     [else #f]))
 
+;; Recursively replace conserved variable expressions within the flux derivative expression (for Roe functions).
+(define (flux-deriv-replace flux-deriv-expr cons-expr new-cons-expr)
+  (match flux-deriv-expr
+    ;; If the flux derivative expression is just the conserved variable expression, then return the new conserved variable expression.
+    [(? (lambda (arg)
+          (equal? arg cons-expr))) new-cons-expr]
+
+    ;; If the flux derivative expression consists of a sum, difference, product, or quotient, then recursively apply replacement to each term.
+    [`(+ . ,terms)
+     `(+ ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(- . ,terms)
+     `(- ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(* . ,terms)
+     `(* ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+    [`(/ . ,terms)
+     `(/ ,@(map (lambda (term) (flux-deriv-replace term cons-expr new-cons-expr)) terms))]
+
+    ;; Otherwise, return the flux derivative expression.
+    [else flux-deriv-expr]))
+
 ;; Compute symbolic Jacobian matrix by mapping symbolic differentiation over exprs with respect to vars.
 (define (symbolic-jacobian exprs vars)
   (map (lambda (expr)
@@ -433,6 +455,21 @@
     ;; Otherwise, assume false.
     [else #f]))
 
+;; Compute the symbolic Roe matrix (averaged flux Jacobian).
+(define (symbolic-roe-matrix flux-jacobian cons-exprs)
+  (map (lambda (row)
+         (map (lambda (column)
+                (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                               (list-ref cons-exprs 1)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
+                                   (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                               (list-ref cons-exprs 1)
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+              row))
+       flux-jacobian))
+
 ;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
 ;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
 ;; subject to certain algebraic conditions
@@ -523,3 +560,91 @@
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional)
+
+;; --------------------------------------------------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; --------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-hyperbolicity-conditional pde-system conds
+                                                        #:nx [nx 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-funcs [init-funcs (list
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 3.0]
+                                                                                     [else 1.0])
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 1.5]
+                                                                                     [else 0.0]))])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`, subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-negative-conditional)
+
+  (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp (list
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 0))
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 1))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrix are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref roe-matrix-eigvals-simp 0) (list
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp 1) (list
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-roe-vector2-1d-hyperbolicity-conditional)
