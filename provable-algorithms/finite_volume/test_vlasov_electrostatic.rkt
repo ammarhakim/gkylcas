@@ -15,12 +15,14 @@
 (define pde-es-vlasov-1x1v
   (hash
    'name "es-vlasov-1x1v"
-   'cons-expr `fs                        ; conserved variable: fs
-   'flux-expr-x `(* y fs)                ; x-flux function: f(u) = y * fs
-   'flux-expr-y `(* (sin x) fs)          ; y-flux function: f(u) = -sin(x) * fs
-   'max-speed-expr-x `(abs y)            ; local x wave-speed: alpha_x = |y|
-   'max-speed-expr-y `(abs (sin x))      ; local y wave-speed: alpha_y = |sin(x)|
-   'parameters `()
+   'cons-expr `fs                                             ; conserved variable: fs
+   'flux-expr-x `(* y fs)                                     ; x-flux function: f(u) = y * fs
+   'flux-expr-y `(* (/ qs ms) (- 0.0 (* (sin x) fs)))         ; y-flux function: f(u) = (qs / ms) * (-sin(x) * fs)
+   'max-speed-expr-x `(abs y)                                 ; local x wave-speed: alpha_x = |y|
+   'max-speed-expr-y `(abs (* (/ qs ms) (- 0.0 (sin x))))     ; local y wave-speed: alpha_y = |-sin(x)|
+   'parameters (list
+                `(define qs -1.0)                             ; species charge: qs = -1.0
+                `(define ms 1.0))                             ; species mass: ms = 1.0
    ))
 
 ;; Define 1x1v simulation parameters.

@@ -320,6 +320,26 @@
         [else ,expr2])
      (and (is-real expr1 cons-vars parameters) (is-real expr2 cons-vars parameters))]
 
+    ;; The square root of a non-negative number is always real.
+    [`(sqrt ,arg)
+     (is-non-negative arg parameters)]
+
+    ;; The exponential of a real number is always real.
+    [`(expt ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; The sine of a real number is always real.
+    [`(sin ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; The cosine of a real number is always real.
+    [`(cos ,arg)
+     (is-real arg cons-vars parameters)]
+
+    ;; Simulation coordinates are assumed to be real (this is enforced elsewhere).
+    [`x #t]
+    [`y #t]
+
     ;; The sum, difference, product, or quotient of two real numbers is always real.
     [`(+ . ,terms)
      (andmap (lambda (term) (is-real term cons-vars parameters)) terms)]
@@ -486,10 +506,13 @@
                                                        (or (>= (list-ref parameter 2) 0)
                                                            (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
 
+    ;; The square of any real number is always non-negative.
+    [`(* ,x ,x) #t]
+
     ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
-    [`(+ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
-    [`(* ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
-    [`(/ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(+ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(* ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(/ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -527,6 +550,7 @@
   (trace symbolic-diff)
   (trace symbolic-jacobian)
   (trace symbolic-eigvals2)
+  (trace is-non-negative)
 
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define flux-eigvals-simp (list
@@ -564,6 +588,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
   (untrace symbolic-eigvals2)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-hyperbolicity)
@@ -603,6 +628,7 @@
   (trace symbolic-eigvals2)
   (trace is-non-zero)
   (trace are-distinct)
+  (trace is-non-negative)
 
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define flux-eigvals-simp (list
@@ -645,6 +671,7 @@
   (untrace symbolic-eigvals2)
   (untrace is-non-zero)
   (untrace are-distinct)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-strict-hyperbolicity)
@@ -683,6 +710,7 @@
   (trace symbolic-diff)
   (trace symbolic-jacobian)
   (trace symbolic-eigvals2)
+  (trace is-non-negative)
 
   (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
   (define max-speed-exprs-simp (list
@@ -723,6 +751,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
   (untrace symbolic-eigvals2)
+  (untrace is-non-negative)
 
   out)
 (trace prove-lax-friedrichs-vector2-1d-cfl-stability)
@@ -850,6 +879,7 @@
   (trace symbolic-diff)
   (trace symbolic-jacobian)
   (trace symbolic-eigvals3)
+  (trace is-non-negative)
 
   (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
   (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
@@ -899,6 +929,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
   (untrace symbolic-eigvals3)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-vector3-2d-hyperbolicity)
@@ -941,6 +972,7 @@
   (trace symbolic-eigvals3)
   (trace is-non-zero)
   (trace are-distinct)
+  (trace is-non-negative)
 
   (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
   (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
@@ -1000,6 +1032,7 @@
   (untrace symbolic-eigvals3)
   (untrace is-non-zero)
   (untrace are-distinct)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-vector3-2d-strict-hyperbolicity)
@@ -1042,6 +1075,7 @@
   (trace symbolic-diff)
   (trace symbolic-jacobian)
   (trace symbolic-eigvals3)
+  (trace is-non-negative)
 
   (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
   (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
@@ -1099,6 +1133,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-jacobian)
   (untrace symbolic-eigvals3)
+  (untrace is-non-negative)
 
   out)
 (trace prove-lax-friedrichs-vector3-2d-cfl-stability)
@@ -1263,6 +1298,7 @@
   (trace symbolic-eigvals2)
   (trace symbolic-roe-matrix)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
   (define roe-matrix-eigvals-simp (list
@@ -1310,6 +1346,7 @@
   (untrace symbolic-eigvals2)
   (untrace symbolic-roe-matrix)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector2-1d-hyperbolicity)
@@ -1351,6 +1388,7 @@
   (trace flux-deriv-replace)
   (trace is-non-zero)
   (trace are-distinct)
+  (trace is-non-negative)
 
   (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
   (define roe-matrix-eigvals-simp (list
@@ -1403,6 +1441,7 @@
   (untrace flux-deriv-replace)
   (untrace is-non-zero)
   (untrace are-distinct)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector2-1d-strict-hyperbolicity)
@@ -1441,6 +1480,7 @@
   (trace symbolic-jacobian)
   (trace symbolic-roe-matrix)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define roe-matrix (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs))
   (define cons-jump (list (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
@@ -1501,6 +1541,7 @@
   (untrace symbolic-jacobian)
   (untrace symbolic-roe-matrix)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector2-1d-flux-conservation)
@@ -1543,6 +1584,7 @@
   (trace symbolic-eigvals3)
   (trace symbolic-roe-matrix)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define roe-matrix-eigvals-x (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs)))
   (define roe-matrix-eigvals-y (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs)))
@@ -1616,6 +1658,7 @@
   (untrace symbolic-eigvals3)
   (untrace symbolic-roe-matrix)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector3-2d-hyperbolicity)
@@ -1660,6 +1703,7 @@
   (trace flux-deriv-replace)
   (trace is-non-zero)
   (trace are-distinct)
+  (trace is-non-negative)
 
   (define roe-matrix-eigvals-x (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs)))
   (define roe-matrix-eigvals-y (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs)))
@@ -1743,6 +1787,7 @@
   (untrace flux-deriv-replace)
   (untrace is-non-zero)
   (untrace are-distinct)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector3-2d-strict-hyperbolicity)
@@ -1784,6 +1829,7 @@
   (trace symbolic-jacobian)
   (trace symbolic-roe-matrix)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define roe-matrix-x (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs))
   (define roe-matrix-y (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs))
@@ -1911,6 +1957,7 @@
   (untrace symbolic-jacobian)
   (untrace symbolic-roe-matrix)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-vector3-2d-flux-conservation)

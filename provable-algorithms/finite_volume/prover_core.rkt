@@ -406,10 +406,13 @@
                                                        (or (>= (list-ref parameter 2) 0)
                                                            (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
 
+    ;; The square of any real number is always non-negative.
+    [`(* ,x ,x) #t]
+
     ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
-    [`(+ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
-    [`(* ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
-    [`(/ ,x ,y) (and (is-non-negative x parameters) (is-non-negative y parameters))]
+    [`(+ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(* ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(/ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -572,6 +575,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
+  (trace is-non-negative)
   
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -600,6 +604,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-scalar-1d-hyperbolicity)
@@ -632,6 +637,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
+  (trace is-non-negative)
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -661,6 +667,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
+  (untrace is-non-negative)
 
   out)
 (trace prove-lax-friedrichs-scalar-1d-cfl-stability)
@@ -758,6 +765,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
+  (trace is-non-negative)
   
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -788,6 +796,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
+  (untrace is-non-negative)
   
   out)
 (trace prove-lax-friedrichs-scalar-2d-hyperbolicity)
@@ -825,6 +834,7 @@
   (trace symbolic-simp)
   (trace symbolic-simp-rule)
   (trace symbolic-diff)
+  (trace is-non-negative)
 
   (define out (cond
     ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
@@ -857,6 +867,7 @@
   (untrace symbolic-simp)
   (untrace symbolic-simp-rule)
   (untrace symbolic-diff)
+  (untrace is-non-negative)
 
   out)
 (trace prove-lax-friedrichs-scalar-2d-cfl-stability)
@@ -959,6 +970,7 @@
   (trace symbolic-diff)
   (trace symbolic-roe-function)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
   
@@ -993,6 +1005,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-scalar-1d-hyperbolicity)
@@ -1026,6 +1039,7 @@
   (trace symbolic-diff)
   (trace symbolic-roe-function)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define flux-deriv (symbolic-simp (symbolic-diff flux-expr cons-expr)))
 
@@ -1063,6 +1077,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-scalar-1d-flux-conservation)
@@ -1100,6 +1115,7 @@
   (trace symbolic-diff)
   (trace symbolic-roe-function)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define flux-deriv-x (symbolic-simp (symbolic-diff flux-expr-x cons-expr)))
   (define flux-deriv-y (symbolic-simp (symbolic-diff flux-expr-y cons-expr)))
@@ -1139,6 +1155,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-scalar-2d-hyperbolicity)
@@ -1176,6 +1193,7 @@
   (trace symbolic-diff)
   (trace symbolic-roe-function)
   (trace flux-deriv-replace)
+  (trace is-non-negative)
 
   (define flux-deriv-x (symbolic-simp (symbolic-diff flux-expr-x cons-expr)))
   (define flux-deriv-y (symbolic-simp (symbolic-diff flux-expr-y cons-expr)))
@@ -1220,6 +1238,7 @@
   (untrace symbolic-diff)
   (untrace symbolic-roe-function)
   (untrace flux-deriv-replace)
+  (untrace is-non-negative)
   
   out)
 (trace prove-roe-scalar-2d-flux-conservation)

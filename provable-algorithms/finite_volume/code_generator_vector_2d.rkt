@@ -26,7 +26,7 @@
                                                                          [else 1.0])
                                                                       `0.0
                                                                       `0.0)])
- "Generate C code that solves the 1D coupled vector system of 2 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
+ "Generate C code that solves the 2D coupled vector system of 3 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
   - `nx`, `ny` : Number of spatial cells in each coordinate direction.
   - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
   - `t-final`: Final time.
