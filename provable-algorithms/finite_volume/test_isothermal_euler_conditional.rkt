@@ -165,7 +165,14 @@
 ;; Define algebraic constraints for the Roe solver.
 (define conds-roe (list `(> (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL)))
                                (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR)))
-                                                       (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)))
+                                                       (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)
+                        
+                        ;; Sufficient condition to guarantee flux conservation - turns out to be too strong for simulations with discontinuities:
+                        
+                        ;`(equal? (+ (* (+ (* -0.5 (/ (* mom_xL mom_xL) (* rhoL rhoL))) (+ (* vt vt) (* -0.5 (/ (* mom_xR mom_xR) (* rhoR rhoR))))) (- rhoL rhoR))
+                        ;            (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (- mom_xL mom_xR)))
+                        ;         (- (+ (/ (* mom_xL mom_xL) rhoL) (* rhoL (* vt vt))) (+ (/ (* mom_xR mom_xR) rhoR) (* rhoR (* vt vt)))))
+                        ))
 
 ;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define code-isothermal-euler-roe-conditional
@@ -278,3 +285,20 @@
   #:exists 'replace
   (lambda ()
     (display code-isothermal-euler-lax-minmod-conditional)))
+
+;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations (density and x-momentum components, with a second-order flux extrapolation using the minmod flux limiter)
+;; subject to certain algebraic constraints.
+(define code-isothermal-euler-roe-minmod-conditional
+  (generate-roe-vector2-1d-second-order-conditional pde-system-isothermal-euler limiter-minmod conds-roe epsilon
+                                                    #:nx nx
+                                                    #:x0 x0
+                                                    #:x1 x1
+                                                    #:t-final t-final
+                                                    #:cfl cfl
+                                                    #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_roe_minmod_conditional.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-roe-minmod-conditional)))
