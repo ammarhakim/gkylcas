@@ -10,8 +10,16 @@
          symbolic-eigvals2
          symbolic-eigvals3
          symbolic-roe-matrix
+         is-real-conditional
+         is-non-negative-conditional
+         is-non-zero-conditional
+         are-distinct-conditional
+         prove-lax-friedrichs-vector2-1d-hyperbolicity-conditional
+         prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional
+         prove-lax-friedrichs-vector2-1d-cfl-stability-conditional
          prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional
-         prove-roe-vector2-1d-hyperbolicity-conditional)
+         prove-roe-vector2-1d-hyperbolicity-conditional
+         prove-roe-vector2-1d-strict-hyperbolicity-conditional)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -439,7 +447,7 @@
     ;; Expressions subject to a non-negativity condition are, trivially, non-negative.
     [(? (lambda (arg)
           (and (not (empty? conds)) (ormap (lambda (condition)
-                                             (and (equal? (list-ref condition 0) `>=)
+                                             (and (or (equal? (list-ref condition 0) `>=) (equal? (list-ref condition 0) `>))
                                                   (equal? arg (list-ref condition 1))
                                                   (or (equal? (list-ref condition 2) 0)
                                                       (equal? (list-ref condition 2) 0.0)))) conds)))) #t]
@@ -452,6 +460,67 @@
     [`(/ ,x ,y) (or (and (is-non-negative-conditional x cons-vars parameters conds) (is-non-negative-conditional y cons-vars parameters conds))
                     (and (is-non-negative-conditional y cons-vars parameters conds) (is-non-negative-conditional x cons-vars parameters conds)))]
     
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; Determine whether an expression is non-zero subject to certain algebraic conditions.
+(define (is-non-zero-conditional expr parameters conds)
+  (match expr
+    ;; A non-zero number is, trivially, non-zero.
+    [(? (lambda (arg)
+         (and (number? arg) (not (equal? arg 0)) (not (equal? arg 0.0))))) #t]
+
+    ;; Simulation parameters that are non-zero are, trivially, non-zero.
+    [(? (lambda (arg)
+        (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                 (and (equal? arg (list-ref parameter 1))
+                                                      (or (not (equal? (list-ref parameter 2) 0))
+                                                          (not (equal? (list-ref parameter 2) 0.0))))) parameters)))) #t]
+
+    ;; The square root of a non-zero number is always non-zero.
+    [`(sqrt ,x) (is-non-zero-conditional x parameters conds)]
+
+    ;; The product of two non-zero numbers is always non-zero.
+    [`(* ,x ,y) (and (is-non-zero-conditional x parameters conds) (is-non-zero-conditional y parameters conds))]
+
+    ;; Expressions subject to a positivity condition are, trivially, non-zero.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `>)
+                                                  (equal? arg (list-ref condition 1))
+                                                  (or (equal? (list-ref condition 2) 0)
+                                                      (equal? (list-ref condition 2) 0.0)))) conds)))) #t]
+    
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; Recursively determine whether two expressions are distinct subject to certain algebraic conditions
+(define (are-distinct-conditional expr parameters conds)
+  (match expr
+    ;; Two numbers that are unequal are, trivially, distinct.
+    [(? (lambda (arg)
+        (and (number? (list-ref arg 0)) (number? (list-ref arg 1)) (not (equal? (list-ref arg 0) (list-ref arg 1)))))) #t]
+
+    ;; Expressions of the form (expr, -expr) or (-expr, expr) are distinct, so long as expr is non-zero.
+    [`(,x (* -1 ,x)) (is-non-zero-conditional x parameters conds)]
+    [`(,x (* -1.0 ,x)) (is-non-zero-conditional x parameters conds)]
+    [`((* -1 ,x) ,x) (is-non-zero-conditional x parameters conds)]
+    [`((* -1.0 ,x) ,x) (is-non-zero-conditional x parameters conds)]
+
+    ;; Expressions of the form ((x + y), (x - y)) or ((x - y), (x + y)) are distinct, so long as y is non-zero.
+    [`((+ ,x ,y) (- ,x ,y)) (is-non-zero-conditional y parameters conds)]
+    [`((- ,x ,y) (+ ,x ,y)) (is-non-zero-conditional y parameters conds)]
+
+    ;; Expressions of the form (x, (x - y)) or (x, (x + y)) are distinct, so long as y is non-zero.
+    [`(,x (- ,x ,y)) (is-non-zero-conditional y parameters conds)]
+    [`(,x (+ ,x ,y)) (is-non-zero-conditional y parameters conds)]
+
+    ;; Expressions of the form ((x - y), x) or ((x + y), x) are distinct, so long as y is non-zero.
+    [`((- ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
+    [`((+ ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
+
+    [`((+ (* ,x1 ,y) ,z) (+ (* ,x2 ,y) ,z)) (and (equal? x1 (- 0.0 x2)) (is-non-zero-conditional x1 parameters conds) (is-non-zero-conditional y parameters conds))]
+
     ;; Otherwise, assume false.
     [else #f]))
 
@@ -469,6 +538,246 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
               row))
        flux-jacobian))
+
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-hyperbolicity-conditional pde-system conds
+                                                                   #:nx [nx 200]
+                                                                   #:x0 [x0 0.0]
+                                                                   #:x1 [x1 2.0]
+                                                                   #:t-final [t-final 1.0]
+                                                                   #:cfl [cfl 0.95]
+                                                                   #:init-funcs [init-funcs (list
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 3.0]
+                                                                                                [else 1.0])
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 1.5]
+                                                                                                [else 0.0]))])
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`, subject to the algebraic conditions `conds`. 
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp (list-ref flux-eigvals 0))
+                             (symbolic-simp (list-ref flux-eigvals 1))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobian are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp 1) cons-exprs parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector2-1d-hyperbolicity-conditional)
+
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional pde-system conds
+                                                                          #:nx [nx 200]
+                                                                          #:x0 [x0 0.0]
+                                                                          #:x1 [x1 2.0]
+                                                                          #:t-final [t-final 1.0]
+                                                                          #:cfl [cfl 0.95]
+                                                                          #:init-funcs [init-funcs (list
+                                                                                                    `(cond
+                                                                                                       [(< x 0.5) 3.0]
+                                                                                                       [else 1.0])
+                                                                                                    `(cond
+                                                                                                       [(< x 0.5) 1.5]
+                                                                                                       [else 0.0]))])
+   "Prove that the Lax-Friedrichs finite-difference method preserves strict hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace is-non-zero-conditional)
+  (trace are-distinct-conditional)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp (list-ref flux-eigvals 0))
+                             (symbolic-simp (list-ref flux-eigvals 1))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobian are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp 1) cons-exprs parameters conds))) #f]
+
+    ;; Check whether the eigenvalues of the flux Jacobian are all distinct (otherwise, return false).
+    [(not (are-distinct-conditional flux-eigvals-simp parameters conds)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace is-non-zero-conditional)
+  (untrace are-distinct-conditional)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional)
+
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector2-1d-cfl-stability-conditional pde-system conds
+                                                                   #:nx [nx 200]
+                                                                   #:x0 [x0 0.0]
+                                                                   #:x1 [x1 2.0]
+                                                                   #:t-final [t-final 1.0]
+                                                                   #:cfl [cfl 0.95]
+                                                                   #:init-funcs [init-funcs (list
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 3.0]
+                                                                                                [else 1.0])
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 1.5]
+                                                                                                [else 0.0]))])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D coupled vector system of 2 PDEs specified by `pde-system`, subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals (symbolic-eigvals2 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define max-speed-exprs-simp (list
+                                (symbolic-simp (list-ref max-speed-exprs 0))
+                                (symbolic-simp (list-ref max-speed-exprs 1))))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 0)))
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 1)))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the absolute eigenvalues of the flux Jacobian are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
+    [(or (equal? (member (list-ref flux-eigvals-simp 0) max-speed-exprs-simp) #f)
+         (equal? (member (list-ref flux-eigvals-simp 1) max-speed-exprs-simp) #f)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+  
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace is-non-negative-conditional)
+
+  out)
+(trace prove-lax-friedrichs-vector2-1d-cfl-stability-conditional)
 
 ;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
 ;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 2 PDEs
@@ -648,3 +957,98 @@
   
   out)
 (trace prove-roe-vector2-1d-hyperbolicity-conditional)
+
+;; ---------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; ---------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-strict-hyperbolicity-conditional pde-system conds
+                                                               #:nx [nx 200]
+                                                               #:x0 [x0 0.0]
+                                                               #:x1 [x1 2.0]
+                                                               #:t-final [t-final 1.0]
+                                                               #:cfl [cfl 0.95]
+                                                               #:init-funcs [init-funcs (list
+                                                                                         `(cond
+                                                                                            [(< x 0.5) 3.0]
+                                                                                            [else 1.0])
+                                                                                         `(cond
+                                                                                            [(< x 0.5) 1.5]
+                                                                                            [else 0.0]))])
+   "Prove that the Roe finite-volume method preserves strict hyperbolicity for the 1D coupled vector system of 2 PDEs specified by `pde-system`, subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals2)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-zero-conditional)
+  (trace are-distinct-conditional)
+  (trace is-non-negative-conditional)
+
+  (define roe-matrix-eigvals (symbolic-eigvals2 (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp (list
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 0))
+                                   (symbolic-simp (list-ref roe-matrix-eigvals 1))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrix are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref roe-matrix-eigvals-simp 0) (list
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp 1) (list
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                         (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))) parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrix are all distinct (otherwise, return false).
+    [(not (are-distinct-conditional roe-matrix-eigvals-simp parameters conds)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals2)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-zero-conditional)
+  (untrace are-distinct-conditional)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-roe-vector2-1d-strict-hyperbolicity-conditional)

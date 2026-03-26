@@ -42,11 +42,11 @@
                        [else 0.0])))
 
 ;; Define algebraic constraints for the Lax-Friedrichs solver.
-(define conds-lax (list `(>= rho 0.0)
-                        `(>= (+ (* 0.5 (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
-                                          (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
-                                                   (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))))
-                                (/ 1.0 rho)) 0.0)))
+(define conds-lax (list `(> rho 0.0)
+                        `(> (+ (* 0.5 (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
+                                         (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
+                                                  (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))))
+                               (/ 1.0 rho)) 0.0)))
 
 ;; Define machine epsilon.
 (define epsilon `(expt 10.0 -8.0))
@@ -67,6 +67,77 @@
   (lambda ()
     (display code-isothermal-euler-lax-conditional)))
 
+(display "Conditional Lax-Friedrichs (finite-difference) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
+(define proof-isothermal-euler-lax-hyperbolicity-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_hyperbolicity_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-lax-friedrichs-vector2-1d-hyperbolicity-conditional pde-system-isothermal-euler conds-lax
+                                                                   #:nx nx
+                                                                   #:x0 x0
+                                                                   #:x1 x1
+                                                                   #:t-final t-final
+                                                                   #:cfl cfl
+                                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_hyperbolicity_conditional.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-isothermal-euler-lax-hyperbolicity-conditional)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
+(define proof-isothermal-euler-lax-strict-hyperbolicity-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_strict_hyperbolicity_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional pde-system-isothermal-euler conds-lax
+                                                                          #:nx nx
+                                                                          #:x0 x0
+                                                                          #:x1 x1
+                                                                          #:t-final t-final
+                                                                          #:cfl cfl
+                                                                          #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_strict_hyperbolicity_conditional.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-isothermal-euler-lax-strict-hyperbolicity-conditional)
+(display "\n")
+
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
+(define proof-isothermal-euler-lax-cfl-stability-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_lax_cfl_stability_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-lax-friedrichs-vector2-1d-cfl-stability-conditional pde-system-isothermal-euler conds-lax
+                                                                   #:nx nx
+                                                                   #:x0 x0
+                                                                   #:x1 x1
+                                                                   #:t-final t-final
+                                                                   #:cfl cfl
+                                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_cfl_stability_conditional.rkt")
+
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-isothermal-euler-lax-cfl-stability-conditional)
+(display "\n")
+
 ;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components)
 ;; subject to certain algebraic constraints.
 (define proof-isothermal-euler-lax-local-lipschitz-conditional
@@ -74,6 +145,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
         (display "(require \"../prover_vector_conditional.rkt\")\n\n")
         (prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional pde-system-isothermal-euler conds-lax
                                                                      #:nx nx
@@ -85,10 +157,15 @@
     #:exists `replace))
 (remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_local_lipschitz_conditional.rkt")
 
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-isothermal-euler-lax-local-lipschitz-conditional)
+(display "\n\n\n")
+
 ;; Define algebraic constraints for the Roe solver.
-(define conds-roe (list `(>= (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL)))
-                                (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR)))
-                                                        (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)))
+(define conds-roe (list `(> (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL)))
+                               (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR)))
+                                                       (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)))
 
 ;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define code-isothermal-euler-roe-conditional
@@ -112,6 +189,7 @@
     (lambda (out)
       (parameterize ([current-output-port out] [pretty-print-columns `infinity])
         (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
         (display "(require \"../prover_vector_conditional.rkt\")\n\n")
         (prove-roe-vector2-1d-hyperbolicity-conditional pde-system-isothermal-euler conds-roe
                                                         #:nx nx
@@ -122,3 +200,21 @@
                                                         #:init-funcs init-funcs)))
     #:exists `replace))
 (remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_hyperbolicity_conditional.rkt")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
+(define proof-isothermal-euler-roe-strict-hyperbolicity-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-roe-vector2-1d-strict-hyperbolicity-conditional pde-system-isothermal-euler conds-roe
+                                                               #:nx nx
+                                                               #:x0 x0
+                                                               #:x1 x1
+                                                               #:t-final t-final
+                                                               #:cfl cfl
+                                                               #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_conditional.rkt")
