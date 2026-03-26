@@ -122,3 +122,31 @@
                                                                      #:init-funcs init-funcs-2d)))
     #:exists `replace))
 (remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_lax_local_lipschitz_2d_conditional.rkt")
+
+;; Define algebraic constraints for the Roe solver.
+(define conds-roe (list
+                   `(> (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL))) (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR))) (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)
+                   
+                   `(> (+ (* -2.0 (/ (* mom_yL mom_yL) (* rhoL rhoL))) (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_yR mom_yR) (* rhoR rhoR))) (+ (* (+ (/ mom_yL rhoL) (/ mom_yR rhoR)) (/ mom_yL rhoL)) (* (+ (/ mom_yL rhoL) (/ mom_yR rhoR)) (/ mom_yR rhoR)))))) 0.0)
+                   ))
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 2D isothermal Euler equations subject to certain algebraic constraints.
+(define proof-isothermal-euler-roe-hyperbolicity-2d-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_hyperbolicity_2d_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-roe-vector3-2d-hyperbolicity-conditional pde-system-isothermal-euler-2d conds-roe
+                                                        #:nx nx-2d
+                                                        #:ny ny-2d
+                                                        #:x0 x0-2d
+                                                        #:x1 x1-2d
+                                                        #:y0 y0-2d
+                                                        #:y1 y1-2d
+                                                        #:t-final t-final-2d
+                                                        #:cfl cfl-2d
+                                                        #:init-funcs init-funcs-2d)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_hyperbolicity_2d_conditional.rkt")

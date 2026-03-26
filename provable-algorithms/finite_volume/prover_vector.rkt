@@ -506,14 +506,28 @@
 (define (symbolic-roe-matrix flux-jacobian cons-exprs)
   (map (lambda (row)
          (map (lambda (column)
-                (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
-                                                               (list-ref cons-exprs 1)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
-                                   (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
-                                                               (list-ref cons-exprs 1)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+                (cond
+                  [(equal? (length cons-exprs) 2)
+                   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                  (list-ref cons-exprs 1)
+                                                                  (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
+                                      (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                  (list-ref cons-exprs 1)
+                                                                  (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))]
+                  
+                  [(equal? (length cons-exprs) 3)
+                   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                                          (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                                      (list-ref cons-exprs 1)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                  (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))))
+                                      (* 0.5 ,(flux-deriv-replace (flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                                          (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                                      (list-ref cons-exprs 1)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                  (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))))))]))
               row))
        flux-jacobian))
 
@@ -1656,6 +1670,13 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-x 2) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
     [(or (not (is-real (list-ref roe-matrix-eigvals-simp-y 0) (list
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
@@ -1665,6 +1686,13 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
          (not (is-real (list-ref roe-matrix-eigvals-simp-y 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-y 2) (list
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
@@ -1775,6 +1803,13 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-x 2) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))) #f]
     [(or (not (is-real (list-ref roe-matrix-eigvals-simp-y 0) (list
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
@@ -1784,6 +1819,13 @@
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
          (not (is-real (list-ref roe-matrix-eigvals-simp-y 1) (list
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters))
+         (not (is-real (list-ref roe-matrix-eigvals-simp-y 2) (list
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
                                                                (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))

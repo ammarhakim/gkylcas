@@ -22,7 +22,8 @@
          prove-lax-friedrichs-vector3-2d-local-lipschitz-conditional
          prove-roe-vector2-1d-hyperbolicity-conditional
          prove-roe-vector2-1d-strict-hyperbolicity-conditional
-         prove-roe-vector2-1d-flux-conservation-conditional)
+         prove-roe-vector2-1d-flux-conservation-conditional
+         prove-roe-vector3-2d-hyperbolicity-conditional)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -587,14 +588,28 @@
 (define (symbolic-roe-matrix flux-jacobian cons-exprs)
   (map (lambda (row)
          (map (lambda (column)
-                (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
-                                                               (list-ref cons-exprs 1)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
-                                   (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
-                                                               (list-ref cons-exprs 1)
-                                                               (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+                (cond
+                  [(equal? (length cons-exprs) 2)
+                   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                  (list-ref cons-exprs 1)
+                                                                  (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))))
+                                      (* 0.5 ,(flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                  (list-ref cons-exprs 1)
+                                                                  (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))]
+                  
+                  [(equal? (length cons-exprs) 3)
+                   (symbolic-simp `(+ (* 0.5 ,(flux-deriv-replace (flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                                          (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                                                                      (list-ref cons-exprs 1)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                                                  (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))))
+                                      (* 0.5 ,(flux-deriv-replace (flux-deriv-replace (flux-deriv-replace column (list-ref cons-exprs 0)
+                                                                                                          (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                                                                      (list-ref cons-exprs 1)
+                                                                                      (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))
+                                                                  (list-ref cons-exprs 2) (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))))))]))
               row))
        flux-jacobian))
 
@@ -1349,3 +1364,135 @@
   
   out)
 (trace prove-roe-vector2-1d-flux-conservation-conditional)
+
+;; --------------------------------------------------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 2D Coupled Vector System of 3 PDEs subject to certain algebraic conditions
+;; --------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector3-2d-hyperbolicity-conditional pde-system conds
+                                                        #:nx [nx 200]
+                                                        #:ny [ny 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:y0 [y0 0.0]
+                                                        #:y1 [y1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-funcs [init-funcs (list
+                                                                                  `(cond
+                                                                                     [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                     [else 1.0])
+                                                                                  `0.0
+                                                                                  `0.0)])
+   "Prove that the Roe finite-volume method preserves hyperbolicity for the 2D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-negative-conditional)
+
+  (define roe-matrix-eigvals-x (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-x cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-y (symbolic-eigvals3 (symbolic-roe-matrix (symbolic-jacobian flux-exprs-y cons-exprs) cons-exprs)))
+  (define roe-matrix-eigvals-simp-x (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-x 2))))
+  (define roe-matrix-eigvals-simp-y (list
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 0))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 1))
+                                     (symbolic-simp (list-ref roe-matrix-eigvals-y 2))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the Roe matrices are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-x 0) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-x 1) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-x 2) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))) #f]
+    [(or (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-y 0) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-y 1) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))
+         (not (is-real-conditional (list-ref roe-matrix-eigvals-simp-y 2) (list
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "L"))
+                                                                           (string->symbol (string-append (symbol->string (list-ref cons-exprs 2)) "R"))) parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-roe-vector3-2d-hyperbolicity-conditional)
