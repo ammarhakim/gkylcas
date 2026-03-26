@@ -111,7 +111,7 @@
 
     ;; If expr is an equality comparison of the form (equal? expr1 expr2), then convert it to "expr1 == expr2" in C.
     [`(equal? ,arg1 ,arg2)
-     (format "~a == ~a" (convert-expr arg1) (convert-expr arg2))]
+     (format "fabs(~a - ~a) == 0" (convert-expr arg1) (convert-expr arg2))]
 
     ;; If expr is a conditional of the form [(cond [cond1 expr1] [else expr2])], then convert it to the ternary operator "(cond1) ? expr1 : expr2" in C.
     [`(cond

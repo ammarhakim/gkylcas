@@ -14,12 +14,14 @@
          is-non-negative-conditional
          is-non-zero-conditional
          are-distinct-conditional
+         are-equal-conditional
          prove-lax-friedrichs-vector2-1d-hyperbolicity-conditional
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional
          prove-lax-friedrichs-vector2-1d-cfl-stability-conditional
          prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional
          prove-roe-vector2-1d-hyperbolicity-conditional
-         prove-roe-vector2-1d-strict-hyperbolicity-conditional)
+         prove-roe-vector2-1d-strict-hyperbolicity-conditional
+         prove-roe-vector2-1d-flux-conservation-conditional)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -519,7 +521,33 @@
     [`((- ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
     [`((+ ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
 
-    [`((+ (* ,x1 ,y) ,z) (+ (* ,x2 ,y) ,z)) (and (equal? x1 (- 0.0 x2)) (is-non-zero-conditional x1 parameters conds) (is-non-zero-conditional y parameters conds))]
+    ;; Expressions of the form ((x1 * y) + z, (x2 * y) + z) are distinct, so long as x1 and x2 are distinct.
+    [`((+ (* ,x1 ,y) ,z) (+ (* ,x2 ,y) ,z)) (are-distinct-conditional (list x1 x2) parameters conds)]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; Recursively determine whether two expressions are equal subject to certain algebraic conditions
+(define (are-equal-conditional expr parameters conds)
+  (match expr
+    ;; Two numbers that are equal are, trivially, equal.
+    [(? (lambda (arg)
+        (and (number? (list-ref arg 0)) (number? (list-ref arg 1)) (equal? (list-ref arg 0) (list-ref arg 1))))) #t]
+
+    ;; Two equivalent expressions are always equal.
+    [`(,x ,x) #t]
+
+    ;; Expressions subject to an equality condition are, trivially, equal.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `equal?)
+                                                  (equal? (list-ref arg 0) (list-ref condition 1))
+                                                  (equal? (list-ref arg 1) (list-ref condition 2)))) conds)))) #t]
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `equal?)
+                                                  (equal? (list-ref arg 0) (list-ref condition 2))
+                                                  (equal? (list-ref arg 1) (list-ref condition 1)))) conds)))) #t]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -1052,3 +1080,106 @@
   
   out)
 (trace prove-roe-vector2-1d-strict-hyperbolicity-conditional)
+
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove flux conservation (jump continuity) of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-roe-vector2-1d-flux-conservation-conditional pde-system conds
+                                                            #:nx [nx 200]
+                                                            #:x0 [x0 0.0]
+                                                            #:x1 [x1 2.0]
+                                                            #:t-final [t-final 1.0]
+                                                            #:cfl [cfl 0.95]
+                                                            #:init-funcs [init-funcs (list
+                                                                                      `(cond
+                                                                                         [(< x 0.5) 3.0]
+                                                                                         [else 1.0])
+                                                                                      `(cond
+                                                                                         [(< x 0.5) 1.5]
+                                                                                         [else 0.0]))])
+  "Prove that the Roe finite-volume method preserves flux conservation (jump continuity) for the 1D coupled vector system of 2 PDEs specified by `pde-system`,
+   subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-roe-matrix)
+  (trace flux-deriv-replace)
+  (trace is-non-negative-conditional)
+  (trace are-equal-conditional)
+
+  (define roe-matrix (symbolic-roe-matrix (symbolic-jacobian flux-exprs cons-exprs) cons-exprs))
+  (define cons-jump (list (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R"))))
+                          (symbolic-simp `(- ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L"))
+                                             ,(string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R"))))))
+  
+  (define roe-jump (list (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix 0) 0) ,(list-ref cons-jump 0))
+                                            (* ,(list-ref (list-ref roe-matrix 0) 1) ,(list-ref cons-jump 1))))
+                         (symbolic-simp `(+ (* ,(list-ref (list-ref roe-matrix 1) 0) ,(list-ref cons-jump 0))
+                                            (* ,(list-ref (list-ref roe-matrix 1) 1) ,(list-ref cons-jump 1))))))
+  (define flux-jump (list (symbolic-simp `(- ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 0) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                             ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 0) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))
+                          (symbolic-simp `(- ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 1) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "L")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "L")))
+                                             ,(flux-deriv-replace
+                                               (flux-deriv-replace (list-ref flux-exprs 1) (list-ref cons-exprs 0)
+                                                                   (string->symbol (string-append (symbol->string (list-ref cons-exprs 0)) "R")))
+                                               (list-ref cons-exprs 1) (string->symbol (string-append (symbol->string (list-ref cons-exprs 1)) "R")))))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))) #f]
+
+    ;; Check whether the jump in the flux vector is equal to the product of the Roe matrix and the jump in the conserved variable vector (otherwise, return false).
+    [(or (not (are-equal-conditional (list (list-ref roe-jump 0) (list-ref flux-jump 0)) parameters conds))
+         (not (are-equal-conditional (list (list-ref roe-jump 1) (list-ref flux-jump 1)) parameters conds))) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-roe-matrix)
+  (untrace flux-deriv-replace)
+  (untrace is-non-negative-conditional)
+  (untrace are-equal-conditional)
+  
+  out)
+(trace prove-roe-vector2-1d-flux-conservation-conditional)

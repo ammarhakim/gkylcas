@@ -183,6 +183,8 @@
   (lambda ()
     (display code-isothermal-euler-roe-conditional)))
 
+(display "Roe (finite-volume) properties: \n\n")
+
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define proof-isothermal-euler-roe-hyperbolicity-conditional
   (call-with-output-file "proofs/proof_isothermal_euler_roe_hyperbolicity_conditional.rkt"
@@ -201,6 +203,11 @@
     #:exists `replace))
 (remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_hyperbolicity_conditional.rkt")
 
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-hyperbolicity-conditional)
+(display "\n")
+
 ;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define proof-isothermal-euler-roe-strict-hyperbolicity-conditional
   (call-with-output-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_conditional.rkt"
@@ -218,3 +225,31 @@
                                                                #:init-funcs init-funcs)))
     #:exists `replace))
 (remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_strict_hyperbolicity_conditional.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-isothermal-euler-roe-strict-hyperbolicity-conditional)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
+(define proof-isothermal-euler-roe-flux-conservation-conditional
+  (call-with-output-file "proofs/proof_isothermal_euler_roe_flux_conservation_conditional.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_vector_conditional.rkt\")\n\n")
+        (prove-roe-vector2-1d-flux-conservation-conditional pde-system-isothermal-euler conds-roe
+                                                            #:nx nx
+                                                            #:x0 x0
+                                                            #:x1 x1
+                                                            #:t-final t-final
+                                                            #:cfl cfl
+                                                            #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_isothermal_euler_roe_flux_conservation_conditional.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-isothermal-euler-roe-flux-conservation-conditional)
+(display "\n")
