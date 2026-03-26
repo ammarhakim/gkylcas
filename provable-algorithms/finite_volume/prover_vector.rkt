@@ -426,8 +426,33 @@
       [(and (equal? a 0.0) (equal? b 0.0) (equal? c 1.0) (equal? h 0.0))
        (list e `(* 0.5 (- ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))) `(* 0.5 (+ ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))))]
 
-      ;; Otherwise, return false(s).
-      [else (list #f #f #f)])))
+      [(and (equal? g 0.0) (equal? h 0.0) (equal? i 0.0))
+       (list 0.0 `(* 0.5 (- (+ ,a  ,e) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,b) ,d)) (* (* 2.0 ,a) ,e)) (* ,e ,e)))))
+             `(* 0.5 (+ (+ ,a  ,e) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,b) ,d)) (* (* 2.0 ,a) ,e)) (* ,e ,e))))))]
+
+      [(and (equal? d 0.0) (equal? e 0.0) (equal? f 0.0))
+       (list 0.0 `(* 0.5 (- (+ ,a  ,i) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,c) ,g)) (* (* 2.0 ,a) ,i)) (* ,i ,i)))))
+             `(* 0.5 (+ (+ ,a  ,i) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,c) ,g)) (* (* 2.0 ,a) ,i)) (* ,i ,i))))))]
+
+      ;; Otherwise, pattern match.
+      [else
+       (match matrix
+         [`(((* 2.0 (* ,y (/ ,x (* ,z (* ,z ,z))))) (* -1.0 (* ,y (/ 1.0 (* ,z ,z)))) (* -1.0 (/ ,x (* ,z ,z))))
+            ((* -1.0 (* ,y (/ 1.0 (* ,z ,z)))) 0.0 (/ 1.0 ,z))
+            ((* -1.0 (/ ,x (* ,z ,z))) (/ 1.0 ,z) 0.0))
+          (list 0.0
+                `(/ (- (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z))
+                `(/ (+ (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z)))]
+
+         [`(((* 2.0 (* ,x (/ ,y (* ,z (* ,z ,z))))) (* -1.0 (/ ,y (* ,z ,z))) (* -1.0 (* ,x (/ 1.0 (* ,z ,z)))))
+            ((* -1.0 (/ ,y (* ,z ,z))) 0.0 (/ 1.0 ,z))
+            ((* -1.0 (* ,x (/ 1.0 (* ,z ,z)))) (/ 1.0 ,z) 0.0))
+          (list 0.0
+                `(/ (- (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z))
+                `(/ (+ (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z)))]
+         
+         ;; Otherwise, return false(s).
+         [else (list #f #f #f)])])))
 
 ;; Determine whether an expression is non-zero.
 (define (is-non-zero expr parameters)

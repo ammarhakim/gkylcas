@@ -253,3 +253,28 @@
 (display "Flux conservation (jump continuity): ")
 (display proof-isothermal-euler-roe-flux-conservation-conditional)
 (display "\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components, with a second-order flux extrapolation using the minmod flux limiter)
+;; subject to certain algebraic constraints.
+(define code-isothermal-euler-lax-minmod-conditional
+  (generate-lax-friedrichs-vector2-1d-second-order-conditional pde-system-isothermal-euler limiter-minmod conds-lax epsilon
+                                                               #:nx nx
+                                                               #:x0 x0
+                                                               #:x1 x1
+                                                               #:t-final t-final
+                                                               #:cfl cfl
+                                                               #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/isothermal_euler_lax_minmod_conditional.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-isothermal-euler-lax-minmod-conditional)))
