@@ -51,7 +51,7 @@
 ;; Define machine epsilon.
 (define epsilon `(expt 10.0 -8.0))
 
-;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components).
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define code-isothermal-euler-lax-conditional
   (generate-lax-friedrichs-vector2-1d-conditional pde-system-isothermal-euler conds-lax epsilon
                                                   #:nx nx

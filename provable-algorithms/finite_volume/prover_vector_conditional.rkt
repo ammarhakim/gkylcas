@@ -19,6 +19,7 @@
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional
          prove-lax-friedrichs-vector2-1d-cfl-stability-conditional
          prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional
+         prove-lax-friedrichs-vector3-2d-local-lipschitz-conditional
          prove-roe-vector2-1d-hyperbolicity-conditional
          prove-roe-vector2-1d-strict-hyperbolicity-conditional
          prove-roe-vector2-1d-flux-conservation-conditional)
@@ -422,8 +423,35 @@
       [(and (equal? a 0.0) (equal? b 0.0) (equal? c 1.0) (equal? h 0.0))
        (list e `(* 0.5 (- ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))) `(* 0.5 (+ ,i (sqrt (+ (* 4.0 ,g) (* ,i ,i))))))]
 
-      ;; Otherwise, return false(s).
-      [else (list #f #f #f)])))
+      [(and (equal? g 0.0) (equal? h 0.0) (equal? i 0.0))
+       (list 0.0
+             `(* 0.5 (- (+ ,a  ,e) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,b) ,d)) (* (* 2.0 ,a) ,e)) (* ,e ,e)))))
+             `(* 0.5 (+ (+ ,a  ,e) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,b) ,d)) (* (* 2.0 ,a) ,e)) (* ,e ,e))))))]
+
+      [(and (equal? d 0.0) (equal? e 0.0) (equal? f 0.0))
+       (list 0.0
+             `(* 0.5 (- (+ ,a  ,i) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,c) ,g)) (* (* 2.0 ,a) ,i)) (* ,i ,i)))))
+             `(* 0.5 (+ (+ ,a  ,i) (sqrt (+ (- (+ (*,a ,a) (* (* 4.0 ,c) ,g)) (* (* 2.0 ,a) ,i)) (* ,i ,i))))))]
+
+      ;; Otherwise, pattern match.
+      [else
+       (match matrix
+         [`(((* 2.0 (* ,y (/ ,x (* ,z (* ,z ,z))))) (* -1.0 (* ,y (/ 1.0 (* ,z ,z)))) (* -1.0 (/ ,x (* ,z ,z))))
+            ((* -1.0 (* ,y (/ 1.0 (* ,z ,z)))) 0.0 (/ 1.0 ,z))
+            ((* -1.0 (/ ,x (* ,z ,z))) (/ 1.0 ,z) 0.0))
+          (list 0.0
+                `(/ (- (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z))
+                `(/ (+ (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z)))]
+
+         [`(((* 2.0 (* ,x (/ ,y (* ,z (* ,z ,z))))) (* -1.0 (/ ,y (* ,z ,z))) (* -1.0 (* ,x (/ 1.0 (* ,z ,z)))))
+            ((* -1.0 (/ ,y (* ,z ,z))) 0.0 (/ 1.0 ,z))
+            ((* -1.0 (* ,x (/ 1.0 (* ,z ,z)))) (/ 1.0 ,z) 0.0))
+          (list 0.0
+                `(/ (- (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z))
+                `(/ (+ (* ,x ,y) (sqrt (+ (+ (+ (* (* ,x ,x) (* ,y ,y)) (* (* ,x ,x) (* ,z ,z))) (* (* ,y ,y) (* ,z ,z))) (* (* ,z ,z) (* ,z ,z))))) (* (* ,z ,z) ,z)))]
+         
+         ;; Otherwise, return false(s).
+         [else (list #f #f #f)])])))
 
 ;; Determine whether an expression is non-negative subject to certain algebraic conditions.
 (define (is-non-negative-conditional expr cons-vars parameters conds)
@@ -442,6 +470,9 @@
     ;; The square (or fourth power) of any real number is always non-negative.
     [`(* ,x ,x) (is-real-conditional x cons-vars parameters conds)]
     [`(* ,x (* ,x (* ,x ,x))) (is-real-conditional x cons-vars parameters conds)]
+
+    ;; The product of a square of a real number and another square of a real number is always non-negative.
+    [`(* ,x (* ,x (* ,y ,y))) (and (is-real-conditional x cons-vars parameters conds) (is-real-conditional y cons-vars parameters conds))]
 
     ;; The square root of any negative number is always non-negative.
     [`(sqrt ,x) (is-non-negative-conditional x cons-vars parameters conds)]
@@ -897,6 +928,141 @@
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional)
+
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 2D Coupled Vector System of 3 PDEs
+;; subject to certain algebraic conditions
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-2d-local-lipschitz-conditional pde-system conds
+                                                                     #:nx [nx 200]
+                                                                     #:ny [ny 200]
+                                                                     #:x0 [x0 0.0]
+                                                                     #:x1 [x1 2.0]
+                                                                     #:y0 [y0 0.0]
+                                                                     #:y1 [y1 2.0]
+                                                                     #:t-final [t-final 1.0]
+                                                                     #:cfl [cfl 0.95]
+                                                                     #:init-funcs [init-funcs (list
+                                                                                               `(cond
+                                                                                                  [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                                  [else 1.0])
+                                                                                               `0.0
+                                                                                               `0.0)])
+   "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 2D coupled vector system of 3 PDEs
+    specified by `pde-system, subject to the algebraic conditions `conds`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace symbolic-gradient)
+  (trace symbolic-hessian)
+  (trace is-non-negative-conditional)
+
+  (define hessian-mats-x (list
+                          (symbolic-hessian (list-ref flux-exprs-x 0) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-x 1) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-x 2) cons-exprs)))
+  (define hessian-mats-y (list
+                          (symbolic-hessian (list-ref flux-exprs-y 0) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-y 1) cons-exprs)
+                          (symbolic-hessian (list-ref flux-exprs-y 2) cons-exprs)))
+  (define hessian-eigvals-x (list
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 0))
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 1))
+                             (symbolic-eigvals3 (list-ref hessian-mats-x 2))))
+  (define hessian-eigvals-y (list
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 0))
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 1))
+                             (symbolic-eigvals3 (list-ref hessian-mats-y 2))))
+  (define hessian-eigvals-simp-x (list
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 0) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 1) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-x 2) 2))))
+  (define hessian-eigvals-simp-y (list
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 0) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 1) 2))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 0))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 1))
+                                  (symbolic-simp (list-ref (list-ref hessian-eigvals-y 2) 2))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the flux functions are convex, i.e. that the Hessian matrices for each flux component are positive semidefinite (otherwise, return false).
+    [(or (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 0) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 1) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 2) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 3) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 4) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 5) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 6) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 7) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-x 8) cons-exprs parameters conds))) #f]
+    [(or (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 0) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 1) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 2) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 3) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 4) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 5) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 6) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 7) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp-y 8) cons-exprs parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace symbolic-gradient)
+  (untrace symbolic-hessian)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector3-2d-local-lipschitz-conditional)
 
 ;; --------------------------------------------------------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Roe (Finite-Volume) Solver for a 1D Coupled Vector System of 2 PDEs subject to certain algebraic conditions
