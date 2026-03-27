@@ -218,12 +218,20 @@ genPhiCalcKernel(fh, funcNm, dim, basisNm, polyOrder) := block(
     phiS_n[i]   : subst(cSub, phiS_e)
   ),
 
+  printf(fh,"  double phi_qp[~a];~%", ordNum),
+  printf(fh,"  double m0IonS_curr;~%"),
   phi_n : makelist(0,i,1,ordNum),
   for i : 1 thru ordNum do (
-    phi_n[i] : phiS_n[i] - (T_e/q_e)*log(m0Ion_n[i]/m0IonS_n[i])
+    printf(fh,"  m0IonS_curr = ~a;~%",float(expand(m0IonS_n[i]))),
+
+    phi_n[i] : phiS_n[i] - (T_e/q_e)*log(fmax(m0Ion_n[i],m0IonS_curr)/m0IonS_curr),
+
+    printf(fh,"  if ((isfinite(~a)) && (~a>0.)) {~%",m0IonS_curr,m0IonS_curr),
+    printf(fh,"    phi_qp[~a] = ~a;~%",i-1,float(expand(phi_n[i]))),
+    printf(fh,"  } else {~%"),
+    printf(fh,"    phi_qp[~a] = 0.0;~%",i-1),
+    printf(fh,"  }~%")
   ),
-  printf(fh,"  double phi_qp[~a];~%", ordNum),
-  writeCExprs1(phi_qp, phi_n),
   printf(fh,"~%"),
 
   phi_c : makelist(0,i,1,numB),
