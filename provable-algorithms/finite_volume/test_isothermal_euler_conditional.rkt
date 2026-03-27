@@ -190,7 +190,7 @@
   (lambda ()
     (display code-isothermal-euler-roe-conditional)))
 
-(display "Roe (finite-volume) properties: \n\n")
+(display "Conditional Roe (finite-volume) properties: \n\n")
 
 ;; Attempt to prove hyperbolicity of the Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define proof-isothermal-euler-roe-hyperbolicity-conditional

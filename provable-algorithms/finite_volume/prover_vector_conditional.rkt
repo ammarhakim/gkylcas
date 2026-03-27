@@ -19,6 +19,9 @@
          prove-lax-friedrichs-vector2-1d-strict-hyperbolicity-conditional
          prove-lax-friedrichs-vector2-1d-cfl-stability-conditional
          prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional
+         prove-lax-friedrichs-vector3-2d-hyperbolicity-conditional
+         prove-lax-friedrichs-vector3-2d-strict-hyperbolicity-conditional
+         prove-lax-friedrichs-vector3-2d-cfl-stability-conditional
          prove-lax-friedrichs-vector3-2d-local-lipschitz-conditional
          prove-roe-vector2-1d-hyperbolicity-conditional
          prove-roe-vector2-1d-strict-hyperbolicity-conditional
@@ -943,6 +946,304 @@
   
   out)
 (trace prove-lax-friedrichs-vector2-1d-local-lipschitz-conditional)
+
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 2D Coupled Vector System of 3 PDEs subject to certain algebraic conditions
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-2d-hyperbolicity-conditional pde-system conds
+                                                                   #:nx [nx 200]
+                                                                   #:ny [ny 200]
+                                                                   #:x0 [x0 0.0]
+                                                                   #:x1 [x1 2.0]
+                                                                   #:y0 [y0 0.0]
+                                                                   #:y1 [y1 2.0]
+                                                                   #:t-final [t-final 1.0]
+                                                                   #:cfl [cfl 0.95]
+                                                                   #:init-funcs [init-funcs (list
+                                                                                             `(cond
+                                                                                                [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                                [else 1.0])
+                                                                                             `0.0
+                                                                                             `0.0)])
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 2D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
+  (define flux-eigvals-simp-x (list
+                               (symbolic-simp (list-ref flux-eigvals-x 0))
+                               (symbolic-simp (list-ref flux-eigvals-x 1))
+                               (symbolic-simp (list-ref flux-eigvals-x 2))))
+  (define flux-eigvals-simp-y (list
+                               (symbolic-simp (list-ref flux-eigvals-y 0))
+                               (symbolic-simp (list-ref flux-eigvals-y 1))
+                               (symbolic-simp (list-ref flux-eigvals-y 2))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobians are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp-x 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-x 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-x 2) cons-exprs parameters conds))) #f]
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp-y 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-y 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-y 2) cons-exprs parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector3-2d-hyperbolicity-conditional)
+
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 2D Coupled Vector System of 3 PDEs subject to certain algebraic conditions
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-2d-strict-hyperbolicity-conditional pde-system conds
+                                                                          #:nx [nx 200]
+                                                                          #:ny [ny 200]
+                                                                          #:x0 [x0 0.0]
+                                                                          #:x1 [x1 2.0]
+                                                                          #:y0 [y0 0.0]
+                                                                          #:y1 [y1 2.0]
+                                                                          #:t-final [t-final 1.0]
+                                                                          #:cfl [cfl 0.95]
+                                                                          #:init-funcs [init-funcs (list
+                                                                                                    `(cond
+                                                                                                       [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                                       [else 1.0])
+                                                                                                    `0.0
+                                                                                                    `0.0)])
+   "Prove that the Lax-Friedrichs finite-difference method preserves strict hyperbolicity for the 2D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+  
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace is-non-zero-conditional)
+  (trace are-distinct-conditional)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
+  (define flux-eigvals-simp-x (list
+                               (symbolic-simp (list-ref flux-eigvals-x 0))
+                               (symbolic-simp (list-ref flux-eigvals-x 1))
+                               (symbolic-simp (list-ref flux-eigvals-x 2))))
+  (define flux-eigvals-simp-y (list
+                               (symbolic-simp (list-ref flux-eigvals-y 0))
+                               (symbolic-simp (list-ref flux-eigvals-y 1))
+                               (symbolic-simp (list-ref flux-eigvals-y 2))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobians are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp-x 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-x 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-x 2) cons-exprs parameters conds))) #f]
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp-y 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-y 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp-y 2) cons-exprs parameters conds))) #f]
+
+    ;; Check whether the eigenvalues of the flux Jacobians are all distinct (otherwise, return false).
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-x 0) (list-ref flux-eigvals-simp-x 1)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-x 0) (list-ref flux-eigvals-simp-x 2)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-x 1) (list-ref flux-eigvals-simp-x 2)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-y 0) (list-ref flux-eigvals-simp-y 1)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-y 0) (list-ref flux-eigvals-simp-y 2)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp-y 1) (list-ref flux-eigvals-simp-y 2)) parameters conds)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace is-non-zero-conditional)
+  (untrace are-distinct-conditional)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector3-2d-strict-hyperbolicity-conditional)
+
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 2D Coupled Vector System of 3 PDEs subject to certain algebraic conditions
+;; -----------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-2d-cfl-stability-conditional pde-system conds
+                                                                   #:nx [nx 200]
+                                                                   #:ny [ny 200]
+                                                                   #:x0 [x0 0.0]
+                                                                   #:x1 [x1 2.0]
+                                                                   #:y0 [y0 0.0]
+                                                                   #:y1 [y1 2.0]
+                                                                   #:t-final [t-final 1.0]
+                                                                   #:cfl [cfl 0.95]
+                                                                   #:init-funcs [init-funcs (list
+                                                                                             `(cond
+                                                                                                [(< (+ (* (- x 1.0) (- x 1.0)) (* (- y 1.0) (- y 1.0))) 0.25) 5.0]
+                                                                                                [else 1.0])
+                                                                                             `0.0
+                                                                                             `0.0)])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 2D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx`, `ny` : Number of spatial cells in each coordinate direction.
+  - `x0`, `x1`, `y0`, `y1` : Domain boundaries in each coordinate direction.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs-x (hash-ref pde-system 'flux-exprs-x))
+  (define flux-exprs-y (hash-ref pde-system 'flux-exprs-y))
+  (define max-speed-exprs-x (hash-ref pde-system 'max-speed-exprs-x))
+  (define max-speed-exprs-y (hash-ref pde-system 'max-speed-exprs-y))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals-x (symbolic-eigvals3 (symbolic-jacobian flux-exprs-x cons-exprs)))
+  (define flux-eigvals-y (symbolic-eigvals3 (symbolic-jacobian flux-exprs-y cons-exprs)))
+  (define max-speed-exprs-simp-x (list
+                                  (symbolic-simp (list-ref max-speed-exprs-x 0))
+                                  (symbolic-simp (list-ref max-speed-exprs-x 1))
+                                  (symbolic-simp (list-ref max-speed-exprs-x 2))))
+  (define max-speed-exprs-simp-y (list
+                                  (symbolic-simp (list-ref max-speed-exprs-y 0))
+                                  (symbolic-simp (list-ref max-speed-exprs-y 1))
+                                  (symbolic-simp (list-ref max-speed-exprs-y 2))))
+  (define flux-eigvals-simp-x (list
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 0)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 1)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-x 2)))))
+  (define flux-eigvals-simp-y (list
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 0)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 1)))
+                               (symbolic-simp `(abs ,(list-ref flux-eigvals-y 2)))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right/bottom domain boundary is set to the right/below of the left/top boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    [(or (< ny 1) (>= y0 y1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the absolute eigenvalues of the flux Jacobians are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
+    [(or (equal? (member (list-ref flux-eigvals-simp-x 0) max-speed-exprs-simp-x) #f)
+         (equal? (member (list-ref flux-eigvals-simp-x 1) max-speed-exprs-simp-x) #f)
+         (equal? (member (list-ref flux-eigvals-simp-x 2) max-speed-exprs-simp-x) #f)) #f]
+    [(or (equal? (member (list-ref flux-eigvals-simp-y 0) max-speed-exprs-simp-y) #f)
+         (equal? (member (list-ref flux-eigvals-simp-y 1) max-speed-exprs-simp-y) #f)
+         (equal? (member (list-ref flux-eigvals-simp-y 2) max-speed-exprs-simp-y) #f)) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+  
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace is-non-negative-conditional)
+
+  out)
+(trace prove-lax-friedrichs-vector3-2d-cfl-stability-conditional)
 
 ;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
 ;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 2D Coupled Vector System of 3 PDEs
