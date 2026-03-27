@@ -220,15 +220,47 @@ generate_fem_parproj_couplex_local_to_global(fh, funcNm, dim, basisFun, pMin, pM
 
               ) elseif not isInList(currNode,currStoredNodesBC) and not isOnPeriodicBoundary then (
                 /* Case B: Node is not owned by this cell and is not on a periodic boundary. */
+                moveLocInDir : [], /* For special case when this cell is next to a skin cell. */
                 for d : 1 thru length(nodeUpDirs) do (
                   if not isInList(nodeUpDirs[d],upbDirs) then (
                     currNode[nodeUpDirs[d]]    : -1,
-                    currCellIdx[nodeUpDirs[d]] :  idx[nodeUpDirs[d]]+1
+                    currCellIdx[nodeUpDirs[d]] :  idx[nodeUpDirs[d]]+1,
+                    moveLocInDir : append(moveLocInDir, [nodeUpDirs[d]])
                   )
                 ),
 
+                /* Check if owner cell is a skin cell, in which case the
+                   nodeIdx might be different because the number of cells it
+                   owns depends on BCs .*/
+
+                lengthGreaterThan(a, b) := length(a) > length(b),
+                /* Combinations of directions to check for skin cells in. Exclude null set. */
+                checkForSkinInDirs : delete([],sort(full_listify(powerset(setify(moveLocInDir))), 'lengthGreaterThan)),
+                ifStr : " ",
+                for hi : 1 thru length(checkForSkinInDirs) do (
+                  checkDirs : checkForSkinInDirs[hi],
+                  newLoc : copylist(currLoc),
+
+                  condStr : "",
+                  for j : 1 thru length(checkDirs) do (
+                    if (j>1) then ( condStr : sconcat(condStr," && ") ),
+                    condStr : sconcat(condStr,"(idx_curr[",checkDirs[j]-1,"]+1==num_cells[",checkDirs[j]-1,"]-1)"),
+
+                    newLoc[checkDirs[j]] : 1
+                  ),
+                  printf(fh, "  ~aif (~a) {~%",ifStr,condStr),
+
+                  errcode : getAndWriteNodeMemOff(currNode,currCellIdx,newLoc),
+
+                  printf(fh, "  }"),
+                  ifStr : "else "
+                ),
+
+                printf(fh, "  else {~%"),
+
                 errcode : getAndWriteNodeMemOff(currNode,currCellIdx,currLoc),
 
+                printf(fh, "  }~%"),
                 printf(fh, "~%"),
                 flush_output(fh),
                 return(errcode)
