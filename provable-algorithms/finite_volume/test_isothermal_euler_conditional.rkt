@@ -42,11 +42,14 @@
                        [else 0.0])))
 
 ;; Define algebraic constraints for the Lax-Friedrichs solver.
-(define conds-lax (list `(> rho 0.0)
-                        `(> (+ (* 0.5 (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
-                                         (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
-                                                  (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))))
-                               (/ 1.0 rho)) 0.0)))
+(define conds-lax (list
+                   ;; Sufficient conditions for guaranteeing local Lipschitz continuity of the discrete flux function.
+                   `(> rho 0.0)
+                   `(> (+ (* 0.5 (- (* 2.0 (/ (* mom_x mom_x) (* rho (* rho rho))))
+                                    (sqrt (+ (* 8.0 (/ (* mom_x mom_x) (* rho (* rho (* rho rho)))))
+                                             (+ (* 4.0 (/ (* mom_x (* mom_x (* mom_x mom_x))) (* rho (* rho (* rho (* rho (* rho rho))))))) (/ 4.0 (* rho rho)))))))
+                          (/ 1.0 rho)) 0.0)
+                   ))
 
 ;; Define machine epsilon.
 (define epsilon `(expt 10.0 -8.0))
@@ -163,16 +166,17 @@
 (display "\n\n\n")
 
 ;; Define algebraic constraints for the Roe solver.
-(define conds-roe (list `(> (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL)))
-                               (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR)))
-                                                       (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)
-                        
-                        ;; Sufficient condition to guarantee flux conservation - turns out to be too strong for simulations with discontinuities:
-                        
-                        ;`(equal? (+ (* (+ (* -0.5 (/ (* mom_xL mom_xL) (* rhoL rhoL))) (+ (* vt vt) (* -0.5 (/ (* mom_xR mom_xR) (* rhoR rhoR))))) (- rhoL rhoR))
-                        ;            (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (- mom_xL mom_xR)))
-                        ;         (- (+ (/ (* mom_xL mom_xL) rhoL) (* rhoL (* vt vt))) (+ (/ (* mom_xR mom_xR) rhoR) (* rhoR (* vt vt)))))
-                        ))
+(define conds-roe (list
+                   ;; Sufficient conditon for guaranteeing hyperbolicity and strict hyperbolicity.
+                   `(> (+ (* -2.0 (/ (* mom_xL mom_xL) (* rhoL rhoL)))
+                          (+ (* 4.0 (* vt vt)) (+ (* -2.0 (/ (* mom_xR mom_xR) (* rhoR rhoR)))
+                                                  (+ (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xL rhoL)) (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (/ mom_xR rhoR)))))) 0.0)
+                   
+                   ;; Sufficient condition for guaranteeing flux conservation (jump continuity). [Too strong for practical simulations!]
+                   `(equal? (+ (* (+ (* -0.5 (/ (* mom_xL mom_xL) (* rhoL rhoL))) (+ (* vt vt) (* -0.5 (/ (* mom_xR mom_xR) (* rhoR rhoR))))) (- rhoL rhoR))
+                               (* (+ (/ mom_xL rhoL) (/ mom_xR rhoR)) (- mom_xL mom_xR)))
+                            (- (+ (/ (* mom_xL mom_xL) rhoL) (* rhoL (* vt vt))) (+ (/ (* mom_xR mom_xR) rhoR) (* rhoR (* vt vt)))))
+                   ))
 
 ;; Synthesize the code for a Roe solver for the 1D isothermal Euler equations (density and x-momentum components) subject to certain algebraic constraints.
 (define code-isothermal-euler-roe-conditional
