@@ -333,7 +333,7 @@
 
     ;; The square root of a non-negative number is always real.
     [`(sqrt ,arg)
-     (is-non-negative arg parameters)]
+     (is-non-negative arg cons-vars parameters)]
 
     ;; The exponential of a real number is always real.
     [`(expt ,arg)
@@ -390,7 +390,7 @@
                      (* 0.5 ,(flux-deriv-replace flux-deriv-expr cons-expr (string->symbol (string-append (symbol->string cons-expr) "R")))))))
 
 ;; Determine whether an expression is non-negative.
-(define (is-non-negative expr parameters)
+(define (is-non-negative expr cons-vars parameters)
   (match expr
     ;; A non-negative number is, trivially, non-negative.
     [(? (lambda (arg)
@@ -406,13 +406,23 @@
                                                        (or (>= (list-ref parameter 2) 0)
                                                            (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
 
-    ;; The square of any real number is always non-negative.
-    [`(* ,x ,x) #t]
+    ;; The square (or fourth power) of any real number is always non-negative.
+    [`(* ,x ,x) (is-real x cons-vars parameters)]
+    [`(* ,x (* ,x (* ,x ,x))) (is-real x cons-vars parameters)]
+
+    ;; The product of a square of a real number and another square of a real number is always non-negative.
+    [`(* ,x (* ,x (* ,y ,y))) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+
+    ;; The square root of any negative number is always non-negative.
+    [`(sqrt ,x) (is-non-negative x cons-vars parameters)]
 
     ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
-    [`(+ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
-    [`(* ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
-    [`(/ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(+ ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
+    [`(* ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
+    [`(/ ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -720,7 +730,7 @@
     
     ;; Check whether the flux function is convex, i.e. that the second derivative of the flux function is strictly non-negative (otherwise, return false).
     [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr cons-expr)) cons-expr))])
-       (not (is-non-negative deriv parameters))) #f]
+       (not (is-non-negative deriv (list cons-expr) parameters))) #f]
     
     ;; Otherwise, return true.
     [else #t]))
@@ -925,9 +935,9 @@
     
     ;; Check whether the flux functions are convex, i.e. that the second derivatives of the flux functions are strictly non-negative (otherwise, return false).
     [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr-x cons-expr)) cons-expr))])
-       (not (is-non-negative deriv parameters))) #f]
+       (not (is-non-negative deriv (list cons-expr) parameters))) #f]
     [(let ([deriv (symbolic-simp (symbolic-diff (symbolic-simp (symbolic-diff flux-expr-y cons-expr)) cons-expr))])
-       (not (is-non-negative deriv parameters))) #f]
+       (not (is-non-negative deriv (list cons-expr) parameters))) #f]
     
     ;; Otherwise, return true.
     [else #t]))

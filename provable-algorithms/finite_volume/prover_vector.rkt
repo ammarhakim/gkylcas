@@ -322,7 +322,7 @@
 
     ;; The square root of a non-negative number is always real.
     [`(sqrt ,arg)
-     (is-non-negative arg parameters)]
+     (is-non-negative arg cons-vars parameters)]
 
     ;; The exponential of a real number is always real.
     [`(expt ,arg)
@@ -532,7 +532,7 @@
        flux-jacobian))
 
 ;; Determine whether an expression is non-negative.
-(define (is-non-negative expr parameters)
+(define (is-non-negative expr cons-vars parameters)
   (match expr
     ;; A non-negative number is, trivially, non-negative.
     [(? (lambda (arg)
@@ -545,13 +545,23 @@
                                                        (or (>= (list-ref parameter 2) 0)
                                                            (>= (list-ref parameter 2) 0.0)))) parameters)))) #t]
 
-    ;; The square of any real number is always non-negative.
-    [`(* ,x ,x) #t]
+    ;; The square (or fourth power) of any real number is always non-negative.
+    [`(* ,x ,x) (is-real x cons-vars parameters)]
+    [`(* ,x (* ,x (* ,x ,x))) (is-real x cons-vars parameters)]
+
+    ;; The product of a square of a real number and another square of a real number is always non-negative.
+    [`(* ,x (* ,x (* ,y ,y))) (and (is-real x cons-vars parameters) (is-real y cons-vars parameters))]
+
+    ;; The square root of any negative number is always non-negative.
+    [`(sqrt ,x) (is-non-negative x cons-vars parameters)]
 
     ;; The sum, product, or quotient of two non-negative numbers is always non-negative.
-    [`(+ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
-    [`(* ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
-    [`(/ ,x ,y) (or (and (is-non-negative x parameters) (is-non-negative y parameters)) (and (is-non-negative y parameters) (is-non-negative x parameters)))]
+    [`(+ ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
+    [`(* ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
+    [`(/ ,x ,y) (or (and (is-non-negative x cons-vars parameters) (is-non-negative y cons-vars parameters))
+                    (and (is-non-negative y cons-vars parameters) (is-non-negative x cons-vars parameters)))]
 
     ;; Otherwise, assume false.
     [else #f]))
@@ -863,8 +873,10 @@
          (not (is-real (list-ref init-funcs 1) cons-exprs parameters))) #f]
     
     ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
-    [(or (not (is-non-negative (list-ref hessian-eigvals-simp 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp 1) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp 3) parameters))) #f]
+    [(or (not (is-non-negative (list-ref hessian-eigvals-simp 0) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp 1) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp 2) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp 3) cons-exprs parameters))) #f]
 
     ;; Otherwise, return true.
     [else #t]))
@@ -1275,16 +1287,24 @@
          (not (is-real (list-ref init-funcs 2) cons-exprs parameters))) #f]
     
     ;; Check whether the flux functions are convex, i.e. that the Hessian matrices for each flux component are positive semidefinite (otherwise, return false).
-    [(or (not (is-non-negative (list-ref hessian-eigvals-simp-x 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 1) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-x 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 3) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-x 4) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 5) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-x 6) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-x 7) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-x 8) parameters))) #f]
-    [(or (not (is-non-negative (list-ref hessian-eigvals-simp-y 0) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 1) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-y 2) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 3) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-y 4) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 5) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-y 6) parameters)) (not (is-non-negative (list-ref hessian-eigvals-simp-y 7) parameters))
-         (not (is-non-negative (list-ref hessian-eigvals-simp-y 8) parameters))) #f]
+    [(or (not (is-non-negative (list-ref hessian-eigvals-simp-x 0) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 1) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 2) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 3) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 4) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 5) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 6) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 7) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-x 8) cons-exprs parameters))) #f]
+    [(or (not (is-non-negative (list-ref hessian-eigvals-simp-y 0) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 1) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 2) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 3) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 4) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 5) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 6) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 7) cons-exprs parameters))
+         (not (is-non-negative (list-ref hessian-eigvals-simp-y 8) cons-exprs parameters))) #f]
 
     ;; Otherwise, return true.
     [else #t]))

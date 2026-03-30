@@ -158,6 +158,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 0; i <= nx + 1; i++) {
       if (!(~a)) {
         printf(\"Time-step failed!\\n\");
@@ -494,6 +495,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 0; i <= nx + 3; i++) {
       if (!(~a)) {
         printf(\"Time-step failed!\\n\");
@@ -904,6 +906,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 1; i <= nx; i++) {
       if (!(~a)) {
         printf(\"Time-step failed!\\n\");
@@ -1320,6 +1323,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 1; i <= nx + 2; i++) {
       if (!(~a)) {
         printf(\"Time-step failed!\\n\");

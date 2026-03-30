@@ -220,6 +220,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 0; i <= nx + 1; i++) {
       for (int j = 0; j <= ny + 1; j++) {
         if (!(~a)) {
@@ -875,6 +876,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 0; i <= nx + 3; i++) {
       for (int j = 0; j <= ny + 3; j++) {
         if (!(~a)) {
@@ -1837,6 +1839,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 1; i <= nx; i++) {
       for (int j = 1; j <= ny; j++) {
         if (!(~a)) {
@@ -2721,6 +2724,7 @@ int main() {
       dt = t_final - t;
     }
 
+    // Check whether algebraic constraints have been violated.
     for (int i = 1; i <= nx + 2; i++) {
       for (int j = 1; j <= ny + 2; j++) {
         if (!(~a)) {
