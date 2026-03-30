@@ -299,7 +299,7 @@ calcNodalLaxToModalConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block
   printf(fh, "    double U_l_quad = 0.0; ~%"), 
   printf(fh, "    double U_r_quad = 0.0; ~%"),
   for j : 1 thru numNodes do (
-    printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 
+    printf(fh, "    alpha_max = fmax(alpha_max, J_c[~a]*fabs(max_alpha_quad[~a])); ~%", j-1, j-1), 
     printf(fh, "    U_l_quad = ~a; ~%", em_no_J_l_n[j]), 
     printf(fh, "    U_r_quad = ~a; ~%", em_no_J_r_n[j]), 
     /* Jc needs to be multiplied back in to convert between primitive and conserved variables */
