@@ -561,6 +561,17 @@
     ;; Expressions of the form ((x1 * y) + z, (x2 * y) + z) are distinct, so long as x1 and x2 are distinct.
     [`((+ (* ,x1 ,y) ,z) (+ (* ,x2 ,y) ,z)) (are-distinct-conditional (list x1 x2) parameters conds)]
 
+
+    ;; Expressions of the form (expr1, expr2) are distinct, so long as (not (equal? expr1 expr2)) or (not (equal? expr2 expr1)) is asserted as a condition.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `not)
+                                                  (and (equal? (list-ref (list-ref condition 1) 0) `equal?)
+                                                       (or (and (equal? (list-ref arg 0) (list-ref (list-ref condition 1) 1))
+                                                                (equal? (list-ref arg 1) (list-ref (list-ref condition 1) 2)))
+                                                           (and (equal? (list-ref arg 0) (list-ref (list-ref condition 1) 2))
+                                                                (equal? (list-ref arg 1) (list-ref (list-ref condition 1) 1))))))) conds)))) #t]
+
     ;; Otherwise, assume false.
     [else #f]))
 
