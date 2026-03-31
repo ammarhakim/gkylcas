@@ -1,30 +1,30 @@
 #lang racket
 
 (require "prover_core.rkt")
-(require "prover_vector.rkt")
 (require "code_generator_core.rkt")
-(provide generate-lax-friedrichs-vector3-1d)
+(provide generate-lax-friedrichs-vector3-1d-conditional)
 
-;; ----------------------------------------------------------------------------------
-;; Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs
-;; ----------------------------------------------------------------------------------
-(define (generate-lax-friedrichs-vector3-1d pde-system
-                                            #:nx [nx 200]
-                                            #:x0 [x0 0.0]
-                                            #:x1 [x1 2.0]
-                                            #:t-final [t-final 1.0]
-                                            #:cfl [cfl 0.95]
-                                            #:init-funcs [init-funcs (list
-                                                                      `(cond
-                                                                         [(< x 0.5) 3.0]
-                                                                         [else 1.0])
-                                                                      `(cond
-                                                                         [(< x 0.5) 0.0]
-                                                                         [else 0.0])
-                                                                      `(cond
-                                                                         [(< x 0.5) 7.5]
-                                                                         [else 2.5]))])
-  "Generate C code that solves the 1D coupled vector system of 3 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method.
+;; ---------------------------------------------------------------------------------------------------------------------------
+;; Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs subject to certain algebraic constraints
+;; ---------------------------------------------------------------------------------------------------------------------------
+(define (generate-lax-friedrichs-vector3-1d-conditional pde-system conds epsilon
+                                                        #:nx [nx 200]
+                                                        #:x0 [x0 0.0]
+                                                        #:x1 [x1 2.0]
+                                                        #:t-final [t-final 1.0]
+                                                        #:cfl [cfl 0.95]
+                                                        #:init-funcs [init-funcs (list
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 3.0]
+                                                                                     [else 1.0])
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 0.0]
+                                                                                     [else 0.0])
+                                                                                  `(cond
+                                                                                     [(< x 0.5) 7.5]
+                                                                                     [else 2.5]))])
+  "Generate C code that solves the 1D coupled vector system of 3 PDEs specified by `pde-system` using the Lax-Friedrichs finite-difference method,
+   subject to the algebraic conditions `conds` with machine epsilon `epsilon`.
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -60,6 +60,15 @@
                                   (flux-substitute (flux-substitute (flux-substitute max-speed-code (list-ref cons-codes 0) "u[(i * 3) + 0]")
                                                                     (list-ref cons-codes 1) "u[(i * 3) + 1]") (list-ref cons-codes 2) "u[(i * 3) + 2]")) max-speed-codes))
 
+  (define epsilon-code (convert-expr epsilon))
+  (define conditions-code (convert-expr (cons `and conds)))
+  (define conditions-local (flux-substitute (flux-substitute
+                                             (flux-substitute (flux-substitute
+                                                               (flux-substitute (flux-substitute (flux-substitute conditions-code (list-ref cons-codes 0) "u[(i * 3) + 0]")
+                                                                                                 (list-ref cons-codes 1) "u[(i * 3) + 1]") (list-ref cons-codes 2) "u[(i * 3) + 2]")
+                                                               ">= 0.0" (string-append ">= -" epsilon-code)) ">= 0" (string-append ">= -" epsilon-code))
+                                             "> 0.0" (string-append "> -" epsilon-code)) "> 0" (string-append "> -" epsilon-code)))
+  
   (define parameter-code (cond
                            [(not (empty? parameters)) (string-join (map (lambda (parameter)
                                                                           (string-append "double " (convert-expr parameter) ";")) parameters) "\n")]
@@ -68,7 +77,7 @@
   (define code
     (format "
 // AUTO-GENERATED CODE FOR COUPLED VECTOR PDE SYSTEM: ~a
-// Lax–Friedrichs first-order finite-difference solver for a coupled vector system of 3 PDEs in 1D.
+// Lax–Friedrichs first-order finite-difference solver for a coupled vector system of 3 PDEs in 1D subject to algebraic constraints.
 
 #include <stdio.h>
 #include <math.h>
@@ -150,6 +159,14 @@ int main() {
     // If stepping beyond t_final, adjust dt accordingly.
     if (t + dt > t_final) {
       dt = t_final - t;
+    }
+
+    // Check whether algebraic constraints have been violated.
+    for (int i = 0; i <= nx + 1; i++) {
+      if (!(~a)) {
+        printf(\"Time-step failed!\\n\");
+        return 0;
+      }
     }
 
     // Compute fluxes with Lax-Friedrichs approximation and update the conserved variable vector.
@@ -269,6 +286,8 @@ int main() {
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
            (list-ref max-speed-locals 2)
+           ;; Expression for algebraic constraints.
+           conditions-local
            ;; Left flux vector F(u_{i - 1}).
            (list-ref flux-ums 0)
            (list-ref flux-ums 1)

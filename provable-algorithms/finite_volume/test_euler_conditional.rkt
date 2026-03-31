@@ -1,9 +1,11 @@
 #lang racket
 
 (require "code_generator_core.rkt")
+(require "code_generator_matrix_conditional.rkt")
 (require "prover_core.rkt")
 (require "prover_matrix_conditional.rkt")
 (provide (all-from-out "code_generator_core.rkt"))
+(provide (all-from-out "code_generator_matrix_conditional.rkt"))
 
 ;; Construct /code and /proofs output directories if they do not already exist.
 (cond
@@ -52,10 +54,28 @@
 
 ;; Define algebraic constraints for the Lax-Friedrichs solver.
 (define conds-lax (list
-                   `(> rho 0.0)
-                   `(> energy 0.0)
-                   `(> (- (* gamma (- (* rho (* rho (* rho (* rho (* mom_x mom_x))))) (* gamma (* (mom_x mom_x) (* rho (* rho (* rho rho)))))))
-                          (* 2.0 (* gamma (* energy (* rho (* rho (* rho (* rho rho)))))))) 0.0)))
+                   `(> (+ (- (* gamma (- (* rho (* rho (* rho (* rho (* mom_x mom_x))))) (* gamma (* mom_x (* mom_x (* rho (* rho (* rho rho))))))))
+                             (* 2.0 (* gamma (* energy (* rho (* rho (* rho (* rho rho)))))))) (* 2.0 (* gamma (* gamma (* rho (* energy (* rho (* rho (* rho rho))))))))) 0.0)
+                   ))
+
+;; Define machine epsilon.
+(define epsilon `(expt 10.0 -8.0))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components) subject to certain algebraic constraints.
+(define code-euler-lax-conditional
+  (generate-lax-friedrichs-vector3-1d-conditional pde-system-euler conds-lax epsilon
+                                                  #:nx nx
+                                                  #:x0 x0
+                                                  #:x1 x1
+                                                  #:t-final t-final
+                                                  #:cfl cfl
+                                                  #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_lax_conditional.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-lax-conditional)))
 
 (display "Conditional Lax-Friedrichs (finite-difference) properties: \n\n")
 
