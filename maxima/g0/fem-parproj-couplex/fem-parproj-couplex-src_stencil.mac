@@ -117,11 +117,11 @@ generate_fem_parproj_couplex_src_stencil(fh, funcNm, dim, basisFun, pMin, pMax, 
            k-th node to phi_k = phiBC_k. So we need to replace the source at
            this node by the boundary value. */
         insertVal : makelist(false,k,1,numB),
-        if currBC[1] = 1 then (
+        if currBC[dim] = 1 then (
           /* Evaluate phiBC at the boundary surface nodes. */
+          dir : dim,
           phiBC_m : mod2nod . makelist(phiBC[k-1],k,1,numB),
           phiBC_c : makelist(fullratsimp(phiBC_m[i][1]),i,1,numB),
-          dir : dim,
           dirichletNodes  : sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           dirichletNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),
           for k : 1 thru length(dirichletNodesI) do (

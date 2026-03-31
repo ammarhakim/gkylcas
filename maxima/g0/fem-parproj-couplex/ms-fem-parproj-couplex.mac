@@ -34,7 +34,6 @@ minDim       : [minDim_Ser, minDim_Tensor]$
 maxDim       : [maxDim_Ser, maxDim_Tensor]$
 
 /**
-**/
 /* Kernels computing the number of nodes in the global problem. */
 disp(printf(false,"Creating fem_parproj_couplex_num_nodes.c"))$
 fname : "~/max-out/fem_parproj_couplex_num_nodes.c"$
@@ -50,6 +49,7 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 close(fh)$
+**/
 
 /* Translation from local indices to global matrix indices. */
 disp(printf(false,"Creating fem_parproj_couplex_local_to_global.c"))$

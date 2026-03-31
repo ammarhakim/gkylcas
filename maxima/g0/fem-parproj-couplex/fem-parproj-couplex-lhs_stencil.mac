@@ -108,7 +108,7 @@ generate_fem_parproj_couplex_lhs_stencil(fh, funcNm, dim, basisFun, pMin, pMax, 
         /* For Dirichlet BCs we'll simply set the equation corresponding to the
            k-th node to phi_k = bcVals[2]. */
         insertVal : makelist(false,k,1,numB),
-        if currBC[1] = 1 then (
+        if currBC[dim] = 1 then (
           dir : dim,
           dirichletBoundaryNodes  : copylist(sublist(nodes,lambda([x],x[dir]=stencilLoc[sI][dir]))),
           dirichletBoundaryNodesI : sublist_indices(nodes,lambda([x],x[dir]=stencilLoc[sI][dir])),

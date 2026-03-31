@@ -146,7 +146,8 @@ generate_fem_poisson_perp_local_to_global(fh, funcNm, dim, basisFun, pMin, pMax)
                 /* Add nodes in cells on top x-z plane. */
                 tmpLoc[dim]     : 0,
                 tmpLoc[dim-1]   : 1,
-                numNodesFac[dI] : numNodesFac[dI]+(numCellsProb[dim]-1)*assoc(tmpLoc,locToNumStoredNodes),
+                tmpNum          : assoc(tmpLoc,locToNumStoredNodes),
+                numNodesFac[dI] : numNodesFac[dI]+(numCellsProb[dim]-1)*tmpNum,
                 tmpLoc[dim]     : 1,
                 numNodesFac[dI] : numNodesFac[dI]+assoc(tmpLoc,locToNumStoredNodes)
               )
