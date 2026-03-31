@@ -3,6 +3,7 @@
 (require "code_generator_core.rkt")
 (require "code_generator_matrix.rkt")
 (require "prover_core.rkt")
+(require "prover_matrix.rkt")
 (provide (all-from-out "code_generator_core.rkt"))
 (provide (all-from-out "code_generator_matrix.rkt"))
 
@@ -66,3 +67,28 @@
   #:exists 'replace
   (lambda ()
     (display code-euler-lax)))
+
+(display "Lax-Friedrichs (finite-difference) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-lax-hyperbolicity
+  (call-with-output-file "proofs/proof_euler_lax_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-lax-friedrichs-vector3-1d-hyperbolicity pde-system-euler
+                                                       #:nx nx
+                                                       #:x0 x0
+                                                       #:x1 x1
+                                                       #:t-final t-final
+                                                       #:cfl cfl
+                                                       #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_lax_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-euler-lax-hyperbolicity)
+(display "\n")
