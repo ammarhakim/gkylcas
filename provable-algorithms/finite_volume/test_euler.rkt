@@ -161,3 +161,28 @@
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-euler-lax-local-lipschitz)
 (display "\n\n\n")
+
+;; Define the minmod flux limiter.
+(define limiter-minmod
+  (hash
+   'name "minmod"
+   'limiter-expr `(max 0.0 (min 1.0 r))
+   'limiter-ratio `r
+   ))
+
+;; Synthesize the code for a Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components,
+;; with a second-order flux extrapolation using the minmod flux limiter).
+(define code-euler-lax-minmod
+  (generate-lax-friedrichs-vector3-1d-second-order pde-system-euler limiter-minmod
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_lax_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-lax-minmod)))
