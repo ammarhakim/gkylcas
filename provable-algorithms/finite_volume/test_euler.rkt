@@ -40,7 +40,7 @@
 (define x0 0.0)
 (define x1 1.0)
 (define t-final 0.2)
-(define cfl 0.95)
+(define cfl 0.9)
 (define init-funcs (list
                     `(cond
                        [(< x 0.5) 3.0]
@@ -161,6 +161,22 @@
 (display "Local Lipschitz continuity of discrete flux function: ")
 (display proof-euler-lax-local-lipschitz)
 (display "\n\n\n")
+
+;; Synthesize the code for a Roe solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define code-euler-roe
+  (generate-roe-vector3-1d pde-system-euler
+                           #:nx nx
+                           #:x0 x0
+                           #:x1 x1
+                           #:t-final t-final
+                           #:cfl cfl
+                           #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_roe.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-roe)))
 
 ;; Define the minmod flux limiter.
 (define limiter-minmod

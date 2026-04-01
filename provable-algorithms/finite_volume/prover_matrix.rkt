@@ -4,7 +4,11 @@
 (current-prefix-in " ")
 (current-prefix-out " ")
 
-(provide prove-lax-friedrichs-vector3-1d-hyperbolicity
+(provide symbolic-jacobian
+         symbolic-gradient
+         symbolic-hessian
+         symbolic-eigvals3
+         prove-lax-friedrichs-vector3-1d-hyperbolicity
          prove-lax-friedrichs-vector3-1d-strict-hyperbolicity
          prove-lax-friedrichs-vector3-1d-cfl-stability
          prove-lax-friedrichs-vector3-1d-local-lipschitz)
