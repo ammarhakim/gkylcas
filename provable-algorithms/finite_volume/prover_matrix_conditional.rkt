@@ -4,7 +4,11 @@
 (current-prefix-in " ")
 (current-prefix-out " ")
 
-(provide prove-lax-friedrichs-vector3-1d-hyperbolicity-conditional)
+(provide is-non-negative-conditional
+         prove-lax-friedrichs-vector3-1d-hyperbolicity-conditional
+         prove-lax-friedrichs-vector3-1d-strict-hyperbolicity-conditional
+         prove-lax-friedrichs-vector3-1d-cfl-stability-conditional
+         prove-lax-friedrichs-vector3-1d-local-lipschitz-conditional)
 
 ;; Lightweight symbolic differentiator (differentiates expr with respect to var).
 (define (symbolic-diff expr var)
@@ -97,6 +101,14 @@
     ;; Enforce right associativity of multiplication: if expr is of the form ((x * y) * z) or (x * y * z), then simplify to (x * (y * z)).
     [`(* (* ,x ,y) ,z) `(* ,x (* ,y ,z))]
     [`(* ,x ,y ,z) `(* (* ,x ,y) ,z)]
+
+    ;; If expr is of the form ((x * w) + (y * w)), then simplify to ((x + y) * w).
+    [`(+ (* ,x ,w) (* ,y ,w)) `(* (+ ,x ,y) ,w)]
+    [`(+ (* ,x ,w) (+ (* ,y ,w) ,z)) `(+ (* (+ ,x ,y) ,w) ,z)]
+
+    ;; If expr is of the form (x + (y - x)) or (x - (y + x)), then simplify to y or -y.
+    [`(+ ,x (- ,y ,x)) `,y]
+    [`(- ,x (+ ,y ,x)) `(* -1.0 ,y)]
 
     ;; If expr is of the form (x + y) for numeric x and y, then just evaluate the sum. Likewise for differences.
     [`(+ ,(and x (? number?)) ,(and y (? number?))) (+ x y)]
@@ -415,7 +427,7 @@
          [`((0.0 1.0 0.0)
             ((+ (* -1.0 (/ (* ,y ,y) (* ,x ,x))) (* 0.5 (* (- ,w 1.0) (/ (* ,y ,y) (* ,x ,x))))) (+ (/ ,y ,x) (+ (/ ,y ,x) (* -1.0 (* (- ,w 1.0) (/ ,y ,x))))) (- ,w 1.0))
             ((+ (* 0.5 (* (- ,w 1.0) (/ (* ,y (* ,y ,y)) (* ,x (* ,x ,x))))) (* -1.0 (* (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))) (/ ,y (* ,x ,x)))))
-             (+ (* -1.0 (* (- ,w 1.0) (/ (* ,y ,y) (* ,x ,x)))) (* (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))) (/ 1.0 ,x))) (* (+ 1.0 (- ,w 1.0)) (/ ,y ,x))))
+             (+ (* -1.0 (* (- ,w 1.0) (/ (* ,y ,y) (* ,x ,x)))) (* (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))) (/ 1.0 ,x))) (* ,w (/ ,y ,x))))
           (list `(/ ,y ,x)
                 `(/ (- (* 2.0 (* (* ,x ,x) ,y)) (* (sqrt 2.0) (sqrt (+ (- (- (* ,w (* (* (* ,x ,x) (* ,x ,x)) (* ,y ,y))) (* (* (* ,w ,w) (* ,y ,y)) (* (* ,x ,x) (* ,x ,x))))
                                                                           (* 2.0 (* (* ,w ,z) (* (* (* ,x ,x) (* ,x ,x)) ,x))))
@@ -425,6 +437,28 @@
                                                                           (* 2.0 (* (* ,w ,z) (* (* (* ,x ,x) (* ,x ,x)) ,x))))
                                                                        (* 2.0 (* (* (* ,w ,w) (* ,x ,z)) (* (* ,x ,x) (* ,x ,x))))))))
                     (* 2.0 (* (* ,x ,x) ,x))))]
+
+         [`(((+ (* -1.5 (* (- ,w 1.0) (/ (* ,y (* ,y (* ,y (* ,x ,x)))) (* ,x (* ,x (* ,x (* ,x (* ,x ,x))))))))
+                (+ (* -0.5 (* (- ,w 1.0) (/ (* ,y (* ,y ,y)) (* ,x (* ,x (* ,x ,x))))))
+                   (* (+ ,z (+ (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x)))) (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))))) (/ ,y (* ,x (* ,x ,x))))))
+             (+ (* 1.5 (* (- ,w 1.0) (/ (* ,y ,y) (* ,x (* ,x ,x)))))
+                (+ (* (- ,w 1.0) (/ (* ,y ,y) (* ,x (* ,x ,x)))) (* -1.0 (* (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))) (/ 1.0 (* ,x ,x))))))
+             (* -1.0 (* ,w (/ ,y (* ,x ,x)))))
+            ((+ (* 2.5 (* (- ,w 1.0) (/ (* ,y ,y) (* ,x (* ,x ,x))))) (* -1.0 (* (+ ,z (* (- ,w 1.0) (- ,z (* 0.5 (/ (* ,y ,y) ,x))))) (/ 1.0 (* ,x ,x)))))
+             (* -3.0 (* (- ,w 1.0) (/ ,y (* ,x ,x))))
+             (* ,w (/ 1.0 ,x)))
+            ((* -1.0 (* ,w (/ ,y (* ,x ,x)))) (* ,w (/ 1.0 ,x)) 0.0))
+          (list 0.0
+                `(/ (- (* (* ,x (* ,x ,y)) (+ (* (* -3.0 (- ,w 1.0)) (+ (* ,x ,x) (* ,y ,y))) (* (* 2.0 ,w) (* ,x ,z))))
+                       (sqrt (* (* (* (* ,x ,x) (* ,x ,x)) (+ (* ,x ,x) (* ,y ,y)))
+                                (+ (- (* (* 9.0 ,y) (* ,y (+ (* ,x ,x) (* ,y ,y)))) (* (* 6.0 ,w) (* (* ,y ,y) (- (* 3.0 (+ (* ,x ,x) (* ,y ,y))) (* 2.0 (* ,x ,z))))))
+                                   (* (* ,w ,w) (+ (- (+ (* 4.0 (* (* ,x ,x) (* ,x ,x))) (* 9.0 (* (* ,y ,y) (* ,y, y)))) (* 12.0 (* (* ,x ,z) (* ,y ,y))))
+                                                   (* (* ,x ,x) (+ (* 9.0 (* ,y ,y)) (* 4.0 (* ,z ,z)))))))))) (* (* 6.0 (* ,x ,x)) (* (* ,x ,x) (* ,x ,x))))
+                `(/ (+ (* (* ,x (* ,x ,y)) (+ (* (* -3.0 (- ,w 1.0)) (+ (* ,x ,x) (* ,y ,y))) (* (* 2.0 ,w) (* ,x ,z))))
+                       (sqrt (* (* (* (* ,x ,x) (* ,x ,x)) (+ (* ,x ,x) (* ,y ,y)))
+                                (+ (- (* (* 9.0 ,y) (* ,y (+ (* ,x ,x) (* ,y ,y)))) (* (* 6.0 ,w) (* (* ,y ,y) (- (* 3.0 (+ (* ,x ,x) (* ,y ,y))) (* 2.0 (* ,x ,z))))))
+                                   (* (* ,w ,w) (+ (- (+ (* 4.0 (* (* ,x ,x) (* ,x ,x))) (* 9.0 (* (* ,y ,y) (* ,y, y)))) (* 12.0 (* (* ,x ,z) (* ,y ,y))))
+                                                   (* (* ,x ,x) (+ (* 9.0 (* ,y ,y)) (* 4.0 (* ,z ,z)))))))))) (* (* 6.0 (* ,x ,x)) (* (* ,x ,x) (* ,x ,x)))))]
          
          ;; Otherwise, return false(s).
          [else (list #f #f #f)])])))
@@ -472,6 +506,114 @@
     ;; Otherwise, assume false.
     [else #f]))
 
+;; Determine whether an expression is non-zero subject to certain algebraic conditions.
+(define (is-non-zero-conditional expr parameters conds)
+  (match expr
+    ;; A non-zero number is, trivially, non-zero.
+    [(? (lambda (arg)
+         (and (number? arg) (not (equal? arg 0)) (not (equal? arg 0.0))))) #t]
+
+    ;; Simulation parameters that are non-zero are, trivially, non-zero.
+    [(? (lambda (arg)
+        (and (not (empty? parameters)) (ormap (lambda (parameter)
+                                                 (and (equal? arg (list-ref parameter 1))
+                                                      (or (not (equal? (list-ref parameter 2) 0))
+                                                          (not (equal? (list-ref parameter 2) 0.0))))) parameters)))) #t]
+
+    ;; The square root of a non-zero number is always non-zero.
+    [`(sqrt ,x) (is-non-zero-conditional x parameters conds)]
+
+    ;; The product of two non-zero numbers is always non-zero.
+    [`(* ,x ,y) (and (is-non-zero-conditional x parameters conds) (is-non-zero-conditional y parameters conds))]
+
+    ;; The quotient of a non-zero number by anything is always non-zero.
+    [`(/ ,x ,y) (is-non-zero-conditional x parameters conds)]
+
+    ;; Expressions subject to a positivity condition are, trivially, non-zero.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `>)
+                                                  (equal? arg (list-ref condition 1))
+                                                  (or (equal? (list-ref condition 2) 0)
+                                                      (equal? (list-ref condition 2) 0.0)))) conds)))) #t]
+    
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; Recursively determine whether two expressions are distinct subject to certain algebraic conditions
+(define (are-distinct-conditional expr parameters conds)
+  (match expr
+    ;; Two numbers that are unequal are, trivially, distinct.
+    [(? (lambda (arg)
+        (and (number? (list-ref arg 0)) (number? (list-ref arg 1)) (not (equal? (list-ref arg 0) (list-ref arg 1)))))) #t]
+
+    ;; Expressions of the form (expr, -expr) or (-expr, expr) are distinct, so long as expr is non-zero.
+    [`(,x (* -1 ,x)) (is-non-zero-conditional x parameters conds)]
+    [`(,x (* -1.0 ,x)) (is-non-zero-conditional x parameters conds)]
+    [`((* -1 ,x) ,x) (is-non-zero-conditional x parameters conds)]
+    [`((* -1.0 ,x) ,x) (is-non-zero-conditional x parameters conds)]
+
+    ;; Expressions of the form ((x + y), (x - y)) or ((x - y), (x + y)) are distinct, so long as y is non-zero.
+    [`((+ ,x ,y) (- ,x ,y)) (is-non-zero-conditional y parameters conds)]
+    [`((- ,x ,y) (+ ,x ,y)) (is-non-zero-conditional y parameters conds)]
+
+    ;; Expressions of the form (x, (x - y)) or (x, (x + y)) are distinct, so long as y is non-zero.
+    [`(,x (- ,x ,y)) (is-non-zero-conditional y parameters conds)]
+    [`(,x (+ ,x ,y)) (is-non-zero-conditional y parameters conds)]
+
+    ;; Expressions of the form ((x - y), x) or ((x + y), x) are distinct, so long as y is non-zero.
+    [`((- ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
+    [`((+ ,x ,y) ,x) (is-non-zero-conditional y parameters conds)]
+
+    ;; Expressions of the form ((x1 * y) + z, (x2 * y) + z) are distinct, so long as x1 and x2 are distinct.
+    [`((+ (* ,x1 ,y) ,z) (+ (* ,x2 ,y) ,z)) (are-distinct-conditional (list x1 x2) parameters conds)]
+
+
+    ;; Expressions of the form (expr1, expr2) are distinct, so long as (not (equal? expr1 expr2)) or (not (equal? expr2 expr1)) is asserted as a condition.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `not)
+                                                  (and (equal? (list-ref (list-ref condition 1) 0) `equal?)
+                                                       (or (and (equal? (list-ref arg 0) (list-ref (list-ref condition 1) 1))
+                                                                (equal? (list-ref arg 1) (list-ref (list-ref condition 1) 2)))
+                                                           (and (equal? (list-ref arg 0) (list-ref (list-ref condition 1) 2))
+                                                                (equal? (list-ref arg 1) (list-ref (list-ref condition 1) 1))))))) conds)))) #t]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
+;; Recursively determine whether two expressions are equal subject to certain algebraic conditions
+(define (are-equal-conditional expr parameters conds)
+  (match expr
+    ;; Two numbers that are equal are, trivially, equal.
+    [(? (lambda (arg)
+        (and (number? (list-ref arg 0)) (number? (list-ref arg 1)) (equal? (list-ref arg 0) (list-ref arg 1))))) #t]
+
+    ;; Two equivalent expressions are always equal.
+    [`(,x ,x) #t]
+
+    ;; Expressions subject to an equality condition are, trivially, equal.
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `equal?)
+                                                  (equal? (list-ref arg 0) (list-ref condition 1))
+                                                  (equal? (list-ref arg 1) (list-ref condition 2)))) conds)))) #t]
+    [(? (lambda (arg)
+          (and (not (empty? conds)) (ormap (lambda (condition)
+                                             (and (equal? (list-ref condition 0) `equal?)
+                                                  (equal? (list-ref arg 0) (list-ref condition 2))
+                                                  (equal? (list-ref arg 1) (list-ref condition 1)))) conds)))) #t]
+
+    [`((+ ,x ,y) (+ ,z ,w)) (or (and (are-equal-conditional `(,x ,z) parameters conds) (are-equal-conditional `(,y ,w) parameters conds))
+                                (and (are-equal-conditional `(,x ,w) parameters conds) (are-equal-conditional `(,y ,z) parameters conds)))]
+
+    [`((- ,x ,y) (- ,z ,w)) (and (are-equal-conditional `(,x ,z) parameters conds) (are-equal-conditional `(,y ,w) parameters conds))]
+
+    [`((abs ,x) (abs ,y)) (are-equal-conditional `(,x ,y) parameters conds)]
+
+    ;; Otherwise, assume false.
+    [else #f]))
+
 ;; -----------------------------------------------------------------------------------------------------------------------------------------------------
 ;; Prove hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs subject to certain algebraic conditions
 ;; -----------------------------------------------------------------------------------------------------------------------------------------------------
@@ -491,7 +633,8 @@
                                                                                              `(cond
                                                                                                 [(< x 0.5) 7.5]
                                                                                                 [else 2.5]))])
-   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D coupled vector system of 3 PDEs specified by `pde-system`, subject to the algebraic conditions `conds`. 
+   "Prove that the Lax-Friedrichs finite-difference method preserves hyperbolicity for the 1D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`. 
   - `nx` : Number of spatial cells.
   - `x0`, `x1` : Domain boundaries.
   - `t-final`: Final time.
@@ -553,3 +696,319 @@
   
   out)
 (trace prove-lax-friedrichs-vector3-1d-hyperbolicity-conditional)
+
+;; -------------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove strict hyperbolicity of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs subject to certain algebraic constraints
+;; -------------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-1d-strict-hyperbolicity-conditional pde-system conds
+                                                                          #:nx [nx 200]
+                                                                          #:x0 [x0 0.0]
+                                                                          #:x1 [x1 2.0]
+                                                                          #:t-final [t-final 1.0]
+                                                                          #:cfl [cfl 0.95]
+                                                                          #:init-funcs [init-funcs (list
+                                                                                                    `(cond
+                                                                                                       [(< x 0.5) 3.0]
+                                                                                                       [else 1.0])
+                                                                                                    `(cond
+                                                                                                       [(< x 0.5) 0.0]
+                                                                                                       [else 0.0])
+                                                                                                    `(cond
+                                                                                                       [(< x 0.5) 7.5]
+                                                                                                       [else 2.5]))])
+   "Prove that the Lax-Friedrichs finite-difference method preserves strict hyperbolicity for the 1D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace is-non-zero-conditional)
+  (trace are-distinct-conditional)
+  (trace is-non-negative-conditional)
+
+  (define flux-eigvals (symbolic-eigvals3 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp (list-ref flux-eigvals 0))
+                             (symbolic-simp (list-ref flux-eigvals 1))
+                             (symbolic-simp (list-ref flux-eigvals 2))))
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the eigenvalues of the flux Jacobian are all real (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref flux-eigvals-simp 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref flux-eigvals-simp 2) cons-exprs parameters conds))) #f]
+
+    ;; Check whether the eigenvalues of the flux Jacobian are all distinct (otherwise, return false).
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp 0) (list-ref flux-eigvals-simp 1)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp 0) (list-ref flux-eigvals-simp 2)) parameters conds)) #f]
+    [(not (are-distinct-conditional (list (list-ref flux-eigvals-simp 1) (list-ref flux-eigvals-simp 2)) parameters conds)) #f]
+    
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace is-non-zero-conditional)
+  (untrace are-distinct-conditional)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector3-1d-strict-hyperbolicity-conditional)
+
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove CFL stability of the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs subject to certain algebraic constraints
+;; ------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-1d-cfl-stability-conditional pde-system conds
+                                                                   #:nx [nx 200]
+                                                                   #:x0 [x0 0.0]
+                                                                   #:x1 [x1 2.0]
+                                                                   #:t-final [t-final 1.0]
+                                                                   #:cfl [cfl 0.95]
+                                                                   #:init-funcs [init-funcs (list
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 3.0]
+                                                                                                [else 1.0])
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 0.0]
+                                                                                                [else 0.0])
+                                                                                             `(cond
+                                                                                                [(< x 0.5) 7.5]
+                                                                                                [else 2.5]))])
+   "Prove that the Lax-Friedrichs finite-difference method is CFL stable for the 1D coupled vector system of 3 PDEs specified by `pde-system`,
+    subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define max-speed-exprs (hash-ref pde-system 'max-speed-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace is-non-negative-conditional)
+  (trace are-equal-conditional)
+
+  (define flux-eigvals (symbolic-eigvals3 (symbolic-jacobian flux-exprs cons-exprs)))
+  (define max-speed-exprs-simp (list
+                                (symbolic-simp (list-ref max-speed-exprs 0))
+                                (symbolic-simp (list-ref max-speed-exprs 1))
+                                (symbolic-simp (list-ref max-speed-exprs 2))))
+  (define flux-eigvals-simp (list
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 0)))
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 1)))
+                             (symbolic-simp `(abs ,(list-ref flux-eigvals 2)))))
+  
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the absolute eigenvalues of the flux Jacobian are symbolically equivalent to the maximum wave-speed estimates (otherwise, return false).
+    [(not (and (or (are-equal-conditional (list (list-ref flux-eigvals-simp 0) (list-ref max-speed-exprs-simp 0)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 0) (list-ref max-speed-exprs-simp 1)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 0) (list-ref max-speed-exprs-simp 2)) parameters conds))
+               (or (are-equal-conditional (list (list-ref flux-eigvals-simp 1) (list-ref max-speed-exprs-simp 0)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 1) (list-ref max-speed-exprs-simp 1)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 1) (list-ref max-speed-exprs-simp 2)) parameters conds))
+               (or (are-equal-conditional (list (list-ref flux-eigvals-simp 2) (list-ref max-speed-exprs-simp 0)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 2) (list-ref max-speed-exprs-simp 1)) parameters conds)
+                   (are-equal-conditional (list (list-ref flux-eigvals-simp 2) (list-ref max-speed-exprs-simp 2)) parameters conds)))) #f]
+         
+
+    ;; Otherwise, return true.
+    [else #t]))
+  
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace is-non-negative-conditional)
+  (untrace are-equal-conditional)
+
+  out)
+(trace prove-lax-friedrichs-vector3-1d-cfl-stability-conditional)
+
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+;; Prove local Lipschitz continuity of the discrete flux function for the Lax–Friedrichs (Finite-Difference) Solver for a 1D Coupled Vector System of 3 PDEs
+;; subject to certain algebraic constraints
+;; ---------------------------------------------------------------------------------------------------------------------------------------------------------
+(define (prove-lax-friedrichs-vector3-1d-local-lipschitz-conditional pde-system conds
+                                                                     #:nx [nx 200]
+                                                                     #:x0 [x0 0.0]
+                                                                     #:x1 [x1 2.0]
+                                                                     #:t-final [t-final 1.0]
+                                                                     #:cfl [cfl 0.95]
+                                                                     #:init-funcs [init-funcs (list
+                                                                                               `(cond
+                                                                                                  [(< x 0.5) 3.0]
+                                                                                                  [else 1.0])
+                                                                                               `(cond
+                                                                                                  [(< x 0.5) 0.0]
+                                                                                                  [else 0.0])
+                                                                                               `(cond
+                                                                                                  [(< x 0.5) 7.5]
+                                                                                                  [else 2.5]))])
+   "Prove that the Lax-Friedrichs finite-difference method has a discrete flux function that satisfies local Lipschitz continuity for the 1D coupled vector system of 3 PDEs
+    specified by `pde-system`, subject to the algebraic conditions `conds`.
+  - `nx` : Number of spatial cells.
+  - `x0`, `x1` : Domain boundaries.
+  - `t-final`: Final time.
+  - `cfl`: CFL coefficient.
+  - `init-funcs`: Racket expressions for the initial conditions, e.g. piecewise constant."
+
+  (define cons-exprs (hash-ref pde-system 'cons-exprs))
+  (define flux-exprs (hash-ref pde-system 'flux-exprs))
+  (define parameters (hash-ref pde-system 'parameters))
+
+  (trace is-real-conditional)
+  (trace symbolic-simp)
+  (trace symbolic-simp-rule)
+  (trace symbolic-diff)
+  (trace symbolic-jacobian)
+  (trace symbolic-eigvals3)
+  (trace symbolic-gradient)
+  (trace symbolic-hessian)
+  (trace is-non-negative-conditional)
+
+  (define hessian-mats (list
+                        (symbolic-hessian (list-ref flux-exprs 0) cons-exprs)
+                        (symbolic-hessian (list-ref flux-exprs 1) cons-exprs)
+                        (symbolic-hessian (list-ref flux-exprs 2) cons-exprs)))
+  (define hessian-eigvals (list
+                           (symbolic-eigvals3 (list-ref hessian-mats 0))
+                           (symbolic-eigvals3 (list-ref hessian-mats 1))
+                           (symbolic-eigvals3 (list-ref hessian-mats 2))))
+  (define hessian-eigvals-simp (list
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 0) 0))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 0) 1))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 0) 2))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 0))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 1))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 1) 2))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 2) 0))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 2) 1))
+                                (symbolic-simp (list-ref (list-ref hessian-eigvals 2) 2))))
+
+  (display "Eigenvalues:\n")
+    (display (list-ref hessian-eigvals-simp 0))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 1))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 2))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 3))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 4))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 5))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 6))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 7))
+    (display "\n")
+    (display (list-ref hessian-eigvals-simp 8))
+    (display "\n")
+
+  (define out (cond
+    ;; Check whether the CFL coefficient is greater than 0 and less than or equal to 1 (otherwise, return false).
+    [(or (<= cfl 0) (> cfl 1)) #f]
+    
+    ;; Check whether the number of spatial cells is at least 1 and the right domain boundary is set to the right of the left boundary (otherwise, return false)
+    [(or (< nx 1) (>= x0 x1)) #f]
+    
+    ;; Check whether the final simulation time is non-negative (otherwise, return false).
+    [(< t-final 0) #f]
+
+    ;; Check whether the simulation parameter(s) correspond to real numbers (otherwise, return false).
+    [(not (or (empty? parameters) (andmap (lambda (parameter)
+                                            (is-real-conditional (list-ref parameter 2) cons-exprs parameters conds)) parameters))) #f]
+
+    ;; Check whether the initial condition(s) correspond to real numbers (otherwise, return false).
+    [(or (not (is-real-conditional (list-ref init-funcs 0) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 1) cons-exprs parameters conds))
+         (not (is-real-conditional (list-ref init-funcs 2) cons-exprs parameters conds))) #f]
+    
+    ;; Check whether the flux function is convex, i.e. that the Hessian matrix for each flux component is positive semidefinite (otherwise, return false).
+    [(or (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 0) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 1) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 2) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 3) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 4) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 5) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 6) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 7) cons-exprs parameters conds))
+         (not (is-non-negative-conditional (list-ref hessian-eigvals-simp 8) cons-exprs parameters conds))) #f]
+
+    ;; Otherwise, return true.
+    [else #t]))
+
+  (untrace is-real-conditional)
+  (untrace symbolic-simp)
+  (untrace symbolic-simp-rule)
+  (untrace symbolic-diff)
+  (untrace symbolic-jacobian)
+  (untrace symbolic-eigvals3)
+  (untrace symbolic-gradient)
+  (untrace symbolic-hessian)
+  (untrace is-non-negative-conditional)
+  
+  out)
+(trace prove-lax-friedrichs-vector3-1d-local-lipschitz-conditional)

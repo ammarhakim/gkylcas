@@ -62,12 +62,11 @@
 
   (define epsilon-code (convert-expr epsilon))
   (define conditions-code (convert-expr (cons `and conds)))
-  (define conditions-local (flux-substitute (flux-substitute
-                                             (flux-substitute (flux-substitute
-                                                               (flux-substitute (flux-substitute (flux-substitute conditions-code (list-ref cons-codes 0) "u[(i * 3) + 0]")
-                                                                                                 (list-ref cons-codes 1) "u[(i * 3) + 1]") (list-ref cons-codes 2) "u[(i * 3) + 2]")
-                                                               ">= 0.0" (string-append ">= -" epsilon-code)) ">= 0" (string-append ">= -" epsilon-code))
-                                             "> 0.0" (string-append "> -" epsilon-code)) "> 0" (string-append "> -" epsilon-code)))
+  (define conditions-local (flux-substitute (flux-substitute (flux-substitute
+                                                              (flux-substitute (flux-substitute (flux-substitute conditions-code (list-ref cons-codes 0) "u[(i * 3) + 0]")
+                                                                                                (list-ref cons-codes 1) "u[(i * 3) + 1]") (list-ref cons-codes 2) "u[(i * 3) + 2]")
+                                                              ">= 0.0" (string-append ">= -" epsilon-code)) "== 0.0" (string-append ">= -" epsilon-code))
+                                            "> 0.0" (string-append "> -" epsilon-code)))
   
   (define parameter-code (cond
                            [(not (empty? parameters)) (string-join (map (lambda (parameter)

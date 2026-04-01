@@ -460,8 +460,14 @@
                                                       (or (not (equal? (list-ref parameter 2) 0))
                                                           (not (equal? (list-ref parameter 2) 0.0))))) parameters)))) #t]
 
+    ;; The square root of a non-zero number is always non-zero.
+    [`(sqrt ,x) (is-non-zero x parameters)]
+    
     ;; The product of two non-zero numbers is always non-zero.
     [`(* ,x ,y) (and (is-non-zero x parameters) (is-non-zero y parameters))]
+
+    ;; The quotient of a non-zero number by anything is always non-zero.
+    [`(/ ,x ,y) (is-non-zero x parameters)]
     
     ;; Otherwise, assume false.
     [else #f]))
@@ -679,7 +685,9 @@
          (not (is-real (list-ref flux-eigvals-simp 2) cons-exprs parameters))) #f]
 
     ;; Check whether the eigenvalues of the flux Jacobian are all distinct (otherwise, return false).
-    [(not (are-distinct flux-eigvals-simp parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp 0) (list-ref flux-eigvals-simp 1)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp 0) (list-ref flux-eigvals-simp 2)) parameters)) #f]
+    [(not (are-distinct (list (list-ref flux-eigvals-simp 1) (list-ref flux-eigvals-simp 2)) parameters)) #f]
     
     ;; Otherwise, return true.
     [else #t]))
