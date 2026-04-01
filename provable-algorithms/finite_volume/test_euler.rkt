@@ -92,3 +92,72 @@
 (display "Hyperbolicity preservation: ")
 (display proof-euler-lax-hyperbolicity)
 (display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-lax-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_euler_lax_strict_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-lax-friedrichs-vector3-1d-strict-hyperbolicity pde-system-euler
+                                                              #:nx nx
+                                                              #:x0 x0
+                                                              #:x1 x1
+                                                              #:t-final t-final
+                                                              #:cfl cfl
+                                                              #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_lax_strict_hyperbolicity.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-euler-lax-strict-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove CFL stability of the Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-lax-cfl-stability
+  (call-with-output-file "proofs/proof_euler_lax_cfl_stability.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-lax-friedrichs-vector3-1d-cfl-stability pde-system-euler
+                                                       #:nx nx
+                                                       #:x0 x0
+                                                       #:x1 x1
+                                                       #:t-final t-final
+                                                       #:cfl cfl
+                                                       #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_lax_cfl_stability.rkt")
+
+;; Show whether CFL stability is satisfied.
+(display "CFL stability: ")
+(display proof-euler-lax-cfl-stability)
+(display "\n")
+
+;; Attempt to prove local Lipschitz continuity of the discrete flux function for the Lax-Friedrichs solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-lax-local-lipschitz
+  (call-with-output-file "proofs/proof_euler_lax_local_lipschitz.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-lax-friedrichs-vector3-1d-local-lipschitz pde-system-euler
+                                                         #:nx nx
+                                                         #:x0 x0
+                                                         #:x1 x1
+                                                         #:t-final t-final
+                                                         #:cfl cfl
+                                                         #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_lax_local_lipschitz.rkt")
+
+;; Show whether the local Lipschitz continuity property of the discrete flux function is satisfied.
+(display "Local Lipschitz continuity of discrete flux function: ")
+(display proof-euler-lax-local-lipschitz)
+(display "\n\n\n")
