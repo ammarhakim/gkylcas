@@ -178,6 +178,77 @@
   (lambda ()
     (display code-euler-roe)))
 
+(display "Roe (finite-volume) properties: \n\n")
+
+;; Attempt to prove hyperbolicity of the Roe solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-roe-hyperbolicity
+  (call-with-output-file "proofs/proof_euler_roe_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-roe-vector3-1d-hyperbolicity pde-system-euler
+                                            #:nx nx
+                                            #:x0 x0
+                                            #:x1 x1
+                                            #:t-final t-final
+                                            #:cfl cfl
+                                            #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_roe_hyperbolicity.rkt")
+
+;; Show whether hyperbolicity is preserved.
+(display "Hyperbolicity preservation: ")
+(display proof-euler-roe-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove strict hyperbolicity of the Roe solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-roe-strict-hyperbolicity
+  (call-with-output-file "proofs/proof_euler_roe_strict_hyperbolicity.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-roe-vector3-1d-strict-hyperbolicity pde-system-euler
+                                                   #:nx nx
+                                                   #:x0 x0
+                                                   #:x1 x1
+                                                   #:t-final t-final
+                                                   #:cfl cfl
+                                                   #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_roe_strict_hyperbolicity.rkt")
+
+;; Show whether strict hyperbolicity is preserved.
+(display "Strict hyperbolicity preservation: ")
+(display proof-euler-roe-strict-hyperbolicity)
+(display "\n")
+
+;; Attempt to prove flux conservation (jump continuity) of the Roe solver for the 1D Euler equations (density, x-momentum, and total energy components).
+(define proof-euler-roe-flux-conservation
+  (call-with-output-file "proofs/proof_euler_roe_flux_conservation.rkt"
+    (lambda (out)
+      (parameterize ([current-output-port out] [pretty-print-columns `infinity])
+        (display "#lang racket\n\n")
+        (display "(require \"../prover_core.rkt\")\n")
+        (display "(require \"../prover_matrix.rkt\")\n\n")
+        (prove-roe-vector3-1d-flux-conservation pde-system-euler
+                                                #:nx nx
+                                                #:x0 x0
+                                                #:x1 x1
+                                                #:t-final t-final
+                                                #:cfl cfl
+                                                #:init-funcs init-funcs)))
+    #:exists `replace))
+(remove-bracketed-expressions-from-file "proofs/proof_euler_roe_flux_conservation.rkt")
+
+;; Show whether flux conservation (jump continuity) is preserved.
+(display "Flux conservation (jump continuity): ")
+(display proof-euler-roe-flux-conservation)
+(display "\n")
+
 ;; Define the minmod flux limiter.
 (define limiter-minmod
   (hash
