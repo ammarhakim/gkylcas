@@ -273,3 +273,20 @@
   #:exists 'replace
   (lambda ()
     (display code-euler-lax-minmod)))
+
+;; Synthesize the code for a Roe solver for the 1D Euler equations (density, x-momentum, and total energy components,
+;; with a second-order flux extrapolation using the minmod flux limiter).
+(define code-euler-roe-minmod
+  (generate-roe-vector3-1d-second-order pde-system-euler limiter-minmod
+                                        #:nx nx
+                                        #:x0 x0
+                                        #:x1 x1
+                                        #:t-final t-final
+                                        #:cfl cfl
+                                        #:init-funcs init-funcs))
+
+;; Output the code to a file.
+(with-output-to-file "code/euler_roe_minmod.c"
+  #:exists 'replace
+  (lambda ()
+    (display code-euler-roe-minmod)))
