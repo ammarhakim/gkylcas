@@ -1,0 +1,21 @@
+kill(all)$
+/* load("dg_gk-vol.mac")$ */
+/* load("nodal_operations/node_locations")$ */
+/* load(stringproc)$ */
+/* fpprec : 24$ */
+/* load("eigen")$ */
+
+/* values()$ */
+/* print(values)$ */
+
+load("modal-basis")$
+
+vars : [z,v,m]$
+n : 1$
+basis : makeSerendipBasis(vars, n)$
+
+print("Serendipity basis:")$
+for i : 1 thru length(basis) do (
+  printf(true, "  basis[~a] = ~a~%", i, basis[i])
+)$
+
