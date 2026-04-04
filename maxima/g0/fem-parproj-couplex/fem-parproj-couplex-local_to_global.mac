@@ -108,7 +108,8 @@ generate_fem_parproj_couplex_local_to_global(fh, funcNm, dim, basisFun, pMin, pM
       
           storedNodes    : getStoredNodes(nodes,stencilLoc[sI]), /* lower nodes only, see notes. */
           storedNodesBC  : getStoredNodesWithBC(nodes,stencilLoc[sI],currBC), /* BC-aware (includes some upper nodes for nonperiodic BC). */
-          numStoredNodes : length(storedNodesBC),
+          numStoredNodes : length(storedNodes),
+
       
           /* Create a list of possible locations and number of stored nodes
              in the domain (only interior and upper boundary locations needed). */
@@ -158,18 +159,33 @@ generate_fem_parproj_couplex_local_to_global(fh, funcNm, dim, basisFun, pMin, pM
             numNodesFac[dim] : assoc(tmpLoc,locToNumStoredNodes),
             /* Add nodes in lines/planes (2D/3D) prior to this one. */
             for dI : dim-1 thru 1 step -1 do (
-              tmpLoc          : copylist(cellLoc),
-              for d : dim thru dI step -1 do ( tmpLoc[d] : 0 ),
+              tmpLoc : copylist(cellLoc),
+              for d : dim thru dI step -1 do (
+                tmpLoc[d] : 0 
+              ),
               numNodesFac[dI] : (numCells[dim]-1)*assoc(tmpLoc,locToNumStoredNodes),
-              tmpLoc[dim]     : 1,
-              numNodesFac[dI] : numNodesFac[dI]+assoc(tmpLoc,locToNumStoredNodes),
+              if ((dim=2) and (dI=1)) or ((dim=3) and (dI=2)) then (
+                tmpLoc[dim]     : 1,
+                numNodesFac[dI] : numNodesFac[dI]+assoc(tmpLoc,locToNumStoredNodes)
+              ),
+/*
+1x:
+idx[0]*{0}
+2x:
+idx[1]*{X,0} + idx[0]*( (ny-1)*{0,0}+{0,1} )
+3x:
+idx[2]*{X,Y,0} + idx[1]*( (nz-1)*{X,0,0}+{X,0,1} ) + idx[0]*( (ny-1)*(nz-1)*{0,0,0}+(ny-1)*{0,0,1}+(nz-1)*{0,1,0}+{0,1,1} )
+*/
+
               if (dim=3) and (dI=1) then (
-                numNodesFac[dI] : (numCells[dim-1]-1)*numNodesFac[dI],
+                numNodesFac[dI] : (numCells[dim-2]-1)*(numCells[dim-1]-1)*numNodesFac[dI],
+                tmpLoc[dim]     : 1,
+                numNodesFac[dI] : numNodesFac[dI]+(numCells[dim-1]-1)*assoc(tmpLoc,locToNumStoredNodes),
                 tmpLoc[dim]     : 0,
                 tmpLoc[dim-1]   : 1,
-                tmpNum          : assoc(tmpLoc,locToNumStoredNodes),
-                numNodesFac[dI] : (numCells[dim]-1)*tmpNum+numNodesFac[dI],
-                tmpLoc[dim-2]   : 1,
+                numNodesFac[dI] : numNodesFac[dI]+(numCells[dim]-1)*assoc(tmpLoc,locToNumStoredNodes),
+                tmpLoc[dim]     : 1,
+                tmpLoc[dim-1]   : 1,
                 numNodesFac[dI] : numNodesFac[dI]+assoc(tmpLoc,locToNumStoredNodes)
               )
             ),
