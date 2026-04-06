@@ -157,9 +157,9 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   gradH_list : [dH_dx, dH_dy, dH_dz, dH_dvpar],
 
   if cdim = 3 then (
-    bcrossgradH_x : (bioverJB_y_e*dH_dz - bioverJB_z_e*dH_dy),
-    bcrossgradH_y : (bioverJB_z_e*dH_dx - bioverJB_x_e*dH_dz),
-    bcrossgradH_z : (bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx),
+    bcrossgradH_x : bioverJB_y_e*dH_dz - bioverJB_z_e*dH_dy,
+    bcrossgradH_y : bioverJB_z_e*dH_dx - bioverJB_x_e*dH_dz,
+    bcrossgradH_z : bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx,
     bcrossgradH_vec : [bcrossgradH_x, bcrossgradH_y, bcrossgradH_z]
   ) else if cdim = 2 then (
     bcrossgradH_x : bioverJB_y_e * dH_dz,
