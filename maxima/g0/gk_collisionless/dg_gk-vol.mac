@@ -15,10 +15,12 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
    bmagBasis,ignoreVars,inFlds_e,cmag_e,b_x_e,b_y_e,b_z_e,vmap_e,BstardBmag_e,
    hamil_e,pbAuxFlds,alphaSum_e,vd,dir,dirLabel,wDir,rdDirVar2,vmap_prime_fac,dirVar,
    dirVar_phys,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,alphaDotGradBasis_e,f_e,volTerm_c, 
-   dH_dz_e, alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,hamil2_c,isqlist,mvpar_e,mvparsq_e,
+   alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,hamil2_c,isqlist,mvpar_e,mvparsq_e,
    replaceList,dvparSimp,phi_e,bmag_e,dualcurlbhatoverB_x_e,dualcurlbhatoverB_y_e,dualcurlbhatoverB_z_e,
    rtg33inv_e,bioverJB_x_e,bioverJB_y_e,bioverJB_z_e,dualcurlbhatoverB_list,bioverJB_list,
-   vmapSq_e,vmap_prime_e,hamilCvar,hamilNoZero_c,hamil_c,vpardim,i,k,curvdriftdir,clst],
+   dualcurlbhatoverB_vec,bioverJB_vec,vmapSq_e,vmap_prime_e,hamilCvar,hamilNoZero_c,hamil_c,
+   xidx,yidx,zidx,vidx,vpardim,dH_dx,dH_dy,dH_dz,dH_dvpar,gradH_vec,gradH_list,
+   bcrossgradH_x,bcrossgradH_y,bcrossgradH_z,bcrossgradH_vec,bcrossgradH_list,i,k,curvdriftdir,clst],
 
   kill(varsC,varsP,bC,bP),
   pdim : cdim+vdim,
@@ -60,6 +62,15 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   dvparSimp : append(makelist(dxv[i-1]=2/eval_string(sconcat("rd",varLabel[i],"2")),i,1,pdim),
                      [dvparSq=4/rdvpar2Sq]),
 
+  /* Store indices of the coordinate directions. */
+  if cdim = 3 then (
+    xidx : 1, yidx : 2, zidx : 3, vidx : 4
+  ) else if cdim = 2 then (
+    xidx : 1, zidx : 2, vidx : 3
+  ) else if cdim = 1 then (
+    zidx : 1, vidx : 2
+  ),
+
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
@@ -89,6 +100,16 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
   dualcurlbhatoverB_list : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
   bioverJB_list : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e],
+  if cdim = 3 then (
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
+    bioverJB_vec : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e]
+  ) else if cdim = 2 then (
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_z_e],
+    bioverJB_vec : [bioverJB_x_e, bioverJB_z_e]
+  ) else if cdim = 1 then (
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_z_e],
+    bioverJB_vec : [bioverJB_z_e]
+  ),
 
   /* Velocity mapping fields. */
   [vmap_e,vmapSq_e,vmap_prime_e] : expandVmapFields(varsP),
@@ -116,22 +137,50 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Calculate expressions for dericatives of the hamiltonian*/
   vpardim : pdim-1,
   if vdim = 1 then ( vpardim : pdim ),
-  dH_dz_e : makelist(0, i, 1, pdim),  
-  for i : 1 thru vpardim do (
-    if i = vpardim then (
-      dH_dz_e[i] : diff(hamil_e,varsP[i])
-    )
-    else (
-      dH_dz_e[i] : diff(hamil_e*rdx2vec[i],varsP[i])
-    )
+  dH_dvpar : diff(hamil_e,varsP[vpardim])/vmap_prime_e[1], /* We do not multply by rdv2vec because it is inside vmap_prime */
+  if cdim = 3 then (
+    dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
+    dH_dy : diff(hamil_e*rdx2vec[yidx],varsP[yidx]),
+    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    gradH_vec : [dH_dx, dH_dy, dH_dz, dH_dvpar]
+  ) else if cdim = 2 then (
+    dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
+    dH_dy : 0,
+    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    gradH_vec : [dH_dx, dH_dz, dH_dvpar]
+  ) else if cdim = 1 then (
+    dH_dx : 0,
+    dH_dy : 0,
+    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    gradH_vec : [dH_dz, dH_dvpar]
   ),
+  gradH_list : [dH_dx, dH_dy, dH_dz, dH_dvpar],
+
+  if cdim = 3 then (
+    bcrossgradH_x : (bioverJB_y_e*dH_dz - bioverJB_z_e*dH_dy),
+    bcrossgradH_y : (bioverJB_z_e*dH_dx - bioverJB_x_e*dH_dz),
+    bcrossgradH_z : (bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx),
+    bcrossgradH_vec : [bcrossgradH_x, bcrossgradH_y, bcrossgradH_z]
+  ) else if cdim = 2 then (
+    bcrossgradH_x : bioverJB_y_e * dH_dz,
+    bcrossgradH_y : 0,
+    bcrossgradH_z : -bioverJB_y_e * dH_dx,
+    bcrossgradH_vec : [bcrossgradH_x, bcrossgradH_z]
+  ) else if cdim = 1 then (
+    bcrossgradH_x : 0,
+    bcrossgradH_y : 0,
+    bcrossgradH_z : 0,
+    bcrossgradH_vec : [0]
+  ),
+  bcrossgradH_list : [bcrossgradH_x, bcrossgradH_y, bcrossgradH_z],
 
   /*Make sure to avoid having hamil[i]^2 or vmap[i]^2 in expressions*/
   replaceListVpar : [vmap[1]^2=vmap2],
   printf(fh, "  double vmap2 = vmap[1]*vmap[1]; ~%"),
   printf(fh, "~%"),
 
-  mvpar_e : dH_dz_e[vpardim]/vmap_prime_e[1],
+  mvpar_e : dH_dvpar,
+
   mvparsq_e : mvpar_e*mvpar_e/m_,
   isqlist : [],
   for i : 1 thru numP do (
@@ -159,73 +208,28 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
     dirVar    : varsP[dir],         /* Variable in current direction. */
 
     if dir = cdim then (
-      alpha_e : rtg33inv_e*dH_dz_e[vpardim]/vmap_prime_e[1]/m_ /* Contribution from B_0 . dH/dvpar . ∇ψ in z*/
+      alpha_e : rtg33inv_e * dH_dvpar / m_ /* Contribution from B_0 . dH/dvpar . ∇ψ in z*/
     )
     else if dir = vpardim then (
-      alpha_e : -rtg33inv_e * dH_dz_e[cdim]/m_  /* Contribution from B_0 . ∇H . dψ/dvpar in z */
+      alpha_e : -rtg33inv_e * gradH_vec[zidx]/m_  /* Contribution from B_0 . ∇H . dψ/dvpar in z */
     )
     else (
       alpha_e : 0 /* all other B_0 contributions are 0 since B_0_x,y = 0 */
     ),
 
-
     if no_by = false then (
 
       /* Add curvature drift terms (m vpar/q * ∇ x b)/mB  = (m vpar * (∇ x b)/B)/qm */
-      if cdim = 3 then (
-        /* Sum each directions */
-        curvdriftdir : dir
-      ),
-      if cdim = 2 then (
-        /* Select only x and z */
-        if dir = 1 then (
-          curvdriftdir : dir
-        ),
-        if dir = 2 then (
-          curvdriftdir : 3
-        )
-      ),
-      if cdim = 1 then (
-        /* Select z */
-        curvdriftdir : 3
-      ),
       if dir < vpardim then (
         /* Config space contributions ( curv drift * dH/dvpar . ∇ψ ) */
-        alpha_e : alpha_e + mvpar_e*dualcurlbhatoverB_list[curvdriftdir] * dH_dz_e[vpardim]/vmap_prime_e[1] / (q_*m_)
+        alpha_e : alpha_e + mvpar_e * dualcurlbhatoverB_vec[dir] * dH_dvpar / (q_*m_),
+        /* Add b x ∇H / qB term (only in configuration space) */
+        alpha_e : alpha_e + 1/q_ * bcrossgradH_vec[dir]
       ) else (
         /* Vpar contribution ( curv drift . ∇H * dψ/dvpar )*/
-        if cdim = 3 then (
-          for k : 1 thru cdim do (
-            alpha_e : alpha_e - mvpar_e*dualcurlbhatoverB_list[k]*dH_dz_e[k]/(q_*m_)
-          )
-        ),
-        if cdim = 2 then (
-            alpha_e : alpha_e - mvpar_e*dualcurlbhatoverB_list[1] * dH_dz_e[1]/(q_*m_) - mvpar_e*dualcurlbhatoverB_list[3] * dH_dz_e[2]/(q_*m_)
-        ),
-        if cdim = 1 then (
-            alpha_e : alpha_e - mvpar_e*dualcurlbhatoverB_list[3] * dH_dz_e[1]/(q_*m_)
-        )
-      ),
-
-      /* Add b x ∇H / qB term (only in configuration space) */
-      if cdim = 3 then (
-        if dir = 1 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[3] - bioverJB_list[3]*dH_dz_e[2])
-        ),
-        if dir = 2 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[3]*dH_dz_e[1] - bioverJB_list[1]*dH_dz_e[3])
-        ),
-        if dir = 3 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[1]*dH_dz_e[2] - bioverJB_list[2]*dH_dz_e[1])
-        )
-      ),
-      if cdim = 2 then (
-        if dir = 1 then (
-          alpha_e : alpha_e + 1/q_ * (bioverJB_list[2]*dH_dz_e[2])
-        ),
-        if dir = 2 then (
-          alpha_e : alpha_e - 1/q_ * (bioverJB_list[2]*dH_dz_e[1])
-        )
+        for k : 1 thru cdim do (
+          alpha_e : alpha_e - mvpar_e*dualcurlbhatoverB_vec[k]*gradH_vec[k]/(q_*m_)
+        ) 
       )
     ),
 
