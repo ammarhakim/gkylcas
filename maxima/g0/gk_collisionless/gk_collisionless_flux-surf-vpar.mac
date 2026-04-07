@@ -225,19 +225,15 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
       printf(fh, "~%"),
       /* printf(fh, "  mvpar_over_q = (~a)/q_; ~%", dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]), */
 
-      if no_by = true then (
-        /* Start ES term */
-        printf(fh, "  alpha_quad = -(~a)/m_/bmag_quad * B3_quad ;~%", dH_dz_nodes[cdim][j1index])
-      ),
+      /* Start ES term */
+      printf(fh, "  alpha_quad = -(~a)/m_/bmag_quad * B3_quad; ~%", dH_dz_nodes[cdim][j1index]),
+
       if no_by = false then (
-        /* Start ES term */
-        printf(fh, "  alpha_quad = -(~a)/m_/bmag_quad * B3_quad ", dH_dz_nodes[cdim][j1index]),
         if cdim = 3 then (
           /* Finish ES term */
           for k : 1 thru cdim do (
-            printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
+            printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[k][j1index], k-1, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index])
           ),
-          printf(fh, ";~%"),
           if em = true then (
             /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             for k : 1 thru cdim do (
@@ -252,9 +248,8 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
         ),
         if cdim = 2 then (
           /* Finish ES term */
-          printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 0, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
-          printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[2][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
-          printf(fh, ";~%"),
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 0, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[2][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
           if em = true then (
             /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             /* Apar * curl(b) */
@@ -267,8 +262,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
         ),
         if cdim = 1 then (
           /* Finish ES term */
-          printf(fh, "-(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a)", dH_dz_nodes[1][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
-          printf(fh, ";~%"),
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 2, dH_dz_nodes[vpardim][j1index]/vmap_prime_nodes[j1index]),
           if em = true then (
             /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
             /* Apar * curl(b) */
