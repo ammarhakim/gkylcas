@@ -263,22 +263,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
 )$
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
   [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
    bmagBasis,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,hamil_e,dir,dirLabel,gradpsi, dpsidvpar,
