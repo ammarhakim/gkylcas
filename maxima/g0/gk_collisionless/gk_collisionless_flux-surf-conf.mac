@@ -307,7 +307,7 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
         )
       ),
 
-      /* Multiply by the surface element */
+      /* Multiply by |e^i|, note: area_elem_quad = J_c |e^i| */
       printf(fh, "  alpha_quad = alpha_quad * area_elem_quad/Jc_quad; ~%"),
 
       printf(fh, "~%"),
