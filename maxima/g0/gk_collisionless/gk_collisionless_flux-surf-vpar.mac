@@ -253,7 +253,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
               /* Apar * curl(b) */
               printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[j1index], k-1),
               /* grad(Apar) x b */
-              printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ * (~a); ~%", k-1, gradAxgradH[k][j1index])
+              printf(fh, "  alpha_quad += bioverJB_quad[~a]/m_ * (~a); ~%", k-1, gradAxgradH[k][j1index])
             )
           )
         ),
@@ -267,7 +267,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 0),
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[j1index], 2),
             /* grad(Apar) x b */
-            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 1, gradAxgradH[2][j1index])
+            printf(fh, "  alpha_quad += bioverJB_quad[~a]/m_ *(~a); ~%", 1, gradAxgradH[2][j1index])
           )
         ),
         if cdim = 1 then (
