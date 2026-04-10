@@ -212,14 +212,15 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
       /* Add curvature drift terms (m vpar/q * ∇ x b)/mB  = (m vpar * (∇ x b)/B)/qm */
       if dir < vpardim then (
-        /* Config space contributions ( curv drift * dH/dvpar . ∇ψ ) */
-        alpha_e : alpha_e + mvpar_e * dualcurlbhatoverB_vec[dir] * dH_dvpar / (q_*m_) * gradpsi[dir],
-        /* Add b x ∇H / qB term (only in configuration space) */
+        /* 1/m vpar/q [(∇ x b)/B] dH/dvpar . ∇ψ */
+        alpha_e : alpha_e + 1/m_ * mvpar_e/q_ * dualcurlbhatoverB_vec[dir] * dH_dvpar * gradpsi[dir],
+        /* 1/q (b/B x ∇H) . ∇ψ */
         alpha_e : alpha_e + 1/q_ * boverBxgradH_vec[dir] * gradpsi[dir]
+
       ) else (
-        /* Vpar contribution ( curv drift . ∇H * dψ/dvpar )*/
+        /* 1/m (m vpar/q [(∇ x b)/B]) . ∇H dψ/dvpar */
         for k : 1 thru cdim do (
-          alpha_e : alpha_e - mvpar_e*dualcurlbhatoverB_vec[k]*gradH_vec[k]/(q_*m_) * dpsidvpar
+          alpha_e : alpha_e - 1/m_ * mvpar_e/q_ * dualcurlbhatoverB_vec[k] * gradH_vec[k] * dpsidvpar
         ) 
       )
     ),
