@@ -225,13 +225,6 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
       )
     ),
 
-    /* if dir < vpardim then (
-      alpha_e : alpha_e*rdx2vec[dir]
-    )
-    else (
-      alpha_e : alpha_e
-    ), */
-
     /* Project alpha on basis and write to array. */
     printf(fh, "  double alpha~a[~a] = {0.}; ~%", dirLabel, numP),
     alpha_c : fullratsimp(calcInnerProdList(varsP, 1, bP, alpha_e)),
