@@ -13,7 +13,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
    hamilCvar,hamilNoZero_c,JfL_e,JfR_e,JfL_c,JfR_c,JfL_nodes,JfR_nodes,vmap_prime_nodes,vpardim,
    dH_dz_nodes,i,j,j0index,j1index,pOrderCFL,vprimeStr,apar_e,apar_nodes,dA_dx_nodes,k,
    apardot_e,apardot_nodes,mvpar_j1,dH_dx,dH_dy,dH_dz,dH_dvpar,dA_dx,dA_dy,dA_dz,
-   gradAxgradH, apar_bP_e
+   gradHxgradA, apar_bP_e
   ],
 
   kill(varsC,varsP,bC,bP),
@@ -194,10 +194,10 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     dA_dy : 0,
     dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[1],varsC[1]),surfNodes,surfIntVars))
   ),
-  gradAxgradH : [
-    dA_dy*dH_dz - dA_dz*dH_dy,
-    dA_dz*dH_dx - dA_dx*dH_dz,
-    dA_dx*dH_dy - dA_dy*dH_dx
+  gradHxgradA : [
+    dH_dy*dA_dz - dH_dz*dA_dy,
+    dH_dz*dA_dx - dH_dx*dA_dz,
+    dH_dx*dA_dy - dH_dy*dA_dx
   ],
 
   /* Now calculate alpha at all quadrature nodes */
@@ -248,12 +248,12 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[k][j1index], k-1, mvpar_j1)
           ),
           if em = true then (
-            /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
+            /* EM term using ∇ x (A b) . ∇H  = A . ∇ x b . ∇H + ∇A x b . ∇H = A . ∇ x b . ∇H + ∇H x ∇A . b */
             for k : 1 thru cdim do (
-              /* Apar * curl(b) */
+              /* - A ∇ x b . ∇H dψ/dvpar = - A (∇ x b)_i dH/dxi dψ/dvpar */
               printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[j1index], k-1),
-              /* grad(Apar) x b */
-              printf(fh, "  alpha_quad += bioverJB_quad[~a]/m_ * (~a); ~%", k-1, gradAxgradH[k][j1index])
+              /* - ∇H x ∇A . b dψ/dvpar  = - b_i/B 1/J eps_ijk dH/dx_j dA/dx_k */
+              printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", k-1, gradHxgradA[k][j1index])
             )
           )
         ),
@@ -262,22 +262,20 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 0, mvpar_j1),
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[2][j1index], 2, mvpar_j1),
           if em = true then (
-            /* EM term curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
-            /* Apar * curl(b) */
+            /* - A * ∇ x b . ∇H dψ/dvpar*/
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 0),
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[j1index], 2),
-            /* grad(Apar) x b */
-            printf(fh, "  alpha_quad += bioverJB_quad[~a]/m_ *(~a); ~%", 1, gradAxgradH[2][j1index])
+            /* - ∇H x ∇A . b dψ/dvpar */
+            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 1, gradHxgradA[2][j1index])
           )
         ),
         if cdim = 1 then (
           /* Finish ES term */
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 2, mvpar_j1),
           if em = true then (
-            /* Terms related to Aparallel following curl(Apar*b) = Apar * curl(b) + grad(Apar) x b */
-            /* Apar * curl(b) */
+            /* - A * ∇ x b . ∇H dψ/dvpar*/
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 2)
-            /* grad(Apar) x b */
+            /* - ∇H x ∇A . b dψ/dvpar */
             /* none */
           )
         )
