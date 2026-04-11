@@ -15,8 +15,8 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
    bmagBasis,vmap_e,hamil_e,dir,dirLabel,alpha_e,alpha_c,alphaLabel,alphaNoZero_c,volTerm_c, 
    alphaJf_e, Jf_e, replaceListHamil, replaceListVpar,isqlist,mvpar_e,mvparsq_e,
    replaceList,dvparSimp,phi_e,bmag_e,rtg33inv_e,
-   dualcurlbhatoverB_x_e,dualcurlbhatoverB_y_e,dualcurlbhatoverB_z_e,dualcurlbhatoverB_vec,
-   bioverJB_x_e,bioverJB_y_e,bioverJB_z_e,bioverJB_vec,
+   dualcurlbhatoverB_1_e,dualcurlbhatoverB_2_e,dualcurlbhatoverB_3_e,dualcurlbhatoverB_vec,
+   bioverJB_1_e,bioverJB_2_e,bioverJB_3_e,bioverJB_vec,
    vmapSq_e,vmap_prime_e,hamilCvar,hamilNoZero_c,hamil_c,
    xidx,yidx,zidx,vidx,vpardim,dH_dx,dH_dy,dH_dz,dH_dvpar,gradH_vec, gradpsi, dpsidvpar,
    boverBxgradH_x,boverBxgradH_y,boverBxgradH_z,boverBxgradH_vec,i,k,clst],
@@ -73,14 +73,14 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a]; ~%", d, numC*(d-1))
   ),
   printf(fh, "~%"),
 
   /* Create pointers to the components of dualcurlbhatoverB. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a]; ~%", d, numC*(d-1))
   ),
   printf(fh, "~%"),
 
@@ -89,23 +89,23 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   /* Expand input fields for Hamiltonian calculation */
   phi_e     : doExpand1(phi,bC),
   bmag_e : doExpand1(bmag, bmagBasis),
-  dualcurlbhatoverB_x_e : doExpand1(dualcurlbhatoverB_x, bmagBasis),
-  dualcurlbhatoverB_y_e : doExpand1(dualcurlbhatoverB_y, bmagBasis),
-  dualcurlbhatoverB_z_e : doExpand1(dualcurlbhatoverB_z, bmagBasis),
+  dualcurlbhatoverB_1_e : doExpand1(dualcurlbhatoverB_1, bmagBasis),
+  dualcurlbhatoverB_2_e : doExpand1(dualcurlbhatoverB_2, bmagBasis),
+  dualcurlbhatoverB_3_e : doExpand1(dualcurlbhatoverB_3, bmagBasis),
   rtg33inv_e : doExpand1(rtg33inv, bmagBasis),
-  bioverJB_x_e : doExpand1(bioverJB_x, bmagBasis),
-  bioverJB_y_e : doExpand1(bioverJB_y, bmagBasis),
-  bioverJB_z_e : doExpand1(bioverJB_z, bmagBasis),
+  bioverJB_1_e : doExpand1(bioverJB_1, bmagBasis),
+  bioverJB_2_e : doExpand1(bioverJB_2, bmagBasis),
+  bioverJB_3_e : doExpand1(bioverJB_3, bmagBasis),
 
   if cdim = 3 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_1_e, dualcurlbhatoverB_2_e, dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_1_e, bioverJB_2_e, bioverJB_3_e]
   ) else if cdim = 2 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_x_e, bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_1_e, dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_1_e, bioverJB_3_e]
   ) else if cdim = 1 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_3_e]
   ),
 
   /* Velocity mapping fields. */
@@ -136,33 +136,33 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
   if vdim = 1 then ( vpardim : pdim ),
   dH_dvpar : diff(hamil_e,varsP[vpardim])/vmap_prime_e[1], /* We do not multply by rdv2vec because it is inside vmap_prime */
   if cdim = 3 then (
-    dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
-    dH_dy : diff(hamil_e*rdx2vec[yidx],varsP[yidx]),
-    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    dH_dx : diff(hamil_e * rdx2vec[xidx],varsP[xidx]),
+    dH_dy : diff(hamil_e * rdx2vec[yidx],varsP[yidx]),
+    dH_dz : diff(hamil_e * rdx2vec[zidx],varsP[zidx]),
     gradH_vec : [dH_dx, dH_dy, dH_dz]
   ) else if cdim = 2 then (
-    dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
+    dH_dx : diff(hamil_e * rdx2vec[xidx],varsP[xidx]),
     dH_dy : 0,
-    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    dH_dz : diff(hamil_e * rdx2vec[zidx],varsP[zidx]),
     gradH_vec : [dH_dx, dH_dz]
   ) else if cdim = 1 then (
     dH_dx : 0,
     dH_dy : 0,
-    dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
+    dH_dz : diff(hamil_e * rdx2vec[zidx],varsP[zidx]),
     gradH_vec : [dH_dz]
   ),
 
   if cdim = 3 then (
-    boverBxgradH_x : bioverJB_y_e*dH_dz - bioverJB_z_e*dH_dy,
-    boverBxgradH_y : bioverJB_z_e*dH_dx - bioverJB_x_e*dH_dz,
-    boverBxgradH_z : bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx,
+    boverBxgradH_x : bioverJB_2_e*dH_dz - bioverJB_3_e*dH_dy,
+    boverBxgradH_y : bioverJB_3_e*dH_dx - bioverJB_1_e*dH_dz,
+    boverBxgradH_z : bioverJB_1_e*dH_dy - bioverJB_2_e*dH_dx,
     boverBxgradH_vec : [boverBxgradH_x, boverBxgradH_y, boverBxgradH_z]
   ) else if cdim = 2 then (
-    boverBxgradH_x : bioverJB_y_e*dH_dz - bioverJB_z_e*dH_dy,
-    boverBxgradH_z : bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx,
+    boverBxgradH_x : bioverJB_2_e*dH_dz - bioverJB_3_e*dH_dy,
+    boverBxgradH_z : bioverJB_1_e*dH_dy - bioverJB_2_e*dH_dx,
     boverBxgradH_vec : [boverBxgradH_x, boverBxgradH_z]
   ) else if cdim = 1 then (
-    boverBxgradH_z : bioverJB_x_e*dH_dy - bioverJB_y_e*dH_dx,
+    boverBxgradH_z : bioverJB_1_e*dH_dy - bioverJB_2_e*dH_dx,
     boverBxgradH_vec : [boverBxgradH_z]
   ),
 
@@ -259,13 +259,13 @@ buildGKVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) :=
 
 addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by) := block(
   [pdim,varsC,bC,varsP,bP,vSub,numC,numP,varLabel,d,rdx2vec,rdv2vec,allVarLabelsC,
-   bmagBasis,b_x_e,b_y_e,b_z_e,jacobTotInv_e,vmap_e,hamil_e,dir,dirLabel,gradpsi, dpsidvpar,
+   bmagBasis,b_1_e,b_2_e,b_3_e,jacobTotInv_e,vmap_e,hamil_e,dir,dirLabel,gradpsi, dpsidvpar,
    alpha_e,alpha_c,alphaLabel,alphaNoZero_c,volTerm_c, alphaJf_e, Jf_e, 
    replaceListHamil, replaceListVpar,isqlist,mvpar_e,mvparsq_e, xidx, yidx, zidx, vidx,
-   replaceList,dvparSimp,phi_e,bmag_e,rtg33inv_e,bioverJB_x_e,bioverJB_y_e,bioverJB_z_e,bioverJB_vec,
-   dualcurlbhatoverB_x_e,dualcurlbhatoverB_y_e,dualcurlbhatoverB_z_e,dualcurlbhatoverB_vec, dH_dx, dH_dy, dH_dz, dH_dvpar, gradH_vec,
+   replaceList,dvparSimp,phi_e,bmag_e,rtg33inv_e,bioverJB_1_e,bioverJB_2_e,bioverJB_3_e,bioverJB_vec,
+   dualcurlbhatoverB_1_e,dualcurlbhatoverB_2_e,dualcurlbhatoverB_3_e,dualcurlbhatoverB_vec, dH_dx, dH_dy, dH_dz, dH_dvpar, gradH_vec,
    vmapSq_e,vmap_prime_e,hamil_c,hamilCvar,hamilNoZero_c,vpardim,i,k,Apar_e, dA_dx, dA_dy, dA_dz, gradA_vec,
-   rotAbovermB_x,rotAbovermB_y,rotAbovermB_z,rotAbovermB_vec, gradAxbhatoverB_x,gradAxbhatoverB_y,gradAxbhatoverB_z,gradAxbhatoverB_vec,
+   rotAbovermB_x,rotAbovermB_y,rotAbovermB_z,rotAbovermB_vec, gradAxbhatoverB_x,gradAxbhatoverB_y,gradAxbhatoverB_z,gradAxboverB_vec,
    clst],
 
   kill(varsC,varsP,bC,bP),
@@ -324,18 +324,18 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
   /* Create pointers to the components of b_i. */
   allVarLabelsC : ["x","y","z"],
   for d : 1 thru 3 do (
-    printf(fh, "  const double *b_~a = &b_i[~a];~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *b_~a = &b_i[~a];~%", d, numC*(d-1))
   ),
   printf(fh, "~%"),
 
   for d : 1 thru 3 do (
-    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *bioverJB_~a = &bioverJB[~a]; ~%", d, numC*(d-1))
   ),
   printf(fh, "~%"),
 
   /* Create pointers to the components of dualcurlbhatoverB. */
   for d : 1 thru 3 do (
-    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a]; ~%", allVarLabelsC[d], numC*(d-1))
+    printf(fh, "  const double *dualcurlbhatoverB_~a = &dualcurlbhatoverB[~a]; ~%", d, numC*(d-1))
   ),
   printf(fh, "~%"),
 
@@ -345,27 +345,27 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
   phi_e     : doExpand1(phi,bC),
   bmag_e : doExpand1(bmag, bmagBasis),
   rtg33inv_e : doExpand1(rtg33inv, bmagBasis),
-  dualcurlbhatoverB_x_e : doExpand1(dualcurlbhatoverB_x, bmagBasis),
-  dualcurlbhatoverB_y_e : doExpand1(dualcurlbhatoverB_y, bmagBasis),
-  dualcurlbhatoverB_z_e : doExpand1(dualcurlbhatoverB_z, bmagBasis),
-  bioverJB_x_e : doExpand1(bioverJB_x, bmagBasis),
-  bioverJB_y_e : doExpand1(bioverJB_y, bmagBasis),
-  bioverJB_z_e : doExpand1(bioverJB_z, bmagBasis),
-  b_x_e : doExpand1(b_x, bmagBasis),
-  b_y_e : doExpand1(b_y, bmagBasis),
-  if (no_by or cdim = 1) then (b_y_e : 0),
-  b_z_e : doExpand1(b_z, bmagBasis),
+  dualcurlbhatoverB_1_e : doExpand1(dualcurlbhatoverB_1, bmagBasis),
+  dualcurlbhatoverB_2_e : doExpand1(dualcurlbhatoverB_2, bmagBasis),
+  dualcurlbhatoverB_3_e : doExpand1(dualcurlbhatoverB_3, bmagBasis),
+  bioverJB_1_e : doExpand1(bioverJB_1, bmagBasis),
+  bioverJB_2_e : doExpand1(bioverJB_2, bmagBasis),
+  bioverJB_3_e : doExpand1(bioverJB_3, bmagBasis),
+  b_1_e : doExpand1(b_x, bmagBasis),
+  b_2_e : doExpand1(b_y, bmagBasis),
+  if (no_by or cdim = 1) then (b_2_e : 0),
+  b_3_e : doExpand1(b_z, bmagBasis),
   jacobTotInv_e : doExpand1(jacobtot_inv, bmagBasis),
 
   if cdim = 3 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_y_e, dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_x_e, bioverJB_y_e, bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_1_e, dualcurlbhatoverB_2_e, dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_1_e, bioverJB_2_e, bioverJB_3_e]
   ) else if cdim = 2 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_x_e, dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_x_e, bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_1_e, dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_1_e, bioverJB_3_e]
   ) else if cdim = 1 then (
-    dualcurlbhatoverB_vec : [dualcurlbhatoverB_z_e],
-    bioverJB_vec : [bioverJB_z_e]
+    dualcurlbhatoverB_vec : [dualcurlbhatoverB_3_e],
+    bioverJB_vec : [bioverJB_3_e]
   ),
 
   /* Velocity mapping fields. */
@@ -402,12 +402,9 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
     gradH_vec : [dH_dx, dH_dy, dH_dz, dH_dvpar]
   ) else if cdim = 2 then (
     dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
-    dH_dy : 0,
     dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
     gradH_vec : [dH_dx, dH_dz, dH_dvpar]
   ) else if cdim = 1 then (
-    dH_dx : 0,
-    dH_dy : 0,
     dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
     gradH_vec : [dH_dz, dH_dvpar]
   ),
@@ -438,24 +435,8 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
   /* Apar_e : subst(y=0, doExpand1(apar,bC)), */
   Apar_e : doExpand1(apar,bC),
 
-  /* Expand dBperp/Bmag. */
-  /* Direct method ∇ x (Apar bhat) */
-  if cdim = 3 then (
-    rotAbovermB_x : (rdy2*diff(Apar_e*b_z_e,y) - rdz2*diff(Apar_e*b_y_e,z))*jacobTotInv_e/m_,
-    rotAbovermB_y : (rdz2*diff(Apar_e*b_x_e,z) - rdx2*diff(Apar_e*b_z_e,x))*jacobTotInv_e/m_,
-    rotAbovermB_z : (rdx2*diff(Apar_e*b_y_e,x) - rdy2*diff(Apar_e*b_x_e,y))*jacobTotInv_e/m_,
-    rotAbovermB_vec : [rotAbovermB_x, rotAbovermB_y, rotAbovermB_z]
-  ) else if cdim = 2 then (
-    rotAbovermB_x : (rdy2*diff(Apar_e*b_z_e,y) - rdz2*diff(Apar_e*b_y_e,z))*jacobTotInv_e/m_,
-    rotAbovermB_z : (rdx2*diff(Apar_e*b_y_e,x) - rdy2*diff(Apar_e*b_x_e,y))*jacobTotInv_e/m_,
-    rotAbovermB_vec : [rotAbovermB_x, rotAbovermB_z]
-  ) else if cdim = 1 then (
-    rotAbovermB_z : (rdx2*diff(Apar_e*b_y_e,x) - rdy2*diff(Apar_e*b_x_e,y))*jacobTotInv_e/m_,
-    rotAbovermB_vec : [rotAbovermB_z]
-  ),
-
-  /* Product rule method Apar ∇ x bhat + ∇Apar x bhat. */
-  /* Calculate ∇Apar in a list */
+  /* Expand dBperp/Bmag using product rule method Apar ∇ x bhat + ∇Apar x bhat. */
+  /* Calculate ∇Apar in a vector */
   if cdim = 3 then (
     dA_dx : diff(Apar_e*rdx2vec[xidx],varsP[xidx]),
     dA_dy : diff(Apar_e*rdx2vec[yidx],varsP[yidx]),
@@ -463,29 +444,26 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
     gradA_vec : [dA_dx, dA_dy, dA_dz]
   ) else if cdim = 2 then (
     dA_dx : diff(Apar_e*rdx2vec[xidx],varsP[xidx]),
-    dA_dy : 0,
     dA_dz : diff(Apar_e*rdx2vec[zidx],varsP[zidx]),
     gradA_vec : [dA_dx, dA_dz]
   ) else if cdim = 1 then (
-    dA_dx : 0,
-    dA_dy : 0,
     dA_dz : diff(Apar_e*rdx2vec[zidx],varsP[zidx]),
     gradA_vec : [dA_dz]
   ),
 
-  /* Use bioverJB to calculate ∇Apar x b / B in a list */
+  /* Use bioverJB to calculate ∇Apar x b / B in a vector */
   if cdim = 3 then (
-    gradAxbhatoverB_x : dA_dy*bioverJB_z_e - dA_dz*bioverJB_y_e,
-    gradAxbhatoverB_y : dA_dz*bioverJB_x_e - dA_dx*bioverJB_z_e,
-    gradAxbhatoverB_z : dA_dx*bioverJB_y_e - dA_dy*bioverJB_x_e,
-    gradAxbhatoverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_y, gradAxbhatoverB_z]
+    gradAxbhatoverB_x : gradA_vec[2]*bioverJB_vec[3] - gradA_vec[3]*bioverJB_vec[2],
+    gradAxbhatoverB_y : gradA_vec[3]*bioverJB_vec[1] - gradA_vec[1]*bioverJB_vec[3],
+    gradAxbhatoverB_z : gradA_vec[1]*bioverJB_vec[2] - gradA_vec[2]*bioverJB_vec[1],
+    gradAxboverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_y, gradAxbhatoverB_z]
   ) else if cdim = 2 then (
-    gradAxbhatoverB_x : dA_dy*bioverJB_z_e - dA_dz*bioverJB_y_e,
-    gradAxbhatoverB_z : dA_dx*bioverJB_y_e - dA_dy*bioverJB_x_e,
-    gradAxbhatoverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_z]
+    gradAxbhatoverB_x : 0 - gradA_vec[2]*bioverJB_vec[2],
+    gradAxbhatoverB_z : gradA_vec[1]*bioverJB_vec[2] - 0,
+    gradAxboverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_z]
   ) else if cdim = 1 then (
-    gradAxbhatoverB_z : dA_dx*bioverJB_y_e - dA_dy*bioverJB_x_e,
-    gradAxbhatoverB_vec : [gradAxbhatoverB_z]
+    gradAxbhatoverB_z : 0,
+    gradAxboverB_vec : [gradAxbhatoverB_z]
   ),
   
   /* Auxiliary variables to improve reading */
@@ -500,25 +478,20 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
 
     if no_by = false then (
       if dir < vpardim then ( /* Config space contributions ( curv drift * dH/dvpar . ∇ψ ) */
-        /* This is [Apar . (∇ x b)/B]/m dH/dvpar . ∇ψ */
+        /* 1/m Apar [(∇ x b)/B] dH/dvpar . ∇ψ */
         alpha_e : alpha_e + 1/m_ * Apar_e * dualcurlbhatoverB_vec[dir] * dH_dvpar * gradpsi[dir],
-        /* This is [∇Apar x b/B]/m dH/dvpar . ∇ψ */
+        /* 1/m [∇Apar x b/B] dH/dvpar . ∇ψ */
         /* This term is responsible of y oscillations in the Alfven 3x2v regression test. */
         /* The oscillation builds up at longer time (not observable at frame 1). */
-        alpha_e : alpha_e + 1/m_ * gradAxbhatoverB_vec[dir] * dH_dvpar * gradpsi[dir]
-
-        /* Single term version ∇ x (Apar b)/m */
-        /* alpha_e : alpha_e + rotAbovermB_vec[dir] * dH_dvpar * gradpsi[dir] */
+        alpha_e : alpha_e + 1/m_ * gradAxboverB_vec[dir] * dH_dvpar * gradpsi[dir]
 
       ) else ( /* Vpar contribution ( curv drift . ∇H * dψ/dvpar )*/
         for k : 1 thru cdim do (
-          /* this is [Apar . (∇ x b)/B]/m . ∇H * dψ/dvpar */
-          alpha_e : alpha_e - 1/m_ * (Apar_e * dualcurlbhatoverB_vec[k]) * gradH_vec[k] * dpsidvpar,
-          /* this is [∇Apar x b/B]/m . ∇H * dψ/dvpar */
-          alpha_e : alpha_e - 1/m_ * gradAxbhatoverB_vec[k] * gradH_vec[k] * dpsidvpar
+          /* 1/m [Apar . (∇ x b)/B] . ∇H * dψ/dvpar */
+          alpha_e : alpha_e - 1/m_ * Apar_e * dualcurlbhatoverB_vec[k] * gradH_vec[k] * dpsidvpar,
+          /* 1/m [∇Apar x b/B] . ∇H * dψ/dvpar */
+          alpha_e : alpha_e - 1/m_ * gradAxboverB_vec[k] * gradH_vec[k] * dpsidvpar
 
-          /* Single term version ∇ x (Apar b)/m */
-          /* alpha_e : alpha_e - rotAbovermB_vec[k] * gradH_vec[k] * dpsidvpar */
         )
       )
     ),
