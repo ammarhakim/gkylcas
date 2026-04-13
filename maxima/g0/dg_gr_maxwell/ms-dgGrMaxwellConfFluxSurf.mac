@@ -31,21 +31,48 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 clabels : ["x","y","z"]$
 
-/* Nodal Lax-Friedrichs to modal configuration-space flux. */
+/* Nodal Lax-Friedrichs flux. */
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
-      disp(printf(false,sconcat("Creating configuration flux ",bName[bInd]," ~ax_p~a"),c, polyOrder)),
+      disp(printf(false,sconcat("Creating configuration flux (Lax)",bName[bInd]," ~ax_p~a"),c, polyOrder)),
       for dir : 1 thru c do (
-        fname : sconcat("~/max-out/","lax_flux_nodal_to_modal_", clabels[dir], "_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fname : sconcat("~/max-out/","lax_flux_", clabels[dir], "_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("lax_flux_nodal_to_modal_",clabels[dir],"_", c, "x_", bName[bInd], "_p", polyOrder),
-        calcNodalLaxToModalConfFlux(dir, fh, funcName, c, bName[bInd], polyOrder), 
+        funcName : sconcat("lax_flux_",clabels[dir],"_", c, "x_", bName[bInd], "_p", polyOrder),
+        calcNodalLaxConfFlux(dir, fh, funcName, c, bName[bInd], polyOrder), 
         close(fh)  
       )  
     )       
   )
 ),
+
+/* Nodal Roe flux. */
+for bInd : 1 thru length(bName) do (
+  for c : minCdim[bInd] thru maxCdim[bInd] do (
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
+      disp(printf(false,sconcat("Creating configuration flux (Roe)",bName[bInd]," ~ax_p~a"),c, polyOrder)),
+      for dir : 1 thru c do (
+        fname : sconcat("~/max-out/","roe_flux_", clabels[dir], "_", c, "x_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("roe_flux_",clabels[dir],"_", c, "x_", bName[bInd], "_p", polyOrder),
+        calcNodalRoeConfFlux(dir, fh, funcName, c, bName[bInd], polyOrder), 
+        close(fh)  
+      )  
+    )       
+  )
+),
+
+/* Nodal Roe flux. */
+for dir : 1 thru 3 do (
+  disp(printf(false,sconcat("Creating Flux matrices (Used by Roe) dir: ",dir))),
+  fname : sconcat("~/max-out/","A_dQ_", clabels[dir], "_calc.c"),
+  fh : openw(fname),
+  funcName : sconcat("A_dQ_", clabels[dir], "_calc"),
+  calcAdQ(dir, fh, funcName), 
+  close(fh)    
+),
+
 
 /* Create the alpha_quad kernels */
 for bInd : 1 thru length(bName) do (

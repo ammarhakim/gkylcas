@@ -20,6 +20,48 @@ dx1 : [dx10, dx11, dx12]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
+calcAdQ(dir, fh, funcNm) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
+   nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
+   surfNodes,numNodes,max_lambda_l, NC, vid, nbasis],
+
+  printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH void ~a(const double lapse, const double shift_x, const double shift_y, const double shift_z, 
+      const double h_xx, const double h_xy, const double h_xz, const double h_yy, 
+      const double h_yz, const double h_zz, const double J_c, const double *lambda, const double *dQ, double* GKYL_RESTRICT A_dQ) ~%{ ~%", funcNm),
+
+
+  /* Per direction, describe the flux jacobian */
+  if dir = 1 then (
+    printf(fh, "  A_dQ[0] = dQ[0]*lambda[0];~%"),
+    printf(fh, "  A_dQ[1] = dQ[1]*(lambda[3]/2.0+lambda[5]/2.0)+(dQ[5]*sqrt(h_yy*h_zz)*(lambda[3]-lambda[5]))/(h_yy*2.0)-(dQ[3]*h_xz*lapse*(J_c*lambda[1]*shift_x*-2.0+J_c*lambda[3]*shift_x+J_c*lambda[5]*shift_x+lambda[3]*lapse*sqrt(h_yy*h_zz)-lambda[5]*lapse*sqrt(h_yy*h_zz)))/((J_c*J_c)*(shift_x*shift_x)*2.0-h_yy*h_zz*(lapse*lapse)*2.0);~%"),
+    printf(fh, "  A_dQ[2] = dQ[2]*(lambda[2]/2.0+lambda[4]/2.0)-(dQ[4]*sqrt(h_yy*h_zz)*(lambda[2]-lambda[4]))/(h_zz*2.0)-(dQ[0]*h_xz*lapse*(h_yy*h_zz*lambda[0]*lapse*-2.0+h_yy*h_zz*lambda[2]*lapse+h_yy*h_zz*lambda[4]*lapse+J_c*lambda[2]*shift_x*sqrt(h_yy*h_zz)-J_c*lambda[4]*shift_x*sqrt(h_yy*h_zz)))/((J_c*J_c)*h_zz*(shift_x*shift_x)*2.0-h_yy*(h_zz*h_zz)*(lapse*lapse)*2.0);~%"),
+    printf(fh, "  A_dQ[3] = dQ[3]*lambda[1];~%"),
+    printf(fh, "  A_dQ[4] = dQ[4]*(lambda[2]/2.0+lambda[4]/2.0)-(dQ[2]*sqrt(h_yy*h_zz)*(lambda[2]-lambda[4]))/(h_yy*2.0)+(dQ[0]*h_xz*lapse*(J_c*lambda[0]*shift_x*-2.0+J_c*lambda[2]*shift_x+J_c*lambda[4]*shift_x+lambda[2]*lapse*sqrt(h_yy*h_zz)-lambda[4]*lapse*sqrt(h_yy*h_zz)))/((J_c*J_c)*(shift_x*shift_x)*2.0-h_yy*h_zz*(lapse*lapse)*2.0);~%"),
+    printf(fh, "  A_dQ[5] = dQ[5]*(lambda[3]/2.0+lambda[5]/2.0)+(dQ[1]*sqrt(h_yy*h_zz)*(lambda[3]-lambda[5]))/(h_zz*2.0)-(dQ[3]*h_xz*lapse*(h_yy*h_zz*lambda[1]*lapse*-2.0+h_yy*h_zz*lambda[3]*lapse+h_yy*h_zz*lambda[5]*lapse+J_c*lambda[3]*shift_x*sqrt(h_yy*h_zz)-J_c*lambda[5]*shift_x*sqrt(h_yy*h_zz)))/((J_c*J_c)*h_zz*(shift_x*shift_x)*2.0-h_yy*(h_zz*h_zz)*(lapse*lapse)*2.0);~%")
+  )
+  else if dir = 2 then (
+    printf(fh, "  A_dQ[0] = (dQ[0]*((h_xz*h_xz)*lambda[2]+(h_xz*h_xz)*lambda[4]-h_xx*h_zz*lambda[3]-h_xx*h_zz*lambda[5])*(-1.0/2.0))/(h_xx*h_zz-h_xz*h_xz)-(dQ[3]*h_xz*(lambda[2]-lambda[4])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0-(dQ[5]*h_zz*(lambda[3]-lambda[5])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0-(dQ[2]*h_xz*h_zz*(lambda[2]-lambda[3]+lambda[4]-lambda[5]))/(h_xx*h_zz*2.0-(h_xz*h_xz)*2.0)-(J_c*dQ[1]*shift_x*1.0/pow(h_xx*h_zz-h_xz*h_xz,3.0/2.0)*((h_xz*h_xz)*lambda[2]-(h_xz*h_xz)*lambda[4]-h_xx*h_zz*lambda[3]+h_xx*h_zz*lambda[5]))/(lapse*2.0)-(J_c*dQ[4]*h_xz*shift_x*(lambda[0]*-2.0+lambda[2]+lambda[4]))/(lapse*(h_xx*h_zz-h_xz*h_xz)*2.0);~%"),
+    printf(fh, "  A_dQ[1] = dQ[1]*lambda[1];~%"),
+    printf(fh, "  A_dQ[2] = (dQ[2]*((h_xz*h_xz)*lambda[3]+(h_xz*h_xz)*lambda[5]-h_xx*h_zz*lambda[2]-h_xx*h_zz*lambda[4])*(-1.0/2.0))/(h_xx*h_zz-h_xz*h_xz)+(dQ[3]*h_xx*(lambda[2]-lambda[4])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0+(dQ[5]*h_xz*(lambda[3]-lambda[5])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0+(dQ[0]*h_xx*h_xz*(lambda[2]-lambda[3]+lambda[4]-lambda[5]))/(h_xx*h_zz*2.0-(h_xz*h_xz)*2.0)+(J_c*dQ[4]*h_xx*shift_x*(lambda[0]*-2.0+lambda[2]+lambda[4]))/(lapse*(h_xx*h_zz-h_xz*h_xz)*2.0)+(J_c*dQ[1]*h_xx*h_xz*shift_x*1.0/pow(h_xx*h_zz-h_xz*h_xz,3.0/2.0)*(lambda[2]-lambda[3]-lambda[4]+lambda[5]))/(lapse*2.0);~%"),
+    printf(fh, "  A_dQ[3] = dQ[3]*(lambda[2]/2.0+lambda[4]/2.0)+(dQ[0]*h_xz*(lambda[2]-lambda[4])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0+(dQ[2]*h_zz*(lambda[2]-lambda[4])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0+(J_c*dQ[4]*shift_x*(lambda[2]-lambda[4])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/(lapse*2.0)+(J_c*dQ[1]*h_xz*shift_x*(lambda[1]*-2.0+lambda[2]+lambda[4]))/(lapse*(h_xx*h_zz-h_xz*h_xz)*2.0);~%"),
+    printf(fh, "  A_dQ[4] = dQ[4]*lambda[0];~%"),
+    printf(fh, "  A_dQ[5] = dQ[5]*(lambda[3]/2.0+lambda[5]/2.0)-(dQ[0]*h_xx*(lambda[3]-lambda[5])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0-(dQ[2]*h_xz*(lambda[3]-lambda[5])*1.0/sqrt(h_xx*h_zz-h_xz*h_xz))/2.0-(J_c*dQ[1]*h_xx*shift_x*(lambda[1]*-2.0+lambda[3]+lambda[5]))/(lapse*(h_xx*h_zz-h_xz*h_xz)*2.0);~%")
+  )
+  else if dir = 3 then (
+    printf(fh, "  A_dQ[0] = dQ[0]*(lambda[3]/2.0+lambda[5]/2.0)+(dQ[4]*sqrt(h_xx*h_yy)*(lambda[3]-lambda[5]))/(h_xx*2.0)+(dQ[2]*(h_xz*h_yy*lambda[0]*lapse*-2.0+h_xz*h_yy*lambda[3]*lapse+h_xz*h_yy*lambda[5]*lapse+J_c*lambda[3]*shift_x*sqrt(h_xx*h_yy)-J_c*lambda[5]*shift_x*sqrt(h_xx*h_yy)))/(h_xx*h_yy*lapse*2.0);~%"),
+    printf(fh, "  A_dQ[1] = dQ[1]*(lambda[2]/2.0+lambda[4]/2.0)-(dQ[3]*sqrt(h_xx*h_yy)*(lambda[2]-lambda[4]))/(h_yy*2.0)-(dQ[5]*(h_xz*lambda[2]*lapse*sqrt(h_xx*h_yy)-h_xz*lambda[4]*lapse*sqrt(h_xx*h_yy)-J_c*h_xx*lambda[1]*shift_x*2.0+J_c*h_xx*lambda[2]*shift_x+J_c*h_xx*lambda[4]*shift_x))/(h_xx*h_yy*lapse*2.0);~%"),
+    printf(fh, "  A_dQ[2] = dQ[2]*lambda[0];~%"),
+    printf(fh, "  A_dQ[3] = dQ[3]*(lambda[2]/2.0+lambda[4]/2.0)+dQ[5]*(-(h_xz*lambda[1])/h_xx+(lambda[2]*(h_xz*h_yy*lapse+J_c*shift_x*sqrt(h_xx*h_yy)))/(h_xx*h_yy*lapse*2.0)+(lambda[4]*(h_xz*h_yy*lapse-J_c*shift_x*sqrt(h_xx*h_yy)))/(h_xx*h_yy*lapse*2.0))-(dQ[1]*sqrt(h_xx*h_yy)*(lambda[2]-lambda[4]))/(h_xx*2.0);~%"),
+    printf(fh, "  A_dQ[4] = dQ[4]*(lambda[3]/2.0+lambda[5]/2.0)+(dQ[0]*sqrt(h_xx*h_yy)*(lambda[3]-lambda[5]))/(h_yy*2.0)+(dQ[2]*(h_xz*lambda[3]*lapse*sqrt(h_xx*h_yy)-h_xz*lambda[5]*lapse*sqrt(h_xx*h_yy)-J_c*h_xx*lambda[0]*shift_x*2.0+J_c*h_xx*lambda[3]*shift_x+J_c*h_xx*lambda[5]*shift_x))/(h_xx*h_yy*lapse*2.0);~%"),
+    printf(fh, "  A_dQ[5] = dQ[5]*lambda[1];~%")
+  ),
+
+  printf(fh, "} ~%")
+)$
+
+
+/* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
 calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
@@ -27,8 +69,9 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-      const int geom_edge, const double *lapse_nodal, const double *shift_nodal, const double *h_ij_nodal, 
+      const int theta_pole, const double *lapse_nodal, const double *shift_nodal, const double *h_ij_nodal, 
       const double *J_c, const double *field_no_J_con_l, const double *field_no_J_con_r, 
+      double* GKYL_RESTRICT A_plus_dQ, double* GKYL_RESTRICT A_minus_dQ,
       double* GKYL_RESTRICT flux_l, double* GKYL_RESTRICT flux_r, double* GKYL_RESTRICT max_alpha_quad) ~%{ ~%", funcNm),
 
   /* Surface contribution is defined as integral(phi^- Fhat) over the surface. */
@@ -134,6 +177,16 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
       printf(fh, "  ~%")
     ),
 
+    /* (Extra) Boundary Step for theta Poles */
+    printf(fh, "  // If at a theta pole, zero out B^(theta), abd B^(theta) ~%"),
+    printf(fh, "  if ( theta_pole ) { ~%"),
+    for i : 1 thru numNodes do (
+      printf(fh, "    Dy_con_~a_n[~a] = ~a;~%", side, i-1, 0.0),
+      printf(fh, "    By_con_~a_n[~a] = ~a;~%", side, i-1, 0.0)
+    ),
+    printf(fh, "  } ~%"),
+    printf(fh, "  ~%"),
+
     /* 3. Constitutive relations */
     printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
     printf(fh, "    Hx_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_~a_n[i] + h_xy_nodal[i]*By_con_~a_n[i] + h_xz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_~a_n[i] - shift_nodal_z[i]*Dy_con_~a_n[i]); ~%",
@@ -226,28 +279,86 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     - Maxed over all eigenvalue magnitudes in a specific direction:
       max|\lambda^i| = max(0,|-\beta^i + \alpha Jsurf_i / Jc|,|\beta^i - \alpha Jsurf_i / Jc|)
       all eigenvalues have multiplicity 2 */
+  printf(fh, "  double lambda_1[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double lambda_2[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double lambda_3[~a] = {0.0};~%", numNodes),
   printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
   if dir = 1 then (
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_x[i] - lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i]) );~%"),
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_x[i] + lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i]) );~%")
+    printf(fh, "    lambda_2[i] = -shift_nodal_x[i] + lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    lambda_3[i] = -shift_nodal_x[i] - lapse_nodal[i] * sqrt( h_yy_nodal[i] * h_zz_nodal[i] - h_yz_nodal[i] * h_yz_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_2[i] ));~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_3[i] ));~%")
   )
   else if dir = 2 then (
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_y[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i] ) );~%"),
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_y[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i] ) );~%")
+    printf(fh, "    lambda_2[i] = -shift_nodal_y[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    lambda_3[i] = -shift_nodal_y[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_zz_nodal[i] - h_xz_nodal[i] * h_xz_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_2[i] ));~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_3[i] ));~%")
   )
   else if dir = 3 then (
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_z[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i] ) );~%"),
-    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( -shift_nodal_z[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i] ) );~%")
+    printf(fh, "    lambda_2[i] = -shift_nodal_z[i] + lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    lambda_3[i] = -shift_nodal_z[i] - lapse_nodal[i] * sqrt( h_xx_nodal[i] * h_yy_nodal[i] - h_xy_nodal[i] * h_xy_nodal[i] )/J_c[i];~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_2[i] ));~%"),
+    printf(fh, "    max_alpha_quad[i] = fmax(max_alpha_quad[i], fabs( lambda_3[i] ));~%")
   ),
   printf(fh, "  }~%"),
 
+  /* 2. Save the jump in states for all components, gets over-written with each use
+  per node */
+  printf(fh, "  // If at the theta pole, dU = dQ = 0, so A_plus_dQ = A_minus_dQ = 0~%"),
+  printf(fh, "  if (theta_pole == 0) {"),
+  printf(fh, "    double dQ_n[~a] = {0.0};~%", 6),
+  printf(fh, "    double lambda_plus_n[~a] = {0.0};~%", 6),
+  printf(fh, "    double lambda_minus_n[~a] = {0.0};~%", 6),
+  printf(fh, "    double A_plus_dQ_n[~a] = {0.0};~%", 6),
+  printf(fh, "    double A_minus_dQ_n[~a] = {0.0};~%", 6),
+  printf(fh, "    for (int i=0; i<~a; ++i) {~%", numNodes),
+  printf(fh, "      dQ_n[0] = J_c[i]*(Dx_con_r_n[i] -  Dx_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[1] = J_c[i]*(Dy_con_r_n[i] -  Dy_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[2] = J_c[i]*(Dz_con_r_n[i] -  Dz_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[3] = J_c[i]*(Bx_con_r_n[i] -  Bx_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[4] = J_c[i]*(By_con_r_n[i] -  By_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[5] = J_c[i]*(Bz_con_r_n[i] -  Bz_con_l_n[i]);~%"),
+  /* Repeated eigenvalues, each with multiplicity 2 */
+  printf(fh, "      lambda_plus_n[0] = (lambda_1[i] > 0.0) ? lambda_1[i] : 0.0;~%"),
+  printf(fh, "      lambda_plus_n[1] = (lambda_1[i] > 0.0) ? lambda_1[i] : 0.0;~%"),
+  printf(fh, "      lambda_plus_n[2] = (lambda_2[i] > 0.0) ? lambda_2[i] : 0.0;~%"),
+  printf(fh, "      lambda_plus_n[3] = (lambda_2[i] > 0.0) ? lambda_2[i] : 0.0;~%"),
+  printf(fh, "      lambda_plus_n[4] = (lambda_3[i] > 0.0) ? lambda_3[i] : 0.0;~%"),
+  printf(fh, "      lambda_plus_n[5] = (lambda_3[i] > 0.0) ? lambda_3[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[0] = (lambda_1[i] < 0.0) ? lambda_1[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[1] = (lambda_1[i] < 0.0) ? lambda_1[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[2] = (lambda_2[i] < 0.0) ? lambda_2[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[3] = (lambda_2[i] < 0.0) ? lambda_2[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[4] = (lambda_3[i] < 0.0) ? lambda_3[i] : 0.0;~%"),
+  printf(fh, "      lambda_minus_n[5] = (lambda_3[i] < 0.0) ? lambda_3[i] : 0.0;~%"),
+  printf(fh, "      A_dQ_~a_calc(lapse_nodal[i], shift_nodal_x[i], shift_nodal_y[i], shift_nodal_z[i], 
+                      h_xx_nodal[i], h_xy_nodal[i], h_xz_nodal[i], h_yy_nodal[i], h_yz_nodal[i], h_zz_nodal[i], 
+                      J_c[i], lambda_plus_n, dQ_n, A_plus_dQ_n);~%",clabels[dir]),
+  printf(fh, "      A_plus_dQ[i + 0*~a] = A_plus_dQ_n[0]; ~%", numNodes),
+  printf(fh, "      A_plus_dQ[i + 1*~a] = A_plus_dQ_n[1]; ~%", numNodes),
+  printf(fh, "      A_plus_dQ[i + 2*~a] = A_plus_dQ_n[2]; ~%", numNodes),
+  printf(fh, "      A_plus_dQ[i + 3*~a] = A_plus_dQ_n[3]; ~%", numNodes),
+  printf(fh, "      A_plus_dQ[i + 4*~a] = A_plus_dQ_n[4]; ~%", numNodes),
+  printf(fh, "      A_plus_dQ[i + 5*~a] = A_plus_dQ_n[5]; ~%", numNodes),
+  printf(fh, "      A_dQ_~a_calc(lapse_nodal[i], shift_nodal_x[i], shift_nodal_y[i], shift_nodal_z[i], 
+                      h_xx_nodal[i], h_xy_nodal[i], h_xz_nodal[i], h_yy_nodal[i], h_yz_nodal[i], h_zz_nodal[i], 
+                      J_c[i], lambda_minus_n, dQ_n, A_minus_dQ_n);~%",clabels[dir]),
+  printf(fh, "      A_minus_dQ[i + 0*~a] = A_minus_dQ_n[0]; ~%", numNodes),
+  printf(fh, "      A_minus_dQ[i + 1*~a] = A_minus_dQ_n[1]; ~%", numNodes),
+  printf(fh, "      A_minus_dQ[i + 2*~a] = A_minus_dQ_n[2]; ~%", numNodes),
+  printf(fh, "      A_minus_dQ[i + 3*~a] = A_minus_dQ_n[3]; ~%", numNodes),
+  printf(fh, "      A_minus_dQ[i + 4*~a] = A_minus_dQ_n[4]; ~%", numNodes),
+  printf(fh, "      A_minus_dQ[i + 5*~a] = A_minus_dQ_n[5]; ~%", numNodes),
+  printf(fh, "    }~%"),
+  printf(fh, "  }~%"),
 
   printf(fh, "~%"),
   printf(fh, "} ~%")
 )$ 
 
 /* Nodal Lax-Friedrichs to modal configuration-space flux. */
-calcNodalLaxToModalConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+calcNodalLaxConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,
    surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
@@ -299,11 +410,71 @@ calcNodalLaxToModalConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block
   printf(fh, "    double U_l_quad = 0.0; ~%"), 
   printf(fh, "    double U_r_quad = 0.0; ~%"),
   for j : 1 thru numNodes do (
-    printf(fh, "    alpha_max = fmax(alpha_max, J_c[~a]*fabs(max_alpha_quad[~a])); ~%", j-1, j-1), 
+    printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 
     printf(fh, "    U_l_quad = ~a; ~%", em_no_J_l_n[j]), 
     printf(fh, "    U_r_quad = ~a; ~%", em_no_J_r_n[j]), 
     /* Jc needs to be multiplied back in to convert between primitive and conserved variables */
     printf(fh, "    out[~a+i*~a] = 0.5*((flux_r_quad[~a] + flux_l_quad[~a]) - fabs(max_alpha_quad[~a])*J_c[~a]*(U_r_quad - U_l_quad)); ~%", j-1, numNodes, j-1, j-1, j-1, j-1, j-1)
+  ), 
+  printf(fh, "  }~%"),
+  printf(fh, "  ~%"),
+
+  /* Estimate stable time step from the maximum quadrature point evaluation. */
+  printf(fh, "  return ~a*~a*alpha_max;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),
+  printf(fh, "~%"),
+
+  printf(fh, "} ~%")
+)$ 
+
+
+
+/* Nodal Lax-Friedrichs to modal configuration-space flux. */
+calcNodalRoeConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
+  [varsC,bC,varsV,bV,varsP,bP,cid,
+   surfVars,surfCVars,bSurf,NSurf,
+   nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
+   surfNodes,numNodes,jacob_edge,jacob_vi_surf,jacob_surf_tot,
+   f_l_e,f_r_e,f_l_n,f_r_n,lax_list,lax_e,Ghat_c,nbasis],
+
+
+  printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, 
+      const double *flux_l, const double *A_minus_dQ, const double *max_alpha_quad, 
+      double* GKYL_RESTRICT conf_flux_surf) ~%{ ~%", funcNm),
+
+  [varsC,bC] : loadBasis(basisFun, cdim, polyOrder), 
+  cid : cidx(cdim),
+  printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  printf(fh, "~%"),
+
+  cv : varsC[dir], 
+  surfCVars : delete(cv,varsC), 
+  [bSurf, nodes_conf, basisNodalConf, surfNodes] : loadConfSurfBasis(cdim, basisFun, polyOrder, surfCVars),
+  NSurf : length(bSurf), 
+  num_nodes_conf : length(nodes_conf), 
+  numNodes : length(surfNodes),
+  nbasis : length(bC),
+
+  /* Extra "8" shift is for 6 field + 2 auxiliary fields in size */
+  printf(fh, "  double *out = &conf_flux_surf[~a]; ~%", 8*(dir-1)*numNodes),
+  printf(fh, "  double alpha_max = 0.0; ~%"), 
+  printf(fh, "  const double *flux_l_quad; ~%"),
+  printf(fh, "  const double *A_minus_dQ_quad; ~%"),
+
+  /* Only fill first 6 em components in this kernel */
+  num_field_components : 6, 
+  printf(fh, "  for (int i=0; i<~a; ++i) {~%", num_field_components),
+  /* Grab the specific set of fields, offset by i*numnodes, 
+   so now we can just do regular iterative over the number of nodes for each field type */
+  printf(fh, "    flux_l_quad = &flux_l[i*~a]; ~%", numNodes),
+  printf(fh, "    A_minus_dQ_quad = &A_minus_dQ[i*~a]; ~%", numNodes),
+  /* Create expansions of fluxes on the volume basis. */
+  em_no_J_l_e : doExpand1(em_no_J_l, bC),
+  em_no_J_r_e : doExpand1(em_no_J_r, bC),
+  /* Project onto the right and left surfaces. */
+  for j : 1 thru numNodes do (
+    printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 
+    printf(fh, "    out[~a+i*~a] = flux_l_quad[~a] + A_minus_dQ_quad[~a]; ~%", j-1, numNodes, j-1, j-1)
   ), 
   printf(fh, "  }~%"),
   printf(fh, "  ~%"),
