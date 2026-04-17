@@ -186,8 +186,12 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
   /* Expand Aparallel. */
   apar_e : doExpand1(apar,bC),
   apar_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,apar_e)),
-  aparCvar : eval_string(sconcat("apar")),
-  apar_c : makelistNoZeros1(apar_c, aparCvar),
+  printf(fh, "  double apar_surf[~a] = {0.}; ~%", length(bSurf)),
+  aparSurfCvar : eval_string(sconcat("apar_surf")),
+  writeCExprsNoExpand1(aparSurfCvar, gcfac(float(expand(apar_c)))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  apar_c : makelistNoZeros1(apar_c, aparSurfCvar),
   /* Expand projected Apar on basis. */
   apar_e : doExpand(apar_c, bSurf),
   /* Eval Aparallel at nodes. */
