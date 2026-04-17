@@ -113,12 +113,9 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
-    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
-    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   double t = 0.0;
-  int n = 0;
   while (t < t_final) {
     // Determine global maximum wave-speed alpha (for stable dt).
     // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
@@ -195,27 +192,14 @@ int main() {
       u[((nx + 1) * 2) + j] = u[(nx * 2) + j];
     }
 
-    // Output solution to disk.
-    for (int j = 0; j < 2; j++) {
-      const char *fmt = \"%s_output_%d_%d.csv\";
-      int sz = snprintf(0, 0, fmt, \"~a\", j, n);
-      char file_nm[sz + 1];
-      snprintf(file_nm, sizeof file_nm, fmt, \"~a\", j, n);
-    
-      FILE *fptr = fopen(file_nm, \"w\");
-      if (fptr != NULL) {
-        for (int i = 1; i <= nx; i++) {
-          double x = x0 + (i - 0.5) * dx;
-          fprintf(fptr, \"%f, %f\\n\", x, u[(i * 2) + j]);
-        }
-
-        fclose(fptr);
-      }
-    }
-
     // Increment time.
     t += dt;
-    n += 1;
+  }
+
+  // Output solution to stdout.
+  for (int i = 1; i <= nx; i++) {
+    double x = x0 + (i - 0.5) * dx;
+    printf(\"%g %g %g\\n\", x, u[(i * 2) + 0], u[(i * 2) + 1]);
   }
 
   free(u);
@@ -254,8 +238,6 @@ int main() {
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
-           (list-ref init-func-codes 0)
-           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
@@ -268,9 +250,6 @@ int main() {
            ;; Right flux vector F(u_{i + 1}).
            (list-ref flux-ups 0)
            (list-ref flux-ups 1)
-           ;; PDE name for file output.
-           name
-           name
            ))
   code)
 
@@ -431,12 +410,9 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
-    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
-    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   double t = 0.0;
-  int n = 0;
   while (t < t_final) {
     // Determine global maximum wave-speed alpha (for stable dt).
     // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
@@ -558,27 +534,14 @@ int main() {
       u[((nx + 3) * 2) + j] = u[((nx + 1) * 2) + j];
     }
 
-    // Output solution to disk.
-    for (int j = 0; j < 2; j++) {
-      const char *fmt = \"%s_output_%d_%d.csv\";
-      int sz = snprintf(0, 0, fmt, \"~a\", j, n);
-      char file_nm[sz + 1];
-      snprintf(file_nm, sizeof file_nm, fmt, \"~a\", j, n);
-    
-      FILE *fptr = fopen(file_nm, \"w\");
-      if (fptr != NULL) {
-        for (int i = 2; i <= nx + 1; i++) {
-          double x = x0 + (i - 1.5) * dx;
-          fprintf(fptr, \"%f, %f\\n\", x, u[(i * 2) + j]);
-        }
-
-        fclose(fptr);
-      }
-    }
-
     // Increment time.
     t += dt;
-    n += 1;
+  }
+
+  // Output solution to stdout.
+  for (int i = 2; i <= nx + 1; i++) {
+    double x = x0 + (i - 1.5) * dx;
+    printf(\"%g %g %g\\n\", x, u[(i * 2) + 0], u[(i * 2) + 1]);
   }
 
   free(u);
@@ -636,8 +599,6 @@ int main() {
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
-           (list-ref init-func-codes 0)
-           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
@@ -673,9 +634,6 @@ int main() {
            ;; Evolved left positive flux vector F(U_{i + 1, L+}).
            (list-ref flux-upL-evols 0)
            (list-ref flux-upL-evols 1)
-           ;; PDE name for file output.
-           name
-           name
            ))
   code)
 
@@ -807,12 +765,9 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
-    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
-    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   double t = 0.0;
-  int n = 0;
   while (t < t_final) {
     // Determine global maximum wave-speed alpha (for stable dt).
     // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
@@ -905,27 +860,14 @@ int main() {
       u[((nx + 1) * 2) + j] = u[(nx * 2) + j];
     }
 
-    // Output solution to disk.
-    for (int j = 0; j < 2; j++) {
-      const char *fmt = \"%s_output_%d_%d.csv\";
-      int sz = snprintf(0, 0, fmt, \"~a\", j, n);
-      char file_nm[sz + 1];
-      snprintf(file_nm, sizeof file_nm, fmt, \"~a\", j, n);
-    
-      FILE *fptr = fopen(file_nm, \"w\");
-      if (fptr != NULL) {
-        for (int i = 1; i <= nx; i++) {
-          double x = x0 + (i - 0.5) * dx;
-          fprintf(fptr, \"%f, %f\\n\", x, u[(i * 2) + j]);
-        }
-
-        fclose(fptr);
-      }
-    }
-
     // Increment time.
     t += dt;
-    n += 1;
+  }
+
+  // Output solution to stdout.
+  for (int i = 1; i <= nx; i++) {
+    double x = x0 + (i - 0.5) * dx;
+    printf(\"%g %g %g\\n\", x, u[(i * 2) + 0], u[(i * 2) + 1]);
   }
 
   free(u);
@@ -971,8 +913,6 @@ int main() {
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
-           (list-ref init-func-codes 0)
-           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
@@ -994,9 +934,6 @@ int main() {
            ;; Eigenvalues of right flux Jacobian F'(u_{i + 1}).
            (list-ref flux-deriv-ups 0)
            (list-ref flux-deriv-ups 1)
-           ;; PDE name for file output.
-           name
-           name
            ))
   code)
 
@@ -1184,12 +1121,9 @@ int main() {
     
     u[(i * 2) + 0] = ~a; // init-funcs[0] in C.
     u[(i * 2) + 1] = ~a; // init-funcs[1] in C.
-    un[(i * 2) + 0] = ~a; // init-funcs[0] in C.
-    un[(i * 2) + 1] = ~a; // init-funcs[1] in C.
   }
 
   double t = 0.0;
-  int n = 0;
   while (t < t_final) {
     // Determine global maximum wave-speed alpha (for stable dt).
     // Simplistic approach: we compute the local alpha for each cell and take the maximum over the entire domain.
@@ -1327,28 +1261,15 @@ int main() {
       u[((nx + 2) * 2) + j] = u[((nx + 1) * 2) + j];
       u[((nx + 3) * 2) + j] = u[((nx + 1) * 2) + j];
     }
-    
-    // Output solution to disk.
-    for (int j = 0; j < 2; j++) {
-      const char *fmt = \"%s_output_%d_%d.csv\";
-      int sz = snprintf(0, 0, fmt, \"~a\", j, n);
-      char file_nm[sz + 1];
-      snprintf(file_nm, sizeof file_nm, fmt, \"~a\", j, n);
-    
-      FILE *fptr = fopen(file_nm, \"w\");
-      if (fptr != NULL) {
-        for (int i = 2; i <= nx + 1; i++) {
-          double x = x0 + (i - 1.5) * dx;
-          fprintf(fptr, \"%f, %f\\n\", x, u[(i * 2) + j]);
-        }
-
-        fclose(fptr);
-      }
-    }
 
     // Increment time.
     t += dt;
-    n += 1;
+  }
+
+  // Output solution to stdout.
+  for (int i = 1; i <= nx; i++) {
+    double x = x0 + (i - 0.5) * dx;
+    printf(\"%g %g %g\\n\", x, u[(i * 2) + 0], u[(i * 2) + 1]);
   }
 
   free(u);
@@ -1411,8 +1332,6 @@ int main() {
            ;; Initial condition expressions (e.g. (x < 1.0) ? 1.0 : 0.0)).
            (list-ref init-func-codes 0)
            (list-ref init-func-codes 1)
-           (list-ref init-func-codes 0)
-           (list-ref init-func-codes 1)
            ;; Expressions for local wave-speed estimates.
            (list-ref max-speed-locals 0)
            (list-ref max-speed-locals 1)
@@ -1460,8 +1379,5 @@ int main() {
            ;; Eigenvalues of evolved left positive flux Jacobian F'(U_{i + 1, L+}).
            (list-ref flux-deriv-upL-evols 0)
            (list-ref flux-deriv-upL-evols 1)
-           ;; PDE name for file output.
-           name
-           name
            ))
   code)
