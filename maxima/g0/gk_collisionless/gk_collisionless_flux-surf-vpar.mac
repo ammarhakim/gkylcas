@@ -178,75 +178,33 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     dH_dz : dH_dz_nodes[3],
     dA_dx : float(evAtNodes(diff(apar_e*rdx2vec[1],varsP[1]),surfNodes,surfIntVars)),
     dA_dy : float(evAtNodes(diff(apar_e*rdx2vec[2],varsP[2]),surfNodes,surfIntVars)),
-    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[3],varsP[3]),surfNodes,surfIntVars))
+    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[3],varsP[3]),surfNodes,surfIntVars)),
+    gradHxgradA : [
+      dH_dy*dA_dz - dH_dz*dA_dy,
+      dH_dz*dA_dx - dH_dx*dA_dz,
+      dH_dx*dA_dy - dH_dy*dA_dx
+    ]
   ) else if cdim = 2 then (
     dH_dx : dH_dz_nodes[1],
     dH_dy : 0,
     dH_dz : dH_dz_nodes[2],
     dA_dx : float(evAtNodes(diff(apar_e*rdx2vec[1],varsP[1]),surfNodes,surfIntVars)),
     dA_dy : 0,
-    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[2],varsP[2]),surfNodes,surfIntVars))
+    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[2],varsP[2]),surfNodes,surfIntVars)),
+    gradHxgradA : [
+      dH_dy*dA_dz - dH_dz*dA_dy,
+      dH_dx*dA_dy - dH_dy*dA_dx
+    ]
   ) else if cdim = 1 then (
     dH_dx : 0,
     dH_dy : 0,
     dH_dz : dH_dz_nodes[1],
     dA_dx : 0,
     dA_dy : 0,
-    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[1],varsP[1]),surfNodes,surfIntVars))
-  ),
-  gradHxgradA : [
-    dH_dy*dA_dz - dH_dz*dA_dy,
-    dH_dz*dA_dx - dH_dx*dA_dz,
-    dH_dx*dA_dy - dH_dy*dA_dx
-  ],
-
-  /* Work with expansions to the last point before evAtNodes */
-  if cdim = 3 then (
-    dH_dx_e : diff(hamil_e*rdx2vec[1],varsP[1]),
-    dH_dy_e : diff(hamil_e*rdx2vec[2],varsP[2]),
-    dH_dz_e : diff(hamil_e*rdx2vec[3],varsP[3]),
-    dA_dx_e : diff(apar_e*rdx2vec[1],varsP[1]),
-    dA_dy_e : diff(apar_e*rdx2vec[2],varsP[2]),
-    dA_dz_e : diff(apar_e*rdx2vec[3],varsP[3])
-  ) else if cdim = 2 then (
-    dH_dx_e : diff(hamil_e*rdx2vec[1],varsP[1]),
-    dH_dy_e : 0,
-    dH_dz_e : diff(hamil_e*rdx2vec[2],varsP[2]),
-    dA_dx_e : diff(apar_e*rdx2vec[1],varsP[1]),
-    dA_dy_e : 0,
-    dA_dz_e : diff(apar_e*rdx2vec[2],varsP[2])
-  ) else if cdim = 1 then (
-    dH_dx_e : 0,
-    dH_dy_e : 0,
-    dH_dz_e : diff(hamil_e*rdx2vec[1],varsP[1]),
-    dA_dx_e : 0,
-    dA_dy_e : 0,
-    dA_dz_e : diff(apar_e*rdx2vec[1],varsP[1])
-  ),
-  gradHxgradA_e : [
-    dH_dy_e*dA_dz_e - dH_dz_e*dA_dy_e,
-    dH_dz_e*dA_dx_e - dH_dx_e*dA_dz_e,
-    dH_dx_e*dA_dy_e - dH_dy_e*dA_dx_e
-  ],
-
-  /* Write out the gradHxgradA expansion to be evaluated at nodes later. */
-  for i : 1 thru 3 do (
-    gradHxgradA_c_ : calcInnerProdList(varsP, 1, bP, gradHxgradA_e[i]),
-    printf(fh, "  double gradHxgradA_~a[~a] = {0.}; ~%", i, numP),
-    replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
-    gradHxgradACvar_ : eval_string(sconcat("gradHxgradA_",i)),
-    writeCExprsNoExpand1(gradHxgradACvar_, gcfac(float(expand(subst(replaceList, gradHxgradA_c_))))),
-    printf(fh, "~%"),
-    flush_output(fh),
-    gradHxgradANoZero_c_ : makelistNoZeros1(gradHxgradA_c_, gradHxgradACvar_),
-    /* Expand projected Hamiltonian on basis. */
-    gradHxgradA_e[i] : doExpand(gradHxgradANoZero_c_,bP)
-  ),
-
-  /* Now eval at nodes the ∇H x ∇A expansion */
-  gradHxgradA_nodes : makelist(0, i, 1, 3),
-  for i : 1 thru 3 do (
-    gradHxgradA_nodes[i] : float(evAtNodes(gradHxgradA_e[i],surfNodes,surfIntVars))
+    dA_dz : float(evAtNodes(diff(apar_e*rdx2vec[1],varsP[1]),surfNodes,surfIntVars)),
+    gradHxgradA : [
+      dH_dx*dA_dy - dH_dy*dA_dx
+    ]
   ),
 
   /* Now calculate alpha at all quadrature nodes */
@@ -315,7 +273,8 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 0),
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[j1index], 2),
             /* - ∇H x ∇A . b dψ/dvpar */
-            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 1, gradHxgradA[2][j1index])
+            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 0, gradHxgradA[1][j1index]),
+            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 2, gradHxgradA[2][j1index])
           )
         ),
         if cdim = 1 then (
