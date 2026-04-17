@@ -399,14 +399,14 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
     dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
     dH_dy : diff(hamil_e*rdx2vec[yidx],varsP[yidx]),
     dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
-    gradH_vec : [dH_dx, dH_dy, dH_dz, dH_dvpar]
+    gradH_vec : [dH_dx, dH_dy, dH_dz]
   ) else if cdim = 2 then (
     dH_dx : diff(hamil_e*rdx2vec[xidx],varsP[xidx]),
     dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
-    gradH_vec : [dH_dx, dH_dz, dH_dvpar]
+    gradH_vec : [dH_dx, dH_dz]
   ) else if cdim = 1 then (
     dH_dz : diff(hamil_e*rdx2vec[zidx],varsP[zidx]),
-    gradH_vec : [dH_dz, dH_dvpar]
+    gradH_vec : [dH_dz]
   ),
 
   /*Make sure to avoid having hamil[i]^2 or vmap[i]^2 in expressions*/
@@ -481,8 +481,6 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
         /* 1/m Apar [(∇ x b)/B] dH/dvpar . ∇ψ */
         alpha_e : alpha_e + 1/m_ * Apar_e * dualcurlbhatoverB_vec[dir] * dH_dvpar * gradpsi[dir],
         /* 1/m [∇Apar x b/B] dH/dvpar . ∇ψ */
-        /* This term is responsible of y oscillations in the Alfven 3x2v regression test. */
-        /* The oscillation builds up at longer time (not observable at frame 1). */
         alpha_e : alpha_e + 1/m_ * gradAxboverB_vec[dir] * dH_dvpar * gradpsi[dir]
 
       ) else ( /* Vpar contribution ( curv drift . ∇H * dψ/dvpar )*/

@@ -186,8 +186,12 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
   /* Expand Aparallel. */
   apar_e : doExpand1(apar,bC),
   apar_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,apar_e)),
-  aparCvar : eval_string(sconcat("apar")),
-  apar_c : makelistNoZeros1(apar_c, aparCvar),
+  printf(fh, "  double apar_surf[~a] = {0.}; ~%", length(bSurf)),
+  aparSurfCvar : eval_string(sconcat("apar_surf")),
+  writeCExprsNoExpand1(aparSurfCvar, gcfac(float(expand(apar_c)))),
+  printf(fh, "~%"),
+  flush_output(fh),
+  apar_c : makelistNoZeros1(apar_c, aparSurfCvar),
   /* Expand projected Apar on basis. */
   apar_e : doExpand(apar_c, bSurf),
   /* Eval Aparallel at nodes. */
@@ -198,6 +202,32 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
   ),
   /* It will be used to compute the contribution as ∇ x (A b) = ∇A x b + A ∇ x b */
+
+  /* Try a version where we work with expansion of ∇A dH/dvpar = m vpar ∇A */
+  dH_dvpar_e : diff(hamil_e,varsP[vpardim]),
+  mvpargradA_e : makelist(0, i, 1, cdim),
+  apar_e : doExpand1(apar,bC),
+  if em = true then (
+    for i : 1 thru cdim do (
+      dA_dx_e_ : diff(apar_e*rdx2vec[i],varsP[i]),
+      mvpargradA_e_ : dA_dx_e_*m_*vmap_e[1],
+      mvpargradA_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,mvpargradA_e_)),
+      printf(fh, "  double mvpargradA_~a[~a] = {0.}; ~%", i, numP),
+      replaceList : [wvpar^2=wvparSq, rdvpar2^2=rdvpar2Sq, rdx2^2=rdx2Sq, m_^2=mSq, q_^2=qSq],
+      mvpargradACvar : eval_string(sconcat("mvpargradA_",i)),
+      writeCExprsNoExpand1(mvpargradACvar, gcfac(float(expand(subst(replaceList, mvpargradA_c))))),
+      printf(fh, "~%"),
+      flush_output(fh),
+      mvpargradANoZero_c : makelistNoZeros1(mvpargradA_c, mvpargradACvar),
+      mvpargradA_e[i] : doExpand(mvpargradANoZero_c, bSurf)
+    )
+  ),
+  
+  /* Now eval at nodes the ∇A dH/dvpar expansion */
+  mvpargradA_nodes : makelist(0, i, 1, cdim),
+  for i : 1 thru cdim do (
+    mvpargradA_nodes[i] : float(evAtNodes(mvpargradA_e[i],surfNodes,surfIntVars))
+  ),
 
   /* Now calculate flux at all quadrature nodes */
   /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
@@ -284,16 +314,23 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
           ),
           /* + 1/m ∇A x b/B . ∇ψ dH/dvpar */
           if cdim = 3 then (
+            /* This term is responsible of y oscillations in the Alfven 3x2v regression test. */
+            /* Making the dA/dy and dA/dx terms vanish remove the oscillations. */
             if surfDir = 1 then(
-              /* This term is responsible of y oscillations in the Alfven 3x2v regression test. */
-              /* The oscillation appears at short time (observable frame 1). */
               printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[2] - (~a) * bhat_quad[1]) * dHdvpar_quad[~a]; ~%", dA_dx_nodes[2][j1index], dA_dx_nodes[3][j1index], vpar0index)
+              /* printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[2] - (~a) * bhat_quad[1]); ~%", mvpargradA_nodes[2][j1index], mvpargradA_nodes[3][j1index]) */
+              /* printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[2]; ~%", mvpargradA_nodes[2][j1index]),
+              printf(fh, "  alpha_quad -= 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[1]; ~%", mvpargradA_nodes[3][j1index]) */
             ),
             if surfDir = 2 then(
-              printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[0] - (~a) * bhat_quad[2]) * dHdvpar_quad[~a]; ~%", dA_dx_nodes[3][j1index], dA_dx_nodes[1][j1index], vpar0index)
+              printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[0] - (~a) * bhat_quad[2]); ~%", mvpargradA_nodes[3][j1index], mvpargradA_nodes[1][j1index])
+              /* printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[2]; ~%", mvpargradA_nodes[3][j1index]),
+              printf(fh, "  alpha_quad -= 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[1]; ~%", mvpargradA_nodes[1][j1index]) */
             ),
             if surfDir = 3 then(
-              printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[1] - (~a) * bhat_quad[0]) * dHdvpar_quad[~a]; ~%", dA_dx_nodes[1][j1index], dA_dx_nodes[2][j1index], vpar0index)
+              printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * ((~a) * bhat_quad[1] - (~a) * bhat_quad[0]); ~%", mvpargradA_nodes[1][j1index], mvpargradA_nodes[2][j1index])
+              /* printf(fh, "  alpha_quad += 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[2]; ~%", mvpargradA_nodes[1][j1index]),
+              printf(fh, "  alpha_quad -= 1/(m_*bmag_quad*area_elem_quad) * (~a) * bhat_quad[1]; ~%", mvpargradA_nodes[2][j1index]) */
             )
           ),
           /* in 2D, we take the first and last component of the 3D cross product, setting d/dy = 0.*/
