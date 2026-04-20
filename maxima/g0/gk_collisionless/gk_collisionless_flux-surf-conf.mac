@@ -183,25 +183,26 @@ buildGKFluxConfKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     dHdvpar_nodes : append(dHdvpar_nodes, [dH_dz_nodes[vpardim][i]])
   ),
 
-  /* Expand Aparallel. */
-  apar_e : doExpand1(apar,bC),
-  apar_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,apar_e)),
-  printf(fh, "  double apar_surf[~a] = {0.}; ~%", length(bSurf)),
-  aparSurfCvar : eval_string(sconcat("apar_surf")),
-  writeCExprsNoExpand1(aparSurfCvar, gcfac(float(expand(apar_c)))),
-  printf(fh, "~%"),
-  flush_output(fh),
-  apar_c : makelistNoZeros1(apar_c, aparSurfCvar),
-  /* Expand projected Apar on basis. */
-  apar_e : doExpand(apar_c, bSurf),
-  /* Eval Aparallel at nodes. */
-  apar_nodes : float(evAtNodes(apar_e,surfNodes,surfIntVars)),
-  /* Compute gradient of Aparallel */
-  dA_dx_nodes : makelist(0, i, 1, cdim),
-  for i : 1 thru cdim do (
-    dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
+  if em = true then (
+    /* Expand Aparallel. */
+    apar_e : doExpand1(apar,bC),
+    apar_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=evPoint,apar_e)),
+    printf(fh, "  double apar_surf[~a] = {0.}; ~%", length(bSurf)),
+    aparSurfCvar : eval_string(sconcat("apar_surf")),
+    writeCExprsNoExpand1(aparSurfCvar, gcfac(float(expand(apar_c)))),
+    printf(fh, "~%"),
+    flush_output(fh),
+    apar_c : makelistNoZeros1(apar_c, aparSurfCvar),
+    /* Expand projected Apar on basis. */
+    apar_e : doExpand(apar_c, bSurf),
+    /* Eval Aparallel at nodes. */
+    apar_nodes : float(evAtNodes(apar_e,surfNodes,surfIntVars)),
+    /* Compute gradient of Aparallel */
+    dA_dx_nodes : makelist(0, i, 1, cdim),
+    for i : 1 thru cdim do (
+      dA_dx_nodes[i] : float(evAtNodes(diff(apar_e*rdx2vec[i],varsP[i]),surfNodes,surfIntVars))
+    )
   ),
-  /* It will be used to compute the contribution as ∇ x (A b) = ∇A x b + A ∇ x b */
 
   /* Now calculate flux at all quadrature nodes */
   /*printf(fh, "  double flux_surf_nodal[~a]= {0.0}; ~%", numSurfNodes),*/
