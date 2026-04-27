@@ -444,25 +444,28 @@ addAparGKEMVolKernel(fh, funcNm, cdim, vdim, basisFun, polyOrder, varsInB, no_by
     gradA_vec : [dA_dx, dA_dy, dA_dz]
   ) else if cdim = 2 then (
     dA_dx : diff(Apar_e*rdx2vec[xidx],varsP[xidx]),
+    dA_dy : 0,
     dA_dz : diff(Apar_e*rdx2vec[zidx],varsP[zidx]),
     gradA_vec : [dA_dx, dA_dz]
   ) else if cdim = 1 then (
+    dA_dx : 0,
+    dA_dy : 0,
     dA_dz : diff(Apar_e*rdx2vec[zidx],varsP[zidx]),
     gradA_vec : [dA_dz]
   ),
 
   /* Use bioverJB to calculate ∇Apar x b / B in a vector */
   if cdim = 3 then (
-    gradAxbhatoverB_x : gradA_vec[2]*bioverJB_vec[3] - gradA_vec[3]*bioverJB_vec[2],
-    gradAxbhatoverB_y : gradA_vec[3]*bioverJB_vec[1] - gradA_vec[1]*bioverJB_vec[3],
-    gradAxbhatoverB_z : gradA_vec[1]*bioverJB_vec[2] - gradA_vec[2]*bioverJB_vec[1],
+    gradAxbhatoverB_x : dA_dy*bioverJB_3_e - dA_dz*bioverJB_2_e,
+    gradAxbhatoverB_y : dA_dz*bioverJB_1_e - dA_dx*bioverJB_3_e,
+    gradAxbhatoverB_z : dA_dx*bioverJB_2_e - dA_dy*bioverJB_1_e,
     gradAxboverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_y, gradAxbhatoverB_z]
   ) else if cdim = 2 then (
-    gradAxbhatoverB_x : 0 - gradA_vec[2]*bioverJB_vec[2],
-    gradAxbhatoverB_z : gradA_vec[1]*bioverJB_vec[2] - 0,
+    gradAxbhatoverB_x : dA_dy*bioverJB_3_e - dA_dz*bioverJB_2_e,
+    gradAxbhatoverB_z : dA_dx*bioverJB_2_e - dA_dy*bioverJB_1_e,
     gradAxboverB_vec : [gradAxbhatoverB_x, gradAxbhatoverB_z]
   ) else if cdim = 1 then (
-    gradAxbhatoverB_z : 0,
+    gradAxbhatoverB_z : dA_dx*bioverJB_2_e - dA_dy*bioverJB_1_e,
     gradAxboverB_vec : [gradAxbhatoverB_z]
   ),
   
