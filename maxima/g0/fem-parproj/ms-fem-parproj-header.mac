@@ -150,7 +150,14 @@ for bInd : 1 thru length(bName) do (
 
       /* Solution stencil kernels. */
       printf(fh, "GKYL_CU_DH void fem_parproj_sol_stencil_~ax_~a_p~a(const double *sol_nodal_global, long nodeOff, const long *globalIdxs, double *sol_modal_local);~%", ci, bName[bInd], polyOrder),
-      printf(fh, "~%")
+      printf(fh, "~%"),
+
+      if (ci > 1) then (
+        /* Biasing kernels. */
+        findCombos(fh, "GKYL_CU_DH void", "fem_parproj_bias_line_lhs", "const int *edge, const int *perp_dirs, const long *globalIdxs, gkyl_mat_triples *tri", bName[bInd], ci, polyOrder, bcKeyNP, true, true),
+        findCombos(fh, "GKYL_CU_DH void", "fem_parproj_bias_line_src", "const int *edge, const int *perp_dirs, double val, long nodeOff, const long *globalIdxs, double *bsrc", bName[bInd], ci, polyOrder, bcKeyNP, true, true),
+        printf(fh, "~%")
+      )
     ),
 
     printf(fh, "~%")
