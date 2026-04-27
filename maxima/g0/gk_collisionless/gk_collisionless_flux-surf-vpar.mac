@@ -5,7 +5,7 @@ load("scifac")$
 load("utilities_gyrokinetic")$
 fpprec : 24$
 
-buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, em, edge, add_apardot, scheme) := block(
+buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_by, edge, scheme) := block(
   [pDim,varsC,bC,varsP,bP,vSub,numC,numP,surfVar,varLabel,dirLabel,surfIntVars,surf_cvars,surf_vvars,
    surfIntVarsC,bSurfC,surfNodes,nodeVars,bSurf,basisNodal,configNodes,numSurfNodes,numConfigNodes,
    numVelNodes,tempVars,tempBasis,NSurfIndexing,numNodesIndexing,d,rdx2vec,rdv2vec,rdSurfVar2,
@@ -219,9 +219,7 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
   printf(fh, "  double JfR_quad = 0.0; ~%"),
   printf(fh, "  double Jfavg_quad = 0.0; ~%"),
   printf(fh, "  double Jfjump_quad = 0.0; ~%"),
-  if em = true then (
-    printf(fh, "  double bioverJB_quad[3] = {0.0}; ~%")
-  ),
+  printf(fh, "  double bioverJB_quad[3] = {0.0}; ~%"),
   printf(fh, "~%"),
 
   for i : 1 thru numConfigNodes do (
@@ -233,11 +231,9 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
     printf(fh, "  dualcurlbhat_quad[1] = gkdgv[~a].dualcurlbhat.x[1]; ~%", i0index), 
     printf(fh, "  dualcurlbhat_quad[2] = gkdgv[~a].dualcurlbhat.x[2]; ~%", i0index), 
 
-    if em = true then (
-      printf(fh, "  bioverJB_quad[0] = gkdgv[~a].bioverJB.x[0]; ~%", i0index), 
-      printf(fh, "  bioverJB_quad[1] = gkdgv[~a].bioverJB.x[1]; ~%", i0index), 
-      printf(fh, "  bioverJB_quad[2] = gkdgv[~a].bioverJB.x[2]; ~%", i0index)
-    ),
+    printf(fh, "  bioverJB_quad[0] = gkdgv[~a].bioverJB.x[0]; ~%", i0index), 
+    printf(fh, "  bioverJB_quad[1] = gkdgv[~a].bioverJB.x[1]; ~%", i0index), 
+    printf(fh, "  bioverJB_quad[2] = gkdgv[~a].bioverJB.x[2]; ~%", i0index),
 
     for j : 1 thru numVelNodes do (
       j0index : j-1+(i-1)*numVelNodes,
@@ -254,47 +250,39 @@ buildGKFluxVparKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no_b
           for k : 1 thru cdim do (
             printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[k][j1index], k-1, mvpar_j1)
           ),
-          if em = true then (
-            /* EM term using ∇ x (A b) . ∇H  = A . ∇ x b . ∇H + ∇A x b . ∇H = A . ∇ x b . ∇H + ∇H x ∇A . b */
-            for k : 1 thru cdim do (
-              /* - A ∇ x b . ∇H dψ/dvpar = - A (∇ x b)_i dH/dxi dψ/dvpar */
-              printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[j1index], k-1),
-              /* - ∇H x ∇A . b dψ/dvpar  = - b_i/B 1/J eps_ijk dH/dx_j dA/dx_k */
-              printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", k-1, gradHxgradA[k][j1index])
-            )
+          /* EM term using ∇ x (A b) . ∇H  = A . ∇ x b . ∇H + ∇A x b . ∇H = A . ∇ x b . ∇H + ∇H x ∇A . b */
+          for k : 1 thru cdim do (
+            /* - A ∇ x b . ∇H dψ/dvpar = - A (∇ x b)_i dH/dxi dψ/dvpar */
+            printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[k][j1index], apar_nodes[j1index], k-1),
+            /* - ∇H x ∇A . b dψ/dvpar  = - b_i/B 1/J eps_ijk dH/dx_j dA/dx_k */
+            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", k-1, gradHxgradA[k][j1index])
           )
         ),
         if cdim = 2 then (
           /* Finish ES term */
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 0, mvpar_j1),
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[2][j1index], 2, mvpar_j1),
-          if em = true then (
-            /* - A * ∇ x b . ∇H dψ/dvpar*/
-            printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 0),
-            printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[j1index], 2),
-            /* - ∇H x ∇A . b dψ/dvpar */
-            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 0, gradHxgradA[1][j1index]),
-            printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 2, gradHxgradA[2][j1index])
-          )
+          /* EM - A * ∇ x b . ∇H dψ/dvpar*/
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 0),
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[2][j1index], apar_nodes[j1index], 2),
+          /* EM - ∇H x ∇A . b dψ/dvpar */
+          printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 0, gradHxgradA[1][j1index]),
+          printf(fh, "  alpha_quad += -bioverJB_quad[~a]/m_ *(~a); ~%", 2, gradHxgradA[2][j1index])
         ),
         if cdim = 1 then (
           /* Finish ES term */
           printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * 1/q_*dualcurlbhat_quad[~a]*(~a); ~%", dH_dz_nodes[1][j1index], 2, mvpar_j1),
-          if em = true then (
-            /* - A * ∇ x b . ∇H dψ/dvpar*/
-            printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 2)
-            /* - ∇H x ∇A . b dψ/dvpar */
-            /* none */
-          )
+          /* EM - A * ∇ x b . ∇H dψ/dvpar*/
+          printf(fh, "  alpha_quad += -(~a)/m_/bmag_quad * (~a)*dualcurlbhat_quad[~a]; ~%", dH_dz_nodes[1][j1index], apar_nodes[j1index], 2)
+          /* EM - ∇H x ∇A . b dψ/dvpar */
+          /* none */
         )
       ),
 
-      /* Add apardot contribution if requested */
-      if add_apardot = true then (
-        apardot_e : doExpand1(apardot, bC),
-        apardot_nodes : float(evAtNodes(apardot_e,configNodes,surf_cvars)),
-        printf(fh, "  alpha_quad += -q_/m_*(~a); ~%", apardot_nodes[i1index])
-      ),
+      /* Add EM (apardot) contribution */
+      apardot_e : doExpand1(apardot, bC),
+      apardot_nodes : float(evAtNodes(apardot_e,configNodes,surf_cvars)),
+      printf(fh, "  alpha_quad += -q_/m_*(~a); ~%", apardot_nodes[i1index]),
 
       printf(fh, "~%"),
       printf(fh, "  cfl = fmax(fabs(alpha_quad), fabs(cfl)) ;~%", j0index),

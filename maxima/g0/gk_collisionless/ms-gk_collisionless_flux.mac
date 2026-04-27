@@ -43,10 +43,6 @@ vlabels : ["vpar","mu"]$
 byOpt : [[false], [false, true], [false, true]]$
 byStr : ["", "no_by_"]$
 
-/* Options for writing electromagnetic and electrostatic kernels. */
-emBool : [false, true]$
-emOpt : ["", "em_"]$
-
 /* Options for writing kernels used at multiblock boundaries. One for each
  dimension. */
 mb_bcOpt : [[false,true],[false,true],[false,true]]$
@@ -69,81 +65,49 @@ for bInd : 1 thru length(bName) do (
       /* Loop over polynomial order. */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
 
-        /* With/without toroidal field loop. */
-        for byI : 1 thru length(byOpt[c]) do (
-          no_by : byOpt[c][byI],
-          no_byStr : byStr[byI],
+      /* With/without toroidal field loop. */
+      for byI : 1 thru length(byOpt[c]) do (
+        no_by : byOpt[c][byI],
+        no_byStr : byStr[byI],
 
-          /* Electrostatic/electromagnetic loop. */
-          for emI : 1 thru length(emOpt) do (
-            em : emBool[emI],
-            emStr : emOpt[emI],
+          /* Singleblock/multiblock loop. */
+          for mbI : 1 thru length(mb_bcOpt[c]) do (
+            mb_bound : mb_bcOpt[c][mbI],
+            mb_boundStr : mb_bcStr[mbI],
 
-            /* Singleblock/multiblock loop. */
-            for mbI : 1 thru length(mb_bcOpt[c]) do (
-              mb_bound : mb_bcOpt[c][mbI],
-              mb_boundStr : mb_bcStr[mbI],
+            /* Configuration space surface direction loop. */
+            for dir : 1 thru c do (
+              dirStr : clabels[dir],
 
-              /* Configuration space surface direction loop. */
-              for dir : 1 thru c do (
-                dirStr : clabels[dir],
-
-                /* Surface/edge surface loop. */
-                for edgeI : 1 thru length(edgeBool) do (
-                  edge : edgeBool[edgeI],
-                  edgeStr : edgeOpt[edgeI],
-
-                  scheme : "upwind",
-                  fname : sconcat(outputDir,"gk_collisionless_flux_",emStr,no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
-                  disp(printf(false,"Creating ~a flux surf~a ~a ~a file: ~a",edgeStr,dirStr,no_byStr,mb_boundStr,fname)),
-                  fh : openw(fname),
-                  printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
-                  funcName : sconcat("gk_collisionless_flux_",emStr,no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                  buildGKFluxConfKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, scheme),
-                  close(fh),
-
-                  if (em) then (
-                    scheme : "upwind",
-                    fname : sconcat(outputDir,"gk_collisionless_flux_em_star_",no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
-                    disp(printf(false,"Creating ~a flux surf~a ~a ~a file: ~a",edgeStr,dirStr,no_byStr,mb_boundStr,fname)),
-                    fh : openw(fname),
-                    printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
-                    funcName : sconcat("gk_collisionless_flux_em_star_",no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                    buildGKFluxConfKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, mb_bound, scheme),
-                    close(fh)
-                  )
-                )
-              ),
-
-              /* Surface flux in vparallel direction (no edge).*/
-              dirStr : vlabels[1],
-              edge : false,
-              edgeStr : edgeOpt[1],
-              add_apardot : em, /* Add apardot term if EM. */
-
-              scheme : "upwind",
-              fname : sconcat(outputDir,"gk_collisionless_flux_",emStr,no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
-              disp(printf(false,"Creating flux surfvpar ~a file: ~a",no_byStr,fname)),
-              fh : openw(fname),
-              printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
-              funcName : sconcat("gk_collisionless_flux_",emStr,no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-              buildGKFluxVparKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, scheme),
-              close(fh),
-
-              if (em) then (
-                /* Add EM terms but not Apardot (star term) */
-                add_apardot : false,
+              /* Surface/edge surface loop. */
+              for edgeI : 1 thru length(edgeBool) do (
+                edge : edgeBool[edgeI],
+                edgeStr : edgeOpt[edgeI],
 
                 scheme : "upwind",
-                fname : sconcat(outputDir,"gk_collisionless_flux_em_star_",no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
-                disp(printf(false,"Creating flux surfvpar file: ~a",fname)),
+                fname : sconcat(outputDir,"gk_collisionless_flux_",no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
+                disp(printf(false,"Creating ~a flux surf~a ~a ~a file: ~a",edgeStr,dirStr,no_byStr,mb_boundStr,fname)),
                 fh : openw(fname),
                 printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
-                funcName : sconcat("gk_collisionless_flux_em_star_",no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
-                buildGKFluxVparKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, em, edge, add_apardot, scheme),
+                funcName : sconcat("gk_collisionless_flux_",no_byStr,mb_boundStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
+                buildGKFluxConfKernel(dir, fh, funcName, c, v, bStr, polyOrder, no_by, edge, mb_bound, scheme),
                 close(fh)
               )
-            )
+            ),
+
+            /* Surface flux in vparallel direction (no edge).*/
+            dirStr : vlabels[1],
+            edge : false,
+            edgeStr : edgeOpt[1],
+
+            scheme : "upwind",
+            fname : sconcat(outputDir,"gk_collisionless_flux_",no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder, ".c"),
+            disp(printf(false,"Creating flux surfvpar ~a file: ~a",no_byStr,fname)),
+            fh : openw(fname),
+            printf(fh, "#include <gkyl_gk_collisionless_flux_kernels.h> ~%"),
+            funcName : sconcat("gk_collisionless_flux_",no_byStr,edgeStr,dirStr,"_", c, "x", v, "v_", bStr, "_p", polyOrder),
+            buildGKFluxVparKernel(c+1, fh, funcName, c, v, bStr, polyOrder, no_by, edge, scheme),
+            close(fh)
           )
         )
       )
