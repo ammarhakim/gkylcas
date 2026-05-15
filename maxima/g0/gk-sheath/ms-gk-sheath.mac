@@ -11,7 +11,7 @@ load("gk-sheath/sheath-3x2v");
 
 /* ...... USER INPUTS........ */
 
-outDir : "/Users/ahoffman/gkeyll_main/gkeyll/gyrokinetic/ker/bc_sheath_gyrokinetic"$ /* Output directory */
+outDir : "~/max-out/"$ /* Output directory */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
