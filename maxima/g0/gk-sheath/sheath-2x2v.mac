@@ -140,8 +140,8 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       /* Reflected f at (x)_i,(mu)_j nodes. */
       fReflSurfXMu_e : makelist(0,j,1,numNodesMu),
 
-      printf(fh, "  wv = ~a;~%", float(fullratsimp((vparUp + vparLo)/2))),
-      printf(fh, "  dv = ~a;~%", float(fullratsimp(vparUp - vparLo))),
+      printf(fh, "  wv = ~a;~%", float(expand((vparUp + vparLo)/2))),
+      printf(fh, "  dv = ~a;~%", float(expand(vparUp - vparLo))),
       printf(fh, "~%"),
 
       /* Loop over (mu)_j nodes. */
@@ -155,7 +155,7 @@ genGkSheathKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
         fSurfXMu_e : doExpand(fSurfXMu_c, bVpar),
 
         /* Compute vcut^2 at this mu node: vcutSq = alpha(mu) * q2Dm * deltaPhi. */
-        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_q[nodeIdx]*q2Dm*deltaPhi_q[i])))),
+        printf(fh, "  vcutSq = ~a; ~%", gcfac(float(expand(-vcutFact_q[nodeIdx]*q2Dm*deltaPhi_q[i])))),
         printf(fh, "~%"),
 
         /* If vcut^2 at this node is below all vpar^2 in this cell, BC at this node should be absorbing 
