@@ -157,7 +157,8 @@ genGkSheathKer3x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
         printf(fh, "  vcutSq = ~a; ~%", gcfac(float(fullratsimp(-vcutFact_q[nodeIdx]*q2Dm*deltaPhi_q[i])))),
         printf(fh, "~%"),
 
-        /* Check regime at this (x,y,mu) node. */
+        /* If vcut^2 at this node is below all vpar^2 in this cell, BC at this node should be absorbing 
+           so set coefficients of fRefl at this (x,y)_i node to 0 (no reflection from this node). */
         printf(fh, "  if (vcutSq <= vparAbsSqLo) { // absorb (no reflection) ~%"),
         printf(fh, "~%"),
         writeCExprsWithZeros1(fReflSurfXYMu[j-1], makelist(0,k,1,length(bVpar))),
