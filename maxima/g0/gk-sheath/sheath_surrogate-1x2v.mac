@@ -49,7 +49,7 @@ genGkSheathSurrKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "~%"),
     /* Vcut_fact kernel: takes pre-computed NN output nn_out (SRGRZ_N_MU values),
        evaluates vcut at mu nodes via interpolation, and projects to DG. */
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vparcut_calc_~a_~ax~av_~a_p~a(const double *vmap, const double *nn_out, const double *temperature, const double *bmag, double *vcut_fact_out) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vparcut_calc_~a_~ax~av_~a_p~a(const double *vmap, const float *nn_out, int n_out, const double *temperature, const double *bmag, double *vcut_fact_out) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
 
     /* Only temperature and bmag are needed to compute mu_ref = T/B. */
     temperature_e : subst(surfPerpVar=surfPerpVal[sI],doExpand1(temperature, bC)),
@@ -67,7 +67,7 @@ genGkSheathSurrKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       mu_e : subst(mu=nodesMu[j][1], vmap_e[2]),
       printf(fh, "  // node (mu)_~a ~%", j-1),
       printf(fh, "    mu = ~a; ~%", float(expand(mu_e))),
-      printf(fh, "    bc_sheath_gyrokinetic_srgrz_interp(nn_out, &mu, 1, mu_ref, &vcut_fact);~%"),
+      printf(fh, "    bc_sheath_gyrokinetic_srgrz_interpf(nn_out+~a*n_out, &mu, 1, mu_ref, &vcut_fact);~%", j-1),
       printf(fh, "    vcut_fact_n[~a] = vcut_fact;~%", j-1),
       printf(fh, "~%")
     ),
@@ -82,10 +82,10 @@ genGkSheathSurrKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   )
 )$
 
-/* Generate the infer kernel: evaluates NN features at the sheath surface
+/* Generate the input kernel: constructs NN input features at the sheath surface
    and runs gkyl_kann_net_apply, writing SRGRZ_N_MU raw outputs to *out.
    For 1x the perpendicular space is 0D so there is a single inference call. */
-genGkSheathInferKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
+genGkSheathInputKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
   [pdim,varsC,bC,varsP,bP,vSub,NP,varsV,vmap_e,vmapSq_e,vmap_prime_e,surfPerpVar,surfVarsC,
    phi_e,phiWall_e,density_e,temperature_e,bmag_e,bimpactAngle_e,
    edge,surfPerpVal,sI],
@@ -106,9 +106,9 @@ genGkSheathInferKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
 
   for sI : 1 thru length(edge) do (
     printf(fh, "~%"),
-    /* Infer kernel: evaluates (alpha, gamma, phinorm) at the sheath surface,
+    /* Input kernel: constructs NN input features at the sheath surface,
        calls gkyl_kann_net_apply, stores SRGRZ_N_MU outputs to *out. */
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_infer_~a_~ax~av_~a_p~a(struct gkyl_kann_net *net, struct gkyl_kn_vec *inp_k, struct gkyl_kn_vec *out_k, const double *vmap, const double *phi, const double *phi_wall, const double *density, const double *temperature, const double *bmag, const double *bimpact_angle, double *out) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_build_input_~a_~ax~av_~a_p~a(const double *phi, const double *phi_wall, const double *density, const double *temperature, const double *bmag, const double *bimpact_angle, int n_inp, float *nn_inp_out) ~%{ ~%", edge[sI], cdim, vdim, basisFun, polyOrder),
 
     phi_e         : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phi, bC)),
     phiWall_e     : subst(surfPerpVar=surfPerpVal[sI],doExpand1(phi_wall, bC)),
@@ -124,14 +124,10 @@ genGkSheathInferKer1x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, "  double bmag_n    = ~a; ~%", gcfac(float(fullratsimp(bmag_e)))),
     printf(fh, "  double angle_n   = ~a; ~%", gcfac(float(fullratsimp(bimpactAngle_e)))),
     printf(fh, "~%"),
-    printf(fh, "  inp_k->vals[0][0] = (float)(angle_n*(180.0/GKYL_PI));~%"),
-    printf(fh, "  inp_k->vals[0][1] = (float)((1.0/bmag_n)*sqrt(GKYL_ELECTRON_MASS*dens_n/GKYL_EPSILON0));~%"),
-    printf(fh, "  inp_k->vals[0][2] = (float)((GKYL_ELEMENTARY_CHARGE*(phi_n-phi_wall_n))/temp_n);~%"),
+    printf(fh, "  nn_inp_out[0+n_inp*0] = (float)(angle_n*(180.0/GKYL_PI));~%"),
+    printf(fh, "  nn_inp_out[1+n_inp*0] = (float)((1.0/bmag_n)*sqrt(GKYL_ELECTRON_MASS*dens_n/GKYL_EPSILON0));~%"),
+    printf(fh, "  nn_inp_out[2+n_inp*0] = (float)((GKYL_ELEMENTARY_CHARGE*(phi_n-phi_wall_n))/temp_n);~%"),
     printf(fh, "~%"),
-    printf(fh, "  gkyl_kann_net_apply(net, inp_k, out_k);~%"),
-    printf(fh, "~%"),
-    printf(fh, "  for (int i = 0; i < SRGRZ_N_MU; i++)~%"),
-    printf(fh, "    out[i] = (double)out_k->vals[0][i];~%"),
     printf(fh, "}~%")
   )
 )$

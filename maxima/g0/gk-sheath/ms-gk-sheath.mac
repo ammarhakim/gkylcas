@@ -84,11 +84,11 @@ for bInd : 1 thru length(bName) do (
     for cdim : minDim[bInd] thru maxDim[bInd] do (
       if (polyOrder = 1) then (
         if cdim=1 then (
-          genGkSheathInferKer1x2v(fh, cdim, 2, bName[bInd], polyOrder)
+          genGkSheathInputKer1x2v(fh, cdim, 2, bName[bInd], polyOrder)
         ) else if cdim=2 then (
-          genGkSheathInferKer2x2v(fh, cdim, 2, bName[bInd], polyOrder)
+          genGkSheathInputKer2x2v(fh, cdim, 2, bName[bInd], polyOrder)
         ) else if cdim=3 then (
-          genGkSheathInferKer3x2v(fh, cdim, 2, bName[bInd], polyOrder)
+          genGkSheathInputKer3x2v(fh, cdim, 2, bName[bInd], polyOrder)
         )
       )
     ),
@@ -137,14 +137,14 @@ for bInd : 1 thru length(bName) do (
 /* surrogate kernels. */
 for cdim : minDim_Ser thru maxDim_Ser do (
   for sI : 1 thru length(edge) do (
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vparcut_calc_~a_~ax2v_ser_p1(const double *vmap, const double *nn_out, const double *temperature, const double *bmag, double *vcut_fact_out) ; ~%", edge[sI], cdim)
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vparcut_calc_~a_~ax2v_ser_p1(const double *vmap, const float *nn_out, int n_out, const double *temperature, const double *bmag, double *vcut_fact_out) ; ~%", edge[sI], cdim)
   )
 )$
 
-/* infer kernels. */
+/* input builder kernels. */
 for cdim : minDim_Ser thru maxDim_Ser do (
   for sI : 1 thru length(edge) do (
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_infer_~a_~ax2v_ser_p1(struct gkyl_kann_net *net, struct gkyl_kn_vec *inp_k, struct gkyl_kn_vec *out_k, const double *vmap, const double *phi, const double *phi_wall, const double *density, const double *temperature, const double *bmag, const double *bimpact_angle, double *out) ; ~%", edge[sI], cdim)
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_build_input_~a_~ax2v_ser_p1(const double *phi, const double *phi_wall, const double *density, const double *temperature, const double *bmag, const double *bimpact_angle, int n_inp, float *nn_inp_out) ; ~%", edge[sI], cdim)
   )
 )$
 
