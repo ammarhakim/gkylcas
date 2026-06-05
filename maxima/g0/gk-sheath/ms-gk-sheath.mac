@@ -69,19 +69,23 @@ for bInd : 1 thru length(bName) do (
       )
     ),
 
-    for cdim : minDim[bInd] thru maxDim[bInd] do (
-      if (polyOrder = 1) then (
-        if cdim=1 then (
-          genGkSheathSurrKer1x2v(fh, cdim, 2, bName[bInd], polyOrder)
-        ) else if cdim=2 then (
-          genGkSheathSurrKer2x2v(fh, cdim, 2, bName[bInd], polyOrder)
-        ) else if cdim=3 then (
-          genGkSheathSurrKer3x2v(fh, cdim, 2, bName[bInd], polyOrder)
+    for useSurrogate : 0 thru 1 do (
+      for cdim : minDim[bInd] thru maxDim[bInd] do (
+        print(sconcat("Creating vcut kernels for serendipity basis, surrogate = ", useSurrogate, " for ", cdim, "x2v, p", polyOrder)),
+        if (polyOrder = 1) then (
+          if cdim=1 then (
+            genGkSheathVcutCalcKer1x2v(fh, cdim, 2, bName[bInd], polyOrder, useSurrogate)
+          ) else if cdim=2 then (
+            genGkSheathVcutCalcKer2x2v(fh, cdim, 2, bName[bInd], polyOrder, useSurrogate)
+          ) else if cdim=3 then (
+            genGkSheathVcutCalcKer3x2v(fh, cdim, 2, bName[bInd], polyOrder, useSurrogate)
+          )
         )
       )
     ),
 
     for cdim : minDim[bInd] thru maxDim[bInd] do (
+      print(sconcat("Creating input builder kernels for serendipity basis for ", cdim, "x2v, p", polyOrder)),
       if (polyOrder = 1) then (
         if cdim=1 then (
           genGkSheathInputKer1x2v(fh, cdim, 2, bName[bInd], polyOrder)
@@ -126,7 +130,7 @@ for bInd : 1 thru length(bName) do (
       for vI : 1 thru length(vDims[cdim]) do (
         for sI : 1 thru length(edge) do (
 
-          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, const double q2Dm, const double *phi, const double *phiWall, const double *vcut_fact, const double *f, double *fRefl); ~%", edge[sI], cdim, vDims[cdim][vI], bName[bInd], polyOrder)
+          printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_reflectedf_~a_~ax~av_~a_p~a(const double *vmap, const double *vcutsq, const double *f, double *fRefl); ~%", edge[sI], cdim, vDims[cdim][vI], bName[bInd], polyOrder)
 
         )
       )
@@ -134,10 +138,17 @@ for bInd : 1 thru length(bName) do (
   )
 )$
 
-/* surrogate kernels. */
+/* Eval vcutconst kernels. */
 for cdim : minDim_Ser thru maxDim_Ser do (
   for sI : 1 thru length(edge) do (
-    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vparcut_calc_~a_~ax2v_ser_p1(const double *vmap, const float *nn_out, int n_out, const double *temperature, const double *bmag, double *vcut_fact_out) ; ~%", edge[sI], cdim)
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vcutsq_const_~a_~ax2v_ser_p1(const double *phi, const double *phi_wall, double q2Dm, double *vcutSq_n) ; ~%", edge[sI], cdim)
+  )
+)$
+
+/* Eval vcutsq surrogate kernels. */
+for cdim : minDim_Ser thru maxDim_Ser do (
+  for sI : 1 thru length(edge) do (
+    printf(fh, "GKYL_CU_DH void bc_sheath_gyrokinetic_vcutsq_surr_~a_~ax2v_ser_p1(const double *vmap, const float *nn_out, int n_out, const double *temperature, const double *bmag, double *vcutsq_out) ; ~%", edge[sI], cdim)
   )
 )$
 
