@@ -70,7 +70,8 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
       const int theta_pole, const double *lapse_nodal, const double *shift_nodal, const double *h_ij_nodal, 
-      const double *J_c, const double *field_no_J_con_l, const double *field_no_J_con_r, 
+      const double *J_c, const double *field_con_l, const double *field_con_r, 
+      const double *field_no_J_con_l, const double *field_no_J_con_r, 
       double* GKYL_RESTRICT A_plus_dQ, double* GKYL_RESTRICT A_minus_dQ,
       double* GKYL_RESTRICT flux_l, double* GKYL_RESTRICT flux_r, double* GKYL_RESTRICT max_alpha_quad) ~%{ ~%", funcNm),
 
@@ -103,6 +104,12 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Save the left and right states as memory */
   /* Should max out at (p+1)^2 * 2 * */
   for s in ["l","r"] do (
+    printf(fh, "  double JDx_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double JDy_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double JDz_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double JBx_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double JBy_con_~a_n[~a] = {0.0};~%", s, numNodes),
+    printf(fh, "  double JBz_con_~a_n[~a] = {0.0};~%", s, numNodes),
     printf(fh, "  double Dx_con_~a_n[~a] = {0.0};~%", s, numNodes),
     printf(fh, "  double Dy_con_~a_n[~a] = {0.0};~%", s, numNodes),
     printf(fh, "  double Dz_con_~a_n[~a] = {0.0};~%", s, numNodes),
@@ -130,7 +137,55 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     Ex_e2, Ey_e2, Ez_e2, Hx_e2, Hy_e2, Hz_e2, side_eval,
     flux, flux_n, flux_dir],
 
-    fields_name : sconcat("field_no_J_con_", side),
+    fields_name : sconcat("field_con_", side),
+
+    JDxsym : parse_string(sconcat("JDx", side)),
+    JDysym : parse_string(sconcat("JDy", side)),
+    JDzsym : parse_string(sconcat("JDz", side)),
+    JBxsym : parse_string(sconcat("JBx", side)),
+    JBysym : parse_string(sconcat("JBy", side)),
+    JBzsym : parse_string(sconcat("JBz", side)),
+
+    /* 1. Grab modal field blocks for this side */
+    printf(fh, "  const double *JDx_~a = &~a[~a]; ~%", side, fields_name, 0*nbasis),
+    printf(fh, "  const double *JDy_~a = &~a[~a]; ~%", side, fields_name, 1*nbasis),
+    printf(fh, "  const double *JDz_~a = &~a[~a]; ~%", side, fields_name, 2*nbasis),
+    printf(fh, "  const double *JBx_~a = &~a[~a]; ~%", side, fields_name, 3*nbasis),
+    printf(fh, "  const double *JBy_~a = &~a[~a]; ~%", side, fields_name, 4*nbasis),
+    printf(fh, "  const double *JBz_~a = &~a[~a]; ~%", side, fields_name, 5*nbasis),
+    printf(fh, "  ~%"),
+
+    /* bind symbolic names used by doExpand1 */
+    JDxsym : doExpand1(parse_string(sconcat("JDx_", side)), bC),
+    JDysym : doExpand1(parse_string(sconcat("JDy_", side)), bC),
+    JDzsym : doExpand1(parse_string(sconcat("JDz_", side)), bC),
+    JBxsym : doExpand1(parse_string(sconcat("JBx_", side)), bC),
+    JBysym : doExpand1(parse_string(sconcat("JBy_", side)), bC),
+    JBzsym : doExpand1(parse_string(sconcat("JBz_", side)), bC),
+
+    /* Surface data come from the left cell at cv=+1 and the right cell at cv=-1. */
+    side_eval : if side = "l" then 1 else -1,
+
+    /* 2. Nodal projection */
+    JDx_n : float(evAtNodes(subst(cv=side_eval,JDxsym), surfNodes, surfCVars)),
+    JDy_n : float(evAtNodes(subst(cv=side_eval,JDysym), surfNodes, surfCVars)),
+    JDz_n : float(evAtNodes(subst(cv=side_eval,JDzsym), surfNodes, surfCVars)),
+    JBx_n : float(evAtNodes(subst(cv=side_eval,JBxsym), surfNodes, surfCVars)),
+    JBy_n : float(evAtNodes(subst(cv=side_eval,JBysym), surfNodes, surfCVars)),
+    JBz_n : float(evAtNodes(subst(cv=side_eval,JBzsym), surfNodes, surfCVars)),
+
+    for i : 1 thru numNodes do (
+      printf(fh, "  JDx_con_~a_n[~a] = ~a;~%", side, i-1, JDx_n[i]),
+      printf(fh, "  JDy_con_~a_n[~a] = ~a;~%", side, i-1, JDy_n[i]),
+      printf(fh, "  JDz_con_~a_n[~a] = ~a;~%", side, i-1, JDz_n[i]),
+      printf(fh, "  JBx_con_~a_n[~a] = ~a;~%", side, i-1, JBx_n[i]),
+      printf(fh, "  JBy_con_~a_n[~a] = ~a;~%", side, i-1, JBy_n[i]),
+      printf(fh, "  JBz_con_~a_n[~a] = ~a;~%", side, i-1, JBz_n[i]),
+      printf(fh, "  ~%")
+    ),
+
+
+    fields_name_prim : sconcat("field_no_J_con_", side),
 
     Dxsym : parse_string(sconcat("Dx", side)),
     Dysym : parse_string(sconcat("Dy", side)),
@@ -140,12 +195,12 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     Bzsym : parse_string(sconcat("Bz", side)),
 
     /* 1. Grab modal field blocks for this side */
-    printf(fh, "  const double *Dx_~a = &~a[~a]; ~%", side, fields_name, 0*nbasis),
-    printf(fh, "  const double *Dy_~a = &~a[~a]; ~%", side, fields_name, 1*nbasis),
-    printf(fh, "  const double *Dz_~a = &~a[~a]; ~%", side, fields_name, 2*nbasis),
-    printf(fh, "  const double *Bx_~a = &~a[~a]; ~%", side, fields_name, 3*nbasis),
-    printf(fh, "  const double *By_~a = &~a[~a]; ~%", side, fields_name, 4*nbasis),
-    printf(fh, "  const double *Bz_~a = &~a[~a]; ~%", side, fields_name, 5*nbasis),
+    printf(fh, "  const double *Dx_~a = &~a[~a]; ~%", side, fields_name_prim, 0*nbasis),
+    printf(fh, "  const double *Dy_~a = &~a[~a]; ~%", side, fields_name_prim, 1*nbasis),
+    printf(fh, "  const double *Dz_~a = &~a[~a]; ~%", side, fields_name_prim, 2*nbasis),
+    printf(fh, "  const double *Bx_~a = &~a[~a]; ~%", side, fields_name_prim, 3*nbasis),
+    printf(fh, "  const double *By_~a = &~a[~a]; ~%", side, fields_name_prim, 4*nbasis),
+    printf(fh, "  const double *Bz_~a = &~a[~a]; ~%", side, fields_name_prim, 5*nbasis),
     printf(fh, "  ~%"),
 
     /* bind symbolic names used by doExpand1 */
@@ -178,7 +233,7 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     ),
 
     /* (Extra) Boundary Step for theta Poles */
-    printf(fh, "  // If at a theta pole, zero out B^(theta), abd B^(theta) ~%"),
+    printf(fh, "  // If at a theta pole, zero out B^(theta), and D^(theta) ~%"),
     printf(fh, "  if ( theta_pole ) { ~%"),
     for i : 1 thru numNodes do (
       printf(fh, "    Dy_con_~a_n[~a] = ~a;~%", side, i-1, 0.0),
@@ -188,19 +243,38 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
     printf(fh, "  ~%"),
 
     /* 3. Constitutive relations */
-    printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
-    printf(fh, "    Hx_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_~a_n[i] + h_xy_nodal[i]*By_con_~a_n[i] + h_xz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_~a_n[i] - shift_nodal_z[i]*Dy_con_~a_n[i]); ~%",
+    printf(fh, "  // Away from the theta pole use conservative variables, otherwise use primative ~%"),
+    printf(fh, "  if ( theta_pole == 0 ) { ~%"),
+    printf(fh, "    for (int i=0; i<~a; ++i) {~%", numNodes),
+    printf(fh, "      Hx_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*JBx_con_~a_n[i] + h_xy_nodal[i]*JBy_con_~a_n[i] + h_xz_nodal[i]*JBz_con_~a_n[i] ) / J_c[i] - ( shift_nodal_y[i]*JDz_con_~a_n[i] - shift_nodal_z[i]*JDy_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
-    printf(fh, "    Hy_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Bx_con_~a_n[i] + h_yy_nodal[i]*By_con_~a_n[i] + h_yz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( - shift_nodal_x[i]*Dz_con_~a_n[i] + shift_nodal_z[i]*Dx_con_~a_n[i]); ~%",
+    printf(fh, "      Hy_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*JBx_con_~a_n[i] + h_yy_nodal[i]*JBy_con_~a_n[i] + h_yz_nodal[i]*JBz_con_~a_n[i] ) / J_c[i] - ( - shift_nodal_x[i]*JDz_con_~a_n[i] + shift_nodal_z[i]*JDx_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
-    printf(fh, "    Hz_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Bx_con_~a_n[i] + h_yz_nodal[i]*By_con_~a_n[i] + h_zz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_x[i]*Dy_con_~a_n[i] - shift_nodal_y[i]*Dx_con_~a_n[i]); ~%",
+    printf(fh, "      Hz_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*JBx_con_~a_n[i] + h_yz_nodal[i]*JBy_con_~a_n[i] + h_zz_nodal[i]*JBz_con_~a_n[i] ) / J_c[i] - ( shift_nodal_x[i]*JDy_con_~a_n[i] - shift_nodal_y[i]*JDx_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
-    printf(fh, "    Ex_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Dx_con_~a_n[i] + h_xy_nodal[i]*Dy_con_~a_n[i] + h_xz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_y[i]*Bz_con_~a_n[i] - shift_nodal_z[i]*By_con_~a_n[i]); ~%",
+    printf(fh, "      Ex_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*JDx_con_~a_n[i] + h_xy_nodal[i]*JDy_con_~a_n[i] + h_xz_nodal[i]*JDz_con_~a_n[i] ) / J_c[i] + ( shift_nodal_y[i]*JBz_con_~a_n[i] - shift_nodal_z[i]*JBy_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
-    printf(fh, "    Ey_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Dx_con_~a_n[i] + h_yy_nodal[i]*Dy_con_~a_n[i] + h_yz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( - shift_nodal_x[i]*Bz_con_~a_n[i] + shift_nodal_z[i]*Bx_con_~a_n[i]); ~%",
+    printf(fh, "      Ey_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*JDx_con_~a_n[i] + h_yy_nodal[i]*JDy_con_~a_n[i] + h_yz_nodal[i]*JDz_con_~a_n[i] ) / J_c[i] + ( - shift_nodal_x[i]*JBz_con_~a_n[i] + shift_nodal_z[i]*JBx_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
-    printf(fh, "    Ez_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Dx_con_~a_n[i] + h_yz_nodal[i]*Dy_con_~a_n[i] + h_zz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_x[i]*By_con_~a_n[i] - shift_nodal_y[i]*Bx_con_~a_n[i]); ~%",
+    printf(fh, "      Ez_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*JDx_con_~a_n[i] + h_yz_nodal[i]*JDy_con_~a_n[i] + h_zz_nodal[i]*JDz_con_~a_n[i] ) / J_c[i] + ( shift_nodal_x[i]*JBy_con_~a_n[i] - shift_nodal_y[i]*JBx_con_~a_n[i]); ~%",
       side, side, side, side, side, side),
+    printf(fh, "    }~%"),
+    printf(fh, "  }~%"),
+    printf(fh, "  else {~%"),
+    printf(fh, "    for (int i=0; i<~a; ++i) {~%", numNodes),
+    printf(fh, "      Hx_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_~a_n[i] + h_xy_nodal[i]*By_con_~a_n[i] + h_xz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_~a_n[i] - shift_nodal_z[i]*Dy_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "      Hy_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Bx_con_~a_n[i] + h_yy_nodal[i]*By_con_~a_n[i] + h_yz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( - shift_nodal_x[i]*Dz_con_~a_n[i] + shift_nodal_z[i]*Dx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "      Hz_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Bx_con_~a_n[i] + h_yz_nodal[i]*By_con_~a_n[i] + h_zz_nodal[i]*Bz_con_~a_n[i] ) - J_c[i]*( shift_nodal_x[i]*Dy_con_~a_n[i] - shift_nodal_y[i]*Dx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "      Ex_~a_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Dx_con_~a_n[i] + h_xy_nodal[i]*Dy_con_~a_n[i] + h_xz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_y[i]*Bz_con_~a_n[i] - shift_nodal_z[i]*By_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "      Ey_~a_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Dx_con_~a_n[i] + h_yy_nodal[i]*Dy_con_~a_n[i] + h_yz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( - shift_nodal_x[i]*Bz_con_~a_n[i] + shift_nodal_z[i]*Bx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "      Ez_~a_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Dx_con_~a_n[i] + h_yz_nodal[i]*Dy_con_~a_n[i] + h_zz_nodal[i]*Dz_con_~a_n[i] ) + J_c[i]*( shift_nodal_x[i]*By_con_~a_n[i] - shift_nodal_y[i]*Bx_con_~a_n[i]); ~%",
+      side, side, side, side, side, side),
+    printf(fh, "    }~%"),
     printf(fh, "  }~%"),
     printf(fh, "  ~%"),
 
@@ -313,12 +387,12 @@ calcConfSurfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "    double A_plus_dQ_n[~a] = {0.0};~%", 6),
   printf(fh, "    double A_minus_dQ_n[~a] = {0.0};~%", 6),
   printf(fh, "    for (int i=0; i<~a; ++i) {~%", numNodes),
-  printf(fh, "      dQ_n[0] = J_c[i]*(Dx_con_r_n[i] -  Dx_con_l_n[i]);~%"),
-  printf(fh, "      dQ_n[1] = J_c[i]*(Dy_con_r_n[i] -  Dy_con_l_n[i]);~%"),
-  printf(fh, "      dQ_n[2] = J_c[i]*(Dz_con_r_n[i] -  Dz_con_l_n[i]);~%"),
-  printf(fh, "      dQ_n[3] = J_c[i]*(Bx_con_r_n[i] -  Bx_con_l_n[i]);~%"),
-  printf(fh, "      dQ_n[4] = J_c[i]*(By_con_r_n[i] -  By_con_l_n[i]);~%"),
-  printf(fh, "      dQ_n[5] = J_c[i]*(Bz_con_r_n[i] -  Bz_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[0] = (JDx_con_r_n[i] - JDx_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[1] = (JDy_con_r_n[i] - JDy_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[2] = (JDz_con_r_n[i] - JDz_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[3] = (JBx_con_r_n[i] - JBx_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[4] = (JBy_con_r_n[i] - JBy_con_l_n[i]);~%"),
+  printf(fh, "      dQ_n[5] = (JBz_con_r_n[i] - JBz_con_l_n[i]);~%"),
   /* Repeated eigenvalues, each with multiplicity 2 */
   printf(fh, "      lambda_plus_n[0] = (lambda_1[i] > 0.0) ? lambda_1[i] : 0.0;~%"),
   printf(fh, "      lambda_plus_n[1] = (lambda_1[i] > 0.0) ? lambda_1[i] : 0.0;~%"),
@@ -367,9 +441,9 @@ calcNodalLaxConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
 
 
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, 
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const int theta_pole,
       const double *J_c, const double *flux_l, const double *flux_r, const double *max_alpha_quad, 
-      const double *field_no_J_con_l, const double *field_no_J_con_r, double* GKYL_RESTRICT conf_flux_surf) ~%{ ~%", funcNm),
+      const double *field_con_l, const double *field_con_r, double* GKYL_RESTRICT conf_flux_surf) ~%{ ~%", funcNm),
 
   [varsC,bC] : loadBasis(basisFun, cdim, polyOrder), 
   cid : cidx(cdim),
@@ -387,8 +461,8 @@ calcNodalLaxConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   /* Extra "8" shift is for 6 field + 2 auxiliary fields in size */
   printf(fh, "  double *out = &conf_flux_surf[~a]; ~%", 8*(dir-1)*numNodes),
   printf(fh, "  double alpha_max = 0.0; ~%"), 
-  printf(fh, "  const double *em_no_J_l; ~%"),
-  printf(fh, "  const double *em_no_J_r; ~%"),
+  printf(fh, "  const double *em_l; ~%"),
+  printf(fh, "  const double *em_r; ~%"),
   printf(fh, "  const double *flux_l_quad; ~%"),
   printf(fh, "  const double *flux_r_quad; ~%"),
 
@@ -397,24 +471,30 @@ calcNodalLaxConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  for (int i=0; i<~a; ++i) {~%", num_field_components),
   /* Grab the specific set of fields, offset by i*numnodes, 
    so now we can just do regular iterative over the number of nodes for each field type */
-  printf(fh, "    em_no_J_l = &field_no_J_con_l[i*~a]; ~%", nbasis),
-  printf(fh, "    em_no_J_r = &field_no_J_con_r[i*~a]; ~%", nbasis),
+  printf(fh, "    em_l = &field_con_l[i*~a]; ~%", nbasis),
+  printf(fh, "    em_r = &field_con_r[i*~a]; ~%", nbasis),
   printf(fh, "    flux_l_quad = &flux_l[i*~a]; ~%", numNodes),
   printf(fh, "    flux_r_quad = &flux_r[i*~a]; ~%", numNodes),
   /* Create expansions of fluxes on the volume basis. */
-  em_no_J_l_e : doExpand1(em_no_J_l, bC),
-  em_no_J_r_e : doExpand1(em_no_J_r, bC),
+  em_l_e : doExpand1(em_l, bC),
+  em_r_e : doExpand1(em_r, bC),
   /* Project onto the right and left surfaces. */
-  em_no_J_l_n : float(evAtNodes(subst(cv=1,em_no_J_l_e),surfNodes,surfCVars)), 
-  em_no_J_r_n : float(evAtNodes(subst(cv=-1,em_no_J_r_e),surfNodes,surfCVars)),
-  printf(fh, "    double U_l_quad = 0.0; ~%"), 
-  printf(fh, "    double U_r_quad = 0.0; ~%"),
+  em_l_n : float(evAtNodes(subst(cv=1,em_l_e),surfNodes,surfCVars)), 
+  em_r_n : float(evAtNodes(subst(cv=-1,em_r_e),surfNodes,surfCVars)),
+  printf(fh, "    double Q_l_quad = 0.0; ~%"), 
+  printf(fh, "    double Q_r_quad = 0.0; ~%"),
+  printf(fh, "    // At the theta pole there is no penalty because: dQ = 0; ~%"),
   for j : 1 thru numNodes do (
     printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 
-    printf(fh, "    U_l_quad = ~a; ~%", em_no_J_l_n[j]), 
-    printf(fh, "    U_r_quad = ~a; ~%", em_no_J_r_n[j]), 
+    printf(fh, "    Q_l_quad = ~a; ~%", em_l_n[j]), 
+    printf(fh, "    Q_r_quad = ~a; ~%", em_r_n[j]), 
     /* Jc needs to be multiplied back in to convert between primitive and conserved variables */
-    printf(fh, "    out[~a+i*~a] = 0.5*((flux_r_quad[~a] + flux_l_quad[~a]) - fabs(max_alpha_quad[~a])*J_c[~a]*(U_r_quad - U_l_quad)); ~%", j-1, numNodes, j-1, j-1, j-1, j-1, j-1)
+    printf(fh, "    if (theta_pole) { ~%"), 
+    printf(fh, "      out[~a+i*~a] = 0.5*(flux_r_quad[~a] + flux_l_quad[~a]); ~%", j-1, numNodes, j-1, j-1, j-1, j-1, j-1),
+    printf(fh, "    }~%"),
+    printf(fh, "    else {~%"),
+    printf(fh, "      out[~a+i*~a] = 0.5*((flux_r_quad[~a] + flux_l_quad[~a]) - fabs(max_alpha_quad[~a])*(Q_r_quad - Q_l_quad)); ~%", j-1, numNodes, j-1, j-1, j-1, j-1, j-1),
+    printf(fh, "    }~%")
   ), 
   printf(fh, "  }~%"),
   printf(fh, "  ~%"),
@@ -468,9 +548,6 @@ calcNodalRoeConfFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
    so now we can just do regular iterative over the number of nodes for each field type */
   printf(fh, "    flux_l_quad = &flux_l[i*~a]; ~%", numNodes),
   printf(fh, "    A_minus_dQ_quad = &A_minus_dQ[i*~a]; ~%", numNodes),
-  /* Create expansions of fluxes on the volume basis. */
-  em_no_J_l_e : doExpand1(em_no_J_l, bC),
-  em_no_J_r_e : doExpand1(em_no_J_r, bC),
   /* Project onto the right and left surfaces. */
   for j : 1 thru numNodes do (
     printf(fh, "    alpha_max = fmax(alpha_max, fabs(max_alpha_quad[~a])); ~%", j-1), 

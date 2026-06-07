@@ -7,7 +7,7 @@ fpprec : 24$
 
 /* Define variables and fluxes */
 dxInv : [dx0, dx1, dx2]$
-lhs : [outDx, outDy, outDz, outBx, outBy, outBz]$
+lhs : [outJDx, outJDy, outJDz, outJBx, outJBy, outJBz]$
 
 calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   [bC,nbasis,Exl,Eyl,Ezl,Bxl,Byl,Bzl,phil,psil,fluxl,
@@ -25,7 +25,7 @@ calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
 
   printf(fh, "GKYL_CU_DH void ~a_p~a(const double *w, const double *dx, const double *lapse_nodal, const double *shift_nodal,
-  const double *h_ij_nodal, const double *J_c, const double *fields_no_J, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
+  const double *h_ij_nodal, const double *J_c, const double *fields, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, polyOrder),
 
   for d : 1 thru cdim do (
     printf(fh, "  double dx~a = 2.0/dx[~a]; ~%", d-1, d-1)
@@ -34,12 +34,12 @@ calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  ~%"),
 
   /* 0. Save memory for nodal expansions */
-  printf(fh, "  double Dx_con_n[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double Dy_con_n[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double Dz_con_n[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double Bx_con_n[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double By_con_n[~a] = {0.0};~%", numNodes),
-  printf(fh, "  double Bz_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JDx_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JDy_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JDz_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JBx_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JBy_con_n[~a] = {0.0};~%", numNodes),
+  printf(fh, "  double JBz_con_n[~a] = {0.0};~%", numNodes),
   printf(fh, "  double Ex_n[~a] = {0.0};~%", numNodes),
   printf(fh, "  double Ey_n[~a] = {0.0};~%", numNodes),
   printf(fh, "  double Ez_n[~a] = {0.0};~%", numNodes),
@@ -49,46 +49,46 @@ calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
   printf(fh, "  ~%"), 
 
   /* 1. Grab the expansions of the isolated D and B field (contravaraint components modally) */
-  printf(fh, "  const double *Dx = &fields_no_J[~a]; ~%", 0*nbasis),
-  printf(fh, "  const double *Dy = &fields_no_J[~a]; ~%", 1*nbasis),
-  printf(fh, "  const double *Dz = &fields_no_J[~a]; ~%", 2*nbasis),
-  printf(fh, "  const double *Bx = &fields_no_J[~a]; ~%", 3*nbasis),
-  printf(fh, "  const double *By = &fields_no_J[~a]; ~%", 4*nbasis),
-  printf(fh, "  const double *Bz = &fields_no_J[~a]; ~%", 5*nbasis),
+  printf(fh, "  const double *JDx = &fields[~a]; ~%", 0*nbasis),
+  printf(fh, "  const double *JDy = &fields[~a]; ~%", 1*nbasis),
+  printf(fh, "  const double *JDz = &fields[~a]; ~%", 2*nbasis),
+  printf(fh, "  const double *JBx = &fields[~a]; ~%", 3*nbasis),
+  printf(fh, "  const double *JBy = &fields[~a]; ~%", 4*nbasis),
+  printf(fh, "  const double *JBz = &fields[~a]; ~%", 5*nbasis),
   printf(fh, "  ~%"), 
 
-  printf(fh, "  double *outDx = &out[~a]; ~%", 0*nbasis),
-  printf(fh, "  double *outDy = &out[~a]; ~%", 1*nbasis),
-  printf(fh, "  double *outDz = &out[~a]; ~%", 2*nbasis),
-  printf(fh, "  double *outBx = &out[~a]; ~%", 3*nbasis),
-  printf(fh, "  double *outBy = &out[~a]; ~%", 4*nbasis),
-  printf(fh, "  double *outBz = &out[~a]; ~%", 5*nbasis),
+  printf(fh, "  double *outJDx = &out[~a]; ~%", 0*nbasis),
+  printf(fh, "  double *outJDy = &out[~a]; ~%", 1*nbasis),
+  printf(fh, "  double *outJDz = &out[~a]; ~%", 2*nbasis),
+  printf(fh, "  double *outJBx = &out[~a]; ~%", 3*nbasis),
+  printf(fh, "  double *outJBy = &out[~a]; ~%", 4*nbasis),
+  printf(fh, "  double *outJBz = &out[~a]; ~%", 5*nbasis),
   printf(fh, "  ~%"), 
 
   /* Expand in maxima */
-  Dxl : doExpand1(Dx,bC),
-  Dyl : doExpand1(Dy,bC),
-  Dzl : doExpand1(Dz,bC),
-  Bxl : doExpand1(Bx,bC),
-  Byl : doExpand1(By,bC),
-  Bzl : doExpand1(Bz,bC),
+  JDxl : doExpand1(JDx,bC),
+  JDyl : doExpand1(JDy,bC),
+  JDzl : doExpand1(JDz,bC),
+  JBxl : doExpand1(JBx,bC),
+  JByl : doExpand1(JBy,bC),
+  JBzl : doExpand1(JBz,bC),
 
 
   /* 2. Project the D and B (contravariant components) nodally */
   /* Maybe replace with n2m to save kernel space */
-  Dx_n : float(evAtNodes(Dxl,volNodes,varsC)), 
-  Dy_n : float(evAtNodes(Dyl,volNodes,varsC)), 
-  Dz_n : float(evAtNodes(Dzl,volNodes,varsC)), 
-  Bx_n : float(evAtNodes(Bxl,volNodes,varsC)), 
-  By_n : float(evAtNodes(Byl,volNodes,varsC)), 
-  Bz_n : float(evAtNodes(Bzl,volNodes,varsC)), 
+  JDx_n : float(evAtNodes(JDxl,volNodes,varsC)), 
+  JDy_n : float(evAtNodes(JDyl,volNodes,varsC)), 
+  JDz_n : float(evAtNodes(JDzl,volNodes,varsC)), 
+  JBx_n : float(evAtNodes(JBxl,volNodes,varsC)), 
+  JBy_n : float(evAtNodes(JByl,volNodes,varsC)), 
+  JBz_n : float(evAtNodes(JBzl,volNodes,varsC)), 
   for i : 1 thru numNodes do (
-    printf(fh, "  Dx_con_n[~a] = ~a;~%", i-1, Dx_n[i]),
-    printf(fh, "  Dy_con_n[~a] = ~a;~%", i-1, Dy_n[i]),
-    printf(fh, "  Dz_con_n[~a] = ~a;~%", i-1, Dz_n[i]),
-    printf(fh, "  Bx_con_n[~a] = ~a;~%", i-1, Bx_n[i]),
-    printf(fh, "  By_con_n[~a] = ~a;~%", i-1, By_n[i]),
-    printf(fh, "  Bz_con_n[~a] = ~a;~%", i-1, Bz_n[i]),
+    printf(fh, "  JDx_con_n[~a] = ~a;~%", i-1, JDx_n[i]),
+    printf(fh, "  JDy_con_n[~a] = ~a;~%", i-1, JDy_n[i]),
+    printf(fh, "  JDz_con_n[~a] = ~a;~%", i-1, JDz_n[i]),
+    printf(fh, "  JBx_con_n[~a] = ~a;~%", i-1, JBx_n[i]),
+    printf(fh, "  JBy_con_n[~a] = ~a;~%", i-1, JBy_n[i]),
+    printf(fh, "  JBz_con_n[~a] = ~a;~%", i-1, JBz_n[i]),
     printf(fh, "  ~%")
   ),
 
@@ -109,12 +109,12 @@ calcDgGrMaxwellVolUpdater(fh, funcNm, cdim, basisFun, polyOrder) := block(
    1.  H_i = \alpha h_{ij} B^j - J_c \epsilon_{ijk} \beta^j D^k 
    2.  E_i = \alpha h_{ij} D^j + J_c \epsilon_{ijk} \beta^j B^k */
   printf(fh, "  for (int i=0; i<~a; ++i) {~%", numNodes),
-  printf(fh, "    Hx_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Bx_con_n[i] + h_xy_nodal[i]*By_con_n[i] + h_xz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( shift_nodal_y[i]*Dz_con_n[i] - shift_nodal_z[i]*Dy_con_n[i]); ~%"),
-  printf(fh, "    Hy_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Bx_con_n[i] + h_yy_nodal[i]*By_con_n[i] + h_yz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( - shift_nodal_x[i]*Dz_con_n[i] + shift_nodal_z[i]*Dx_con_n[i]); ~%"),
-  printf(fh, "    Hz_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Bx_con_n[i] + h_yz_nodal[i]*By_con_n[i] + h_zz_nodal[i]*Bz_con_n[i] ) - J_c[i]*( shift_nodal_x[i]*Dy_con_n[i] - shift_nodal_y[i]*Dx_con_n[i]); ~%"),
-  printf(fh, "    Ex_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*Dx_con_n[i] + h_xy_nodal[i]*Dy_con_n[i] + h_xz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( shift_nodal_y[i]*Bz_con_n[i] - shift_nodal_z[i]*By_con_n[i]); ~%"),
-  printf(fh, "    Ey_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*Dx_con_n[i] + h_yy_nodal[i]*Dy_con_n[i] + h_yz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( - shift_nodal_x[i]*Bz_con_n[i] + shift_nodal_z[i]*Bx_con_n[i]); ~%"),
-  printf(fh, "    Ez_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*Dx_con_n[i] + h_yz_nodal[i]*Dy_con_n[i] + h_zz_nodal[i]*Dz_con_n[i] ) + J_c[i]*( shift_nodal_x[i]*By_con_n[i] - shift_nodal_y[i]*Bx_con_n[i]); ~%"),
+  printf(fh, "    Hx_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*JBx_con_n[i] + h_xy_nodal[i]*JBy_con_n[i] + h_xz_nodal[i]*JBz_con_n[i] ) / J_c[i] - ( shift_nodal_y[i]*JDz_con_n[i] - shift_nodal_z[i]*JDy_con_n[i]); ~%"),
+  printf(fh, "    Hy_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*JBx_con_n[i] + h_yy_nodal[i]*JBy_con_n[i] + h_yz_nodal[i]*JBz_con_n[i] ) / J_c[i] - ( - shift_nodal_x[i]*JDz_con_n[i] + shift_nodal_z[i]*JDx_con_n[i]); ~%"),
+  printf(fh, "    Hz_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*JBx_con_n[i] + h_yz_nodal[i]*JBy_con_n[i] + h_zz_nodal[i]*JBz_con_n[i] ) / J_c[i] - ( shift_nodal_x[i]*JDy_con_n[i] - shift_nodal_y[i]*JDx_con_n[i]); ~%"),
+  printf(fh, "    Ex_n[i] = lapse_nodal[i]*( h_xx_nodal[i]*JDx_con_n[i] + h_xy_nodal[i]*JDy_con_n[i] + h_xz_nodal[i]*JDz_con_n[i] ) / J_c[i] + ( shift_nodal_y[i]*JBz_con_n[i] - shift_nodal_z[i]*JBy_con_n[i]); ~%"),
+  printf(fh, "    Ey_n[i] = lapse_nodal[i]*( h_xy_nodal[i]*JDx_con_n[i] + h_yy_nodal[i]*JDy_con_n[i] + h_yz_nodal[i]*JDz_con_n[i] ) / J_c[i] + ( - shift_nodal_x[i]*JBz_con_n[i] + shift_nodal_z[i]*JBx_con_n[i]); ~%"),
+  printf(fh, "    Ez_n[i] = lapse_nodal[i]*( h_xz_nodal[i]*JDx_con_n[i] + h_yz_nodal[i]*JDy_con_n[i] + h_zz_nodal[i]*JDz_con_n[i] ) / J_c[i] + ( shift_nodal_x[i]*JBy_con_n[i] - shift_nodal_y[i]*JBx_con_n[i]); ~%"),
   printf(fh, "  }~%"),
   printf(fh, "  ~%"), 
 
