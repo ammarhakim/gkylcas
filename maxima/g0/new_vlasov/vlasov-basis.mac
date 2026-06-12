@@ -168,6 +168,28 @@ loadVlasovConfSurfBasis(cdim, vdim, basisType, polyOrder, surfVars, surfCVars, v
 )$ */
 
 
+loadVelLinearMapBasis() := block(
+  /* Bases for the C^0 piecewise linear velocity map used with Serendipity
+     kernels. The map is stored as a degenerate cubic in the same vdim*4
+     layout as the C^1 cubic (quadratic and cubic slots are zero), so the
+     p=1 expansion uses coefficients [0],[1] of each direction's 4-slot
+     block and kernels keep the same vmap pointer stride as the cubic.
+     The corresponding velocity-space Jacobian is piecewise constant in the
+     cell: the C arrays replicate a single value per direction at every
+     quadrature point, so kernels read only the first entry of each
+     direction's block (e.g. jacob_vx[0]). */
+  [varsV_lin_1D, bV_lin_1D] : loadBasis("ser", 1, 1),
+  bV_lin_vx : subst(x=vx, copylist(bV_lin_1D)),
+  bV_lin_vy : subst(x=vy, copylist(bV_lin_1D)),
+  bV_lin_vz : subst(x=vz, copylist(bV_lin_1D)),
+  bV_lin_vi : [bV_lin_vx, bV_lin_vy, bV_lin_vz],
+  NV_lin_1D : length(bV_lin_1D),
+  /* Constant per-direction Jacobian symbols (first entry of each block). */
+  jacobConst_vi : [jacob_vx[0], jacob_vy[0], jacob_vz[0]],
+  jacobConstSurf_vi : [jacob_vel_surf_vx[0], jacob_vel_surf_vy[0], jacob_vel_surf_vz[0]],
+  return([bV_lin_vi, NV_lin_1D, jacobConst_vi, jacobConstSurf_vi])
+)$
+
 loadVelJacobianBasis(polyOrder) := block(
   /* Load basis sets for mapping, which are p=3. */
   [varsV_1D, bV_1D] :  loadBasis(basisFun, 1, 3), 

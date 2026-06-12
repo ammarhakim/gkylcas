@@ -31,11 +31,15 @@ fpprec : 24$
 clabels : ["x","y","z"]$
 dx11 : [dx10, dx11, dx12]$
 dv11 : [dv10, dv11, dv12]$
+/* Symbols for the constant per-direction inverse Jacobian of the C^0 linear
+   map (Serendipity); kernels read the first entry of each direction's
+   jacob_vel block. */
+jacobConstInv_vi : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Velocity-space Hamiltonian surface streaming */
-calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,
@@ -80,8 +84,8 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   evSurfIncr(fL_e, fR_e, evAt) := block(
     [jacob_vi,basisJacobNodal,f_l_v,f_l_v_ne,f_r_v,f_r_v_ne,
      clst,fUpwind_c,fUpwind_e,Ghat_c,Ghat_e,incrOut],
-    if (vmap) then (
-      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+    if (rep = "cubic") then (
+      printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)), 
       /* Fetch Jacobian and nodal basis in surface direction */
       jacob_vi : jacobNodes_vi[dir], 
       basisJacobNodal : basisNodal_vi[dir], 
@@ -101,10 +105,14 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
       )       
     )
     else (
-      f_l_v_ne : fL_e, 
-      f_r_v_ne : fR_e
+      /* C^0 linear map (Serendipity): constant Jacobian, exact scalar
+         multiplication by 1/J (same velocity cell for skin and edge cells
+         at configuration-space boundaries). Declarations are printed once
+         in the main body. */
+      f_l_v_ne : jacobConstInv_vi[dir]*fL_e,
+      f_r_v_ne : jacobConstInv_vi[dir]*fR_e
     ),
-    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
+    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
     printf(fh, "  if (~a>0) { ~%~%",wv),
 
     /* Evaluate surface projection of fUpwind = f_left(cv=1). */
@@ -132,6 +140,11 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     return(incrOut)
   ),
 
+  if (rep = "linear") then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
+    printf(fh, "~%")
+  ),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
@@ -227,6 +240,11 @@ calcHamilGenBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     return(incrOut)
   ),
 
+  if (rep = "linear") then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
+    printf(fh, "~%")
+  ),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
@@ -292,6 +310,11 @@ calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
 
   Ghat_e : doExpand1(Ghat, bSurf),
 
+  if (rep = "linear") then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
+    printf(fh, "~%")
+  ),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),

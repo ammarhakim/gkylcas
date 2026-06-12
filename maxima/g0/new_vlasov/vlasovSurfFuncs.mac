@@ -31,11 +31,15 @@ fpprec : 24$
 clabels : ["x","y","z"]$
 dx11 : [dx10, dx11, dx12]$
 dv11 : [dv10, dv11, dv12]$
+/* Symbols for the constant per-direction inverse Jacobian of the C^0 linear
+   map (Serendipity); kernels read the first entry of each direction's
+   jacob_vel block. */
+jacobConstInv_vi : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Velocity-space Hamiltonian surface streaming */
-calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,fl_e,fc_e,fr_e,
@@ -74,8 +78,8 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  if (vmap) then (
-    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+  if (rep = "cubic") then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)), 
     /* Fetch Jacobian and nodal basis in surface direction */
     jacob_vi : jacobNodes_vi[dir], 
     basisJacobNodal : basisNodal_vi[dir], 
@@ -109,12 +113,17 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
     ) 
   )
   else (
-    f_l_v_ne : fl_e, 
-    f_c_v_ne : fc_e, 
-    f_r_v_ne : fr_e, 
-    dH_dv_ne : diff(hamil, vv)
+    /* C^0 linear map (Serendipity): the Jacobian is constant in the cell and
+       all three cells share the same velocity cell at configuration-space
+       surfaces, so the division is an exact scalar multiplication by 1/J. */
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
+    f_l_v_ne : jacobConstInv_vi[dir]*fl_e,
+    f_c_v_ne : jacobConstInv_vi[dir]*fc_e,
+    f_r_v_ne : jacobConstInv_vi[dir]*fr_e,
+    dH_dv_ne : jacobConstInv_vi[dir]*diff(hamil, vv)
   ), 
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
   fUpwind_r_e : doExpand1(fUpwind_r, bSurf), 
   fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
 

@@ -12,8 +12,7 @@ load("new_vlasov/vlasov-basis");
 fpprec : 24$
 
 clabels : ["x","y","z"]$
-vTrans  : [vx*dv1/2+wx1, vy*dv2/2+wx2, vz*dv3/2+wx3]$
-calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
+calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,NV, 
    varsV_p3,bV_p3,bV_vx,bV_vy,bV_vz,NV_p3,
    nodes_lobatto,num_nodes_lobatto,
@@ -39,7 +38,7 @@ calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap, double* GKYL_RESTRICT hamil, double* GKYL_RESTRICT hamil_inv) ~%{ ~%", funcNm),
   printf(fh, "  // w:   Cell-center coordinates of velocity grid.~%"),
   printf(fh, "  // dxv: Cell spacing of velocity grid.~%"),
-  printf(fh, "  // vmap: Velocity-space map for nonuniform meshes.~%"),
+  printf(fh, "  // vmap: Velocity-space map (C^1 cubic for tensor bases, C^0 linear for Serendipity bases, stored in the same vdim*4 layout).~%"),
   printf(fh, "  // hamil: Particle Hamiltonian.~%"),
   printf(fh, "  // hamil_inv: Inverse particle Hamiltonian. Utilized by relativistic simulations. ~%"),
   printf(fh, " ~%"),  
@@ -73,26 +72,27 @@ calcHamil(fh, funcNm, vdim, basisFun, polyOrder, relativistic, vmap) := block(
     nodes_lobatto : getNodes(basisFun, vdim, polyOrder)
   ),
   num_nodes_lobatto : length(nodes_lobatto),
-  if (vmap) then (
-    for dir : 1 thru vdim do (
-      printf(fh, "  const double *vmap_v~a = &vmap[~a]; ~%", clabels[dir], NV_p3*(dir-1))
-    ),
-
-    vx_e : doExpand1(vmap_vx, bV_vx), 
-    vy_e : doExpand1(vmap_vy, bV_vy), 
-    vz_e : doExpand1(vmap_vz, bV_vz), 
-    vx_nodes : expand(float(evAtNodes(vx_e, nodes_lobatto, varsV))), 
-    vy_nodes : expand(float(evAtNodes(vy_e, nodes_lobatto, varsV))), 
-    vz_nodes : expand(float(evAtNodes(vz_e, nodes_lobatto, varsV))) 
+  /* The velocity coordinate always comes from the stored velocity map; the
+     map's vdim*4 layout is shared by both representations. */
+  for dir : 1 thru vdim do (
+    printf(fh, "  const double *vmap_v~a = &vmap[~a]; ~%", clabels[dir], NV_p3*(dir-1))
+  ),
+  if (rep = "cubic") then (
+    vx_e : doExpand1(vmap_vx, bV_vx),
+    vy_e : doExpand1(vmap_vy, bV_vy),
+    vz_e : doExpand1(vmap_vz, bV_vz)
   )
   else (
-    for i : 1 thru vdim do (
-      printf(fh, "  double wx~a = w[~a], dv~a = dxv[~a]; ~%", i, i-1, i, i-1)
-    ),
-    vx_nodes : expand(float(evAtNodes(vTrans[1], nodes_lobatto, varsV))), 
-    vy_nodes : expand(float(evAtNodes(vTrans[2], nodes_lobatto, varsV))), 
-    vz_nodes : expand(float(evAtNodes(vTrans[3], nodes_lobatto, varsV))) 
+    /* C^0 piecewise linear map (Serendipity): expand with the p=1
+       coefficients in slots [0],[1] of each direction's 4-slot block. */
+    loadVelLinearMapBasis(),
+    vx_e : doExpand1(vmap_vx, bV_lin_vi[1]),
+    vy_e : doExpand1(vmap_vy, bV_lin_vi[2]),
+    vz_e : doExpand1(vmap_vz, bV_lin_vi[3])
   ),
+  vx_nodes : expand(float(evAtNodes(vx_e, nodes_lobatto, varsV))),
+  vy_nodes : expand(float(evAtNodes(vy_e, nodes_lobatto, varsV))),
+  vz_nodes : expand(float(evAtNodes(vz_e, nodes_lobatto, varsV))),
 
   printf(fh, "  double hamil_nodal[~a] = {0.0};~%", num_nodes_lobatto),  
   printf(fh, "  double hamil_inv_nodal[~a] = {0.0};~%", num_nodes_lobatto),  

@@ -6,12 +6,12 @@ load(stringproc)$
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
-minPolyOrder_Ser : 2$
+minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
-minCdim_Ser : 2$
-minVdim_Ser : 2$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
-maxVdim_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 1$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
@@ -39,7 +39,7 @@ for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     minVdimB : max(c,minVdim[bInd]), 
     maxVdimB : maxVdim[bInd], 
-    if (c = 2) then minVdimB : 2, /* We support 2x1v. */
+    if (c = 2) then minVdimB : 1, /* We support 2x1v. */
     for v : minVdimB thru maxVdimB do (
 
       minPolyOrderB : minPolyOrder[bInd],
@@ -47,6 +47,9 @@ for bInd : 1 thru length(bName) do (
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
+      /* Skip 2x3v tensor kernels: not used by the kernel tables and very
+         expensive to generate. */
+      if (bName[bInd] = "tensor" and c = 2 and v = 3) then maxPolyOrderB : 0,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating surface Vlasov ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         maxC : c, /* Which directions are we generating surface kernels for? */
@@ -57,10 +60,10 @@ for bInd : 1 thru length(bName) do (
           funcName : sconcat("vlasov_hamil_vel_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
             /* Generate mapped velocity grid kernels when utilizing the tensor basis. */
-            calcHamilVelSurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, true) 
+            calcHamilVelSurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "cubic") 
           )
           else (
-            calcHamilVelSurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, false) 
+            calcHamilVelSurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "linear") 
           ),
           close(fh)      
         ),
