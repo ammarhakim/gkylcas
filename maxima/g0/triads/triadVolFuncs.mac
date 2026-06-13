@@ -89,7 +89,7 @@ grab_dir_from_pt_index(vdim, pt_index) := block(
 /* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
-calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, vmap) := block(
+calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, vmap) := block(
   [varsC, bC, varsV, bV, varsP, bP, NP,
   cid, vid, pdim, NC,
   hamil, f_e, f_vol_e,
@@ -107,7 +107,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
   const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  if (hamil_vel) then (
+  if (vel_hamil) then (
     hamil : doExpand1(hamil, bV)
   )
   else (
@@ -198,7 +198,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel,
 /* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
-calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamilLabel, vmap) := block(
   [varsC, bC, varsV, bV, varsP, bP, NP,
   cid, vid, pdim, NC,
   funcNameDot, funcNameZero, funcNameComputePiDh, funcNameBracket,
@@ -212,18 +212,8 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
-  /* Function for the inner product of pb_list and f */
-  /* Expansions of f and pb_list */
-  /* list_1_e : doExpand1(list_1, bP),
-  list_2_e : doExpand1(list_2, bP), */
-
   funcNameDot : sconcat("dot_pb_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
   printf(fh, "GKYL_CU_DH static void ~a(const double *list_1, const double *list_2, double* GKYL_RESTRICT out) ~%{ ~%", funcNameDot),
-
-  /* Inner product of the two modal lists */
-  /* pb : fullratsimp(calcInnerProdList(varsP, 1, [list_2_e], list_1_e)), 
-  clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
-  writeCIncrExprsCollect1(out, pb, clst_vol), */
 
   printf(fh, "  for (int i = 0; i<~a; ++i) out[0] += list_1[i]*list_2[i]; ~%",NP),
   printf(fh, "} ~%"),
@@ -247,7 +237,7 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "  double bracket_w_Hi[~a] = {0.0}; ~%", length(bP)),
 
   /* Call all of the kernels for each component */
-  funcNameComputePiDh : sconcat("vlasov_nc_hamil_gen_vol_alpha_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+  funcNameComputePiDh : sconcat("vlasov_nc_hamil_", hamilLabel, "_vol_alpha_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
 
   /* Iterate over directions */
   printf(fh, "  for (int dir = 0; dir<~a; ++dir) { ~%",pdim),
@@ -260,7 +250,6 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
   printf(fh, "    ~%"),
 
   /* iterate over the number of components */
-  /* printf(fh, "    for (int comp = 0; comp<~a; ++comp) { ~%",NP), */
   printf(fh, "    // Compute the modal basis backet coeffcients, accumulate the outputs ~%"),
   for component : 1 thru NP do (
     printf(fh, "    ~a(bracket_w_Hi); ~%", funcNameZero),

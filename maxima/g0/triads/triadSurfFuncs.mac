@@ -91,6 +91,8 @@ calcSurfStreamFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOr
 
 
 
+
+/* No longer used for ser, but may be requried for future tensor*/
 /* Phase-space Hamiltonian surface streaming */
 calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
@@ -204,6 +206,7 @@ calcHamilGenSurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOr
 )$  
 
 
+/* No longer used for ser, but may be requried for future tensor*/
 /* Phase-space Hamiltonian surface streaming */
 calcHamilGenSurfStreamNonCanonicalNodalBreakup(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 

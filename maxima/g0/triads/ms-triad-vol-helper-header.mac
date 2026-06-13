@@ -7,7 +7,7 @@ load("new_vlasov/vlasov-basis");
 minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
-minVdim_Ser : 3$    /* see begining of v loop below though. */
+minVdim_Ser : 1$    /* see begining of v loop below though. */
 maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
@@ -30,15 +30,20 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
+velHamil     : [true, false]$
 
-printPrototype(comp, deco, ci, vi, bStr, pi) := block([si],
+hamilLabels : ["vel", "phase"]$
+
+printPrototype(comp, deco, ci, vi, bStr, hStr, pi) := block([si],
   if (ci <= vi and pi < 3) then (
     if (comp = 0) then (
-    printf(fh, "~avoid vlasov_nc_hamil_gen_vol_alpha_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
-     const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out); ~%", deco, ci, vi, bStr, pi)
+      printf(fh, "~avoid vlasov_nc_hamil_~a_vol_alpha_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
+        const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out); ~%", deco, hStr, ci, vi, bStr, pi)
     ),
-    printf(fh, "~avoid vlasov_nc_hamil_gen_vol_comp~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
-     const double *alpha, double* GKYL_RESTRICT out); ~%", deco, comp, ci, vi, bStr, pi)
+    if (hStr = "vel") then (
+      printf(fh, "~avoid vlasov_nc_hamil_gen_vol_comp~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
+        const double *alpha, double* GKYL_RESTRICT out); ~%", deco, comp, ci, vi, bStr, pi)
+    )
   )
 )$
 
@@ -63,13 +68,15 @@ for bInd : 1 thru length(bName) do (
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-        if ((c+v>=4) or (v = 3) ) and (( polyOrder > 1 and c+v < 6) or (c+v = 6))then (
-          [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(bName[bInd], c, v, polyOrder), 
-          for component : 0 thru (length(bP)-1) do( 
-            printPrototype(component, decorator, c, v, bName[bInd], polyOrder)
-          ),
-          kill(bP),
-          printf(fh, "~%")
+        for vhamilInd : 1 thru length(velHamil) do (
+          if ((c+v>=4) or (v = 3) ) and ((( polyOrder > 1 and c+v < 6) or (c+v >= 5)) or (c+v = 4 and polyOrder = 2 ))then (
+            [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(bName[bInd], c, v, polyOrder), 
+            for component : 0 thru (length(bP)-1) do( 
+              printPrototype(component, decorator, c, v, bName[bInd], hamilLabels[vhamilInd], polyOrder)
+            ),
+            kill(bP),
+            printf(fh, "~%")
+          )
         )
       )
     )
