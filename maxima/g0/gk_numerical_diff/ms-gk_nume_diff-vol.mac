@@ -1,7 +1,7 @@
 kill(all)$
-load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-vol")$
+load("gk_numerical_diff/gk_nume_diff-vol")$
 
-/* Generate kernels for a diffusion volume term. It only computes the CFL frequency.
+/* Generate kernels for a diffusion volume term.
    Supports diffusion types: D_i*d^n f/dx_i^n (summation implied) for n=2,4,6.
    Note: volume kernels only compute the CFL frequency, so are independent of
    basis type and equation system (e.g., Euler vs. PKPM) */
@@ -10,7 +10,7 @@ load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-vol")$
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -22,6 +22,8 @@ maxCdim_Tensor : 0$
 
 /* ...... END OF USER INPUTS........ */
 
+vDims : [[1,2], [2], [2]]$
+
 /* To generate other bases, just add corresponding column to arrays below. */
 bName        : ["ser", "tensor"]$
 minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
@@ -30,31 +32,24 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 
 for bInd : 1 thru length(bName) do (
-  for d : minCdim[bInd] thru maxCdim[bInd] do (
-    minPolyOrderB : minPolyOrder[bInd],
-    maxPolyOrderB : maxPolyOrder[bInd],
+  for cdim : minCdim[bInd] thru maxCdim[bInd] do (
+    for vdim in vDims[cdim] do (
+      minPolyOrderB : minPolyOrder[bInd],
+      maxPolyOrderB : maxPolyOrder[bInd],
 
-    for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order2_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("dg_diffusion_gyrokinetic_order2_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 2),
-      close(fh),
-
-      disp(printf(false,sconcat("Creating volume hyper 4th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-      fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order4_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
-      fh : openw(fname),
-      funcName : sconcat("dg_diffusion_gyrokinetic_order4_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-      genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 4),
-      close(fh),
-
-      if polyOrder > 1 then (
-        disp(printf(false,sconcat("Creating volume hyper 6th order diffusion",bName[bInd]," ~axp~a"),d,polyOrder)),
-        fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order6_vol_",  d, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      for polyOrder : minPolyOrderB thru maxPolyOrderB do (
+        disp(printf(false,sconcat("Creating volume diffusion",bName[bInd]," ~ax~avp~a"),cdim,vdim,polyOrder)),
+        fname : sconcat("~/max-out/gk_numerical_diffusion_order2_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
-        funcName : sconcat("dg_diffusion_gyrokinetic_order6_vol_", d, "x_", bName[bInd], "_p", polyOrder),
-        genDGdiffGyrokineticKernelVol(fh, funcName, d, bName[bInd], polyOrder, 6),
+        funcName : sconcat("gk_numerical_diffusion_order2_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+        gk_numerical_diff_gen_vol_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, 2),
+        close(fh),
+  
+        disp(printf(false,sconcat("Creating volume hyper 4th order diffusion",bName[bInd]," ~ax~avp~a"),cdim,vdim,polyOrder)),
+        fname : sconcat("~/max-out/gk_numerical_diffusion_order4_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
+        fh : openw(fname),
+        funcName : sconcat("gk_numerical_diffusion_order4_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+        gk_numerical_diff_gen_vol_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, 4),
         close(fh)
       )
     )

@@ -1,11 +1,11 @@
 kill(all)$
-load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-boundary-diag")$
+load("gk_numerical_diff/gk_nume_diff-boundary-diag")$
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -25,7 +25,7 @@ minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser     , minCdim_Tensor     ]$
 maxCdim      : [maxCdim_Ser     , maxCdim_Tensor     ]$
-dirVars      : [[[x,vpar],[x,vpar,mu]],[[null],[x,y,vpar,mu]],[[null],[x,y,z,vpar,mu]]]$ 
+dirVars      : [[[x,vpar],[x,vpar,mu]],[[null],[x,z,vpar,mu]],[[null],[x,y,z,vpar,mu]]]$ 
 
 for bInd : 1 thru length(bName) do (
   for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
@@ -38,28 +38,29 @@ for bInd : 1 thru length(bName) do (
         for dir : 1 thru cdim do (
           dirVar : dirVars[cdim][vdim][dir], 
 
-          fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order2_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          funcName : sconcat("dg_diffusion_gyrokinetic_order2_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+          /* 2nd order diffusion. */
+          fname : sconcat("~/max-out/gk_numerical_diffusion_order2_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           print("Generating:", fname),
-          genDGdiffGyrokineticKernelBoundaryDiag(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 2),
+          for side in bound_side do (
+            for bc in bound_diag_bc_type do (
+              funcName : sconcat("gk_numerical_diffusion_order2_boundary_diag", dirVar,"_", side, "_", bc,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+              gk_numerical_diff_gen_boundary_diag_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, side, bc, 2)
+            )
+          ),
           close(fh),
 
-          fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order4_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          funcName : sconcat("dg_diffusion_gyrokinetic_order4_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+          /* 4th order diffusion. */
+          fname : sconcat("~/max-out/gk_numerical_diffusion_order4_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           print("Generating:", fname),
-          genDGdiffGyrokineticKernelBoundaryDiag(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 4),
-          close(fh),
-
-          if polyOrder > 1 then (
-            fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order6_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            funcName : sconcat("dg_diffusion_gyrokinetic_order6_boundary_diag", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-            fh : openw(fname),
-            print("Generating:", fname),
-            genDGdiffGyrokineticKernelBoundaryDiag(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 6),
-            close(fh)
-          )
+          for side in bound_side do (
+            for bc in bound_diag_bc_type do (
+              funcName : sconcat("gk_numerical_diffusion_order4_boundary_diag", dirVar,"_", side, "_", bc,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+              gk_numerical_diff_gen_boundary_diag_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, side, bc, 4)
+            )
+          ),
+          close(fh)
         )
       )
     )

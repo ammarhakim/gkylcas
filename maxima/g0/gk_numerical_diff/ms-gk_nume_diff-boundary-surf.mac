@@ -1,11 +1,11 @@
 kill(all)$
-load("dg_diffusion_gyrokinetic/diffFuncs-gyrokinetic-boundary-surf")$
+load("gk_numerical_diff/gk_nume_diff-boundary-surf")$
 
 /* ...... USER INPUTS........ */
 
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 2$
+maxPolyOrder_Ser : 1$
 minCdim_Ser : 1$
 maxCdim_Ser : 3$
 
@@ -25,41 +25,41 @@ minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
 maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
 minCdim      : [minCdim_Ser     , minCdim_Tensor     ]$
 maxCdim      : [maxCdim_Ser     , maxCdim_Tensor     ]$
-dirVars      : [[[x,vpar],[x,vpar,mu]],[[null],[x,y,vpar,mu]],[[null],[x,y,z,vpar,mu]]]$ 
+dirVars      : [[[x,vpar],[x,vpar,mu]],[[null],[x,z,vpar,mu]],[[null],[x,y,z,vpar,mu]]]$ 
 
 for bInd : 1 thru length(bName) do (
   for polyOrder : minPolyOrder[bInd] thru maxPolyOrder[bInd] do (
     for cdim : minCdim[bInd] thru maxCdim[bInd] do (
       for vdim in vDims[cdim] do (
-        /* To apply applying diffusion in velocity space replace cdim with
-           cdim+vdim in the loop upper limit below. If you wish the diffusion
-           coefficient to depend on velocity space, make that change in the
-           function that generates the kernel too. */
         for dir : 1 thru cdim do (
           dirVar : dirVars[cdim][vdim][dir], 
 
-          fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order2_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          funcName : sconcat("dg_diffusion_gyrokinetic_order2_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+          /* 2nd order diffusion. */
+          fname : sconcat("~/max-out/gk_numerical_diffusion_order2_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           print("Generating:", fname),
-          genDGdiffGyrokineticKernelBoundarySurf(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 2),
+          printf(fh, "#include <gkyl_gk_numerical_diffusion_kernels.h>~%~%"),
+
+          for side in bound_side do (
+            for bc in bound_surf_bc_type do (
+                funcName : sconcat("gk_numerical_diffusion_order2_boundary_surf", dirVar,"_", side,"_", bc, "_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+              gk_numerical_diff_gen_boundary_surf_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, side, bc, 2)
+            )
+          ),
           close(fh),
 
-          fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order4_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-          funcName : sconcat("dg_diffusion_gyrokinetic_order4_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+          /* 4th order diffusion. */
+          fname : sconcat("~/max-out/gk_numerical_diffusion_order4_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           print("Generating:", fname),
-          genDGdiffGyrokineticKernelBoundarySurf(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 4),
-          close(fh),
-
-          if polyOrder > 1 then (
-            fname : sconcat("~/max-out/dg_diffusion_gyrokinetic_order6_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, ".c"),
-            funcName : sconcat("dg_diffusion_gyrokinetic_order6_boundary_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-            fh : openw(fname),
-            print("Generating:", fname),
-            genDGdiffGyrokineticKernelBoundarySurf(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, 6),
-            close(fh)
-          )
+          printf(fh, "#include <gkyl_gk_numerical_diffusion_kernels.h>~%~%"),
+          for side in bound_side do (
+            for bc in bound_surf_bc_type do (
+              funcName : sconcat("gk_numerical_diffusion_order4_boundary_surf", dirVar,"_", side,"_", bc, "_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
+              gk_numerical_diff_gen_boundary_surf_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder, dir, side, bc, 4)
+            )
+          ),
+          close(fh)
         )
       )
     )

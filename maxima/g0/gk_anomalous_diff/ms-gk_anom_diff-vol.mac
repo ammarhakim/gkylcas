@@ -40,7 +40,7 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         printf(fh, "#include <gkyl_gk_anomalous_diffusion_kernels.h>~%~%"),
         funcName : sconcat("gk_anomalous_diffusion_vol_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder),
-        gk_anomalous_diff_gen_boundary_vol_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder),
+        gk_anomalous_diff_gen_vol_ker(fh, funcName, cdim, vdim, bName[bInd], polyOrder),
         close(fh)
       )
     )

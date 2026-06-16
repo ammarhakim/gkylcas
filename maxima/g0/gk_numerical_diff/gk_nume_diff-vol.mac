@@ -5,45 +5,46 @@ load("utilities")$
 load(stringproc)$
 fpprec : 24$
 
-/* Generate kernels for a gyrokinetic diffusion volume term. It only computes the CFL frequency.
+/* Generate kernels for a gyrokinetic diffusion volume term.
    Supports diffusion types: d^(n/2)(D_i(x)* d^(n/2)(f)/dx_i^n)dx_i^(n/2) (summation
-   implied) for n=2,4,6. */
+   implied) for n=2,4. */
 
-genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffOrder, dir, constCoeff) := block(
-  [vars,basis,numB,jacobgeo_inv_e,coeffType,coeffSig,coeffAv,coeff_c,coeff_e,pOrderFact],
+gen_diff_gk_ker_vol_in_dir(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder, dir) := block(
+  [vars,basis,numB,jacobgeo_inv_e,nuType,nuAv,nu_c,nu_e,pOrderFact],
 
-  [vars, basis] : loadBasis(basisType, cdim, polyOrder),
-  numB : length(basis),
+  [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  numBasis : length(basis),
+  numBasisC : length(basisC),
 
-  jacobgeo_inv_e : doExpand1(jacobgeo_inv, basis),
+  diffVar : vars[dir],
 
-  if constCoeff then (
-    coeffType : "const",
-    coeffAv   : coeff[dir-1]
-  ) else (
-    coeffType : "var",
-    coeff_c   : makelist(coeff[(dir-1)*numB+i-1],i,1,numB),
-    coeff_e   : doExpand(coeff_c,basis),
+  nuType : "var",
+  nu_c   : (-1)^(diffOrder/2+1) * makelist(nu[(dir-1)*numBasisC+i-1],i,1,numBasisC),
+  nu_e   : doExpand(nu_c,basisC),
 
-    coeff_c   : calcInnerProdList(vars, jacobgeo_inv_e, basis, coeff_e),
-    coeff_e   : doExpand(coeff_c,basis),
+  f_c : makelist(fin[i-1], i, 1, numBasis),
+  f_e : doExpand(f_c, basis),
 
-    coeffAv   : fullratsimp(innerProd(vars,1,1,coeff_e)/innerProd(vars,1,1,1))
-  ),
-  
-  printf(fh, "GKYL_CU_DH double ~a_~acoeff_diff~a(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{~%", funcNm, coeffType, vars[dir]),
+  printf(fh, "static GKYL_CU_DH double ~a_~anu_diff~a(const double *w, const double *dx, const double *nu, const double *fin, double* GKYL_RESTRICT out) ~%{~%", funcNm, nuType, diffVar),
   printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
   printf(fh, "  // dx[NDIM]: Cell spacing~%"),
-  printf(fh, "  // coeff: Diffusion coefficient vector~%"),
-  printf(fh, "  // jacobgeo_inv: one divided by the configuration space Jacobian.~%"),
-  printf(fh, "  // q: Input field~%"),
+  printf(fh, "  // nu: Diffusivity.~%"),
+  printf(fh, "  // jacobgeo_inv: reciprocal of the configuration space Jacobian.~%"),
+  printf(fh, "  // fin: Input field times conf-space Jacobian~%"),
   printf(fh, "  // out: Incremented output~%~%"),
 
-  printf(fh, "  const double rdx2 = 2.0/dx[~a]; ~%", dir-1),
+  printf(fh, "  const double rdx2fac = pow(2.0/dx[~a],~a); ~%", dir-1,diffOrder),
 
-  pOrderFact : (polyOrder+1)^diffOrder,
+  /* Volume increment (dimensional factor included later). */
+  vol_incr_c : rdx2fac*calcInnerProdList(vars, -1, diff(basis,diffVar)*nu_e, diff(f_e,diffVar,diffOrder-1)),
+  writeCIncrExprs1(out, vol_incr_c),
+  printf(fh, "~%"),
 
-  printf(fh, "  return ~a*pow(rdx2, ~a.0); ~%", float(pOrderFact*coeffAv), diffOrder),
+  pOrderFact : (polyOrder+1)^2,
+  nuAv : fullratsimp((-1)^(diffOrder/2+1) * innerProd(varsC, 1, 1, nu_e) / innerProd(varsC, 1, 1, 1)),
+
+  printf(fh, "  return ~a*rdx2fac; ~%", float(expand(pOrderFact*nuAv))),
+
   printf(fh, "}~%")
 )$
 
@@ -54,57 +55,67 @@ getDirCombos(varsIn) := block([pss,ps,combos],
   return(combos)
 )$
 
-genDGdiffGyrokineticKernelVol(fh, funcNm, cdim, basisType, polyOrder, diffOrder) := block(
-  [vars,basis,diffDirCombos,cI,dir,diffDirs,diffDirNum,diffDirInP,diffDirsStr,dI],
+gk_numerical_diff_gen_vol_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder) := block(
+  [varsC,basisC,vars,basis,vSub,diffDirCombos,cI,dir,diffDirs,diffDirNum,diffDirInP,diffDirsStr,dI],
 
-  printf(fh, "#include <gkyl_dg_diffusion_gyrokinetic_kernels.h>~%"),
+  printf(fh, "#include <gkyl_gk_numerical_diffusion_kernels.h>~%"),
   printf(fh, "~%"),
 
-  [vars, basis] : loadBasis(basisType, cdim, polyOrder),
+  [varsC, basisC, vars, basis, vSub] : loadGkBasis(basisType, cdim, vdim, polyOrder),
+  numBasis : length(basis),
+  numBasisC : length(basisC),
 
   /* Combinations of directions in which to apply diffusion. */
-  diffDirCombos : getDirCombos(vars),
+  diffDirCombos : getDirCombos(varsC),
 
-  diffCoeffType : [true, false],
-  /* Let's not generate inhomogeneous hyperdiff for now. */
-  if (diffOrder>2) then (diffCoeffType : [true]),
+  nuType : "var",
 
-  /* Loop over const/var diffusion coefficient. */
-  for cI in diffCoeffType do (
-    if cI then (
-      coeffType : "const"
-    ) else (
-      coeffType : "var"
+  /* Print functions with volume contribution from each direction. */
+  for dir : 1 thru cdim do (
+    gen_diff_gk_ker_vol_in_dir(fh, funcNm, cdim, vdim, basisType, polyOrder, diffOrder, dir),
+    printf(fh, "~%")
+  ),
+  
+  for diffDirs in diffDirCombos do (
+  
+    diffDirNum : length(diffDirs),
+    diffDirInP : makelist(sublist_indices(vars,lambda([x], x=diffDirs[i]))[1],i,1,diffDirNum),
+  
+    diffDirsStr :"",
+    for dI in diffDirInP do (diffDirsStr : sconcat(diffDirsStr,string(vars[dI]))),
+  
+    printf(fh, "GKYL_CU_DH double ~a_~anu_diffdirs~a(const double *w, const double *dx, const double *nu, const double *jacobgeo_inv, const double *Jfin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, nuType, diffDirsStr),
+    printf(fh, "  // w[NDIM]: Cell-center coordinates~%"),
+    printf(fh, "  // dx[NDIM]: Cell spacing~%"),
+    printf(fh, "  // nu: Diffusivity~%"),
+    printf(fh, "  // jacobgeo_inv: reciprocal of the configuration space Jacobian.~%"),
+    printf(fh, "  // Jfin: Input field times conf-space Jacobian~%"),
+    printf(fh, "  // out: Incremented output~%~%"),
+  
+    /* Divide jacobGeo*f by jacobGeo. */
+    Jfin_c : makelist(Jfin[i-1], i, 1, numBasis),
+    Jfin_e : doExpand(Jfin_c, basis),
+
+    jacobgeo_inv_e : doExpand1(jacobgeo_inv, basisC),
+
+    f_c : calcInnerProdList(vars, jacobgeo_inv_e, basis, Jfin_e),
+
+    /* Divide jacobGeo*f by jacobGeo. */
+    printf(fh, "  double fin[~a];~%", numBasis),
+    writeCExprsNoExpand1(fin, f_c),
+    printf(fh, "~%"),
+
+    printf(fh, "  double cflFreq = 0.;~%"),
+    printf(fh, "  ~%"),
+  
+    /* Add contribution from diffusion in each direction. */
+    for dI in diffDirInP do (
+      printf(fh, "  cflFreq += ~a_~anu_diff~a(w, dx, nu, fin, out);~%", funcNm, nuType, vars[dI])
     ),
-
-    /* Print functions with volume contribution from each direction. */
-    for dir : 1 thru cdim do (
-      genDGdiffGyrokineticKernelVolInDir(fh, funcNm, cdim, basisType, polyOrder, diffOrder, dir, cI),
-      printf(fh, "~%")
-    ),
-    
-    for diffDirs in diffDirCombos do (
+    printf(fh, "~%"),
   
-      diffDirNum : length(diffDirs),
-      diffDirInP : makelist(sublist_indices(vars,lambda([x], x=diffDirs[i]))[1],i,1,diffDirNum),
-  
-      diffDirsStr :"",
-      for dI in diffDirInP do (diffDirsStr : sconcat(diffDirsStr,string(vars[dI]))),
-  
-      printf(fh, "GKYL_CU_DH double ~a_~acoeff_diffdirs~a(const double *w, const double *dx, const double *coeff, const double *jacobgeo_inv, const double *q, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, coeffType, diffDirsStr),
-  
-      printf(fh, "  double cflFreq = 0.;~%"),
-      printf(fh, "  ~%"),
-  
-      /* Add contribution from diffusion in each direction. */
-      for dI in diffDirInP do (
-        printf(fh, "  cflFreq += ~a_~acoeff_diff~a(w, dx, coeff, jacobgeo_inv, q, out);~%", funcNm, coeffType, vars[dI])
-      ),
-      printf(fh, "~%"),
-  
-      printf(fh, "  return cflFreq;~%"),
-      printf(fh, "}~%"),
-      printf(fh, "~%")
-    )
+    printf(fh, "  return cflFreq;~%"),
+    printf(fh, "}~%"),
+    printf(fh, "~%")
   )
 )$

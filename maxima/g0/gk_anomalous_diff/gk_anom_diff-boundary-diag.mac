@@ -15,12 +15,10 @@ bound_diag_bc_type : ["bound_local","bound_recovery"]$
 bound_side : ["lower","upper"]$
 
 gk_anomalous_diff_gen_boundary_diag_ker(fh, funcNm, cdim, vdim, basisType, polyOrder, dir, side, bcType) := block(
-  [dim,bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,numBasisC,
+  [bType,vars,basis,varsC,basisC,vSub,numBasis,surfVar,surfIntVars,numBasisC,
    nuSkin_c,nuGhost_c,nuSkin_e,nuGhost_e,JfSkin_c,JfGhost_c,JfSkin_e,JfGhost_e,jacobgeo_invSkin_e,jacobgeo_invGhost_e,
    fSkin_c,fGhost_c,fSkin_e,fGhost_e,fRecl_e,nuAv_l,nuSkin_l,fRecr_e,nuAv_r,nuSkin_r,
    boundSurf_incr_c,bound_out],
-
-  dim : cdim+vdim,
 
   bType : basisType,
   if polyOrder=1 then bType : "gkhyb",  /* Force p=1 to mean hybrid. */
