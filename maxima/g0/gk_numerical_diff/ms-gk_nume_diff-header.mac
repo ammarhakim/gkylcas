@@ -84,7 +84,7 @@ for bInd : 1 thru length(bName) do (
           for dO in diffOrders do (
             for cT in nuTypeStr do (
               funcName : sconcat("gk_numerical_diffusion_order",dO,"_surf", dirVar,"_", cdim, "x", vdim, "v_", bName[bInd], "_p", polyOrder, "_", cT),
-              funcSign : sconcat("GKYL_CU_DH double ",funcName,"(GKYL_CU_DH double ",funcName,"(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_invl, const double *jacobgeo_invc, const double *jacobgeo_invr, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out);~%"),
+              funcSign : sconcat("GKYL_CU_DH double ",funcName,"(const double *wc, const double *dxc, const double *nul, const double *nuc, const double *nur, const double *jacobgeo_invl, const double *jacobgeo_invc, const double *jacobgeo_invr, const double *Jfl, const double *Jfc, const double *Jfr, double* GKYL_RESTRICT out);~%"),
               printf(fh, funcSign),
 
               for side in bound_side do (
