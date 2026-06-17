@@ -37,7 +37,7 @@ calcSurfStreamFlux(dir, fh, funcNm, cdim, basisFun, polyOrder) := block(
   numNodes : length(surfNodes),
   nbasis : length(bC),
 
-  num_field_components : 6,
+  num_field_components : 8,
   for m : 1 thru num_field_components do (
     Fhat_l_nodal_c : parse_string(sconcat("Fhat_l_nodal_", m)),
     Fhat_r_nodal_c : parse_string(sconcat("Fhat_r_nodal_", m)),

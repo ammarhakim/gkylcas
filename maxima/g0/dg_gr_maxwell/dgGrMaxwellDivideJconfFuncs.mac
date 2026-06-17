@@ -22,8 +22,8 @@ divideJconf(fh, funcNm, cdim, basisFun, polyOrder) := block(
   num_nodes_conf : length(volNodes),
   NC : length(bC),
 
-  /* Remove J from the first six compoennts */
-  num_field_components : 6,
+  /* Remove J from the first eight components */
+  num_field_components : 8,
 
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *J, const double *Jfields, double* GKYL_RESTRICT fields_no_J) ~%{ ~%", funcNm),
@@ -60,8 +60,8 @@ rescaleJconf(fh, funcNm, cdim, basisFun, polyOrder) := block(
   num_nodes_conf : length(volNodes),
   NC : length(bC),
 
-  /* Re-apply J to the first six components */
-  num_field_components : 6,
+  /* Re-apply J to the first eight components */
+  num_field_components : 8,
 
   printf(fh, "#include <gkyl_dg_gr_maxwell_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *J, const double *fields_no_J, double* GKYL_RESTRICT Jfields) ~%{ ~%", funcNm),

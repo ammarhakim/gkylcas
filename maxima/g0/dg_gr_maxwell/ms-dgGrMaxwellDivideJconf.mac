@@ -8,6 +8,11 @@ load(stringproc)$
    into Jfields from multiplying fields at nodes by the configuration-space Jacobian at
    nodes and converting back to the modal expansion. The latter function
    is used at restarts since we write out fields, not Jfields. 
+
+   Essentially this converts between the varaibles:
+   Q = [JD^x, JD^y, JD^z, JB^x, JB^y, JB^z, Jphi, Jpsi]
+   and 
+   Q_no_J = [D^x, D^y, D^z, B^x, B^y, B^z, phi, psi]
 */
 
 /* ...... USER INPUTS........ */
