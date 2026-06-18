@@ -34,6 +34,10 @@ printPrototype(deco, ci, bStr, pi) := block([si],
   printf(fh, "~avoid gr_maxwell_vol_~ax_~a_p~a(const gkyl_dg_gr_maxwell_inp *meq, const double *w, const double *dx, const double *lapse_nodal, const double *shift_nodal,
       const double *h_ij_nodal, const double *h_ij_inv_nodal, const double *J_c, const double *fields, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
 
+  /* Geometric Sources */
+  printf(fh, "~avoid gr_maxwell_geom_source_~ax_~a_p~a(const gkyl_dg_gr_maxwell_inp *meq, const double *w, const double *dx, 
+      const double *geom_factor_con_nodal, const double *fields, double* GKYL_RESTRICT out); ~%", deco, ci, bStr, pi),
+
   /* Surface Kernels*/
   for si : 1 thru ci do (
     /* 1. Lax Flux*/
@@ -67,7 +71,7 @@ printf(fh, "#pragma once ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "#include <gkyl_maxwell_kernels.h> ~%")$
-printf(fh, "typedef struct { double chi, gamma; } gkyl_dg_gr_maxwell_inp; ~%")$
+printf(fh, "typedef struct { double chi, gamma, K_phi, K_psi; } gkyl_dg_gr_maxwell_inp; ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$
 printf(fh, "~%")$
 
