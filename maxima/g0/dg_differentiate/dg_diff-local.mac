@@ -29,9 +29,11 @@ gen_dg_diff_local(fh, funcName, cdim, basisType, polyOrder) := block(
       printf(fh, "  // out: output derivative of fin. ~%"),
       printf(fh, "~%"),
 
-      der_c : 0.5*dx*calcInnerProdList(vars, 1, basis, diff(f_e,diff_dir,diff_order)),
+      printf(fh, "  const double rdx2fac = pow(2.0/dx, ~a);~%",diff_order),
+
+      der_c : rdx2fac*calcInnerProdList(vars, 1, basis, diff(f_e,diff_dir,diff_order)),
       
-      writeCExprsWithZeros(out, der_c),
+      writeCExprsWithZeros1(out, der_c),
       printf(fh, "~%"),
 
       printf(fh, "}~%"),
