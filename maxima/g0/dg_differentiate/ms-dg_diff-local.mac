@@ -36,7 +36,7 @@ for bInd : 1 thru length(bName) do (
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
       fname : sconcat("~/max-out/dg_differentiate_local_",  bName[bInd], "_", cdim, "x_p", polyOrder, ".c"),
       fh : openw(fname),
-      printf(fh, "#include <gkyl_dg_differentiate.h>~%"),
+      printf(fh, "#include <gkyl_dg_differentiate_kernels.h>~%"),
       printf(fh, "~%"),
       funcName : sconcat("dg_differentiate_local_",bName[bInd], "_", cdim, "x_p", polyOrder),
       gen_dg_diff_local(fh, funcName, cdim, bName[bInd], polyOrder),

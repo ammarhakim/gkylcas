@@ -51,7 +51,7 @@ printPrototypes(fh) := block(
   )
 )$
 
-fname : sconcat("~/max-out/gkyl_dg_differentiate_local.h")$
+fname : sconcat("~/max-out/gkyl_dg_differentiate_kernels.h")$
 fh : openw(fname)$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
