@@ -1,0 +1,62 @@
+/**
+ * Create kernels which evaluate a DG expansion at a coordinate and projects
+ * onto lower dimensional basis. Currently
+ * it is meant for:
+ *   - x     -> scalar
+ *   - x,y   -> y
+ *   - x,y   -> x
+ *   - x,y   -> scalar
+ *   - x,y,z -> y,z
+ *   - x,y,z -> x,z
+ *   - x,y,z -> x,y
+ *   - x,y,z -> z
+ *   - x,y,z -> y
+ *   - x,y,z -> x
+ *   - x,y,z -> scalar
+ */
+load("dg_eval_at_coords_proj/dg_ev_proj.mac")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+for bInd : 1 thru length(bName) do (
+  /* Generate kernels that translate conf-space fields. */
+  for cdim : minCdim[bInd] thru maxCdim[bInd] do (
+
+    maxPolyOrderB : maxPolyOrder[bInd],
+    if (cdim=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+
+    for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+      fname : sconcat("~/max-out/dg_eval_at_coord_proj_", cdim, "x_", bName[bInd], "_p", polyOrder, ".c"),
+      disp(printf(false,"Creating file: ~a",fname)),
+  
+      fh : openw(fname),
+      printf(fh, "#include <gkyl_dg_eval_at_coord_proj_kernels.h> ~%"),
+      printf(fh, "~%"),
+
+      funcName : sconcat("gkyl_dg_eval_at_coord_proj_", cdim, "x_", bName[bInd], "_p", polyOrder),
+      gen_dg_evproj_kernel(fh, funcName, cdim, bName[bInd], polyOrder),
+      close(fh)
+    )
+  )
+)$

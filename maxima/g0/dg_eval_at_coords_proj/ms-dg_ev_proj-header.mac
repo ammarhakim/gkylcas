@@ -1,0 +1,77 @@
+/*
+  Generate the kernels header file for the updater which evaluates a
+  DG field at a coord and projects it onto the target basis.
+*/
+load("dg_eval_at_coords_proj/dg_ev_proj.mac")$
+
+/* ...... USER INPUTS........ */
+
+/* Serendipity basis. */
+minPolyOrder_Ser : 1$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+maxCdim_Ser : 3$
+
+/* Tensor order basis. No need to generate p=1. */
+minPolyOrder_Tensor : 2$
+maxPolyOrder_Tensor : 2$
+minCdim_Tensor : 1$
+maxCdim_Tensor : 2$
+
+/* ...... END OF USER INPUTS........ */
+
+/* To generate other bases, just add corresponding column to arrays below. */
+bName        : ["ser", "tensor"]$
+minPolyOrder : [minPolyOrder_Ser, minPolyOrder_Tensor]$
+maxPolyOrder : [maxPolyOrder_Ser, maxPolyOrder_Tensor]$
+minCdim      : [minCdim_Ser, minCdim_Tensor]$
+maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
+
+printPrototypes(fh) := block(
+  [bInd,cdim,maxPolyOrderB,polyOrder,funcName,varsC_do,bC_do,ev_var_combos,ivc,ev_varsC,ev_dirs1,ev_dirs0,ev_str],
+
+  for bInd : 1 thru length(bName) do (
+    /* Generate kernels that translate conf-space fields. */
+    for cdim : minCdim[bInd] thru maxCdim[bInd] do (
+  
+      maxPolyOrderB : maxPolyOrder[bInd],
+      if (cdim=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x2v */
+  
+      for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
+        funcName : sconcat("gkyl_dg_eval_at_coord_proj_", cdim, "x_", bName[bInd], "_p", polyOrder),
+
+        /* Get desired basis. */
+        [varsC_do,bC_do] : loadBasis(bName[bInd], cdim, polyOrder),
+
+        /* Get combinations of variables to evaluate be evaluated. */
+        ev_var_combos : get_ev_combos(varsC_do),
+        
+        for ivc : 1 thru length(ev_var_combos) do (
+          /* Variables to evaluate. */
+          ev_varsC : ev_var_combos[ivc],
+
+          /* Directions to evaluate. */
+          ev_dirs1 : makelist(sublist_indices(varsC_do, lambda([x], x=ev_varsC[i]))[1], i, 1, length(ev_varsC)),
+          ev_dirs0 : makelist(ev_dirs1[i]-1, i, 1, length(ev_dirs1)),
+          ev_str : simplode(flatten(ev_dirs0)),
+
+          printf(fh, "GKYL_CU_DH void ~a_eval_dirs_~a(const double *coords, const double *fdo, double *ftar);~%", funcName, ev_str)
+        ),
+        printf(fh, "~%")
+      )
+    )
+  )
+)$
+
+fh : openw("~/max-out/gkyl_dg_eval_at_coord_proj_kernels.h")$
+printf(fh, "#pragma once~%")$
+printf(fh, "~%")$
+printf(fh, "#include <gkyl_util.h>~%")$
+printf(fh, "#include <math.h>~%")$
+printf(fh, "~%")$
+printf(fh, "EXTERN_C_BEG~%")$
+printf(fh, "~%")$
+printPrototypes(fh)$
+printf(fh, "~%")$
+printf(fh, "EXTERN_C_END~%")$
+close(fh)$

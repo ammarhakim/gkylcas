@@ -1,0 +1,80 @@
+/**
+ * Create kernels which evaluate a DG expansion at a coordinate and projects
+ * onto lower dimensional basis. Currently
+ * it is meant for:
+ *   - x     -> scalar
+ *   - x,y   -> y
+ *   - x,y   -> x
+ *   - x,y   -> scalar
+ *   - x,y,z -> y,z
+ *   - x,y,z -> x,z
+ *   - x,y,z -> x,y
+ *   - x,y,z -> z
+ *   - x,y,z -> y
+ *   - x,y,z -> x
+ *   - x,y,z -> scalar
+*/
+load("modal-basis");
+load("out-scripts");
+fpprec : 24$
+
+get_ev_combos(varsIn) := block([pss,ps,combos],
+  pss    : listify(powerset(setify(varsIn))),
+  ps     : makelist(listify(pss[i]),i,1,length(pss)),
+  combos : sublist(ps, lambda([x], length(x)>0)),
+  return(combos)
+)$
+
+gen_dg_evproj_kernel(fh, funcNm, cdim_do, basisFun, polyOrder_do) := block(
+  [polyOrder_tar,varsC_do,bC_do,fdo_e,ev_var_combos,ivc,ev_varsC,ev_dirs1,
+   ev_dirs0,ev_str,varsC_tar,bC_tar,varsub_lst,ftar_c],
+
+  /* Assume polyOrder remain the same. */
+  polyOrder_tar : polyOrder_do,
+
+  /* Get desired basis. */
+  [varsC_do,bC_do] : loadBasis(basisFun, cdim_do, polyOrder_do),
+
+  fdo_e : doExpand1(fdo,bC_do),
+
+  /* Get combinations of variables to evaluate be evaluated. */
+  ev_var_combos : get_ev_combos(varsC_do),
+  
+  for ivc : 1 thru length(ev_var_combos) do (
+
+    /* Variables to evaluate. */
+    ev_varsC : ev_var_combos[ivc],
+
+    /* Directions to evaluate. */
+    ev_dirs1 : makelist(sublist_indices(varsC_do, lambda([x], x=ev_varsC[i]))[1], i, 1, length(ev_varsC)),
+    ev_dirs0 : makelist(ev_dirs1[i]-1, i, 1, length(ev_dirs1)),
+    ev_str : simplode(flatten(ev_dirs0)),
+
+    printf(fh, "GKYL_CU_DH void ~a_eval_dirs_~a(const double *coords, const double *fdo, double *ftar) ~%{ ~%", funcNm, ev_str),
+    printf(fh, "  // coords: logical coordinates to evaluate the field at.~%"),
+    printf(fh, "  // fdo: donor field to get DG coefficients from.~%"),
+    printf(fh, "  // ftar: target field whose DG coefficients to populate.~%"),
+    printf(fh, "~%"),
+  
+    /* Load donor basis. */
+    varsC_tar : sublist(varsC_do, lambda([x], freeof(x, ev_varsC))),
+    if length(varsC_tar) > 0 then
+      bC_tar : basisFromVars(basisFun, varsC_tar, polyOrder_tar)
+    else
+      bC_tar : [basisFromVars(basisFun, [x], 1)[1]],
+
+    varsub_lst : makelist(ev_varsC[i]=coords[i-1], i, 1, length(ev_varsC)),
+
+    ftar_c : calcInnerProdList(varsC_tar,1,bC_tar,subst(varsub_lst,fdo_e)),
+
+    coords_lst : makelist(coords[i-1],i,1,length(ev_dirs0)),
+
+    tempVars : [],
+    tempVars : writeCExprsWithZeros1noPowers(ftar, ftar_c, [coords_lst], tempVars),
+    
+    printf(fh, "}~%"),
+    printf(fh, "~%")
+    
+  )
+
+)$
