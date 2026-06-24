@@ -101,7 +101,7 @@ genGkSheathVcutCalcKer3x2v(fh, cdim, vdim, basisFun, polyOrder, useSurrogate) :=
         if useSurrogate = 1 then (
           mu_e : subst(mu=nodesMu[j][1], vmap_e[2]),
           printf(fh, "      mu = ~a; ~%", float(expand(mu_e))),
-          printf(fh, "      bc_sheath_gyrokinetic_surr_interpf(nn_out+~a*n_out, &mu, 1, mu_ref, &vcut);~%", i-1),
+          printf(fh, "      bc_sheath_gyrokinetic_surr_interpf(nn_out+~a*n_out, nn_out+~a*n_out+n_out/2, n_out/2, &mu, 1, mu_ref, &vcut);~%", i-1, i-1),
           printf(fh, "      vcutsq_n_~a[~a] = vcut*vcut * vthSq;~%", i-1, j-1)
         ) else (
           printf(fh, "      vcutsq_n_~a[~a] = -q2Dm * deltaphi_n;~%", i-1, j-1)

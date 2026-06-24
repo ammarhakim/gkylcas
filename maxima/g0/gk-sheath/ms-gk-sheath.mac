@@ -105,9 +105,8 @@ for bInd : 1 thru length(bName) do (
 fh : openw(sconcat(outDir,"/gkyl_bc_sheath_gyrokinetic_kernels.h"))$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
-printf(fh, "#include <gkyl_bc_sheath_gyrokinetic_gyraze_surrogate.h> ~%"),
+printf(fh, "#include <gkyl_const.h>~%")$
 printf(fh, "#include <gkyl_kann_net.h>~%")$
-printf(fh, "#include <gkyl_knutils.h>~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "~%")$
@@ -119,7 +118,31 @@ printf(fh, "  // from Kroger ~%")$
 printf(fh, "  return (3.*x-x*x*x*(6. + x*x - 2.*x*x*x*x)/5.)/(1.-x*x); ~%")$
 printf(fh, "}~%")$
 printf(fh, "~%")$
-  
+
+printf(fh, "// Linear interpolation of the surrogate output vcut[ng] (defined on the mu-grid~%")$
+printf(fh, "// mu_grid[ng], which the surrogate model supplies as the second half of each~%")$
+printf(fh, "// node's output block) onto mu_new[n], normalising mu by mu_ref (= T/B). Results~%")$
+printf(fh, "// are written into out[n]; clamps at the grid boundaries.~%")$
+printf(fh, "GKYL_CU_DH~%")$
+printf(fh, "static inline void~%")$
+printf(fh, "bc_sheath_gyrokinetic_surr_interpf(const float *vcut, const float *mu_grid, int ng, const double *mu_new, int n, double mu_ref, double *out)~%")$
+printf(fh, "{~%")$
+printf(fh, "  for (int i = 0; i < n; i++) {~%")$
+printf(fh, "    double mu = mu_new[i]/mu_ref;~%")$
+printf(fh, "    if (mu <= mu_grid[0])      { out[i] = vcut[0];      continue; }~%")$
+printf(fh, "    if (mu >= mu_grid[ng - 1]) { out[i] = vcut[ng - 1]; continue; }~%")$
+printf(fh, "    // binary search for the bracketing interval~%")$
+printf(fh, "    int lo = 0, hi = ng - 1;~%")$
+printf(fh, "    while (hi - lo > 1) {~%")$
+printf(fh, "      int mid = (lo + hi) >> 1;~%")$
+printf(fh, "      if (mu_grid[mid] <= mu) lo = mid; else hi = mid;~%")$
+printf(fh, "    }~%")$
+printf(fh, "    double t = (mu - mu_grid[lo]) / (mu_grid[hi] - mu_grid[lo]);~%")$
+printf(fh, "    out[i] = vcut[lo] + t * (vcut[hi] - vcut[lo]);~%")$
+printf(fh, "  }~%")$
+printf(fh, "}~%")$
+printf(fh, "~%")$
+
 printf(fh, "EXTERN_C_BEG~%")$
 printf(fh, "~%")$
 
