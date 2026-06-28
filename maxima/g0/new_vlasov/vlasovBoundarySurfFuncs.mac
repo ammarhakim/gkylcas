@@ -35,6 +35,14 @@ dv11 : [dv10, dv11, dv12]$
    map (Serendipity); kernels read the first entry of each direction's
    jacob_vel block. */
 jacobConstInv_vi : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
+/* Constant per-direction inverse configuration-space Jacobian of the C^0 linear
+   position map, for the skin and edge (ghost) cells: at a domain boundary the
+   skin and edge are different conf cells, each divided by its own
+   normal-direction conf Jacobian. (After ghost sync the edge holds the
+   neighbor's interior value at inter-rank boundaries, or the skin copy at
+   physical boundaries.) */
+jacobConstInv_ci_edge : [jacob_cx_edge_inv, jacob_cy_edge_inv, jacob_cz_edge_inv]$
+jacobConstInv_ci_skin : [jacob_cx_skin_inv, jacob_cy_skin_inv, jacob_cz_skin_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
@@ -49,8 +57,9 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const double *jacob_pos_edge, const double *jacob_pos_skin, const double *jacob_vel,
+  const double *poisson_tensor_conf, const double *hamil,
   const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -81,7 +90,7 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   /* Function that computes the surface increment 
      (without a 2/dx factor or 2/dv factor from the Hamiltonian derivative)
      with upwinding based on the grid velocity. */
-  evSurfIncr(fL_e, fR_e, evAt) := block(
+  evSurfIncr(fL_e, fR_e, evAt, jacInvL, jacInvR) := block(
     [jacob_vi,basisJacobNodal,f_l_v,f_l_v_ne,f_r_v,f_r_v_ne,
      clst,fUpwind_c,fUpwind_e,Ghat_c,Ghat_e,incrOut],
     if (rep = "cubic") then (
@@ -98,11 +107,11 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
       for i : 1 thru numJacobNodes do (
         f_l_v_ne : f_l_v_ne + f_l_v[i]/jacob_vi[i]*basisJacobNodal[i]
       ), 
-      f_r_v : evAtNodes(fR_e,jacobNodes,[varsV[dir]]), 
-      f_r_v_ne : 0, 
+      f_r_v : evAtNodes(fR_e,jacobNodes,[varsV[dir]]),
+      f_r_v_ne : 0,
       for i : 1 thru numJacobNodes do (
         f_r_v_ne : f_r_v_ne + f_r_v[i]/jacob_vi[i]*basisJacobNodal[i]
-      )       
+      )
     )
     else (
       /* C^0 linear map (Serendipity): constant Jacobian, exact scalar
@@ -112,7 +121,12 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
       f_l_v_ne : jacobConstInv_vi[dir]*fL_e,
       f_r_v_ne : jacobConstInv_vi[dir]*fR_e
     ),
-    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
+    /* Additionally divide each cell's distribution by its own normal-direction
+       configuration-space Jacobian (C^0 linear position map). The conf pointer
+       declarations are printed once in the main body. */
+    f_l_v_ne : jacInvL*f_l_v_ne,
+    f_r_v_ne : jacInvR*f_r_v_ne,
+    clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], jacob_vx_inv, jacob_vy_inv, jacob_vz_inv, jacob_cx_edge_inv, jacob_cy_edge_inv, jacob_cz_edge_inv, jacob_cx_skin_inv, jacob_cy_skin_inv, jacob_cz_skin_inv],
     printf(fh, "  if (~a>0) { ~%~%",wv),
 
     /* Evaluate surface projection of fUpwind = f_left(cv=1). */
@@ -145,17 +159,26 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
     printf(fh, "~%")
   ),
+  /* Configuration-space Jacobian (per-cell constant) of the skin and edge cells,
+     printed once and used in both edge branches below. */
+  printf(fh, "  const double *jacob_c~a_edge = &jacob_pos_edge[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+  printf(fh, "  const double *jacob_c~a_skin = &jacob_pos_skin[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+  printf(fh, "  const double jacob_c~a_edge_inv = 1.0/jacob_c~a_edge[0]; ~%", clabels[dir], clabels[dir]),
+  printf(fh, "  const double jacob_c~a_skin_inv = 1.0/jacob_c~a_skin[0]; ~%", clabels[dir], clabels[dir]),
+  printf(fh, "~%"),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
 
-  incr : evSurfIncr(fskin_e, fedge_e, 1.0),
+  /* skin is the L cell, edge (ghost) is the R cell. */
+  incr : evSurfIncr(fskin_e, fedge_e, 1.0, jacobConstInv_ci_skin[dir], jacobConstInv_ci_edge[dir]),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*dv11[dir]*incr),
 
   /* otherwise edge == +1, we are doing the right edge boundary and the skin cell needs to be evauluated at -1 */
   printf(fh, "~%  } else { ~%~%"),
 
-  incr : evSurfIncr(fedge_e, fskin_e, -1.0),
+  /* edge (ghost) is the L cell, skin is the R cell. */
+  incr : evSurfIncr(fedge_e, fskin_e, -1.0, jacobConstInv_ci_edge[dir], jacobConstInv_ci_skin[dir]),
   writeCIncrExprsCollect1lhsc(out, dx11[dir]*dv11[dir]*incr),
 
   printf(fh, "~%  } ~%"),
@@ -177,8 +200,11 @@ calcHamilGenBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  /* jacob_pos_edge/skin carried uniformly for a shared function-pointer typedef
+     with the default-model streaming boundary-surface kernels; unused here. */
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const double *jacob_pos_edge, const double *jacob_pos_skin, const double *jacob_vel,
+  const double *poisson_tensor_conf, const double *hamil,
   const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),

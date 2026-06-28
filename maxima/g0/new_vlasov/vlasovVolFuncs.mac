@@ -29,6 +29,13 @@ dv1 : [dv10, dv11, dv12]$
    quadrature point. */
 jacobConstInv_vi : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
 jacobConst_vi : [jacob_vx[0], jacob_vy[0], jacob_vz[0]]$
+/* Symbols for the constant per-direction (inverse) configuration-space
+   Jacobian of the C^0 linear position map; kernels read the first entry of
+   each direction's jacob_pos block since J_x is replicated at every
+   quadrature point. The streaming term in direction dir divides by ONLY the
+   normal-direction conf Jacobian (transverse conf Jacobians stay folded into
+   the stored J_x J_v f). */
+jacobConstInv_ci : [jacob_cx_inv, jacob_cy_inv, jacob_cz_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
@@ -48,16 +55,21 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := blo
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,pb_dim,hamil,f_e,
    fl_v,jacob_vi,basisNodal,fl_v_ne,f_no_J_c,clst_J,f_vol_e,
-   pb,pbBasis,clst_vol,varsPFull],
+   pb,pbBasis,clst_vol,varsPFull,jacobPosArg],
 
-  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  NP : length(bP), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
+  [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
+  NP : length(bP),
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-  const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  /* jacob_pos (configuration-space position-map Jacobian) is carried uniformly
+     in the signature for all reps so the function-pointer typedef is shared
+     across models, exactly as jacob_vel is. It is only USED (the streaming term
+     divided by 1/J_x) for the default-model reps (cubic/linear); for the
+     phase-space Hamiltonian (rep = "none", canonical-PB) it is an unused arg. */
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv,
+  const double *jacob_pos, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil,
+  const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (rep = "cubic") then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
   if (hamil_vel) then (
     hamil : doExpand1(hamil, bV)
@@ -97,17 +109,27 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := blo
     )
     else (
       f_vol_e : f_e
-    ), 
+    ),
+    /* Additionally divide the streaming term by the (constant) configuration-
+       space Jacobian in the normal (streaming) direction dir for the C^0 linear
+       position map. Only the normal-direction conf Jacobian appears; transverse
+       conf Jacobians remain folded into the stored J_x J_v f. Not applied to the
+       phase-space Hamiltonian (rep = "none", canonical-PB). */
+    if (rep # "none") then (
+      printf(fh, "  const double *jacob_c~a = &jacob_pos[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+      printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_c~a[0]; ~%", clabels[dir], clabels[dir]),
+      f_vol_e : jacobConstInv_ci[dir]*f_vol_e
+    ),
     /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
        For instance if we have varsC = [x,y,z] with:
-       - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H} 
-       - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H} 
+       - 1 ignorable coordinate: [x, y, \dot{x}, \dot{y}] are all that show up in {f,H}
+       - 2 ignorable coordinates: [x, \dot{x},] are all that show up in {f,H}
        It is assumed that H does not depend on these ignorable coordinates. */
-    pbBasis : dx1[dir]*dv1[dir]*(PB_vol(bP,hamil,varsC[dir],varsV[dir])), 
-    pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)), 
-    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12, jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
-    writeCIncrExprsCollect1(out, pb, clst_vol), 
-    printf(fh, "~%") 
+    pbBasis : dx1[dir]*dv1[dir]*(PB_vol(bP,hamil,varsC[dir],varsV[dir])),
+    pb : fullratsimp(calcInnerProdList(varsP, 1, pbBasis, f_vol_e)),
+    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12, jacob_vx_inv, jacob_vy_inv, jacob_vz_inv, jacob_cx_inv, jacob_cy_inv, jacob_cz_inv],
+    writeCIncrExprsCollect1(out, pb, clst_vol),
+    printf(fh, "~%")
   ),
 
   printf(fh, "} ~%")
@@ -127,10 +149,10 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *phi, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv,
+  const double *jacob_pos, const double *jacob_vel, const double *phi, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   if (rep = "cubic") then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
-  phi_e : doExpand1(phi, bC), 
+  phi_e : doExpand1(phi, bC),
   f_e : doExpand1(f, bP),
   
   cid : cidx(cdim),
@@ -162,15 +184,20 @@ calcPhiVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
     )
     else (
       f_vol_e : f_e
-    ), 
-    incr_vol : calcInnerProdList(varsP, 1, diff(bP, varsV[dir]), -diff(phi_e,varsC[dir])*f_vol_e),
+    ),
+    /* Transform the configuration-space gradient of phi to the mapped grid:
+       grad_x(phi) = (1/J_x,dir) d/dxi_dir(phi). For the C^0 linear position map
+       J_x,dir is the per-cell constant jacob_c<dir>[0]. */
+    printf(fh, "  const double *jacob_c~a = &jacob_pos[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_c~a[0]; ~%", clabels[dir], clabels[dir]),
+    incr_vol : calcInnerProdList(varsP, 1, diff(bP, varsV[dir]), -jacobConstInv_ci[dir]*diff(phi_e,varsC[dir])*f_vol_e),
     clst_vol : [phi[0], phi[1], phi[2], phi[3], phi[4], phi[5], phi[6], phi[7], phi[8]],
-    writeCIncrExprsCollectFactordx1(out, incr_vol, clst_vol, dx1[dir]*dv1[dir]), 
-    printf(fh, "~%") 
+    writeCIncrExprsCollectFactordx1(out, incr_vol, clst_vol, dx1[dir]*dv1[dir]),
+    printf(fh, "~%")
   ),
 
   printf(fh, "} ~%")
-)$ 
+)$
 
 /* Bulk force contribution, i.e., sum of all forces that do not depend 
    on velocity space (combination of electric field, and other external 

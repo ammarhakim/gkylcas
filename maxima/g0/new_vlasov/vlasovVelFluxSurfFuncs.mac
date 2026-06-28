@@ -33,6 +33,10 @@ fpprec : 24$
 clabels : ["x","y","z"]$
 dx1 : [dx10, dx11, dx12]$
 dv1 : [dv10, dv11, dv12]$
+/* Constant per-direction inverse configuration-space Jacobian of the C^0 linear
+   position map; kernels read the first entry of each direction's jacob_pos
+   block (J_x,dir replicated at every quadrature point). */
+jacobConstInv_ci : [jacob_cx_inv, jacob_cy_inv, jacob_cz_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
@@ -83,9 +87,13 @@ calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *dxv, const double *phi, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(const double *dxv, const double *jacob_pos, const double *phi, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   cid : cidx(cdim),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  /* Transform the configuration gradient of phi to the mapped grid: the force
+     in velocity direction dir is -(1/J_x,dir) d/dxi_dir(phi). */
+  printf(fh, "  const double *jacob_c~a = &jacob_pos[~a]; ~%", clabels[dir], (polyOrder+1)*(dir-1)),
+  printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_c~a[0]; ~%", clabels[dir], clabels[dir]),
   printf(fh, "~%"),
   phi : doExpand1(phi, bC), /* Scalar potential is only a function of configuration space. */
 
@@ -98,10 +106,10 @@ calcPhiVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
   num_nodes_vel : length(nodes_vel), 
   numNodes : length(surfNodes), 
 
-  dphi_dx_l_n : float(evAtNodes(diff(phi,varsC[dir]),nodes_conf,varsC)), 
-  printf(fh, "  double force_quad = 0.0;~%"), 
+  dphi_dx_l_n : float(evAtNodes(diff(phi,varsC[dir]),nodes_conf,varsC)),
+  printf(fh, "  double force_quad = 0.0;~%"),
   for i : 1 thru num_nodes_conf do (
-    printf(fh, "  force_quad = ~a;~%", dphi_dx_l_n[i]),
+    printf(fh, "  force_quad = jacob_c~a_inv*(~a);~%", clabels[dir], dphi_dx_l_n[i]),
     for j : 1 thru num_nodes_vel do (
       printf(fh, "  alpha_quad[~a] -= ~a*force_quad;~%", j-1 + num_nodes_vel*(i-1), dx1[dir])
     ), 
