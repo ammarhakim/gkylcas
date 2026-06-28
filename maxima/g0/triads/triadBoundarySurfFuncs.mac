@@ -87,6 +87,7 @@ calcSurfStreamFluxBoundary(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
 )$
 
 
+/* No longer used for ser, but will be requried for tensor : */
 /* Phase-space Hamiltonian boundary surface streaming */
 calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
@@ -141,7 +142,7 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
     Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)*dv11[j]
   ),
 
-
+/* No longer used for ser, but will be requried for tensor : */
   /* Function that computes the surface increment 
      (without a 2/dx factor or 2/dv factor from the Hamiltonian derivative)
      with upwinding based on the grid velocity. */
@@ -202,7 +203,7 @@ calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun
   printf(fh, "} ~%")
 )$ 
 
-
+/* No longer used for ser, but will be requried for tensor : */
 /* Phase-space Hamiltonian boundary surface streaming */
 calcHamilGenBoundarySurfStreamNonCanonicalNodalBreakup(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 

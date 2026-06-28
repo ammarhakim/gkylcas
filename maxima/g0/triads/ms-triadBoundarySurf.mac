@@ -53,6 +53,8 @@ for bInd : 1 thru length(bName) do (
               fh : openw(fname),
               funcName : sconcat("vlasov_nc_hamil_gen_boundary_",si,"surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
               calcSurfStreamFluxBoundary(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder),
+
+              /* No longer used for ser, but will be requried for tensor : */
               /* if ( bName[bInd] = "ser"  and not(c+v>4 and polyOrder > 1) ) then (
                 calcHamilGenBoundarySurfStreamNonCanonical(dir, fh, funcName, c, v, bName[bInd], polyOrder, useHigherOrder)
               ) 
