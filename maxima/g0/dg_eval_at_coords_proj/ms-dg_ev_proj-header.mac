@@ -83,7 +83,8 @@ printPrototypes(fh) := block(
             ev_dirs0 : makelist(ev_dirs1[i]-1, i, 1, length(ev_dirs1)),
             ev_str : simplode(flatten(ev_dirs0)),
 
-            printf(fh, "GKYL_CU_DH void ~a_eval_dirs_~a(const double *coords, const double *fdo, double *ftar);~%", funcName, ev_str)
+            printf(fh, "GKYL_CU_DH void ~a_eval_dirs_~a(const double *coords, const double *fdo, double *ftar);~%", funcName, ev_str),
+            printf(fh, "GKYL_CU_DH void ~a_eval_dirs_~a_target_basis(int *cdim, int *ndim, enum gkyl_basis_type *btype, int *poly_order, int *num_basis);~%", funcName, ev_str)
           ),
           printf(fh, "~%")
         )
@@ -96,6 +97,7 @@ fh : openw("~/max-out/gkyl_dg_eval_at_coord_proj_kernels.h")$
 printf(fh, "#pragma once~%")$
 printf(fh, "~%")$
 printf(fh, "#include <gkyl_util.h>~%")$
+printf(fh, "#include <gkyl_basis.h>~%")$
 printf(fh, "#include <math.h>~%")$
 printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG~%")$
