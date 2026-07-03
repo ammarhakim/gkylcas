@@ -48,7 +48,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Velocity-space Hamiltonian surface streaming */
-calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
+calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,fl_e,fc_e,fr_e,
@@ -71,7 +71,10 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) :=
   printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
   printf(fh, "  double wv = w[~a]; ~%", vid[dir], vid[dir]),
   printf(fh, "~%"),
-  hamil : doExpand1(hamil, bV), /* Hamiltonian only a function of velocity space. */
+  /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+     the dense storage layout but only references the constant and
+     single-velocity-variable coefficients (cross terms are exactly zero). */
+  hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse"),
 
   /* Surface contribution is defined as integral(phi^- Ghat) over the surface. */
   /* cv = variable in direction of surface update. */

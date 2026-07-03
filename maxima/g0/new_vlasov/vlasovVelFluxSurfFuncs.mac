@@ -161,7 +161,7 @@ calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrd
 )$ 
 
 /* Magnetic force with velocity-space Hamiltonian at velocity-space surface quadrature points. */
-calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep, useHigherOrder) := block(
+calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,NC,vid,hamil,Bx_e,By_e,Bz_e,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    Bx_l_n,By_l_n,Bz_l_n,dH_dvx_l_n,dH_dvy_l_n,dH_dvz_l_n,
@@ -175,7 +175,10 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep, us
   const double *hamil, const double *qmem, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   printf(fh, "~%"),
-  hamil : doExpand1(hamil, bV), /* Hamiltonian only a function of velocity space. */
+  /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+     the dense storage layout but only references the constant and
+     single-velocity-variable coefficients (cross terms are exactly zero). */
+  hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse"),
   vid : vidx(cdim,vdim),   
   Bx_e : doExpand1(Bx, bC), 
   By_e : doExpand1(By, bC), 

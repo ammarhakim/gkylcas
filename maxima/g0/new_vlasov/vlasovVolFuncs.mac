@@ -50,7 +50,7 @@ PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
    (rep = "linear", Serendipity bases) J_vi is constant in the cell so the
    division is an exact scalar multiplication by 1/J_vi. rep = "none"
    (phase-space Hamiltonian models, canonical-PB/Triads) applies no Jacobian. */
-calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
+calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,NP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,pb_dim,hamil,f_e,
@@ -71,11 +71,14 @@ calcHamilVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := blo
   const double *jacob_pos, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil,
   const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (rep = "cubic") then printf(fh, "  double f_no_J[~a] = {0.0}; ~%", NP),
-  if (hamil_vel) then (
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep = "phase") then (
+    hamil : doExpand1(hamil, bP)
   )
   else (
-    hamil : doExpand1(hamil, bP)    
+    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+       the dense storage layout but only references the constant and
+       single-velocity-variable coefficients (cross terms are exactly zero). */
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   ),
   f_e : doExpand1(f, bP),
   
@@ -273,7 +276,7 @@ calcEVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
 /* Force arising due to a magnetic field grad_v(w) . (grad_v(H) x q/m*B) f 
    We separate the kernels based on the magnetic field direction to nicely group 
    the terms for factorizing the final product. */
-calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, rep) := block(
+calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, Bdir, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,NC,NV,NP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    hamil,f_e,vid,
@@ -291,11 +294,14 @@ calcBVol(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, Bdir, rep) := b
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
   const double *jacob_vel, const double *hamil,
   const double *qmem, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-  if (hamil_vel) then (
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep = "phase") then (
+    hamil : doExpand1(hamil, bP)
   )
   else (
-    hamil : doExpand1(hamil, bP)    
+    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+       the dense storage layout but only references the constant and
+       single-velocity-variable coefficients (cross terms are exactly zero). */
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   ),
   f_e : doExpand1(f, bP),
   

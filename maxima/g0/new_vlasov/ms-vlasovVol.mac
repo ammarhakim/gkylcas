@@ -65,12 +65,28 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, "cubic")
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "cubic")
         )
         else (
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, "linear")
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "linear")
         ), 
         close(fh), 
+
+        /* Sparse (separable) velocity-space Hamiltonian volume component.
+           In 1V sparse and dense are identical: only generate for v > 1 and
+           let the kernel tables alias the 1V sparse entries to dense. */
+        if (v > 1) then (
+          fname : sconcat("~/max-out/vlasov_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "cubic")
+          )
+          else (
+            calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "linear")
+          ),
+          close(fh)
+        ), 
 
         /* Force due to a scalar potential. */
         fname : sconcat("~/max-out/vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
@@ -103,46 +119,92 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_Bz_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "cubic")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 3, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "linear")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 3, "linear")
           ),
-          close(fh) 
+          close(fh),
+
+          fname : sconcat("~/max-out/vlasov_Bz_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_Bz_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "cubic")
+          )
+          else (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "linear")
+          ),
+          close(fh)
         )
         else if (v = 3) then (
           fname : sconcat("~/max-out/vlasov_Bx_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_Bx_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, "cubic")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 1, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, "linear")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 1, "linear")
           ),
           close(fh), 
+
+          fname : sconcat("~/max-out/vlasov_Bx_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_Bx_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 1, "cubic")
+          )
+          else (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 1, "linear")
+          ),
+          close(fh),
+
 
           fname : sconcat("~/max-out/vlasov_By_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_By_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, "cubic")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 2, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, "linear")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 2, "linear")
           ),
           close(fh), 
+
+          fname : sconcat("~/max-out/vlasov_By_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_By_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 2, "cubic")
+          )
+          else (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 2, "linear")
+          ),
+          close(fh),
+
 
           fname : sconcat("~/max-out/vlasov_Bz_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_Bz_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "cubic")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 3, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "linear")
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", 3, "linear")
           ),
-          close(fh)                      
+          close(fh),
+
+          fname : sconcat("~/max-out/vlasov_Bz_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+          fh : openw(fname),
+          funcName : sconcat("vlasov_Bz_hamil_vel_sparse_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "cubic")
+          )
+          else (
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "linear")
+          ),
+          close(fh)
         ),
 
         /* Force due to radiation drag which is only a function of velocity space. */
@@ -169,7 +231,7 @@ for bInd : 1 thru length(bName) do (
           fname : sconcat("~/max-out/vlasov_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, "none"),
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", "none"),
           close(fh)
         )
       ) 

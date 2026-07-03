@@ -62,12 +62,28 @@ for bInd : 1 thru length(bName) do (
           funcName : sconcat("vlasov_hamil_vel_dense_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
             /* Generate mapped velocity grid kernels when utilizing the tensor basis. */
-            calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
+            calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "cubic")
           )
           else (
-            calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "linear")
+            calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "linear")
           ),
-          close(fh)
+          close(fh),
+
+          /* Sparse (separable) velocity-space Hamiltonian boundary_surf component.
+             In 1V sparse and dense are identical: only generate for v > 1 and
+             let the kernel tables alias the 1V sparse entries to dense. */
+          if (v > 1) then (
+            fname : sconcat("~/max-out/vlasov_hamil_vel_sparse_boundary_surf", clabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_hamil_vel_sparse_boundary_surf",clabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            if (bName[bInd] = "tensor" and polyOrder > 1) then (
+              calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "cubic")
+            )
+            else (
+              calcHamilVelBoundarySurfStream(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "linear")
+            ),
+            close(fh)
+          )
         ), 
         for dir : 1 thru v do (
 

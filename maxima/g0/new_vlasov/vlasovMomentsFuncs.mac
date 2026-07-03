@@ -43,15 +43,15 @@ calcM0(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
 /* M1i = < dH/dv_i f > where H is the Hamiltonian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -82,15 +82,15 @@ calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 /* M2 = < H f > where H is the Hamiltonian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_M2_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -111,7 +111,7 @@ calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
 /* M3i = < H*dH/dv_i f > where H is the Hamiltonian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
+calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,NV,NP,hamil,fl,M,jfac],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
@@ -124,10 +124,10 @@ calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
      computational derivative; the C^0 linear map Jacobian is constant. */
   if (rep = "linear") then jfac : jacobConstInv_vi else jfac : [1, 1, 1],
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx,
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV),
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_M3i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx,
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse"),
     printf(fh, "  double volFact = ~a/~a; ~%", volExpr(cdim, vdim), 2^vdim),
     vid : vidx(cdim,vdim),
     for i : 1 thru vdim do (
@@ -345,15 +345,15 @@ calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
 /* Calculate M0 = <f>, M1i = < dH/dv_i f >, and M2 = < H f > simultaneously */
 /* Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -389,15 +389,15 @@ calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block
 /* Calculate integrated M0 = <f>, M1i = < dH/dv_i f >, and M2 = < H f > */
 /* Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := block(
+calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -434,7 +434,7 @@ calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel) := bl
 /* M1i = < 1/J_vi dH/dv_i Jf > where H is the Hamiltonian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
+calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
@@ -443,10 +443,10 @@ calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := bloc
 
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_M1i_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -490,16 +490,16 @@ calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := bloc
    where J is the velocity space Jacobian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
+calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -551,16 +551,16 @@ calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep)
    where J is the velocity space Jacobian. 
    Takes boolean input for whether Hamiltonian is a function of only velocity space 
    or a function of the full phase space. */
-calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_vel, rep) := block(
+calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
 
-  if (hamil_vel) then (
-    printf(fh, "GKYL_CU_DH void ~a_hamil_vel_dense_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
-    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep # "phase") then (
+    printf(fh, sconcat("GKYL_CU_DH void ~a_hamil_", hamil_rep, "_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
+    const double *jacob_vel, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%"), funcNm, cdim, vdim, basisFun, polyOrder),
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   )
   else (
     printf(fh, "GKYL_CU_DH void ~a_hamil_phase_int_five_moments_~ax~av_~a_p~a(const double *w, const double *dxv, const int *idx, 
@@ -692,12 +692,22 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, calcHamilPhase) := bloc
   calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep),
   /* Velocity-space Hamiltonian moments: both representations divide the
      velocity-space Jacobian out of Jf for the M1i moment. */
-  calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep),
-  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, true),
+  calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense", rep),
+  calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense"),
   /* The hamil_vel M3i energy flux is only in the Serendipity kernel tables. */
-  if (basisFun = "ser") then calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep),
-  calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep),
-  calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep), 
+  if (basisFun = "ser") then calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense", rep),
+  calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense", rep),
+  calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense", rep),
+  /* Sparse (separable) velocity-space Hamiltonian moments. In 1V sparse and
+     dense are identical: only generate for vdim > 1 and let the kernel tables
+     alias the 1V sparse entries to dense. */
+  if (vdim > 1) then (
+    calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_sparse", rep),
+    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_sparse"),
+    if (basisFun = "ser") then calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_sparse", rep),
+    calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_sparse", rep),
+    calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_sparse", rep)
+  ), 
   /* Partial (threshold) M0 moments are only in the tensor kernel tables. */
   if (basisFun = "tensor" and polyOrder > 1 and vdim = 1) then (
     calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep),
@@ -706,9 +716,9 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, calcHamilPhase) := bloc
   /* Phase-space Hamiltonian moments (canonical-PB/Triads): no velocity-map
      Jacobian handling, matching the rest of those models. */
   if (basisFun = "ser" and calcHamilPhase) then (
-    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false), 
-    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, false) 
+    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
+    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
+    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
+    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase") 
   )
 )$
