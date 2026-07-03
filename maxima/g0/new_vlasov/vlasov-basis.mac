@@ -76,6 +76,36 @@ loadVlasovBasis(basisType, cdim, vdim, polyOrder) := block(
   return([varsC,bC,varsV,bV,varsP,bP])
 )$
 
+/* --- Sparse-Hamiltonian helpers ------------------------------------------
+   A separable Hamiltonian H = sum_i H_i(v_i) has exactly zero projection onto
+   any (orthonormal) basis function depending on two or more velocity
+   variables. We KEEP the dense modal storage layout; sparsity is realized by
+   generating kernels whose Hamiltonian expansion never references those
+   (identically zero) cross-variable coefficients. Because
+   doExpand1(f, basis) = sum_i f[i-1]*basis[i], zeroing entries of a copy of
+   the basis list preserves the dense coefficient indexing. */
+
+/* Copy of basis with every function depending on more than one velocity
+   variable replaced by 0. */
+zeroCrossVelBasis(basis, varsVel) := makelist(
+  if length(intersection(setify(listofvars(basis[i])), setify(varsVel))) <= 1
+    then basis[i] else 0,
+  i, 1, length(basis))$
+
+/* Expansion of the Hamiltonian symbol hamilS on basis.
+   sparse = true  -> keep only constant/single-velocity-variable basis
+                     functions, indexing the DENSE coefficient slots.
+   sparse = false -> full doExpand1. */
+hamilExpand(hamilS, basis, varsVel, sparse) :=
+  if sparse then doExpand1(hamilS, zeroCrossVelBasis(basis, varsVel))
+  else doExpand1(hamilS, basis)$
+
+/* Velocity-gradient list [dH/dv_1, ..., dH/dv_vdim] of the (sparse or dense)
+   Hamiltonian expansion. */
+hamilVelGrad(hamilS, basis, varsVel, sparse) := block([h_e],
+  h_e : hamilExpand(hamilS, basis, varsVel, sparse),
+  makelist(diff(h_e, varsVel[d]), d, 1, length(varsVel)))$
+
 loadVlasovVelSurfBasis(cdim, vdim, basisType, polyOrder, surfVars, surfVVars, varsC, useHigherOrder) := block(
   [hybten, btype],
   hybten : (polyOrder = 1) and (basisType = "tensor"),

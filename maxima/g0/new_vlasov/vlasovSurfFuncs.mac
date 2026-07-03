@@ -213,7 +213,7 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) :=
 )$  
 
 /* Phase-space Hamiltonian surface streaming */
-calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
+calcHamilPhaseSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
    bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes, 
    NSurf,num_nodes_conf,num_nodes_vel,numNodes,fl_e,fc_e,fr_e,

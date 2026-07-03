@@ -191,7 +191,7 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
 )$  
 
 /* Phase-space Hamiltonian boundary surface streaming */
-calcHamilGenBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
+calcHamilPhaseBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,vid,hamil,cv,vv,surfVars,surfCVars, 
    bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes, 
    NSurf,num_nodes_conf,num_nodes_vel,numNodes,

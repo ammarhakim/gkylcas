@@ -44,7 +44,7 @@ velHamil     : [true, false]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
-hamilLabels : ["vel", "phase"]$
+hamilLabels : ["vel_dense", "phase"]$
 
 /* Generate kernels of selected types. */
 for bInd : 1 thru length(bName) do (
@@ -53,6 +53,9 @@ for bInd : 1 thru length(bName) do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c=3) then maxPolyOrderB : 1, /* Only generate p=1 kernels for 3x3v */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      /* 2x3v p=2 kernels are expensive to generate; skip them in routine
+         regenerations and produce them separately when needed. */
+      if (c = 2 and v = 3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
         for vhamilInd : 1 thru length(velHamil) do (
           vel_hamil : velHamil[vhamilInd],

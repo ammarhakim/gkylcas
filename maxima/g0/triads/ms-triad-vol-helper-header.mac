@@ -32,7 +32,7 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 velHamil     : [true, false]$
 
-hamilLabels : ["vel", "phase"]$
+hamilLabels : ["vel_dense", "phase"]$
 
 printPrototype(comp, deco, ci, vi, bStr, hStr, pi) := block([si],
   if (ci <= vi and pi < 3) then (

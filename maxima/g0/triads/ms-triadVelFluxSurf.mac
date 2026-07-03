@@ -40,14 +40,16 @@ velHamil     : [true, false]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
-hamilLabels : ["vel", "phase"]$
+hamilLabels : ["vel_dense", "phase"]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
     for v : max(c,minVdim[bInd]) thru maxVdim[bInd] do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-
+      /* 2x3v p=2 kernels are expensive to generate; skip them in routine
+         regenerations and produce them separately when needed. */
+      if (c = 2 and v = 3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
       for polyOrder : minPolyOrder[bInd] thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating hamiltonian force velocity flux ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),

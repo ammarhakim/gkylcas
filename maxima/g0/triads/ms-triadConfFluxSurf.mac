@@ -40,7 +40,7 @@ velHamil     : [true, false]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
-hamilLabels : ["vel", "phase"]$
+hamilLabels : ["vel_dense", "phase"]$
 
 for bInd : 1 thru length(bName) do (
   for c : minCdim[bInd] thru maxCdim[bInd] do (
@@ -51,7 +51,9 @@ for bInd : 1 thru length(bName) do (
       minPolyOrderB : minPolyOrder[bInd],
       maxPolyOrderB : maxPolyOrder[bInd],
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-
+      /* 2x3v p=2 kernels are expensive to generate; skip them in routine
+         regenerations and produce them separately when needed. */
+      if (c = 2 and v = 3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating configuration flux ",bName[bInd]," ~ax~av_p~a"),c,v,polyOrder)),
         /* Can only have scalar potential force in directions where we can take configuration space gradients. */
