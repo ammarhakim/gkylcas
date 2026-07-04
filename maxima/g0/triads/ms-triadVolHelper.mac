@@ -8,10 +8,10 @@ load(stringproc)$
 /* Serendipity basis. */
 /* Serendipity basis. */
 minPolyOrder_Ser : 1$
-maxPolyOrder_Ser : 1$
-minCdim_Ser : 2$
-minVdim_Ser : 3$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
+maxPolyOrder_Ser : 2$
+minCdim_Ser : 1$
+minVdim_Ser : 2$    /* see begining of v loop below though. */
+maxCdim_Ser : 3$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
@@ -19,7 +19,7 @@ minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 0$ /* tensor-hybrid (p=1) kernels are not hooked into any kernel table; re-enable when hybrid Vlasov support lands. */
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -33,10 +33,16 @@ minCdim      : [minCdim_Ser, minCdim_Tensor]$
 minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
-velHamil     : [true, false]$
+/* Hamiltonian representations: the label is both the kernel-name segment and
+   the hamil_rep passed to the generators. vel_sparse is skipped in 1V (sparse
+   and dense are identical there; kernel tables alias 1V sparse to dense). */
+velHamil     : ["vel_dense", "phase"]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
+/* No sparse vol_alpha: the sparse flavor inlines the exact bracket at
+   every combo (see ms-triadVol.mac), so only dense/phase use the
+   precomputed-alpha path. */
 hamilLabels : ["vel_dense", "phase"]$
 
 /* Generate kernels of selected types. */
@@ -61,12 +67,13 @@ for bInd : 1 thru length(bName) do (
             close(fh) 
           ),
           for vhamilInd : 1 thru length(velHamil) do (
-            vel_hamil : velHamil[vhamilInd],
+            hamil_rep : velHamil[vhamilInd],
+
             fname : sconcat("~/max-out/vlasov_nc_hamil_", hamilLabels[vhamilInd], "_vol_alpha_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             disp(printf(false,"Creating volume file: ~a",fname)),
             fh : openw(fname),
             funcName : sconcat("vlasov_nc_hamil_", hamilLabels[vhamilInd], "_vol_alpha_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcHamilVolNonCanonicalAlpha(fh, funcName, c, v, bName[bInd], polyOrder, vel_hamil, false),
+            calcHamilVolNonCanonicalAlpha(fh, funcName, c, v, bName[bInd], polyOrder, hamil_rep, false),
             close(fh) 
           )
         )

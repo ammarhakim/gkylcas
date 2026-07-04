@@ -35,7 +35,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, useHigherOrder) := block(
+calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dv_l, NC, vid],
@@ -51,11 +51,14 @@ calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, v
   vid : vidx(cdim,vdim),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   printf(fh, "~%"),
-  if (vel_hamil) then (
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep = "phase") then (
+    hamil : doExpand1(hamil, bP)
   )
   else (
-    hamil : doExpand1(hamil, bP)    
+    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+       the dense storage layout but only references the constant and
+       single-velocity-variable coefficients (cross terms are exactly zero). */
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   ),
 
   /* Save enough names for 3D */

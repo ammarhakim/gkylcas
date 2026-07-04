@@ -16,7 +16,7 @@ minPolyOrder_Tensor : 1$
 maxPolyOrder_Tensor : 0$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 3$
+maxCdim_Tensor : 0$ /* tensor-hybrid (p=1) kernels are not hooked into any kernel table; re-enable when hybrid Vlasov support lands. */
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -32,6 +32,9 @@ maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 velHamil     : [true, false]$
 
+/* No sparse vol_alpha: the sparse flavor inlines the exact bracket at
+   every combo (see ms-triadVol.mac), so only dense/phase use the
+   precomputed-alpha path. */
 hamilLabels : ["vel_dense", "phase"]$
 
 printPrototype(comp, deco, ci, vi, bStr, hStr, pi) := block([si],

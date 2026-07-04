@@ -89,7 +89,7 @@ grab_dir_from_pt_index(vdim, pt_index) := block(
 /* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
-calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, vmap) := block(
+calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, vmap) := block(
   [varsC, bC, varsV, bV, varsP, bP, NP,
   cid, vid, pdim, NC,
   hamil, f_e, f_vol_e,
@@ -107,11 +107,14 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil,
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
   const double *jacob_pos, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
-  if (vel_hamil) then (
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep = "phase") then (
+    hamil : doExpand1(hamil, bP)
   )
   else (
-    hamil : doExpand1(hamil, bP)    
+    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+       the dense storage layout but only references the constant and
+       single-velocity-variable coefficients (cross terms are exactly zero). */
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   ),
   f_e : doExpand1(f, bP),
 

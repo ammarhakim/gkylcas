@@ -38,7 +38,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, useHigherOrder) := block(
+calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dz_l],
@@ -51,11 +51,14 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
 
   printf(fh, "~%"),
-  if (vel_hamil) then (
-    hamil : doExpand1(hamil, bV)
+  if (hamil_rep = "phase") then (
+    hamil : doExpand1(hamil, bP)
   )
   else (
-    hamil : doExpand1(hamil, bP)    
+    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
+       the dense storage layout but only references the constant and
+       single-velocity-variable coefficients (cross terms are exactly zero). */
+    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
   ),
 
   /* Save enough names for 3D (conf and vel spaces)*/
@@ -79,7 +82,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   vid : vidx(cdim,vdim), 
   for i : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1, i, cdim+i-1),
   for i : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", i-1, vid[i]),
-  if not(vel_hamil) then (
+  if (hamil_rep = "phase") then (
     for i : 1 thru cdim do printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", i-1, i-1)
   ),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
@@ -93,7 +96,7 @@ calcHamilGenVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, poly
   /* \Pi_{px} contributions (Pi is allways 2vdim * 2vdim, regardless of cdim) */
   /* alpha^i = \Pi^{ij}_{px} \pfrac{H}{x^j} = - \Pi^{ji}_{xp} \pfrac{H}{x^j} */
   /* for i = (vx, vy, vz), x^j = (x, y, z)*/
-  if not(vel_hamil) then (
+  if (hamil_rep = "phase") then (
     if (vdim = 1) then (
       
       /* Offset the row by vdim*vdim*NC components so we are in the bottom right block */
