@@ -27,6 +27,7 @@ load("out-scripts");
 load("utilities")$
 load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
+load("new_vlasov/nodal-lax-emit");
 load(stringproc)$
 fpprec : 24$
 
@@ -358,39 +359,54 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep
    vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,jacob_edge,jacob_vi_surf,jacob_surf_tot,
-   f_l_e,f_r_e,f_l_n,f_r_n,lax_list,lax_e,Ghat_c],
+   fact,sizesNA,jacMul,i],
 
-  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
+
+  vv : varsV[dir],
+  surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
+  surfVVars : delete(vv,varsV),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
+  NSurf : length(bSurf),
+  num_nodes_conf : length(nodes_conf),
+  num_nodes_vel : length(nodes_vel),
+  numNodes : length(surfNodes),
+
+  /* Sum-factorized nodal evaluation: outer factor = configuration space,
+     inner factor = the normal velocity variable (evaluated at the +/-1 edge)
+     and the remaining velocity surface variables. Verify the flat node
+     ordering (inner fastest) that the loops below reproduce. */
+  laxAssertNodeOrder(surfNodes, nodes_conf, nodes_vel),
+  fact : laxFactorizeBasis(bP, varsC, cons(vv, surfVVars)),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf_l, const double *jacob_vel_surf_r, 
-  const double *alpha_quad, const double *f_l, const double *f_r, 
+  sizesNA : laxEmitData(fh, funcNm, fact, varsC, nodes_conf, vv, surfVVars, nodes_vel),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf_l, const double *jacob_vel_surf_r,
+  const double *alpha_quad, const double *f_l, const double *f_r,
   double *lax, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   vid : vidx(cdim,vdim),
   printf(fh, "  double dv1~a = 2.0/dxv[~a]; ~%", dir-1, vid[dir]),
   printf(fh, "~%"),
-
-  vv : varsV[dir], 
-  surfVars : delete(vv,varsP), /* Surface variables at constant vv surface. */
-  surfVVars : delete(vv,varsV), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovVelSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfVVars, varsC, useHigherOrder),
-  NSurf : length(bSurf), 
-  num_nodes_conf : length(nodes_conf), 
-  num_nodes_vel : length(nodes_vel), 
-  numNodes : length(surfNodes), 
   printf(fh, "  double *out = &Fhat_nodal[~a]; ~%", (dir-1)*numNodes),
 
   if (rep = "cubic") then (
     /* C^1 cubic map: the surface Jacobian is continuous at the interface, so
-       evaluate from the current ("r") cell, which owns its lower surface. */
-    [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, polyOrder, dir, nodes_vel, surfVVars, surfNodes, surfVars, true), 
+       evaluate from the current ("r") cell, which owns its lower surface.
+       The Jacobian is node-dependent; fill a nodal scratch array indexed by
+       the flat node index used in the Lax loop below. */
+    [jacob_edge, jacob_vi_surf, jacob_surf_tot] : loadSurfVelJacobian(vdim, polyOrder, dir, nodes_vel, surfVVars, surfNodes, surfVars, true),
     printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf_r[0]; ~%"),
     if (vdim > 1) then (
       printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf_r[~a]; ~%", (polyOrder+2))
     ),
     if (vdim = 3) then (
       printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf_r[~a]; ~%", 2*(polyOrder+2))
-    )
+    ),
+    printf(fh, "  double jac_nodal[~a]; ~%", numNodes),
+    for i : 1 thru numNodes do (
+      printf(fh, "  jac_nodal[~a] = ~a; ~%", i-1, jacob_surf_tot[i])
+    ),
+    jacMul : "jac_nodal[n]*"
   )
   else (
     /* C^0 linear map: the per-direction Jacobian is a cell constant,
@@ -402,51 +418,39 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep
       if (vdim = 2) then (
         if (dir = 1) then (
           printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf_r[~a]; ~%", (polyOrder+2)),
-          jacob_surf_tot : makelist(jacob_vel_surf_vy[0], i, 1, length(surfNodes))
+          printf(fh, "  const double jac_tot = jacob_vel_surf_vy[0]; ~%")
         )
         else (
           printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf_r[0]; ~%"),
-          jacob_surf_tot : makelist(jacob_vel_surf_vx[0], i, 1, length(surfNodes))
+          printf(fh, "  const double jac_tot = jacob_vel_surf_vx[0]; ~%")
         )
       )
       else (
         if (dir = 1) then (
           printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf_r[~a]; ~%", (polyOrder+2)),
           printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf_r[~a]; ~%", 2*(polyOrder+2)),
-          jacob_surf_tot : makelist(jacob_vel_surf_vy[0]*jacob_vel_surf_vz[0], i, 1, length(surfNodes))
+          printf(fh, "  const double jac_tot = jacob_vel_surf_vy[0]*jacob_vel_surf_vz[0]; ~%")
         )
         else if (dir = 2) then (
           printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf_r[0]; ~%"),
           printf(fh, "  const double *jacob_vel_surf_vz = &jacob_vel_surf_r[~a]; ~%", 2*(polyOrder+2)),
-          jacob_surf_tot : makelist(jacob_vel_surf_vx[0]*jacob_vel_surf_vz[0], i, 1, length(surfNodes))
+          printf(fh, "  const double jac_tot = jacob_vel_surf_vx[0]*jacob_vel_surf_vz[0]; ~%")
         )
         else (
           printf(fh, "  const double *jacob_vel_surf_vx = &jacob_vel_surf_r[0]; ~%"),
           printf(fh, "  const double *jacob_vel_surf_vy = &jacob_vel_surf_r[~a]; ~%", (polyOrder+2)),
-          jacob_surf_tot : makelist(jacob_vel_surf_vx[0]*jacob_vel_surf_vy[0], i, 1, length(surfNodes))
+          printf(fh, "  const double jac_tot = jacob_vel_surf_vx[0]*jacob_vel_surf_vy[0]; ~%")
         )
-      )
+      ),
+      jacMul : "jac_tot*"
     )
     else (
-      jacob_surf_tot : makelist(1, i, 1, length(surfNodes))
+      jacMul : ""
     ),
     printf(fh, "  const double jacob_vel_surf_min = fmin(jacob_vel_surf_l[~a], jacob_vel_surf_r[~a]); ~%", (polyOrder+2)*(dir-1), (polyOrder+2)*(dir-1))
-  ), 
-  /* Create expansions of f_left and f_right on volume basis. */
-  f_l_e : doExpand1(f_l, bP),
-  f_r_e : doExpand1(f_r, bP),
-  f_l_n : float(evAtNodes(subst(vv=1,f_l_e),surfNodes,surfVars)), 
-  f_r_n : float(evAtNodes(subst(vv=-1,f_r_e),surfNodes,surfVars)), 
-  printf(fh, "  double alpha_max = 0.0; ~%"), 
-  printf(fh, "  double f_l_quad = 0.0; ~%"), 
-  printf(fh, "  double f_r_quad = 0.0; ~%"), 
-  for i : 1 thru numNodes do (
-    printf(fh, "  alpha_max = fmax(alpha_max, fabs(alpha_quad[~a])); ~%", i-1), 
-    printf(fh, "  f_l_quad = ~a; ~%", f_l_n[i]), 
-    printf(fh, "  f_r_quad = ~a; ~%", f_r_n[i]), 
-    printf(fh, "  out[~a] = 0.5*(~a)*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, jacob_surf_tot[i], i-1, i-1),
-    printf(fh, "~%")    
-  ), 
+  ),
+  /* Two-stage (sum-factorized) nodal evaluation of f_l/f_r + Lax flux. */
+  laxEmitBody(fh, funcNm, length(bP), sizesNA[1], sizesNA[2], sizesNA[3], num_nodes_conf, num_nodes_vel, jacMul),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
   if (rep = "cubic") then (
@@ -458,4 +462,4 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
-)$ 
+)$

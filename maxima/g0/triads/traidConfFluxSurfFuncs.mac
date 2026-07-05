@@ -25,6 +25,7 @@ load("out-scripts");
 load("utilities")$
 load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
+load("new_vlasov/nodal-lax-emit");
 load(stringproc)$
 fpprec : 24$
 
@@ -111,51 +112,46 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
 
 /* Nodal Lax-Friedrichs to modal configuration-space flux. */
 calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,
+  [varsC,bC,varsV,bV,varsP,bP,cid,cv,
    surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
-   surfNodes,numNodes,jacob_edge,jacob_vi_surf,jacob_surf_tot,
-   f_l_e,f_r_e,f_l_n,f_r_n,lax_list,lax_e,Ghat_c],
+   surfNodes,numNodes,fact,sizesNA],
 
-  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
+  [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
+
+  cv : varsC[dir],
+  surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
+  surfCVars : delete(cv,varsC),
+  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV, useHigherOrder),
+  NSurf : length(bSurf),
+  num_nodes_conf : length(nodes_conf),
+  num_nodes_vel : length(nodes_vel),
+  numNodes : length(surfNodes),
+
+  /* Sum-factorized nodal evaluation: outer factor = the remaining
+     configuration-space surface variables, inner factor = the normal
+     configuration variable (evaluated at the +/-1 edge) and all velocity
+     variables. Verify the flat node ordering (inner fastest) that the
+     loops below reproduce. */
+  laxAssertNodeOrder(surfNodes, nodes_conf, nodes_vel),
+  fact : laxFactorizeBasis(bP, surfCVars, cons(cv, varsV)),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf, 
-  const double *alpha_quad, const double *f_l, const double *f_r, 
+  sizesNA : laxEmitData(fh, funcNm, fact, surfCVars, nodes_conf, cv, varsV, nodes_vel),
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf,
+  const double *alpha_quad, const double *f_l, const double *f_r,
   double *lax, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm),
   cid : cidx(cdim),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
   printf(fh, "~%"),
-
-  cv : varsC[dir], 
-  surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
-  surfCVars : delete(cv,varsC), 
-  [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV, useHigherOrder),
-  NSurf : length(bSurf), 
-  num_nodes_conf : length(nodes_conf), 
-  num_nodes_vel : length(nodes_vel), 
-  numNodes : length(surfNodes), 
   printf(fh, "  double *out = &Fhat_nodal[~a]; ~%", (dir-1)*numNodes),
 
-  /* Create expansions of f_left and f_right on volume basis. */
-  f_l_e : doExpand1(f_l, bP),
-  f_r_e : doExpand1(f_r, bP),
-  f_l_n : float(evAtNodes(subst(cv=1,f_l_e),surfNodes,surfVars)), 
-  f_r_n : float(evAtNodes(subst(cv=-1,f_r_e),surfNodes,surfVars)), 
-  printf(fh, "  double alpha_max = 0.0; ~%"), 
-  printf(fh, "  double f_l_quad = 0.0; ~%"), 
-  printf(fh, "  double f_r_quad = 0.0; ~%"), 
-  for i : 1 thru numNodes do (
-    printf(fh, "  alpha_max = fmax(alpha_max, fabs(alpha_quad[~a])); ~%", i-1), 
-    printf(fh, "  f_l_quad = ~a; ~%", f_l_n[i]), 
-    printf(fh, "  f_r_quad = ~a; ~%", f_r_n[i]), 
-    printf(fh, "  out[~a] = 0.5*(alpha_quad[~a]*(f_r_quad + f_l_quad) - fabs(alpha_quad[~a])*(f_r_quad - f_l_quad)); ~%", i-1, i-1, i-1),
-    printf(fh, "~%")    
-  ), 
+  /* Two-stage (sum-factorized) nodal evaluation of f_l/f_r + Lax flux. */
+  laxEmitBody(fh, funcNm, length(bP), sizesNA[1], sizesNA[2], sizesNA[3], num_nodes_conf, num_nodes_vel, ""),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
   printf(fh, "  return ~a*~a*alpha_max;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
-)$ 
+)$
