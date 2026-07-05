@@ -136,7 +136,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       )
     ),
     if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
-      printf(fh, "~adouble lax_flux_nodal_to_modal_~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble lax_flux_nodal_~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT conf_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
@@ -150,11 +150,11 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
     )
     else (
-      printf(fh, "~adouble lax_flux_nodal_to_modal_~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble lax_flux_nodal_~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT conf_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~adouble ho_lax_flux_nodal_to_modal_~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble ho_lax_flux_nodal_~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT conf_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
@@ -208,7 +208,7 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       )
     ),
     if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
-      printf(fh, "~adouble lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble lax_flux_nodal_v~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel_surf_l, const double *jacob_vel_surf_r, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
@@ -234,11 +234,11 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
       const double *rad, double* GKYL_RESTRICT alpha_quad); ~%", deco, cvars[si], ci, vi, bStr, pi)
     )
     else (
-      printf(fh, "~adouble lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble lax_flux_nodal_v~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel_surf_l, const double *jacob_vel_surf_r, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),
-      printf(fh, "~adouble ho_lax_flux_nodal_to_modal_v~a_~ax~av_~a_p~a(const double *dxv, 
+      printf(fh, "~adouble ho_lax_flux_nodal_v~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel_surf_l, const double *jacob_vel_surf_r, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
       double* GKYL_RESTRICT vel_flux_surf) ; ~%", deco, cvars[si], ci, vi, bStr, pi),

@@ -52,9 +52,6 @@ for bInd : 1 thru length(bName) do (
       maxPolyOrderB : maxPolyOrder[bInd],
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-      /* 2x3v p=2 kernels are expensive to generate; skip them in routine
-         regenerations and produce them separately when needed. */
-      if (c = 2 and v = 3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       /* Skip 2x3v tensor kernels: not used by the kernel tables and very
          expensive to generate. */
       if (bName[bInd] = "tensor" and c = 2 and v = 3) then maxPolyOrderB : 0,
@@ -222,9 +219,6 @@ for bInd : 1 thru length(bName) do (
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
-      /* 2x3v p=2 kernels are expensive to generate; skip them in routine
-         regenerations and produce them separately when needed. */
-      if (c = 2 and v = 3 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do ( 
         /* Phase-space Hamiltonian volume component. Only generate with Serendipity basis for now. */
         if (bName[bInd] = "ser") then (
