@@ -35,7 +35,7 @@ cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
-calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, useHigherOrder) := block(
+calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,PI_dH_dv_l, NC, vid],

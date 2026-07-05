@@ -201,6 +201,11 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep,
 /* Hamiltonian volume contribution for Non-Canonical Brackets, either just streaming, 
    grad_x(w) . grad_v(H) f, if Hamiltonian only depends on velocity space, or, 
    grad_x(w) . grad_v(H) f - grad_v(w) . grad_x(H) f  */
+/* Precomputed-alpha volume update: projects alpha = P . grad(H) onto the
+   dense phase basis, then accumulates the bracket via the hamil_gen vol
+   component kernels (Hamiltonian-agnostic once alpha is modal). Used by the
+   vel_dense and phase flavors only; the sparse (separable) Hamiltonian
+   always takes the inline exact-bracket path (calcHamilVolNonCanonical). */
 calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamilLabel, vmap) := block(
   [varsC, bC, varsV, bV, varsP, bP, NP,
   cid, vid, pdim, NC,
@@ -212,7 +217,7 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
   NC : length(bC), 
   NP : length(bP), 
 
-  printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_nc_hamil_gen_vol_comps_kernels.h> ~%"),
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
 
   funcNameDot : sconcat("dot_pb_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),

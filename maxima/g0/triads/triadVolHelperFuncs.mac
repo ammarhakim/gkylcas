@@ -99,7 +99,7 @@ calcHamilVolNonCanonicalHelper(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp
   NC : length(bC), 
   NP : length(bP), 
 
-  printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_nc_hamil_gen_vol_comps_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int dir,
    const double *alpha, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
 
@@ -150,7 +150,7 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
   NC : length(bC), 
   NP : length(bP), 
 
-  printf(fh, "#include <gkyl_nc_hamil_vol_comps_kernels.h> ~%"),
+  printf(fh, "#include <gkyl_nc_hamil_gen_vol_comps_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int dir,
    const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (hamil_rep = "phase") then (

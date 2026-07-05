@@ -51,9 +51,16 @@ printPrototype(comp, deco, ci, vi, bStr, hStr, pi) := block([si],
 )$
 
 /* ............ Write out the C header file ............ */
-fh : openw("~/max-out/gkyl_nc_hamil_vol_comps_kernels.h")$
+fh : openw("~/max-out/gkyl_nc_hamil_gen_vol_comps_kernels.h")$
 
 printf(fh, "#pragma once ~%")$
+printf(fh, "// These component kernels evaluate the volume-term Galerkin contraction ~%")$
+printf(fh, "// <grad(phi), alpha f> from a PRECOMPUTED modal phase-space alpha. They are ~%")$
+printf(fh, "// agnostic to the form of the Hamiltonian -- the alpha handed to them has ~%")$
+printf(fh, "// already been projected onto the dense phase basis -- hence the hamil_gen ~%")$
+printf(fh, "// naming. Only the vel_dense and phase Hamiltonian flavors use this ~%")$
+printf(fh, "// machinery: the sparse (separable) Hamiltonian always uses the inline ~%")$
+printf(fh, "// exact-bracket volume kernels and never calls these components. ~%")$
 printf(fh, "#include <math.h> ~%")$
 printf(fh, "#include <gkyl_util.h> ~%")$
 printf(fh, "EXTERN_C_BEG ~%")$

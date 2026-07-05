@@ -95,47 +95,27 @@ printPrototype(deco, ci, vi, bStr, pi) := block([si],
     ),
     if ((ci <= vi  and pi < 3) and not(pi = 2 and bStr = "tensor")) then (
       if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
-        printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
       ) 
       else (
-        printf(fh, "~adouble vlasov_nc_hamil_gen_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_nc_hamil_gen_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const double *flux_l, const double *flux_r, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_nc_hamil_gen_boundary_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
+        printf(fh, "~adouble vlasov_boundary_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv,
         const int edge, const double *flux, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
       )
     ),
-    if (bStr = "ser") then (
-      if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
-        printf(fh, "~adouble vlasov_hamil_phase_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_l, const double *jacob_pos_c, const double *jacob_pos_r, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_hamil_phase_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_edge, const double *jacob_pos_skin, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
-      )
-      else (
-        printf(fh, "~adouble vlasov_hamil_phase_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_l, const double *jacob_pos_c, const double *jacob_pos_r, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_hamil_phase_boundary_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_edge, const double *jacob_pos_skin, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_hamil_phase_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_l, const double *jacob_pos_c, const double *jacob_pos_r, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi),
-        printf(fh, "~adouble vlasov_hamil_phase_boundary_ho_surf~a_~ax~av_~a_p~a(const double *w, const double *dxv, 
-        const double *jacob_pos_edge, const double *jacob_pos_skin, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
-        const int edge, const double *fedge, const double *fskin, double* GKYL_RESTRICT out); ~%", deco, cvars[si], ci, vi, bStr, pi)
-      )
-    ),
-    if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then ( 
+    /* The inline phase-Hamiltonian stream-surface kernels were retired:
+       canonical-PB models stream through the configuration-space flux
+       machinery and the Hamiltonian-agnostic vlasov_(boundary_)(ho_)surf*
+       consumers declared above. */
+    if ((bStr = "ser") and (pi = 1)) or (bStr = "tensor") then (
       printf(fh, "~adouble lax_flux_nodal_~a_~ax~av_~a_p~a(const double *dxv, 
       const double *jacob_vel, const double *alpha_quad, 
       const double *f_l, const double *f_r, double *lax_nodal_quad, 
