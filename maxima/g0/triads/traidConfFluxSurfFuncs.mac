@@ -26,6 +26,7 @@ load("utilities")$
 load("nodal_operations/nodal_functions")$
 load("new_vlasov/vlasov-basis");
 load("new_vlasov/nodal-lax-emit");
+load("new_vlasov/surf-eval-tables");
 load(stringproc)$
 fpprec : 24$
 
@@ -37,33 +38,22 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Phase-space Hamiltonian forces at velocity-space surface quadrature points. */
 calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, useHigherOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
+  [varsC,bC,varsV,bV,varsP,bP,cid,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
-   surfNodes,numNodes,PI_dH_dv_l, NC, vid],
+   surfNodes,numNodes,NC,NV,NB,vid,tag,fact,NA,tabP,NS,b,j,edge,i],
 
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NC : length(bC), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int hamil_pt_edge, 
+  surfTabInclude(fh, cdim, vdim, basisFun, polyOrder),
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int hamil_pt_edge,
     const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   printf(fh, "~%"),
-  if (hamil_rep = "phase") then (
-    hamil : doExpand1(hamil, bP)
-  )
-  else (
-    /* Velocity-space Hamiltonian. The sparse (separable) representation keeps
-       the dense storage layout but only references the constant and
-       single-velocity-variable coefficients (cross terms are exactly zero). */
-    hamil : hamilExpand(hamil, bV, varsV, hamil_rep = "vel_sparse")
-  ),
-
-  /* Save enough names for 3D */
-  poissonTensorConf : [poisson_tensor_conf_0, poisson_tensor_conf_1, poisson_tensor_conf_2],
 
   /* Surface contribution is defined as integral(phi^- Fhat) over the surface. */
   /* cv = variable in direction of surface update. */
@@ -71,51 +61,107 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
   surfVars : delete(cv,varsP), /* Surface variables at constant cv surface. */
   surfCVars : delete(cv,varsC), /* Remaining configuration space variables at cv surface. */
   [bSurf,nodes_conf,basisNodalConf,nodes_vel,basisNodalVel,surfNodes] : loadVlasovConfSurfBasis(cdim, vdim, basisFun, polyOrder, surfVars, surfCVars, varsV, useHigherOrder),
-  NSurf : length(bSurf), 
-  num_nodes_conf : length(nodes_conf), 
-  num_nodes_vel : length(nodes_vel), 
-  numNodes : length(surfNodes), 
+  NSurf : length(bSurf),
+  num_nodes_conf : length(nodes_conf),
+  num_nodes_vel : length(nodes_vel),
+  numNodes : length(surfNodes),
+  tag : surfTabTag(cdim, vdim, basisFun, polyOrder, useHigherOrder),
+  NV : length(bV),
+  NB : length(bP),
 
-  /* Compute the characteristic for the NC Poisson Tensor */
-  /* alpha^i = \Pi^{ij} \pfrac{H}{z^j} */
-  /* Since \Pi_{xx} = 0, we only need velocity gradients of H w.r.t. v_i*/
-  Pi_dH_dv : 0,
-  for j : 1 thru vdim do (
-
-    /* Offset the row by NC*(dir - 1)*vdim components */
+  /* alpha^i = Pi^{ij} dH/dz^j; Pi_xx = 0, so only velocity gradients enter.
+     Pi rows are configuration-space expansions evaluated at (cv = edge,
+     remaining conf nodes); dH/dv_j is evaluated on the velocity-volume node
+     grid (vel Hamiltonians) or via the shared phase-factor tables (phase). */
+  for j : 1 thru vdim do
     printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", j - 1, NC*(dir-1)*vdim + NC*(j-1)),
 
-    poissonTensorConf_local : doExpand1(poissonTensorConf[j],bC),
-    v_diff : varsV[j],
-    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)*dv1[j]
+  if (hamil_rep = "phase") then (
+    fact : laxFactorizeBasis(bP, surfCVars, cons(cv, varsV)),
+    NA : laxFactorSizes(fact, cv)[1],
+    tabP : sconcat("vst_", tag, "_ph_x", dir-1),
+    /* Each cell owns its *lower* edge fluxes: hamil_pt_edge = -1 evaluates
+       at cv = -1 (the r-edge tables), +1 at cv = +1 (the l-edge tables). */
+    for edge in [-1, 1] do block([elbl, cond],
+      if edge = -1 then (elbl : "r", cond : "== -1") else (elbl : "l", cond : "== 1"),
+      printf(fh, "  ~a (hamil_pt_edge ~a) { ~%", if edge = -1 then "if" else "else if", cond),
+      for j : 1 thru vdim do block([NMVd],
+        NMVd : laxDerivSizes(fact, cv, varsV[j]),
+        printf(fh, "    double G~a[~a]; ~%", j-1, num_nodes_vel*NA),
+        printf(fh, "    for (int q = 0; q < ~a; ++q) G~a[q] = 0.0; ~%", num_nodes_vel*NA, j-1),
+        printf(fh, "    for (int k = 0; k < ~a; ++k) { ~%", NB),
+        printf(fh, "      const int a = ~a_cmap[k]; ~%", tabP),
+        printf(fh, "      const double ch = ~a_dcoef~a~a[k]*hamil[k]; ~%", tabP, elbl, j-1),
+        printf(fh, "      for (int m = 0; m < ~a; ++m) G~a[m*~a + a] += ~a_Vd~a[m*~a + ~a_v~ad~amap[k]]*ch; ~%",
+          num_nodes_vel, j-1, NA, tabP, j-1, NMVd, tabP, elbl, j-1),
+        printf(fh, "    } ~%")
+      ),
+      printf(fh, "    for (int i = 0; i < ~a; ++i) { ~%", num_nodes_conf),
+      for j : 1 thru vdim do (
+        printf(fh, "      double P~a = 0.0; ~%", j-1),
+        printf(fh, "      for (int a = 0; a < ~a; ++a) P~a += vst_~a_confsurf_x~a_ev_~a[i*~a + a]*poisson_tensor_conf_~a[a]; ~%",
+          NC, j-1, tag, dir-1, elbl, NC, j-1)
+      ),
+      printf(fh, "      for (int m = 0; m < ~a; ++m) { ~%", num_nodes_vel),
+      for j : 1 thru vdim do (
+        printf(fh, "        double dH~a = 0.0; ~%", j-1),
+        printf(fh, "        for (int a = 0; a < ~a; ++a) dH~a += ~a_Cm[i*~a + a]*G~a[m*~a + a]; ~%", NA, j-1, tabP, NA, j-1, NA)
+      ),
+      printf(fh, "        alpha_quad[i*~a + m] += ~a; ~%", num_nodes_vel,
+        simplode(makelist(sconcat("P", j-1, "*dH", j-1, "*dv1", j-1), j, 1, vdim), " + ")),
+      printf(fh, "      } ~%"),
+      printf(fh, "    } ~%"),
+      printf(fh, "  } ~%")
+    )
+  )
+  else (
+    /* Velocity-space Hamiltonian: dH/dv_j has no cv dependence; the sparse
+       (separable) flavor only references the constant and single-velocity-
+       variable coefficients via the shared sparse index list. */
+    NS : 0,
+    for b : 1 thru NV do
+      if length(intersection(setify(listofvars(bV[b])), setify(varsV))) <= 1 then NS : NS + 1,
+    for j : 1 thru vdim do (
+      printf(fh, "  double dH_dv~a[~a]; ~%", j-1, num_nodes_vel),
+      printf(fh, "  for (int m = 0; m < ~a; ++m) { ~%", num_nodes_vel),
+      printf(fh, "    dH_dv~a[m] = 0.0; ~%", j-1),
+      if (hamil_rep = "vel_sparse") then (
+        printf(fh, "    for (int s = 0; s < ~a; ++s) { ~%", NS),
+        printf(fh, "      const int b = vst_~a_vel_sparse_idx[s]; ~%", tag),
+        printf(fh, "      dH_dv~a[m] += vst_~a_vel_vol_dv~a[m*~a + b]*hamil[b]; ~%", j-1, tag, j-1, NV),
+        printf(fh, "    } ~%")
+      )
+      else (
+        printf(fh, "    for (int b = 0; b < ~a; ++b) dH_dv~a[m] += vst_~a_vel_vol_dv~a[m*~a + b]*hamil[b]; ~%", NV, j-1, tag, j-1, NV)
+      ),
+      printf(fh, "  } ~%")
+    ),
+    for edge in [-1, 1] do block([elbl, cond],
+      if edge = -1 then (elbl : "r", cond : "== -1") else (elbl : "l", cond : "== 1"),
+      printf(fh, "  ~a (hamil_pt_edge ~a) { ~%", if edge = -1 then "if" else "else if", cond),
+      printf(fh, "    for (int i = 0; i < ~a; ++i) { ~%", num_nodes_conf),
+      for j : 1 thru vdim do (
+        printf(fh, "      double P~a = 0.0; ~%", j-1),
+        printf(fh, "      for (int a = 0; a < ~a; ++a) P~a += vst_~a_confsurf_x~a_ev_~a[i*~a + a]*poisson_tensor_conf_~a[a]; ~%",
+          NC, j-1, tag, dir-1, elbl, NC, j-1)
+      ),
+      printf(fh, "      for (int m = 0; m < ~a; ++m) alpha_quad[i*~a + m] += ~a; ~%", num_nodes_vel, num_nodes_vel,
+        simplode(makelist(sconcat("P", j-1, "*dH_dv", j-1, "[m]*dv1", j-1), j, 1, vdim), " + ")),
+      printf(fh, "    } ~%"),
+      printf(fh, "  } ~%")
+    )
   ),
-
-
-  /* Each cells owns its *lower* edge fluxes, so we evaluate the derivative of the 
-     Hamiltonian at cv = -1. Note that the flux is z_\dot = Pi^{ij} \dH/dz^j. */
-  printf(fh, "  if (hamil_pt_edge == -1) {~%"),
-  PI_dH_dv_l : float(evAtNodes(subst(cv=-1,Pi_dH_dv),surfNodes,surfVars)), 
-  for i : 1 thru numNodes do (
-    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, PI_dH_dv_l[i]) 
-  ),
-  printf(fh, "  }~%"),
-  printf(fh, "  else if (hamil_pt_edge == 1) {~%"),
-  PI_dH_dv_l : float(evAtNodes(subst(cv=1,Pi_dH_dv),surfNodes,surfVars)), 
-  for i : 1 thru numNodes do (
-    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, PI_dH_dv_l[i]) 
-  ),
-  printf(fh, "  }~%"),
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
-)$ 
+)$
 
 /* Nodal Lax-Friedrichs to modal configuration-space flux. */
 calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,cv,
    surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
-   surfNodes,numNodes,fact,sizesNA],
+   surfNodes,numNodes,fact,sizesNA,tabP],
 
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
 
@@ -135,9 +181,11 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
      loops below reproduce. */
   laxAssertNodeOrder(surfNodes, nodes_conf, nodes_vel),
   fact : laxFactorizeBasis(bP, surfCVars, cons(cv, varsV)),
+  sizesNA : laxFactorSizes(fact, cv),
+  tabP : sconcat("vst_", surfTabTag(cdim, vdim, basisFun, polyOrder, useHigherOrder), "_ph_x", dir-1),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  sizesNA : laxEmitData(fh, funcNm, fact, surfCVars, nodes_conf, cv, varsV, nodes_vel),
+  surfTabInclude(fh, cdim, vdim, basisFun, polyOrder),
   printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf,
   const double *alpha_quad, const double *f_l, const double *f_r,
   double *lax, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm),
@@ -147,7 +195,7 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
   printf(fh, "  double *out = &Fhat_nodal[~a]; ~%", (dir-1)*numNodes),
 
   /* Two-stage (sum-factorized) nodal evaluation of f_l/f_r + Lax flux. */
-  laxEmitBody(fh, funcNm, length(bP), sizesNA[1], sizesNA[2], sizesNA[3], num_nodes_conf, num_nodes_vel, ""),
+  laxEmitBody(fh, tabP, length(bP), sizesNA[1], sizesNA[2], num_nodes_conf, num_nodes_vel, ""),
 
   /* Estimate stable time step from the maximum quadrature point evaluation. */
   printf(fh, "  return ~a*~a*alpha_max;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),

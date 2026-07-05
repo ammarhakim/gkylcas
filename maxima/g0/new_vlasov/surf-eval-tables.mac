@@ -21,6 +21,7 @@
                                       variable (the sparse-Hamiltonian support)
    Flat node layout matches the alpha_quad/lax convention: gaussOrd ordering,
    last variable fastest; producers/consumers index n = i*NVn + j. */
+load("new_vlasov/nodal-lax-emit");
 
 /* Symbol tag for a combo's table set: ser ho variants carry _ho; tensor
    kernels are generated at the higher node count under the plain name. */
@@ -45,6 +46,126 @@ emitTabMatrix(fh, name, exprs, vars, nodes) := block([i, a, sub],
       printf(fh, "  ~a, ~%", float(expand(subst(sub, exprs[a]))))
   ),
   printf(fh, "}; ~%")
+)$
+
+/* Sign-aware dedup of a list of edge-evaluated shapes into an accumulating
+   list: shapes matching an existing entry up to overall sign map to it with
+   the sign recorded. Used for both edges of one V matrix (psi(-1,.) is
+   +/- psi(+1,.) exactly, by parity of the normal factor) and for the
+   psi-derivative matrices. Returns [shapes, map0based, signs]. */
+laxSignDedup(shapes, exprs) := block([map0, sgns, e, q, found, sg, m],
+  map0 : makelist(0, m, 1, length(exprs)),
+  sgns : makelist(1, m, 1, length(exprs)),
+  for m : 1 thru length(exprs) do (
+    e : ratsimp(exprs[m]),
+    found : 0, sg : 1,
+    for q : 1 thru length(shapes) do
+      if (found = 0) then (
+        if ratsimp(shapes[q] - e) = 0 then (found : q, sg : 1)
+        else if ratsimp(shapes[q] + e) = 0 then (found : q, sg : -1)
+      ),
+    if found = 0 then (shapes : endcons(e, shapes), found : length(shapes)),
+    map0[m] : found - 1,
+    sgns[m] : sg
+  ),
+  [shapes, map0, sgns]
+)$
+
+/* Both edges of the inner (psi) shapes dedup'd into ONE shape list with
+   signed per-coefficient maps. Returns [V shapes, vlmap, vrmap, sgnl, sgnr]
+   (maps/signs per BASE shape index; chain through fact[5] per coefficient). */
+laxEdgeDedup(fact, normalVar) := block(
+  [psiShapes, NM, NB, V, ddl, ddr, k],
+  psiShapes : fact[2],
+  NM : length(psiShapes), NB : length(fact[3]),
+  ddl : laxSignDedup([], makelist(subst(normalVar = 1, psiShapes[m]), m, 1, NM)),
+  V : ddl[1],
+  ddr : laxSignDedup(V, makelist(subst(normalVar = -1, psiShapes[m]), m, 1, NM)),
+  V : ddr[1],
+  [V,
+   makelist(ddl[2][fact[5][k] + 1], k, 1, NB),
+   makelist(ddr[2][fact[5][k] + 1], k, 1, NB),
+   makelist(ddl[3][fact[5][k] + 1], k, 1, NB),
+   makelist(ddr[3][fact[5][k] + 1], k, 1, NB)]
+)$
+
+/* Sizes [NA, NMV] of a surface's factor tables (NMV = shared V columns),
+   for the kernel emitters (deterministic: same dedup path as the tables). */
+laxFactorSizes(fact, normalVar) := block([ed],
+  ed : laxEdgeDedup(fact, normalVar),
+  [length(fact[1]), length(ed[1])]
+)$
+
+/* Column count of the psi-derivative matrix Vd for derivative variable dvar
+   (same dedup path as writePhaseFactorTables). */
+laxDerivSizes(fact, normalVar, dvar) := block([psiShapes, NM, dd, m],
+  psiShapes : fact[2], NM : length(psiShapes),
+  dd : laxSignDedup([], makelist(subst(normalVar = 1, diff(psiShapes[m], dvar)), m, 1, NM)),
+  dd : laxSignDedup(dd[1], makelist(subst(normalVar = -1, diff(psiShapes[m], dvar)), m, 1, NM)),
+  length(dd[1])
+)$
+
+emitTabIntArray(fh, name, vals) := block([k],
+  printf(fh, "__attribute__((unused)) static const int ~a[~a] = { ~%", name, length(vals)),
+  for k : 1 thru length(vals) do printf(fh, "  ~a, ~%", vals[k]),
+  printf(fh, "}; ~%")
+)$
+
+/* Phase-factor tables for one surface (prefix e.g. vst_<tag>_ph_v0):
+   Cm (outer shapes at outer nodes), CmD (their derivVar-derivative, for the
+   -grad_x(H) producers), Vl/Vr (edge-dedup'd inner shapes at inner nodes),
+   coef, cmap/vlmap/vrmap. With emitPsiDerivs=true (configuration-direction
+   surfaces) also the base vmap and the psi-derivative edge matrices
+   Vld<k>/Vrd<k> [NI x NM] indexed by the BASE psi map (no second dedup),
+   for the phase-Hamiltonian dH/dv_k. */
+writePhaseFactorTables(fh, prefix, bP, outerVars, normalVar, innerVars,
+                       nodesOuter, nodesInner, derivVar, psiDerivVars) := block(
+  [fact, ed, chiShapes, psiShapes, coefL, NA, NM, NB, NO, NI, k, m, i, sub],
+  fact : laxFactorizeBasis(bP, outerVars, cons(normalVar, innerVars)),
+  ed : laxEdgeDedup(fact, normalVar),
+  chiShapes : fact[1], psiShapes : fact[2], coefL : fact[3],
+  NA : length(chiShapes), NM : length(psiShapes), NB : length(coefL),
+  NO : length(nodesOuter), NI : length(nodesInner),
+  emitTabMatrix(fh, sconcat(prefix, "_Cm"), chiShapes, outerVars, nodesOuter),
+  if not(derivVar = false) then
+    emitTabMatrix(fh, sconcat(prefix, "_CmD"),
+      makelist(diff(chiShapes[k], derivVar), k, 1, NA), outerVars, nodesOuter),
+  /* One V matrix serves both edges: psi(-1,.) = +/- psi(+1,.) (parity of the
+     normal factor); the sign is folded into the per-edge coefficient copies. */
+  emitTabMatrix(fh, sconcat(prefix, "_V"), ed[1], innerVars, nodesInner),
+  printf(fh, "__attribute__((unused)) static const double ~a_coefl[~a] = { ~%", prefix, NB),
+  for k : 1 thru NB do printf(fh, "  ~a, ~%", float(expand(ed[4][k]*coefL[k]))),
+  printf(fh, "}; ~%"),
+  printf(fh, "__attribute__((unused)) static const double ~a_coefr[~a] = { ~%", prefix, NB),
+  for k : 1 thru NB do printf(fh, "  ~a, ~%", float(expand(ed[5][k]*coefL[k]))),
+  printf(fh, "}; ~%"),
+  emitTabIntArray(fh, sconcat(prefix, "_cmap"), fact[4]),
+  emitTabIntArray(fh, sconcat(prefix, "_vlmap"), ed[2]),
+  emitTabIntArray(fh, sconcat(prefix, "_vrmap"), ed[3]),
+  if not(psiDerivVars = false) then block([dd, dV, dcl, dcr, kk],
+    /* psi-derivative edge matrices for the phase-Hamiltonian dH/dv_k:
+       sign-aware dedup across BOTH edges into one matrix per k (most
+       derivative columns are zero or +/- repeats), signs folded into
+       per-edge coefficient copies. */
+    for k : 1 thru length(psiDerivVars) do (
+      dd : laxSignDedup([], makelist(subst(normalVar = 1, diff(psiShapes[m], psiDerivVars[k])), m, 1, NM)),
+      dV : dd[1],
+      dcl : dd,
+      dd : laxSignDedup(dV, makelist(subst(normalVar = -1, diff(psiShapes[m], psiDerivVars[k])), m, 1, NM)),
+      dV : dd[1],
+      emitTabMatrix(fh, sconcat(prefix, "_Vd", k-1), dV, innerVars, nodesInner),
+      emitTabIntArray(fh, sconcat(prefix, "_vld", k-1, "map"),
+        makelist(dcl[2][fact[5][kk] + 1], kk, 1, NB)),
+      emitTabIntArray(fh, sconcat(prefix, "_vrd", k-1, "map"),
+        makelist(dd[2][fact[5][kk] + 1], kk, 1, NB)),
+      printf(fh, "__attribute__((unused)) static const double ~a_dcoefl~a[~a] = { ~%", prefix, k-1, NB),
+      for kk : 1 thru NB do printf(fh, "  ~a, ~%", float(expand(dcl[3][fact[5][kk] + 1]*coefL[kk]))),
+      printf(fh, "}; ~%"),
+      printf(fh, "__attribute__((unused)) static const double ~a_dcoefr~a[~a] = { ~%", prefix, k-1, NB),
+      for kk : 1 thru NB do printf(fh, "  ~a, ~%", float(expand(dd[3][fact[5][kk] + 1]*coefL[kk]))),
+      printf(fh, "}; ~%")
+    )
+  )
 )$
 
 /* Write one lo- or ho-variant table set for a combo into fh. */
@@ -83,7 +204,39 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
   printf(fh, "__attribute__((unused)) static const int vst_~a_vel_sparse_idx[~a] = { ~%", tag, length(sparseIdx)),
   for b : 1 thru length(sparseIdx) do
     printf(fh, "  ~a, ~%", sparseIdx[b]),
-  printf(fh, "}; ~%")
+  printf(fh, "}; ~%"),
+
+  /* Phase-factor tables for the velocity-direction surfaces (lax +
+     hamil_phase producers). CmD only where the -grad_x(H) producer exists
+     (dir <= min(c,v)). */
+  for d : 1 thru vdim do (
+    vv : varsV[d],
+    svv : delete(vv, varsV),
+    nodes_vel : if vdim > 1 then gaussOrd(nPts, vdim-1) else [1],
+    writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_v", d-1), bP,
+      varsC, vv, svv, nodes_conf, nodes_vel,
+      if d <= min(cdim, vdim) then varsC[d] else false, false)
+  ),
+
+  /* Configuration-direction surface tables (triad/phase conf-flux: lax +
+     hamil_{vel_dense,vel_sparse,phase} producers). Serendipity only. */
+  if (basisFun = "ser") then block([surfCVars, nodes_crem, nodes_vvol, cv],
+    nodes_vvol : gaussOrd(nPts, vdim),
+    for k : 1 thru vdim do
+      emitTabMatrix(fh, sconcat("vst_", tag, "_vel_vol_dv", k-1),
+        makelist(diff(bV[b], varsV[k]), b, 1, length(bV)), varsV, nodes_vvol),
+    for d : 1 thru cdim do (
+      cv : varsC[d],
+      surfCVars : delete(cv, varsC),
+      nodes_crem : if cdim > 1 then gaussOrd(nPts, cdim-1) else [1],
+      emitTabMatrix(fh, sconcat("vst_", tag, "_confsurf_x", d-1, "_ev_l"),
+        makelist(subst(cv = 1, bC[b]), b, 1, length(bC)), surfCVars, nodes_crem),
+      emitTabMatrix(fh, sconcat("vst_", tag, "_confsurf_x", d-1, "_ev_r"),
+        makelist(subst(cv = -1, bC[b]), b, 1, length(bC)), surfCVars, nodes_crem),
+      writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_x", d-1), bP,
+        surfCVars, cv, varsV, nodes_crem, nodes_vvol, false, varsV)
+    )
+  )
 )$
 
 /* Write the full header for a combo: lo tables always; ho tables for ser p>1

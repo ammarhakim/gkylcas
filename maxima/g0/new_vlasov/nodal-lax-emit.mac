@@ -94,106 +94,24 @@ laxAssertNodeOrder(surfNodes, nodesOuter, nodesInner) := block(
     )
 )$
 
-/* Emit the static constant data (file scope, before the kernel function):
-   outer evaluation matrix Cm, per-side edge-evaluated inner matrices Vl/Vr
-   (dedup'd again after the edge substitution, since e.g. x*g(v) and g(v)
-   coincide at x = 1), the coefficient list, and the index maps.
-   Returns [NA, NML, NMR] for the body emission. */
-laxEmitData(fh, prefix, fact, outerVars, nodesOuter, normalVar, innerVars, nodesInner) := block(
-  [chiShapes, psiShapes, coefL, cmap, vmap, NA, NM, NB, NO, NI,
-   psiL, psiR, mapL, mapR, vlmap, vrmap, NML, NMR,
-   i, j, a, m, k, sub, eShape, found, q],
-  chiShapes : fact[1], psiShapes : fact[2], coefL : fact[3],
-  cmap : fact[4], vmap : fact[5],
-  NA : length(chiShapes), NM : length(psiShapes), NB : length(coefL),
-  NO : length(nodesOuter), NI : length(nodesInner),
-
-  /* Dedup the inner shapes after evaluating the normal variable at each edge. */
-  psiL : [], psiR : [], mapL : makelist(0, m, 1, NM), mapR : makelist(0, m, 1, NM),
-  for m : 1 thru NM do (
-    eShape : ratsimp(subst(normalVar = 1, psiShapes[m])),
-    found : 0,
-    for q : 1 thru length(psiL) do
-      if (found = 0) then (if ratsimp(psiL[q] - eShape) = 0 then found : q),
-    if found = 0 then (psiL : endcons(eShape, psiL), found : length(psiL)),
-    mapL[m] : found - 1,
-    eShape : ratsimp(subst(normalVar = -1, psiShapes[m])),
-    found : 0,
-    for q : 1 thru length(psiR) do
-      if (found = 0) then (if ratsimp(psiR[q] - eShape) = 0 then found : q),
-    if found = 0 then (psiR : endcons(eShape, psiR), found : length(psiR)),
-    mapR[m] : found - 1
-  ),
-  NML : length(psiL), NMR : length(psiR),
-  vlmap : makelist(mapL[vmap[k] + 1], k, 1, NB),
-  vrmap : makelist(mapR[vmap[k] + 1], k, 1, NB),
-
-  printf(fh, "// Exact factorized evaluation of the phase basis at the surface tensor-product nodes: ~%"),
-  printf(fh, "// phi_k = coef[k] * (outer shape cmap[k])(outer vars) * (inner shape)(normal, inner vars). ~%"),
-  printf(fh, "// Cm[i*~a + a]: outer shape a at outer node i; Vl/Vr[j*NM + m]: inner shape m at the ~%", NA),
-  printf(fh, "// +1/-1 edge and inner node j. Flat surface node index n = i*~a + j (inner fastest). ~%", NI),
-  printf(fh, "static const double ~a_Cm[~a] = { ~%", prefix, NO*NA),
-  for i : 1 thru NO do (
-    sub : if listp(nodesOuter[i])
-          then makelist(outerVars[d] = nodesOuter[i][d], d, 1, length(outerVars))
-          else [],
-    for a : 1 thru NA do
-      printf(fh, "  ~a, ~%", float(expand(subst(sub, chiShapes[a]))))
-  ),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const double ~a_Vl[~a] = { ~%", prefix, NI*NML),
-  for j : 1 thru NI do (
-    sub : if listp(nodesInner[j])
-          then makelist(innerVars[d] = nodesInner[j][d], d, 1, length(innerVars))
-          else [],
-    for m : 1 thru NML do
-      printf(fh, "  ~a, ~%", float(expand(subst(sub, psiL[m]))))
-  ),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const double ~a_Vr[~a] = { ~%", prefix, NI*NMR),
-  for j : 1 thru NI do (
-    sub : if listp(nodesInner[j])
-          then makelist(innerVars[d] = nodesInner[j][d], d, 1, length(innerVars))
-          else [],
-    for m : 1 thru NMR do
-      printf(fh, "  ~a, ~%", float(expand(subst(sub, psiR[m]))))
-  ),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const double ~a_coef[~a] = { ~%", prefix, NB),
-  for k : 1 thru NB do
-    printf(fh, "  ~a, ~%", float(expand(coefL[k]))),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const int ~a_cmap[~a] = { ~%", prefix, NB),
-  for k : 1 thru NB do
-    printf(fh, "  ~a, ~%", cmap[k]),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const int ~a_vlmap[~a] = { ~%", prefix, NB),
-  for k : 1 thru NB do
-    printf(fh, "  ~a, ~%", vlmap[k]),
-  printf(fh, "}; ~%"),
-  printf(fh, "static const int ~a_vrmap[~a] = { ~%", prefix, NB),
-  for k : 1 thru NB do
-    printf(fh, "  ~a, ~%", vrmap[k]),
-  printf(fh, "}; ~%"),
-  [NA, NML, NMR]
-)$
-
 /* Emit the two-stage loop body: stage-1 contraction into G_l/G_r
    (layout G[j*NA + a], contiguous in a for the stage-2 dot product),
    then the per-node evaluation + Lax flux + alpha_max accumulation.
+   prefix is the SHARED table symbol prefix (vst_<tag>_ph_<surf>); the
+   single V matrix serves both edges with the sign folded into coefl/coefr.
    jacMul is "" (no jacobian), "jac_tot*" (cell-constant), or
    "jac_nodal[n]*" (node-dependent, cubic velocity map). */
-laxEmitBody(fh, prefix, NB, NA, NML, NMR, NO, NI, jacMul) := block(
+laxEmitBody(fh, prefix, NB, NA, NMV, NO, NI, jacMul) := block(
   printf(fh, "  double G_l[~a]; ~%", NI*NA),
   printf(fh, "  double G_r[~a]; ~%", NI*NA),
   printf(fh, "  for (int q = 0; q < ~a; ++q) { G_l[q] = 0.0; G_r[q] = 0.0; } ~%", NI*NA),
   printf(fh, "  for (int k = 0; k < ~a; ++k) { ~%", NB),
   printf(fh, "    const int a = ~a_cmap[k]; ~%", prefix),
-  printf(fh, "    const double cfl = ~a_coef[k]*f_l[k]; ~%", prefix),
-  printf(fh, "    const double cfr = ~a_coef[k]*f_r[k]; ~%", prefix),
+  printf(fh, "    const double cfl = ~a_coefl[k]*f_l[k]; ~%", prefix),
+  printf(fh, "    const double cfr = ~a_coefr[k]*f_r[k]; ~%", prefix),
   printf(fh, "    for (int j = 0; j < ~a; ++j) { ~%", NI),
-  printf(fh, "      G_l[j*~a + a] += ~a_Vl[j*~a + ~a_vlmap[k]]*cfl; ~%", NA, prefix, NML, prefix),
-  printf(fh, "      G_r[j*~a + a] += ~a_Vr[j*~a + ~a_vrmap[k]]*cfr; ~%", NA, prefix, NMR, prefix),
+  printf(fh, "      G_l[j*~a + a] += ~a_V[j*~a + ~a_vlmap[k]]*cfl; ~%", NA, prefix, NMV, prefix),
+  printf(fh, "      G_r[j*~a + a] += ~a_V[j*~a + ~a_vrmap[k]]*cfr; ~%", NA, prefix, NMV, prefix),
   printf(fh, "    } ~%"),
   printf(fh, "  } ~%"),
   printf(fh, "  double alpha_max = 0.0; ~%"),
