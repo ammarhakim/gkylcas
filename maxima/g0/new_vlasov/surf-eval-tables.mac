@@ -1,0 +1,106 @@
+/* surf-eval-tables.mac ------------------------------------------------------
+   Generator for the shared nodal surface-evaluation tables used by the
+   velocity-flux alpha_quad producers (E, phi, rad, B, hamil) and the
+   lax_flux_nodal kernels.
+
+   One header per phase-space combo: gkyl_vlasov_surf_tables_<c>x<v>v_<b>_p<p>.h
+   containing `static const` arrays named vst_<tag>[_ho]_<item>. They are
+   header-static (per-TU copies) ON PURPOSE: GKYL_CU_DH kernels are compiled
+   for both host and device, and a header-static constant-initialized array
+   is the one storage class nvcc accepts from BOTH instantiations (an extern
+   host symbol is invisible to device code; a __device__ symbol is invisible
+   to the host copy). Arrays carry __attribute__((unused)) so kernels that
+   reference only a subset compile warning-free.
+
+   Items (nPts = p+1, +1 in the ho variant; row index = node, column = basis fn):
+     conf_ev        [nPts^c * NC]     bC_a(conf node i)
+     conf_dx<d>     [nPts^c * NC]     d(bC_a)/dx_d at conf node i (d 0-based)
+     vel_ev_v<d>    [nPts^(v-1) * NV] bV_b(v_d = -1, vel node j) on the v_d surface
+     vel_dv<k>_v<d> [nPts^(v-1) * NV] d(bV_b)/dv_k at (v_d = -1, vel node j), k != d
+     vel_sparse_idx [NS]              indices of bV fns depending on <= 1 velocity
+                                      variable (the sparse-Hamiltonian support)
+   Flat node layout matches the alpha_quad/lax convention: gaussOrd ordering,
+   last variable fastest; producers/consumers index n = i*NVn + j. */
+
+/* Symbol tag for a combo's table set: ser ho variants carry _ho; tensor
+   kernels are generated at the higher node count under the plain name. */
+surfTabTag(cdim, vdim, basisFun, polyOrder, useHigherOrder) := block([tag],
+  tag : sconcat(cdim, "x", vdim, "v_", basisFun, "_p", polyOrder),
+  if (basisFun = "ser" and useHigherOrder and polyOrder > 1) then tag : sconcat(tag, "_ho"),
+  tag
+)$
+
+surfTabInclude(fh, cdim, vdim, basisFun, polyOrder) :=
+  printf(fh, "#include <gkyl_vlasov_surf_tables_~ax~av_~a_p~a.h> ~%", cdim, vdim, basisFun, polyOrder)$
+
+/* Emit exprs evaluated at nodes as a flattened [length(nodes)*length(exprs)]
+   static const double array (row = node, column = expr). */
+emitTabMatrix(fh, name, exprs, vars, nodes) := block([i, a, sub],
+  printf(fh, "__attribute__((unused)) static const double ~a[~a] = { ~%", name, length(nodes)*length(exprs)),
+  for i : 1 thru length(nodes) do (
+    sub : if listp(nodes[i])
+          then makelist(vars[d] = nodes[i][d], d, 1, length(vars))
+          else [],
+    for a : 1 thru length(exprs) do
+      printf(fh, "  ~a, ~%", float(expand(subst(sub, exprs[a]))))
+  ),
+  printf(fh, "}; ~%")
+)$
+
+/* Write one lo- or ho-variant table set for a combo into fh. */
+writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
+  [varsC, bC, varsV, bV, varsP, bP, nPts, nodes_conf, nodes_vel, d, k, vv, svv,
+   sparseIdx, b],
+  [varsC, bC, varsV, bV, varsP, bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
+  nPts : polyOrder + 1,
+  if useHigherOrder then nPts : nPts + 1,
+
+  nodes_conf : gaussOrd(nPts, cdim),
+  emitTabMatrix(fh, sconcat("vst_", tag, "_conf_ev"), bC, varsC, nodes_conf),
+  for d : 1 thru min(cdim, vdim) do
+    emitTabMatrix(fh, sconcat("vst_", tag, "_conf_dx", d-1),
+      makelist(diff(bC[a], varsC[d]), a, 1, length(bC)), varsC, nodes_conf),
+
+  for d : 1 thru vdim do (
+    vv : varsV[d],
+    svv : delete(vv, varsV),
+    nodes_vel : if vdim > 1 then gaussOrd(nPts, vdim-1) else [1],
+    emitTabMatrix(fh, sconcat("vst_", tag, "_vel_ev_v", d-1),
+      makelist(subst(vv = -1, bV[b]), b, 1, length(bV)), svv, nodes_vel),
+    for k : 1 thru vdim do (
+      if k # d then
+        emitTabMatrix(fh, sconcat("vst_", tag, "_vel_dv", k-1, "_v", d-1),
+          makelist(subst(vv = -1, diff(bV[b], varsV[k])), b, 1, length(bV)), svv, nodes_vel)
+    )
+  ),
+
+  /* Sparse-Hamiltonian support: dense-layout indices of the velocity basis
+     functions a separable H = sum_i H_i(v_i) can populate. */
+  sparseIdx : [],
+  for b : 1 thru length(bV) do
+    if length(intersection(setify(listofvars(bV[b])), setify(varsV))) <= 1 then
+      sparseIdx : endcons(b-1, sparseIdx),
+  printf(fh, "__attribute__((unused)) static const int vst_~a_vel_sparse_idx[~a] = { ~%", tag, length(sparseIdx)),
+  for b : 1 thru length(sparseIdx) do
+    printf(fh, "  ~a, ~%", sparseIdx[b]),
+  printf(fh, "}; ~%")
+)$
+
+/* Write the full header for a combo: lo tables always; ho tables for ser p>1
+   (tensor kernels are generated at the higher node count under the plain
+   name, so tensor combos get a single set at nPts = p+2). */
+writeSurfTabHeader(fh, cdim, vdim, basisFun, polyOrder) := block([tag],
+  tag : sconcat(cdim, "x", vdim, "v_", basisFun, "_p", polyOrder),
+  printf(fh, "#pragma once ~%"),
+  printf(fh, "// Generated nodal surface-evaluation tables (see surf-eval-tables.mac). ~%"),
+  printf(fh, "// Header-static so both host and device instantiations of GKYL_CU_DH ~%"),
+  printf(fh, "// kernels can read them; unused arrays are elided per TU. ~%"),
+  if (basisFun = "tensor") then (
+    writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, true)
+  )
+  else (
+    writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, false),
+    if (polyOrder > 1) then
+      writeSurfTabVariant(fh, sconcat(tag, "_ho"), cdim, vdim, basisFun, polyOrder, true)
+  )
+)$
