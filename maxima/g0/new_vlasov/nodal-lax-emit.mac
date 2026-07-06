@@ -94,38 +94,52 @@ laxAssertNodeOrder(surfNodes, nodesOuter, nodesInner) := block(
     )
 )$
 
-/* Emit the two-stage loop body: stage-1 contraction into G_l/G_r
-   (layout G[j*NA + a], contiguous in a for the stage-2 dot product),
-   then the per-node evaluation + Lax flux + alpha_max accumulation.
-   prefix is the SHARED table symbol prefix (vst_<tag>_ph_<surf>); the
-   single V matrix serves both edges with the sign folded into coefl/coefr.
-   jacMul is "" (no jacobian), "jac_tot*" (cell-constant), or
-   "jac_nodal[n]*" (node-dependent, cubic velocity map). */
-laxEmitBody(fh, prefix, NB, NA, NMV, NO, NI, jacMul) := block(
-  printf(fh, "  double G_l[~a]; ~%", NI*NA),
-  printf(fh, "  double G_r[~a]; ~%", NI*NA),
-  printf(fh, "  for (int q = 0; q < ~a; ++q) { G_l[q] = 0.0; G_r[q] = 0.0; } ~%", NI*NA),
+/* Emit the per-node function (Design A GPU decomposition): given (i, j),
+   rebuild the j-th G column of both sides in registers (NA doubles), do the
+   stage-2 dot, apply the Lax flux at flat node n = i*NI + j, and return
+   |alpha| at the node for the caller's CFL reduction. The wrapper (and later
+   the CUDA launcher) supplies one thread/iteration per node.
+   prefix is the SHARED table symbol prefix (vst_<tag>_ph_<surf>).
+   jacDecls is a list of C lines computing `const double jac = ...;` from j
+   (index arithmetic for the cubic map, cell constants for the linear map);
+   an empty list means no jacobian factor (jac omitted). jacArgs is the
+   argument-declaration string for the jacobian inputs ("" if none). */
+laxEmitNodeFn(fh, funcNm, prefix, NB, NA, NMV, NI, outOff, jacArgs, jacDecls, hasJac) := block([ln],
+  printf(fh, "GKYL_CU_DH double ~a_node(int i, int j,~a
+  double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm, jacArgs),
+  printf(fh, "  double G_l[~a]; ~%", NA),
+  printf(fh, "  double G_r[~a]; ~%", NA),
+  printf(fh, "  for (int a = 0; a < ~a; ++a) { G_l[a] = 0.0; G_r[a] = 0.0; } ~%", NA),
   printf(fh, "  for (int k = 0; k < ~a; ++k) { ~%", NB),
   printf(fh, "    const int a = ~a_cmap[k]; ~%", prefix),
-  printf(fh, "    const double cfl = ~a_coefl[k]*f_l[k]; ~%", prefix),
-  printf(fh, "    const double cfr = ~a_coefr[k]*f_r[k]; ~%", prefix),
-  printf(fh, "    for (int j = 0; j < ~a; ++j) { ~%", NI),
-  printf(fh, "      G_l[j*~a + a] += ~a_V[j*~a + ~a_vlmap[k]]*cfl; ~%", NA, prefix, NMV, prefix),
-  printf(fh, "      G_r[j*~a + a] += ~a_V[j*~a + ~a_vrmap[k]]*cfr; ~%", NA, prefix, NMV, prefix),
-  printf(fh, "    } ~%"),
+  printf(fh, "    G_l[a] += ~a_V[j*~a + ~a_vlmap[k]]*(~a_coefl[k]*f_l[k]); ~%", prefix, NMV, prefix, prefix),
+  printf(fh, "    G_r[a] += ~a_V[j*~a + ~a_vrmap[k]]*(~a_coefr[k]*f_r[k]); ~%", prefix, NMV, prefix, prefix),
   printf(fh, "  } ~%"),
+  printf(fh, "  double f_l_quad = 0.0; ~%"),
+  printf(fh, "  double f_r_quad = 0.0; ~%"),
+  printf(fh, "  for (int a = 0; a < ~a; ++a) { ~%", NA),
+  printf(fh, "    f_l_quad += ~a_Cm[i*~a + a]*G_l[a]; ~%", prefix, NA),
+  printf(fh, "    f_r_quad += ~a_Cm[i*~a + a]*G_r[a]; ~%", prefix, NA),
+  printf(fh, "  } ~%"),
+  printf(fh, "  const int n = i*~a + j; ~%", NI),
+  for ln in jacDecls do printf(fh, "~a~%", ln),
+  if hasJac then
+    printf(fh, "  Fhat_nodal[~a + n] = 0.5*jac*(alpha*(f_r_quad + f_l_quad) - fabs(alpha)*(f_r_quad - f_l_quad)); ~%", outOff)
+  else
+    printf(fh, "  Fhat_nodal[~a + n] = 0.5*(alpha*(f_r_quad + f_l_quad) - fabs(alpha)*(f_r_quad - f_l_quad)); ~%", outOff),
+  printf(fh, "  return fabs(alpha); ~%"),
+  printf(fh, "} ~%~%")
+)$
+
+/* Emit the wrapper body: loop the node function over all (i, j), reducing
+   alpha_max. nodeCallArgs must match the node function's jacArgs. The
+   wrapper still ingests the full nodal alpha_quad array (original ABI);
+   the per-node dispatch in the updater passes a register double instead. */
+laxEmitWrapperLoop(fh, funcNm, NO, NI, nodeCallArgs) := block(
   printf(fh, "  double alpha_max = 0.0; ~%"),
   printf(fh, "  for (int i = 0; i < ~a; ++i) { ~%", NO),
   printf(fh, "    for (int j = 0; j < ~a; ++j) { ~%", NI),
-  printf(fh, "      const int n = i*~a + j; ~%", NI),
-  printf(fh, "      double f_l_quad = 0.0; ~%"),
-  printf(fh, "      double f_r_quad = 0.0; ~%"),
-  printf(fh, "      for (int a = 0; a < ~a; ++a) { ~%", NA),
-  printf(fh, "        f_l_quad += ~a_Cm[i*~a + a]*G_l[j*~a + a]; ~%", prefix, NA, NA),
-  printf(fh, "        f_r_quad += ~a_Cm[i*~a + a]*G_r[j*~a + a]; ~%", prefix, NA, NA),
-  printf(fh, "      } ~%"),
-  printf(fh, "      alpha_max = fmax(alpha_max, fabs(alpha_quad[n])); ~%"),
-  printf(fh, "      out[n] = 0.5*~a(alpha_quad[n]*(f_r_quad + f_l_quad) - fabs(alpha_quad[n])*(f_r_quad - f_l_quad)); ~%", jacMul),
+  printf(fh, "      alpha_max = fmax(alpha_max, ~a_node(i, j,~a alpha_quad[i*~a + j], f_l, f_r, Fhat_nodal)); ~%", funcNm, nodeCallArgs, NI),
   printf(fh, "    } ~%"),
   printf(fh, "  } ~%")
 )$

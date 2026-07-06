@@ -165,7 +165,8 @@ writePhaseFactorTables(fh, prefix, bP, outerVars, normalVar, innerVars,
       for kk : 1 thru NB do printf(fh, "  ~a, ~%", float(expand(dd[3][fact[5][kk] + 1]*coefL[kk]))),
       printf(fh, "}; ~%")
     )
-  )
+  ),
+  [NA, length(ed[1])]
 )$
 
 /* Write one lo- or ho-variant table set for a combo into fh. */
@@ -208,19 +209,22 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
 
   /* Phase-factor tables for the velocity-direction surfaces (lax +
      hamil_phase producers). CmD only where the -grad_x(H) producer exists
-     (dir <= min(c,v)). */
-  for d : 1 thru vdim do (
+     (dir <= min(c,v)). A gkyl_vlasov_surf_meta instance accompanies each
+     surface's tables for the host-side launch logic. */
+  for d : 1 thru vdim do block([sz],
     vv : varsV[d],
     svv : delete(vv, varsV),
     nodes_vel : if vdim > 1 then gaussOrd(nPts, vdim-1) else [1],
-    writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_v", d-1), bP,
+    sz : writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_v", d-1), bP,
       varsC, vv, svv, nodes_conf, nodes_vel,
-      if d <= min(cdim, vdim) then varsC[d] else false, false)
+      if d <= min(cdim, vdim) then varsC[d] else false, false),
+    printf(fh, "__attribute__((unused)) static const struct gkyl_vlasov_surf_meta vst_~a_ph_v~a_meta = { .nb = ~a, .na = ~a, .nmv = ~a, .no = ~a, .ni = ~a, .ns = ~a, .fhat_off = ~a }; ~%",
+      tag, d-1, length(bP), sz[1], sz[2], length(nodes_conf), length(nodes_vel), length(sparseIdx), (d-1)*length(nodes_conf)*length(nodes_vel))
   ),
 
   /* Configuration-direction surface tables (triad/phase conf-flux: lax +
      hamil_{vel_dense,vel_sparse,phase} producers). Serendipity only. */
-  if (basisFun = "ser") then block([surfCVars, nodes_crem, nodes_vvol, cv],
+  if (basisFun = "ser") then block([surfCVars, nodes_crem, nodes_vvol, cv, sz],
     nodes_vvol : gaussOrd(nPts, vdim),
     for k : 1 thru vdim do
       emitTabMatrix(fh, sconcat("vst_", tag, "_vel_vol_dv", k-1),
@@ -233,8 +237,10 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
         makelist(subst(cv = 1, bC[b]), b, 1, length(bC)), surfCVars, nodes_crem),
       emitTabMatrix(fh, sconcat("vst_", tag, "_confsurf_x", d-1, "_ev_r"),
         makelist(subst(cv = -1, bC[b]), b, 1, length(bC)), surfCVars, nodes_crem),
-      writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_x", d-1), bP,
-        surfCVars, cv, varsV, nodes_crem, nodes_vvol, false, varsV)
+      sz : writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_x", d-1), bP,
+        surfCVars, cv, varsV, nodes_crem, nodes_vvol, false, varsV),
+      printf(fh, "__attribute__((unused)) static const struct gkyl_vlasov_surf_meta vst_~a_ph_x~a_meta = { .nb = ~a, .na = ~a, .nmv = ~a, .no = ~a, .ni = ~a, .ns = ~a, .fhat_off = ~a }; ~%",
+        tag, d-1, length(bP), sz[1], sz[2], length(nodes_crem), length(nodes_vvol), length(sparseIdx), (d-1)*length(nodes_crem)*length(nodes_vvol))
     )
   )
 )$
@@ -248,6 +254,7 @@ writeSurfTabHeader(fh, cdim, vdim, basisFun, polyOrder) := block([tag],
   printf(fh, "// Generated nodal surface-evaluation tables (see surf-eval-tables.mac). ~%"),
   printf(fh, "// Header-static so both host and device instantiations of GKYL_CU_DH ~%"),
   printf(fh, "// kernels can read them; unused arrays are elided per TU. ~%"),
+  printf(fh, "#include <gkyl_vlasov_surf_meta.h> ~%"),
   if (basisFun = "tensor") then (
     writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, true)
   )
