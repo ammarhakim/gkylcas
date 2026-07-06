@@ -100,5 +100,28 @@ for c : 1 thru 3 do (
     )
   )
 )$
+/* Triad velocity-direction Hamiltonian producers (mirror
+   ms-triadVelFluxSurf.mac gates; serendipity only, vel_sparse skipped in
+   1V where sparse aliases dense). */
+for c : 1 thru 3 do (
+  for v : max(c,1) thru 3 do (
+    maxPolyOrderB : 2, if (c+v>5) then maxPolyOrderB : 1,
+    for pi : 1 thru maxPolyOrderB do (
+      for dir : 1 thru v do (
+        for hoInd : 1 thru 2 do (
+          useHigherOrder : is(hoInd = 2),
+          si : if useHigherOrder then "ho_" else "",
+          if not((pi = 1) and useHigherOrder) then (
+            if (pi = 1) then si : "",
+            for rep in (if v > 1 then ["vel_dense", "vel_sparse", "phase"] else ["vel_dense", "phase"]) do
+              printf(fh, "~adouble nc_hamil_~a_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int j, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+                deco, rep, si, vlabels[dir], c, v, pi)
+          )
+        )
+      ),
+      printf(fh, "~%")
+    )
+  )
+)$
 printf(fh, "EXTERN_C_END ~%")$
 close(fh)$

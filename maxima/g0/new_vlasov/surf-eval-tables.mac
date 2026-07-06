@@ -17,6 +17,9 @@
      conf_dx<d>     [nPts^c * NC]     d(bC_a)/dx_d at conf node i (d 0-based)
      vel_ev_v<d>    [nPts^(v-1) * NV] bV_b(v_d = -1, vel node j) on the v_d surface
      vel_dv<k>_v<d> [nPts^(v-1) * NV] d(bV_b)/dv_k at (v_d = -1, vel node j), k != d
+     vel_nodes_v<d> [nPts^(v-1) * (v-1)] reference coordinates of the inner
+                                      (transverse velocity) nodes, columns in
+                                      remaining-variable order (v > 1 only)
      vel_sparse_idx [NS]              indices of bV fns depending on <= 1 velocity
                                       variable (the sparse-Hamiltonian support)
    Flat node layout matches the alpha_quad/lax convention: gaussOrd ordering,
@@ -114,12 +117,16 @@ emitTabIntArray(fh, name, vals) := block([k],
 /* Phase-factor tables for one surface (prefix e.g. vst_<tag>_ph_v0):
    Cm (outer shapes at outer nodes), CmD (their derivVar-derivative, for the
    -grad_x(H) producers), Vl/Vr (edge-dedup'd inner shapes at inner nodes),
-   coef, cmap/vlmap/vrmap. With emitPsiDerivs=true (configuration-direction
-   surfaces) also the base vmap and the psi-derivative edge matrices
-   Vld<k>/Vrd<k> [NI x NM] indexed by the BASE psi map (no second dedup),
-   for the phase-Hamiltonian dH/dv_k. */
+   coef, cmap/vlmap/vrmap. With outerDerivVars a list (velocity-direction
+   surfaces) also CmDx<n> = d(chi)/d(outerDerivVars[n+1]) at the outer nodes,
+   for the triad Pi_px . grad_x(H) producers (all configuration directions,
+   not just the surface-paired one CmD covers). With psiDerivVars a list also
+   the psi-derivative edge matrices Vd<k> (sign-dedup'd across both edges)
+   with their maps/coefficient copies, for the phase-Hamiltonian dH/dv_k;
+   k indexes psiDerivVars, which both call sites pass as the FULL varsV so
+   Vd<k> pairs with global velocity direction k+1. */
 writePhaseFactorTables(fh, prefix, bP, outerVars, normalVar, innerVars,
-                       nodesOuter, nodesInner, derivVar, psiDerivVars) := block(
+                       nodesOuter, nodesInner, derivVar, psiDerivVars, outerDerivVars) := block(
   [fact, ed, chiShapes, psiShapes, coefL, NA, NM, NB, NO, NI, k, m, i, sub],
   fact : laxFactorizeBasis(bP, outerVars, cons(normalVar, innerVars)),
   ed : laxEdgeDedup(fact, normalVar),
@@ -130,6 +137,10 @@ writePhaseFactorTables(fh, prefix, bP, outerVars, normalVar, innerVars,
   if not(derivVar = false) then
     emitTabMatrix(fh, sconcat(prefix, "_CmD"),
       makelist(diff(chiShapes[k], derivVar), k, 1, NA), outerVars, nodesOuter),
+  if not(outerDerivVars = false) then
+    for k : 1 thru length(outerDerivVars) do
+      emitTabMatrix(fh, sconcat(prefix, "_CmDx", k-1),
+        makelist(diff(chiShapes[m], outerDerivVars[k]), m, 1, NA), outerVars, nodesOuter),
   /* One V matrix serves both edges: psi(-1,.) = +/- psi(+1,.) (parity of the
      normal factor); the sign is folded into the per-edge coefficient copies. */
   emitTabMatrix(fh, sconcat(prefix, "_V"), ed[1], innerVars, nodesInner),
@@ -189,6 +200,15 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
     nodes_vel : if vdim > 1 then gaussOrd(nPts, vdim-1) else [1],
     emitTabMatrix(fh, sconcat("vst_", tag, "_vel_ev_v", d-1),
       makelist(subst(vv = -1, bV[b]), b, 1, length(bV)), svv, nodes_vel),
+    if vdim > 1 then (
+      /* Reference coordinates of the transverse velocity nodes, for producers
+         that need v at the node (e.g. the triad omega = vTrans.Pi terms). */
+      printf(fh, "__attribute__((unused)) static const double vst_~a_vel_nodes_v~a[~a] = { ~%", tag, d-1, length(nodes_vel)*(vdim-1)),
+      for i : 1 thru length(nodes_vel) do
+        for k : 1 thru vdim-1 do
+          printf(fh, "  ~a, ~%", float(nodes_vel[i][k])),
+      printf(fh, "}; ~%")
+    ),
     for k : 1 thru vdim do (
       if k # d then
         emitTabMatrix(fh, sconcat("vst_", tag, "_vel_dv", k-1, "_v", d-1),
@@ -217,7 +237,7 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
     nodes_vel : if vdim > 1 then gaussOrd(nPts, vdim-1) else [1],
     sz : writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_v", d-1), bP,
       varsC, vv, svv, nodes_conf, nodes_vel,
-      if d <= min(cdim, vdim) then varsC[d] else false, false),
+      if d <= min(cdim, vdim) then varsC[d] else false, varsV, varsC),
     printf(fh, "__attribute__((unused)) static const struct gkyl_vlasov_surf_meta vst_~a_ph_v~a_meta = { .nb = ~a, .na = ~a, .nmv = ~a, .no = ~a, .ni = ~a, .ns = ~a, .fhat_off = ~a }; ~%",
       tag, d-1, length(bP), sz[1], sz[2], length(nodes_conf), length(nodes_vel), length(sparseIdx), (d-1)*length(nodes_conf)*length(nodes_vel))
   ),
@@ -238,7 +258,7 @@ writeSurfTabVariant(fh, tag, cdim, vdim, basisFun, polyOrder, useHigherOrder) :=
       emitTabMatrix(fh, sconcat("vst_", tag, "_confsurf_x", d-1, "_ev_r"),
         makelist(subst(cv = -1, bC[b]), b, 1, length(bC)), surfCVars, nodes_crem),
       sz : writePhaseFactorTables(fh, sconcat("vst_", tag, "_ph_x", d-1), bP,
-        surfCVars, cv, varsV, nodes_crem, nodes_vvol, false, varsV),
+        surfCVars, cv, varsV, nodes_crem, nodes_vvol, false, varsV, false),
       printf(fh, "__attribute__((unused)) static const struct gkyl_vlasov_surf_meta vst_~a_ph_x~a_meta = { .nb = ~a, .na = ~a, .nmv = ~a, .no = ~a, .ni = ~a, .ns = ~a, .fhat_off = ~a }; ~%",
         tag, d-1, length(bP), sz[1], sz[2], length(nodes_crem), length(nodes_vvol), length(sparseIdx), (d-1)*length(nodes_crem)*length(nodes_vvol))
     )
