@@ -27,7 +27,18 @@
    The loop structure is the CPU realization of the planned GPU 2D
    (cell x node) thread mapping: stage 1 becomes a cooperative shared-memory
    fill, stage 2 the per-node-thread dot product, and the static matrices
-   become constant device data. */
+   become constant device data.
+
+   PAIRING CONSTRAINT: every emitter writes BOTH callable forms into the
+   same .c file — the per-node `_node` function and the whole-array wrapper
+   (original ABI, loop bounds emitted as literals so the compiler inlines
+   the node function and recovers unrolled-kernel performance). The C
+   dispatch tables in vlasov/zero/gkyl_dg_vlasov_{vel,conf}_flux_surf_priv.h
+   reference both symbol sets (`_arr` tables -> wrappers for the CPU path,
+   `_node` tables -> node functions for the GPU 2D launcher), so a kernel
+   file missing either form fails at link time even if only one path runs.
+   Never hand-edit one form in isolation; regenerate the file so the pair
+   (and gkyl_vlasov_surf_node_kernels.h) stays consistent. */
 
 /* Reference point for shape normalization; must avoid the roots of every
    Legendre polynomial used (P1, P2, P3 are all nonzero at 2/5). */

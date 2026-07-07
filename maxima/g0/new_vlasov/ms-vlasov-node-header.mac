@@ -2,7 +2,14 @@
    (Design A) companion functions of the from-flux producers and Lax kernels,
    plus the Lax CFL finalizers. The per-node dispatch in the vel/conf flux
    updaters composes these directly (one register alpha per node); combo
-   coverage mirrors ms-vlasovVelFluxSurf.mac / ms-triadConfFluxSurf.mac. */
+   coverage mirrors ms-vlasovVelFluxSurf.mac / ms-triadConfFluxSurf.mac.
+
+   PAIRING CONSTRAINT: each declaration here has a whole-array wrapper twin
+   (declared in gkyl_vlasov_kernels.h) living in the SAME generated .c file;
+   the priv-header dispatch tables reference both symbol sets (`_arr` ->
+   wrappers on CPU, `_node` -> node functions for the GPU launcher), so both
+   forms must exist for every combo declared here or the link fails. Keep
+   this script's gates in lockstep with the kernel drivers it mirrors. */
 load(stringproc)$
 
 clabels : ["x","y","z"]$
