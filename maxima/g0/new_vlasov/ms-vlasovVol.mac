@@ -109,9 +109,9 @@ for bInd : 1 thru length(bName) do (
             disp(printf(false,sconcat("Skipping Bz kernel for general hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
-            fname : sconcat("~/max-out/vlasov_Bz_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
-            funcName : sconcat("vlasov_Bz_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, false, 3, false),
             close(fh)
           )
@@ -132,9 +132,9 @@ for bInd : 1 thru length(bName) do (
             disp(printf(false,sconcat("Skipping Bx kernel for general hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
-            fname : sconcat("~/max-out/vlasov_Bx_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fname : sconcat("~/max-out/vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
-            funcName : sconcat("vlasov_Bx_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            funcName : sconcat("vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, false, 1, false),
             close(fh)
           ),
@@ -154,9 +154,9 @@ for bInd : 1 thru length(bName) do (
             disp(printf(false,sconcat("Skipping By kernel for general hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
-            fname : sconcat("~/max-out/vlasov_By_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fname : sconcat("~/max-out/vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
-            funcName : sconcat("vlasov_By_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            funcName : sconcat("vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, false, 2, false),
             close(fh)
           ),
@@ -176,9 +176,9 @@ for bInd : 1 thru length(bName) do (
             disp(printf(false,sconcat("Skipping Bz kernel for general hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
-            fname : sconcat("~/max-out/vlasov_Bz_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
-            funcName : sconcat("vlasov_Bz_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, false, 3, false),
             close(fh)
           )
