@@ -279,10 +279,14 @@ printPrototypeRadiation(deco, vi, bStr, pi) := block([si],
 /* ............ Write out the C header file ............ */
 fh : openw("~/max-out/gkyl_vlasov_kernels.h")$
 
-printf(fh, "#pragma once ~%")$
-printf(fh, "#include <math.h> ~%")$
-printf(fh, "#include <gkyl_util.h> ~%")$
-printf(fh, "EXTERN_C_BEG ~%")$
+printf(fh, "#pragma once~%")$
+printf(fh, "#include <math.h>~%")$
+printf(fh, "#include <gkyl_util.h>~%")$
+printf(fh, "// Declares the per-node surface kernels with C linkage so their definitions~%")$
+printf(fh, "// in the kernel .c files (compiled as C++ under nvcc) match the unmangled~%")$
+printf(fh, "// references from the dispatch code.~%")$
+printf(fh, "#include <gkyl_vlasov_surf_node_kernels.h>~%")$
+printf(fh, "EXTERN_C_BEG~%")$
 printf(fh, "~%")$
 
 decorator : "GKYL_CU_DH "$
