@@ -35,7 +35,7 @@ doMakeExprLst(vals, S)  := makelist(if vals[i] # 0 then S[i-1] else 0, i, 1, len
 doExpandLst(lst, basis) := sum(lst[i]*basis[i], i, 1, length(basis))$
 
 /* total fluid-frame pressure = n*T where n is the fluid-frame density */
-calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
+calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
   [varsC, bC, varsP, bP, varsV, bV, NC, NP, NV,
    GammaV_e, Vx_e, Vy_e, Vz_e, GammaVSq_e, VxSq_e, VySq_e, VzSq_e,
    temp_c, temp_sq_c, tempNoZero, temp_e, tempSqNoZero, tempSq_e, 
@@ -82,9 +82,19 @@ calc_sr_pressure(fh, funcNm, cdim, vdim, basisFun, polyOrder) := block(
     printf(fh, " ~%")
   ),
 
-  px_e : doExpand1(p0, bV_vx), 
-  py_e : doExpand1(p1, bV_vy), 
-  pz_e : doExpand1(p2, bV_vz), 
+  /* The momentum coordinate always comes from the stored map: C^1 cubic
+     (tensor bases) or C^0 linear in slots [0],[1] (Serendipity bases). */
+  if (rep = "cubic") then (
+    px_e : doExpand1(p0, bV_vx),
+    py_e : doExpand1(p1, bV_vy),
+    pz_e : doExpand1(p2, bV_vz)
+  )
+  else (
+    loadVelLinearMapBasis(),
+    px_e : doExpand1(p0, bV_lin_vi[1]),
+    py_e : doExpand1(p1, bV_lin_vi[2]),
+    pz_e : doExpand1(p2, bV_lin_vi[3])
+  ),
   p_e : [px_e, py_e, pz_e],
 
   px_sq_e : doExpand1(p0_sq, bV_vx), 

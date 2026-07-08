@@ -17,8 +17,8 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 2$
-maxVdim_Ser : 1$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
 minPolyOrder_Tensor : 2$
@@ -26,7 +26,7 @@ maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
 maxCdim_Tensor : 2$
-maxVdim_Tensor : 1$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -50,16 +50,21 @@ for bInd : 1 thru length(bName) do (
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
+      /* Skip 2x3v tensor kernels: not used by the kernel tables and very
+         expensive to generate. */
+      if (bName[bInd] = "tensor" and c = 2 and v = 3) then maxPolyOrderB : 0,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating Jf/J  ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
         fname : sconcat("~/max-out/vlasov_divide_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("vlasov_divide_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+        /* Tensor (p>1) uses the C^1 cubic map representation; Serendipity
+           (and p=1) uses the C^0 piecewise linear representation. */
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, true)
+          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
         )
         else (
-          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, false)
+          divideJvel(fh, funcName, c, v, bName[bInd], polyOrder, "linear")
         ),
         close(fh),
 
@@ -68,10 +73,10 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_rescale_Jv_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, true)
+          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
         )
         else (
-          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, false)
+          rescaleJvel(fh, funcName, c, v, bName[bInd], polyOrder, "linear")
         ),
         close(fh)                      
       )

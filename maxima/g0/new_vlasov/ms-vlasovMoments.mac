@@ -10,15 +10,15 @@ minPolyOrder_Ser : 1$
 maxPolyOrder_Ser : 2$
 minCdim_Ser : 1$
 minVdim_Ser : 1$    /* see begining of v loop below though. */
-maxCdim_Ser : 0$
-maxVdim_Ser : 0$
+maxCdim_Ser : 3$
+maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-minPolyOrder_Tensor : 1$
+minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
+maxCdim_Tensor : 2$
 maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
@@ -43,6 +43,9 @@ for bInd : 1 thru length(bName) do (
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
+      /* Skip 2x3v tensor kernels: not used by the kernel tables and very
+         expensive to generate. */
+      if (bName[bInd] = "tensor" and c = 2 and v = 3) then maxPolyOrderB : 0,
       /* Vlasov moment calculators. */
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating Vlasov Moments ~ax~av ", bName[bInd]),c,v)),
@@ -50,7 +53,7 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("mom_vlasov"),
         /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
-        if (c+v>5 and polyOrder>1) then (
+        if (c+v>=5 and polyOrder>1) then (
           calcMoments(fh, funcName, c, v, bName[bInd], polyOrder, false)
         )
         else (

@@ -31,11 +31,24 @@ fpprec : 24$
 clabels : ["x","y","z"]$
 dx11 : [dx10, dx11, dx12]$
 dv11 : [dv10, dv11, dv12]$
+/* Symbols for the constant per-direction inverse Jacobian of the C^0 linear
+   map (Serendipity); kernels read the first entry of each direction's
+   jacob_vel block. */
+jacobConstInv_vi : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
+/* Constant per-direction inverse configuration-space Jacobian of the C^0
+   linear position map, for the left/center/right cells: a conf-space surface
+   separates DIFFERENT conf cells in the normal direction, so each cell's
+   distribution is divided by its OWN normal-direction conf Jacobian (the
+   transverse conf Jacobians are continuous across the interface and stay
+   folded into the stored J_x J_v f). */
+jacobConstInv_ci_l : [jacob_cx_l_inv, jacob_cy_l_inv, jacob_cz_l_inv]$
+jacobConstInv_ci_c : [jacob_cx_c_inv, jacob_cy_c_inv, jacob_cz_c_inv]$
+jacobConstInv_ci_r : [jacob_cx_r_inv, jacob_cy_r_inv, jacob_cz_r_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 
 /* Velocity-space Hamiltonian surface streaming */
-calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) := block(
+calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,
    bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi,
    cid,vid,hamil,cv,vv,surfVars,bSurf,NSurf,fl_e,fc_e,fr_e,
@@ -44,11 +57,12 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
    Ghat_r_c,Ghat_l_c,Ghat_l_e,Ghat_r_e,incr_l,incr_r,stream],
 
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
-  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder), 
+  [bV_vi,NV_1D,jacobNodes,numJacobNodes,jacobNodes_vi,basisNodal_vi] = loadVelJacobianBasis(polyOrder),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const double *jacob_pos_l, const double *jacob_pos_c, const double *jacob_pos_r, const double *jacob_vel,
+  const double *poisson_tensor_conf, const double *hamil,
   const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),
@@ -74,8 +88,8 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   fc_e : doExpand1(fc, bP),
   fr_e : doExpand1(fr, bP),
 
-  if (vmap) then (
-    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], NV_1D*(dir-1)), 
+  if (rep = "cubic") then (
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)), 
     /* Fetch Jacobian and nodal basis in surface direction */
     jacob_vi : jacobNodes_vi[dir], 
     basisJacobNodal : basisNodal_vi[dir], 
@@ -109,12 +123,31 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
     ) 
   )
   else (
-    f_l_v_ne : fl_e, 
-    f_c_v_ne : fc_e, 
-    f_r_v_ne : fr_e, 
-    dH_dv_ne : diff(hamil, vv)
-  ), 
-  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3]],
+    /* C^0 linear map (Serendipity): the Jacobian is constant in the cell and
+       all three cells share the same velocity cell at configuration-space
+       surfaces, so the division is an exact scalar multiplication by 1/J. */
+    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
+    f_l_v_ne : jacobConstInv_vi[dir]*fl_e,
+    f_c_v_ne : jacobConstInv_vi[dir]*fc_e,
+    f_r_v_ne : jacobConstInv_vi[dir]*fr_e,
+    dH_dv_ne : jacobConstInv_vi[dir]*diff(hamil, vv)
+  ),
+  /* Additionally divide each cell's distribution by its OWN normal-direction
+     configuration-space Jacobian (C^0 linear position map): a conf surface
+     separates different conf cells, so l/c/r use their own constant J. The
+     advection speed dH/dv carries no conf Jacobian; the conf 1/J enters the
+     CFL estimate (center cell) below. */
+  printf(fh, "  const double *jacob_c~a_l = &jacob_pos_l[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+  printf(fh, "  const double *jacob_c~a_c = &jacob_pos_c[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+  printf(fh, "  const double *jacob_c~a_r = &jacob_pos_r[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
+  printf(fh, "  const double jacob_c~a_l_inv = 1.0/jacob_c~a_l[0]; ~%", clabels[dir], clabels[dir]),
+  printf(fh, "  const double jacob_c~a_c_inv = 1.0/jacob_c~a_c[0]; ~%", clabels[dir], clabels[dir]),
+  printf(fh, "  const double jacob_c~a_r_inv = 1.0/jacob_c~a_r[0]; ~%", clabels[dir], clabels[dir]),
+  f_l_v_ne : jacobConstInv_ci_l[dir]*f_l_v_ne,
+  f_c_v_ne : jacobConstInv_ci_c[dir]*f_c_v_ne,
+  f_r_v_ne : jacobConstInv_ci_r[dir]*f_r_v_ne,
+  clst : [jacob_vx[0], jacob_vx[1], jacob_vx[2], jacob_vx[3], jacob_vy[0], jacob_vy[1], jacob_vy[2], jacob_vy[3], jacob_vz[0], jacob_vz[1], jacob_vz[2], jacob_vz[3], jacob_vx_inv, jacob_vy_inv, jacob_vz_inv, jacob_cx_l_inv, jacob_cy_l_inv, jacob_cz_l_inv, jacob_cx_c_inv, jacob_cy_c_inv, jacob_cz_c_inv, jacob_cx_r_inv, jacob_cy_r_inv, jacob_cz_r_inv],
   fUpwind_r_e : doExpand1(fUpwind_r, bSurf), 
   fUpwind_l_e : doExpand1(fUpwind_l, bSurf),
 
@@ -169,9 +202,11 @@ calcHamilVelSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vmap) :
   writeCIncrExprsCollect1lhsc(out, dv11[dir]*dx11[dir]*incr_l + dv11[dir]*dx11[dir]*incr_r),    
   printf(fh, "~%"),
 
-  /* Estimate stable time step from the cell average of the derivative of the Hamiltonian. */
-  stream : calcInnerProdList(varsV, 1, bV, dH_dv_ne), 
-  printf(fh, "  return fabs(~a*~a*~a*(~a));~%", float(0.5*(2*polyOrder+1)*2.0^(-0.5*(vdim))), dv11[dir], dx11[dir], float(expand(stream[1]))), 
+  /* Estimate stable time step from the cell average of the derivative of the
+     Hamiltonian. The physical streaming rate is faster in conf-compressed cells,
+     so scale by the (center-cell) normal-direction inverse conf Jacobian. */
+  stream : calcInnerProdList(varsV, 1, bV, dH_dv_ne),
+  printf(fh, "  return fabs(~a*~a*~a*jacob_c~a_c_inv*(~a));~%", float(0.5*(2*polyOrder+1)*2.0^(-0.5*(vdim))), dv11[dir], dx11[dir], clabels[dir], float(expand(stream[1]))),
   printf(fh, "~%"),
 
   printf(fh, "} ~%")
@@ -188,8 +223,12 @@ calcHamilGenSurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigh
   [varsC,bC,varsV,bV,varsP,bP] :  loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
-  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, 
+  /* jacob_pos_l/c/r carried uniformly for a shared function-pointer typedef
+     with the default-model streaming surface kernels; unused here (phase-space
+     Hamiltonian / canonical-PB does not use the position-map Jacobian). */
+  printf(fh, "GKYL_CU_DH double ~a(const double *w, const double *dxv,
+  const double *jacob_pos_l, const double *jacob_pos_c, const double *jacob_pos_r, const double *jacob_vel,
+  const double *poisson_tensor_conf, const double *hamil,
   const double *fl, const double *fc, const double *fr, double* GKYL_RESTRICT out) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
 
   cid : cidx(cdim),

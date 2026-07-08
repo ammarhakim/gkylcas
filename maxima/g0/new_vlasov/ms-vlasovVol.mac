@@ -28,8 +28,8 @@ minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minCdim_Tensor : 1$
 minVdim_Tensor : 1$    /* see begining of v loop below though. */
-maxCdim_Tensor : 0$
-maxVdim_Tensor : 1$
+maxCdim_Tensor : 2$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -53,6 +53,9 @@ for bInd : 1 thru length(bName) do (
       if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
 
+      /* Skip 2x3v tensor kernels: not used by the kernel tables and very
+         expensive to generate. */
+      if (bName[bInd] = "tensor" and c = 2 and v = 3) then maxPolyOrderB : 0,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do (
         disp(printf(false,sconcat("Creating volume Vlasov ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder)),
         /* Velocity-space Hamiltonian volume component. */
@@ -60,10 +63,10 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, true)
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, "cubic")
         )
         else (
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, false)
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, true, "linear")
         ), 
         close(fh), 
 
@@ -72,10 +75,10 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_phi_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder, true)
+          calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
         )
         else (
-          calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder, false)
+          calcPhiVol(fh, funcName, c, v, bName[bInd], polyOrder, "linear")
         ),
         close(fh), 
 
@@ -84,10 +87,10 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_E_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          calcEVol(fh, funcName, c, v, bName[bInd], polyOrder, true)
+          calcEVol(fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
         )
         else (
-          calcEVol(fh, funcName, c, v, bName[bInd], polyOrder, false)
+          calcEVol(fh, funcName, c, v, bName[bInd], polyOrder, "linear")
         ),
         close(fh), 
 
@@ -98,10 +101,10 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_Bz_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, true)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, false)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "linear")
           ),
           close(fh) 
         )
@@ -110,10 +113,10 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_Bx_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, true)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, false)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 1, "linear")
           ),
           close(fh), 
 
@@ -121,10 +124,10 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_By_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, true)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, false)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 2, "linear")
           ),
           close(fh), 
 
@@ -132,10 +135,10 @@ for bInd : 1 thru length(bName) do (
           fh : openw(fname),
           funcName : sconcat("vlasov_Bz_hamil_vel_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
           if (bName[bInd] = "tensor" and polyOrder > 1) then (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, true)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "cubic")
           )
           else (
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, false)
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, true, 3, "linear")
           ),
           close(fh)                      
         ),
@@ -145,23 +148,23 @@ for bInd : 1 thru length(bName) do (
         fh : openw(fname),
         funcName : sconcat("vlasov_rad_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
         if (bName[bInd] = "tensor" and polyOrder > 1) then (
-          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, true)
+          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, "cubic")
         )
         else (
-          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, false)
+          calcRadVelVol(fh, funcName, c, v, bName[bInd], polyOrder, "linear")
         ),
         close(fh)                   
       ),
-      if (v=1) then maxPolyOrderB : 3 /* Generate p=3 kernels if vdim = 1 */
+      if (v=1) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim = 1 */
       /* We do not generate 5D and 6D p>1 phase-space Hamiltonian kernels. */
-       if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
+      if (c+v>5 and maxPolyOrderB > 1) then maxPolyOrderB : 1,
       for polyOrder : minPolyOrderB thru maxPolyOrderB do ( 
         /* Phase-space Hamiltonian volume component. Only generate with Serendipity basis for now. */
         if (bName[bInd] = "ser") then (
           fname : sconcat("~/max-out/vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
           funcName : sconcat("vlasov_hamil_gen_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, false),
+          calcHamilVol(fh, funcName, c, v, bName[bInd], polyOrder, false, "none"),
           close(fh)
         )
       ) 

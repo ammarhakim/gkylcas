@@ -16,10 +16,10 @@ minVdim_Ser : 1$
 maxVdim_Ser : 3$
 
 /* Tensor product basis. */
-minPolyOrder_Tensor : 1$
+minPolyOrder_Tensor : 2$
 maxPolyOrder_Tensor : 2$
 minVdim_Tensor : 1$ 
-maxVdim_Tensor : 0$
+maxVdim_Tensor : 3$
 
 /* ...... END OF USER INPUTS........ */
 
@@ -35,31 +35,32 @@ for bInd : 1 thru length(bName) do (
     maxPolyOrderB : maxPolyOrder[bInd],
     if (v<3) then maxPolyOrderB : 3, /* Generate p=3 kernels if vdim < 3 */
     for polyOrder : minPolyOrderB thru maxPolyOrderB do (
-      /* Make nonuniform velocity map Hamiltonian kernels using C^1 cubic velocity map. */
+      /* Tensor (p>1) uses the C^1 cubic velocity map; Serendipity (and p=1)
+         uses the C^0 piecewise linear velocity map. */
       if (bName[bInd] = "tensor" and polyOrder > 1) then (
         fname : sconcat("~/max-out/hamil_default_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("hamil_default_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamil(fh, funcName, v, bName[bInd], polyOrder, false, true),
+        calcHamil(fh, funcName, v, bName[bInd], polyOrder, false, "cubic"),
         close(fh), 
 
         fname : sconcat("~/max-out/hamil_sr_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("hamil_sr_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamil(fh, funcName, v, bName[bInd], polyOrder, true, true),
+        calcHamil(fh, funcName, v, bName[bInd], polyOrder, true, "cubic"),
         close(fh) 
       )
       else (
         fname : sconcat("~/max-out/hamil_default_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("hamil_default_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamil(fh, funcName, v, bName[bInd], polyOrder, false, false),
+        calcHamil(fh, funcName, v, bName[bInd], polyOrder, false, "linear"),
         close(fh), 
 
         fname : sconcat("~/max-out/hamil_sr_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("hamil_sr_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcHamil(fh, funcName, v, bName[bInd], polyOrder, true, false),
+        calcHamil(fh, funcName, v, bName[bInd], polyOrder, true, "linear"),
         close(fh)
       )      
     )
