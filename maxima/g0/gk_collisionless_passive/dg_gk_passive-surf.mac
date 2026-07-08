@@ -113,9 +113,6 @@ gen_gk_passive_surf_update_in_dir(surfDir, fh, funcNm, cdim, vdim, basisFun, pol
   ),
   printf(fh, "~%"),
 
-  /*printf(fh, "  const double *GhatL = &flux_surf_l[~a];~%", (surfDir-1)*NSurfIndexing),*/
-  /*printf(fh, "  const double *GhatR = &flux_surf_r[~a];~%", (surfDir-1)*NSurfIndexing),*/
-
   GhatL_e : doExpand1(GhatL, bSurf), 
   GhatR_e : doExpand1(GhatR, bSurf), 
 
