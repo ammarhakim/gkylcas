@@ -1,4 +1,4 @@
-load("dg_gr_maxwell/dgGrMaxwellConfFluxSurfFuncsLax")$
+load("dg_gr_maxwell/dgGrMaxwellConfFluxSurfFuncs")$
 load(stringproc)$
 /* This script calls the functions which calculate the
    components of the modal DG expansion of the configuration space 
