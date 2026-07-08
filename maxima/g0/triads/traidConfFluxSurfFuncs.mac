@@ -38,14 +38,14 @@ vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,cid,hamil,cv,surfVars,surfCVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
-   surfNodes,numNodes,PI_dH_dv_l, NC, vid],
+   surfNodes,numNodes,PI_dH_dv_l, NC, vid, conf_node, alpha_n],
 
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder), 
   NC : length(bC), 
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int hamil_pt_edge, 
-    const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
+    const double *pt_conf_nodal, const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
 
   cid : cidx(cdim),
   vid : vidx(cdim,vdim),
@@ -59,7 +59,7 @@ calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, v
   ),
 
   /* Save enough names for 3D */
-  poissonTensorConf : [poisson_tensor_conf_0, poisson_tensor_conf_1, poisson_tensor_conf_2],
+  ptConfNodal : [pt_conf_nodal_0, pt_conf_nodal_1, pt_conf_nodal_2],
 
   /* Surface contribution is defined as integral(phi^- Fhat) over the surface. */
   /* cv = variable in direction of surface update. */
@@ -75,30 +75,37 @@ calcHamilGenVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, v
   /* Compute the characteristic for the NC Poisson Tensor */
   /* alpha^i = \Pi^{ij} \pfrac{H}{z^j} */
   /* Since \Pi_{xx} = 0, we only need velocity gradients of H w.r.t. v_i*/
-  Pi_dH_dv : 0,
   for j : 1 thru vdim do (
 
-    /* Offset the row by NC*(dir - 1)*vdim components */
-    printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", j - 1, NC*(dir-1)*vdim + NC*(j-1)),
-
-    poissonTensorConf_local : doExpand1(poissonTensorConf[j],bC),
-    v_diff : varsV[j],
-    Pi_dH_dv : Pi_dH_dv + poissonTensorConf_local*diff(hamil,v_diff)*dv1[j]
+    /* Offset the row by num_nodes_conf*(dir - 1)*vdim components */
+    printf(fh, "  const double *pt_conf_nodal_~a = &pt_conf_nodal[~a]; ~%", j - 1, num_nodes_conf*(dir-1)*vdim + num_nodes_conf*(j-1))
   ),
 
 
   /* Each cells owns its *lower* edge fluxes, so we evaluate the derivative of the 
      Hamiltonian at cv = -1. Note that the flux is z_\dot = Pi^{ij} \dH/dz^j. */
   printf(fh, "  if (hamil_pt_edge == -1) {~%"),
-  PI_dH_dv_l : float(evAtNodes(subst(cv=-1,Pi_dH_dv),surfNodes,surfVars)), 
   for i : 1 thru numNodes do (
-    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, PI_dH_dv_l[i]) 
+    conf_node : floor((i-1)/num_nodes_vel),
+    alpha_n : 0,
+    for j : 1 thru vdim do (
+      v_diff : varsV[j],
+      PI_dH_dv_l : float(evAtNodes(subst(cv=-1,diff(hamil,v_diff)*dv1[j]),[surfNodes[i]],surfVars)),
+      alpha_n : alpha_n + ptConfNodal[j][conf_node]*PI_dH_dv_l[1]
+    ),
+    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, float(alpha_n))
   ),
   printf(fh, "  }~%"),
   printf(fh, "  else if (hamil_pt_edge == 1) {~%"),
-  PI_dH_dv_l : float(evAtNodes(subst(cv=1,Pi_dH_dv),surfNodes,surfVars)), 
   for i : 1 thru numNodes do (
-    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, PI_dH_dv_l[i]) 
+    conf_node : floor((i-1)/num_nodes_vel),
+    alpha_n : 0,
+    for j : 1 thru vdim do (
+      v_diff : varsV[j],
+      PI_dH_dv_l : float(evAtNodes(subst(cv=1,diff(hamil,v_diff)*dv1[j]),[surfNodes[i]],surfVars)),
+      alpha_n : alpha_n + ptConfNodal[j][conf_node]*PI_dH_dv_l[1]
+    ),
+    printf(fh, "    alpha_quad[~a] += ~a;~%", i-1, float(alpha_n))
   ),
   printf(fh, "  }~%"),
   printf(fh, "~%"),
