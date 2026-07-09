@@ -106,7 +106,7 @@ calcHamilVolNonCanonical(fh, funcNm, cdim, vdim, basisFun, polyOrder, vel_hamil,
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  const double *jacob_pos, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (vel_hamil) then (
     hamil : doExpand1(hamil, bV)
   )
@@ -230,7 +230,7 @@ calcHamilVolNonCanonicalAlphaPreComp(fh, funcNm, cdim, vdim, basisFun, polyOrder
 
 
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, 
-  const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
+  const double *jacob_pos, const double *jacob_vel, const double *poisson_tensor_conf, const double *hamil, const double *f, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
  
   /* Allocate all the memory needed by the volume kernels */
   printf(fh, "  double alphai[~a] = {0.0}; ~%", length(bP)),

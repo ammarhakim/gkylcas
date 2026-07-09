@@ -39,26 +39,26 @@ for bInd : 1 thru length(bName) do (
         fname : sconcat("~/max-out/rad_compton_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("rad_compton_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcRad(fh, funcName, v, bName[bInd], polyOrder, true, true),
+        calcRad(fh, funcName, v, bName[bInd], polyOrder, true, "cubic"),
         close(fh), 
 
         fname : sconcat("~/max-out/rad_curvature_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("rad_curvature_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcRad(fh, funcName, v, bName[bInd], polyOrder, false, true),
+        calcRad(fh, funcName, v, bName[bInd], polyOrder, false, "cubic"),
         close(fh) 
       )
       else (
         fname : sconcat("~/max-out/rad_compton_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("rad_compton_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcRad(fh, funcName, v, bName[bInd], polyOrder, true, false),
+        calcRad(fh, funcName, v, bName[bInd], polyOrder, true, "linear"),
         close(fh), 
 
         fname : sconcat("~/max-out/rad_curvature_", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
         fh : openw(fname),
         funcName : sconcat("rad_curvature_",  v, "v_", bName[bInd], "_p", polyOrder),
-        calcRad(fh, funcName, v, bName[bInd], polyOrder, false, false),
+        calcRad(fh, funcName, v, bName[bInd], polyOrder, false, "linear"),
         close(fh) 
       )      
     )
