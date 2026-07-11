@@ -266,11 +266,6 @@ calcHamilGenBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
     return(incrOut)
   ),
 
-  if (rep = "linear") then (
-    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
-    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
-    printf(fh, "~%")
-  ),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
@@ -336,11 +331,6 @@ calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
 
   Ghat_e : doExpand1(Ghat, bSurf),
 
-  if (rep = "linear") then (
-    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
-    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
-    printf(fh, "~%")
-  ),
   /* NOTE: WE ARE USING L TO DENOTE THE LEFT EDGE UPDATE AND R TO DENOTE RIGHT EDGE UPDATE OF GLOBAL DOMAIN */
   /* if edge == -1, we are doing the left edge boundary and the skin cell needs to be evauluated at +1 */
   printf(fh, "  if (edge == -1) { ~%~%"),
