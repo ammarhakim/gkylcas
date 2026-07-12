@@ -193,7 +193,6 @@ calcHamilVelBoundarySurfStream(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder,
   printf(fh, "} ~%")
 )$  
 
-
 /* Velocity-space surface update from pre-computed flux. */
 calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrder) := block(
   [varsC,bC,varsV,bV,varsP,bP,vid,vv,surfVars,bSurf,NSurf,Fhat_nodal_e,
@@ -232,11 +231,6 @@ calcVelBoundarySurf(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherO
   ),
 
 
-  if (rep = "linear") then (
-    printf(fh, "  const double *jacob_v~a = &jacob_vel[~a]; ~%", clabels[dir], numJacobNodes*(dir-1)),
-    printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_v~a[0]; ~%", clabels[dir], clabels[dir]),
-    printf(fh, "~%")
-  ),
   /* The nodal flux expansion is the interface: compute the modal-coefficient
      update directly from it (the nodal-to-modal map folded into one step).
      At large node counts (256 nodes at 2x3v p=2 with higher-order

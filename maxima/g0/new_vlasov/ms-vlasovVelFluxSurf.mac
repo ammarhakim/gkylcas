@@ -36,6 +36,9 @@ minVdim      : [minVdim_Ser, minVdim_Tensor]$
 maxCdim      : [maxCdim_Ser, maxCdim_Tensor]$
 maxVdim      : [maxVdim_Ser, maxVdim_Tensor]$
 useHigherOrderList : [false, true]$
+/* Hamiltonian representations to generate magnetic-force kernels for.
+   "phase" (GR Vlasov-Maxwell coupling) is skipped for tensor p>1. */
+hamilReps : ["vel_dense", "vel_sparse", "phase"]$
 
 clabels : ["x","y","z"]$
 vlabels : ["vx","vy","vz"]$
@@ -83,28 +86,25 @@ for bInd : 1 thru length(bName) do (
 
               /* Magnetic force with velocity-space Hamiltonian volume component. Only valid for vdim > 1. */
               if (v > 1) then (
-                fname : sconcat("~/max-out/B_dense_",si,"alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-                fh : openw(fname),
-                funcName : sconcat("B_dense_",si,"alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-                if (bName[bInd] = "tensor" and polyOrder > 1) then (
-                  calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "cubic", useHigherOrder)
+                for hrInd : 1 thru length(hamilReps) do (
+                  hamilRep : hamilReps[hrInd],
+                  /* No phase-space Hamiltonian magnetic force for tensor p>1 (cubic rep). */
+                  if ((bName[bInd] = "tensor" and polyOrder > 1) and (hamilRep = "phase")) then (
+                    disp(printf(false,sconcat("Skipping B alpha ",vlabels[dir]," kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
+                  )
+                  else (
+                    fname : sconcat("~/max-out/B_",si,"hamil_", hamilRep, "_alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+                    fh : openw(fname),
+                    funcName : sconcat("B_",si,"hamil_", hamilRep, "_alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+                    if (bName[bInd] = "tensor" and polyOrder > 1) then (
+                      calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, hamilRep, "cubic", useHigherOrder)
+                    )
+                    else (
+                      calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, hamilRep, "linear", useHigherOrder)
+                    ),
+                    close(fh)
+                  )
                 )
-                else (
-                  calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_dense", "linear", useHigherOrder)
-                ), 
-                close(fh),
-
-                /* Sparse (separable) velocity-space Hamiltonian magnetic force. */
-                fname : sconcat("~/max-out/B_sparse_",si,"alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
-                fh : openw(fname),
-                funcName : sconcat("B_sparse_",si,"alpha_quad_",vlabels[dir],"_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-                if (bName[bInd] = "tensor" and polyOrder > 1) then (
-                  calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "cubic", useHigherOrder)
-                )
-                else (
-                  calcBHamilVelSurfForce(dir, fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", "linear", useHigherOrder)
-                ),
-                close(fh)
               ),
 
               fname : sconcat("~/max-out/rad_",si,"alpha_quad_", vlabels[dir], "_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),

@@ -177,14 +177,15 @@ calcEVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, useHigherOrd
 
 /* Magnetic force with velocity-space Hamiltonian at velocity-space surface quadrature points. */
 calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep, useHigherOrder) := block(
-  [varsC,bC,varsV,bV,varsP,bP,NC,NV,vid,vv,surfVars,surfVVars,bSurf,NSurf,
+  [varsC,bC,varsV,bV,varsP,bP,NC,NV,NP,vid,vv,surfVars,surfVVars,bSurf,NSurf,
    nodes_conf,basisNodalConf,num_nodes_conf,nodes_vel,basisNodalVel,num_nodes_vel,
    surfNodes,numNodes,tag,NS,b,k,transK,jacob_edge,jacob_vi_surf,jacob_surf_tot,
-   jdiv,jdivK,bLabs,accStr,kk,nPts],
+   jdiv,jdivK,bLabs,accStr,kk,nPts,fact,sizesNA,NA,tabP,ndk],
 
   [varsC,bC,varsV,bV,varsP,bP] : loadVlasovBasis(basisFun, cdim, vdim, polyOrder),
   NC : length(bC),
   NV : length(bV),
+  NP : length(bP),
   vid : vidx(cdim,vdim),
 
   vv : varsV[dir],
@@ -201,6 +202,17 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_r
   NS : 0,
   for b : 1 thru NV do
     if length(intersection(setify(listofvars(bV[b])), setify(varsV))) <= 1 then NS : NS + 1,
+
+  /* Phase-space Hamiltonian: dH/dv_k factorizes on the same outer(conf) x
+     inner(vel) split as -dH/dx (see calcHamilPhaseVelSurfForce); the inner
+     v_k-derivative shapes (Vd) and outer evaluation shapes (Cm) are already
+     in the shared phase-factor tables. */
+  if (hamil_rep = "phase") then (
+    fact : laxFactorizeBasis(bP, varsC, cons(vv, surfVVars)),
+    sizesNA : laxFactorSizes(fact, vv),
+    NA : sizesNA[1],
+    tabP : sconcat("vst_", tag, "_ph_v", dir-1)
+  ),
 
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   surfTabInclude(fh, cdim, vdim, basisFun, polyOrder),
@@ -236,7 +248,22 @@ calcBHamilVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_r
   const double *hamil, const double *qmem) ~%{ ~%", funcNm),
   for k in transK do (
     printf(fh, "  double dH_d~a = 0.0; ~%", vlabels[k]),
-    if (hamil_rep = "vel_sparse") then (
+    if (hamil_rep = "phase") then (
+      /* Two-stage contraction (see calcHamilPhaseVelSurfForce): rebuild the
+         j-th column of the -1-edge inner v_k-derivative contraction in
+         registers (Vd/dcoefr), then dot with the outer shapes evaluated at
+         configuration node i (Cm). */
+      ndk : laxDerivSizes(fact, vv, varsV[k]),
+      printf(fh, "  { ~%"),
+      printf(fh, "    double G[~a]; ~%", NA),
+      printf(fh, "    for (int a = 0; a < ~a; ++a) G[a] = 0.0; ~%", NA),
+      printf(fh, "    for (int b = 0; b < ~a; ++b) { ~%", NP),
+      printf(fh, "      G[~a_cmap[b]] += ~a_Vd~a[j*~a + ~a_vrd~amap[b]]*(~a_dcoefr~a[b]*hamil[b]); ~%", tabP, tabP, k-1, ndk, tabP, k-1, tabP, k-1),
+      printf(fh, "    } ~%"),
+      printf(fh, "    for (int a = 0; a < ~a; ++a) dH_d~a += ~a_Cm[i*~a + a]*G[a]; ~%", NA, vlabels[k], tabP, NA),
+      printf(fh, "  } ~%")
+    )
+    else if (hamil_rep = "vel_sparse") then (
       printf(fh, "  for (int s = 0; s < ~a; ++s) { ~%", NS),
       printf(fh, "    const int b = vst_~a_vel_sparse_idx[s]; ~%", tag),
       printf(fh, "    dH_d~a += vst_~a_vel_dv~a_v~a[j*~a + b]*hamil[b]; ~%", vlabels[k], tag, k-1, dir-1, NV),

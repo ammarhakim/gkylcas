@@ -132,7 +132,20 @@ for bInd : 1 thru length(bName) do (
           else (
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "linear")
           ),
-          close(fh)
+          close(fh),
+
+          /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
+             No cubic (tensor p>1) representation. */
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            disp(printf(false,sconcat("Skipping Bz kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
+          )
+          else (
+            fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "none"),
+            close(fh)
+          )
         )
         else if (v = 3) then (
           fname : sconcat("~/max-out/vlasov_Bx_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
@@ -157,6 +170,19 @@ for bInd : 1 thru length(bName) do (
           ),
           close(fh),
 
+          /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
+             No cubic (tensor p>1) representation. */
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            disp(printf(false,sconcat("Skipping Bx kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
+          )
+          else (
+            fname : sconcat("~/max-out/vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 1, "none"),
+            close(fh)
+          ),
+
 
           fname : sconcat("~/max-out/vlasov_By_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
@@ -180,6 +206,19 @@ for bInd : 1 thru length(bName) do (
           ),
           close(fh),
 
+          /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
+             No cubic (tensor p>1) representation. */
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            disp(printf(false,sconcat("Skipping By kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
+          )
+          else (
+            fname : sconcat("~/max-out/vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 2, "none"),
+            close(fh)
+          ),
+
 
           fname : sconcat("~/max-out/vlasov_Bz_hamil_vel_dense_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
           fh : openw(fname),
@@ -201,7 +240,20 @@ for bInd : 1 thru length(bName) do (
           else (
             calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "vel_sparse", 3, "linear")
           ),
-          close(fh)
+          close(fh),
+
+          /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
+             No cubic (tensor p>1) representation. */
+          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+            disp(printf(false,sconcat("Skipping Bz kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
+          )
+          else (
+            fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
+            fh : openw(fname),
+            funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "none"),
+            close(fh)
+          )
         ),
 
         /* Force due to radiation drag which is only a function of velocity space. */
