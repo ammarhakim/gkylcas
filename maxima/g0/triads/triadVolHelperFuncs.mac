@@ -21,6 +21,10 @@ pt_conf_total : [1,6,18]$
 dx1 : [dx10, dx11, dx12]$
 dv1_inv : [dv10, dv11, dv12]$
 vTrans  : [vx*dv0/2+wx1, vy*dv1/2+wx2, vz*dv2/2+wx3]$
+/* Constant per-direction inverse mesh Jacobians of the C^0 linear maps:
+   each derivative d/dz_i picks up the Jacobian of ITS OWN direction only. */
+jacobCInv_sym : [jacob_cx_inv, jacob_cy_inv, jacob_cz_inv]$
+jacobVInv_sym : [jacob_vx_inv, jacob_vy_inv, jacob_vz_inv]$
 cidx(cdim) := makelist(i,i,0,cdim-1)$
 vidx(cdim,vdim) := makelist(i,i,cdim,cdim+vdim-1)$
 PB_vol(f,g,x,y) := diff(f,x)*diff(g,y) - diff(g,x)*diff(f,y)$
@@ -101,6 +105,7 @@ calcHamilVolNonCanonicalHelper(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp
 
   printf(fh, "#include <gkyl_nc_hamil_gen_vol_comps_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int dir,
+   const double *jacob_pos, const double *jacob_vel,
    const double *alpha, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
 
 
@@ -108,6 +113,10 @@ calcHamilVolNonCanonicalHelper(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp
   vid : vidx(cdim,vdim), 
   for i : 1 thru cdim do printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", i-1, cid[i]),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
+  /* Constant per-direction mesh Jacobians (C^0 linear maps): the test-function
+     derivative dw/dz_dir picks up the inverse Jacobian of its own direction. */
+  for i : 1 thru cdim do printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_pos[~a]; ~%", clabels[i], (polyOrder+1)*(i-1)),
+  for i : 1 thru vdim do printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_vel[~a]; ~%", clabels[i], (polyOrder+1)*(i-1)),
 
   printf(fh, "  ~%"),
   alpha_local_e : doExpand1(alpha,bP),
@@ -115,12 +124,13 @@ calcHamilVolNonCanonicalHelper(fh, funcNm, cdim, vdim, basisFun, polyOrder, comp
   /* Convert to a phase space PT by mulitplying by p for the bottom right block comps */
   for dir : 1 thru pdim do (
     printf(fh, "  if (dir == ~a) { ~%", dir - 1),
-    if (dir <= cdim ) then dvol : dx1[dir] else dvol : dv1_inv[dir-cdim],
+    if (dir <= cdim ) then dvol : dx1[dir]*jacobCInv_sym[dir] else dvol : dv1_inv[dir-cdim]*jacobVInv_sym[dir-cdim],
     pbBasis : dvol*diff(bP[comp],varsP[dir])*alpha_local_e,
     pb : fullratsimp(calcInnerProdList(varsP, 1, bP, pbBasis)),
 
     /* Volume factor for intergation */
-    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+    clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12,
+      jacob_cx_inv, jacob_cy_inv, jacob_cz_inv, jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
     writeCIncrExprsCollect1(out, pb, clst_vol), 
     printf(fh, "  } ~%"),
     printf(fh, "~%"), 
@@ -140,7 +150,7 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
   cid, vid, pdim, NC, hamil,
   poissonTensorConf, pt_conf_comp_total,
   varsPFull, pt_index, dir1, dir2, index_vsum, varsP1, varsP2,
-  dz_val2, dvol, p_factor,
+  dz_val1, dz_val2, p_factor,
   alpha_index_sym, alpha_index_asym,
   pbBasis, pb, clst_vol,
   poissonTensorConf_local],
@@ -152,6 +162,7 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
 
   printf(fh, "#include <gkyl_nc_hamil_gen_vol_comps_kernels.h> ~%"),
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int dir,
+   const double *vmap, const double *jacob_pos, const double *jacob_vel,
    const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out) ~%{ ~%", funcNm),
   if (hamil_rep = "phase") then (
     hamil : doExpand1(hamil, bP)
@@ -178,6 +189,18 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
   for i : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", i-1, vid[i]),
   for i : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", i-1, vid[i]),
   for i : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", i, cdim+i-1),
+  /* Constant per-direction mesh Jacobians (C^0 linear maps): each dH/dz_i
+     derivative picks up the inverse Jacobian of its own direction. */
+  for i : 1 thru cdim do printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_pos[~a]; ~%", clabels[i], (polyOrder+1)*(i-1)),
+  for i : 1 thru vdim do printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_vel[~a]; ~%", clabels[i], (polyOrder+1)*(i-1)),
+  /* Physical transverse velocity from the C^0 linear velocity map (slots
+     [0],[1] of each direction's 4-slot block); only the (vel,vel) Poisson
+     tensor block (vdim > 1) carries the momentum factor. */
+  if (vdim > 1) then (
+    for i : 1 thru vdim do printf(fh, "  const double *vmap_v~a = &vmap[~a]; ~%", clabels[i], 4*(i-1))
+  ),
+  loadVelLinearMapBasis(),
+  vmapTrans : [doExpand1(vmap_vx, bV_lin_vi[1]), doExpand1(vmap_vy, bV_lin_vi[2]), doExpand1(vmap_vz, bV_lin_vi[3])],
 
   /* for a 2*vdim space varsPFull */
   if (vdim = 3) then (
@@ -215,9 +238,11 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
 
       printf(fh, "  const double *pt_conf_~a = &poisson_tensor_conf[~a]; ~%", pt_index - 1, NC*(pt_index-1)),
 
-      /* Compute the volume element */
-      if (dir2 <= vdim ) then dz_val2 : dx1[dir2] else dz_val2 : dv1_inv[dir2-vdim],
-      dvol : dz_val2, 
+      /* Per-term derivative factors: each dH/dz_i carries the 2/dz of its own
+         direction (the symmetric term differentiates in dir2, the antisymmetric
+         term in dir1). */
+      if (dir1 <= vdim ) then dz_val1 : dx1[dir1]*jacobCInv_sym[dir1] else dz_val1 : dv1_inv[dir1-vdim]*jacobVInv_sym[dir1-vdim],
+      if (dir2 <= vdim ) then dz_val2 : dx1[dir2]*jacobCInv_sym[dir2] else dz_val2 : dv1_inv[dir2-vdim]*jacobVInv_sym[dir2-vdim],
 
       /* For cdim /= vdim, we assume the ignorable coordinates are the last pairs.
         For instance if we have varsC = [x,y,z] with:
@@ -226,26 +251,28 @@ calcHamilVolNonCanonicalAlpha(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil
         It is assumed that H does not depend on these ignorable coordinates. */
 
       /* Convert to a phase space PT by mulitplying by p for the bottom right block comps */
-      if ( (dir1 > vdim) and (dir2 > vdim) ) then p_factor : vTrans[index_vsum] else p_factor : 1,
+      if ( (dir1 > vdim) and (dir2 > vdim) ) then p_factor : vmapTrans[index_vsum] else p_factor : 1,
 
-      /* Symmetric contributions Calcuation & accumulation*/
-      pbBasis : dvol*diff(hamil,varsP2)*poissonTensorConf_local*p_factor,
+      /* Symmetric contribution: dH/dz_dir2, so dir2's derivative factor. */
+      pbBasis : dz_val2*diff(hamil,varsP2)*poissonTensorConf_local*p_factor,
       pb : fullratsimp(calcInnerProdList(varsP, 1, bP, pbBasis)), 
 
       /* Volume factor for intergation */
-      clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+      clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12,
+        jacob_cx_inv, jacob_cy_inv, jacob_cz_inv, jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
       printf(fh, "  if (dir == ~a) { ~%", alpha_index_sym - 1),
       writeCIncrExprsCollect1(out, pb, clst_vol),
       printf(fh, "  } ~%"),
 
 
-      /* Antisymmetric contributions Calcuation & accumulation */
-      /* Asymmetry is why we swap P2 -> P1 and pick up a minus sign (PT and p_factor do not change) */
-      pbBasis : - dvol*diff(hamil,varsP1)*poissonTensorConf_local*p_factor,
+      /* Antisymmetric contribution: swap P2 -> P1 with a minus sign (PT and
+         p_factor unchanged); dH/dz_dir1, so dir1's derivative factor. */
+      pbBasis : - dz_val1*diff(hamil,varsP1)*poissonTensorConf_local*p_factor,
       pb : fullratsimp(calcInnerProdList(varsP, 1, bP, pbBasis)), 
 
       /* Volume factor for intergation */
-      clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12],
+      clst_vol : [dx10, dx11, dx12, dv10, dv11, dv12,
+        jacob_cx_inv, jacob_cy_inv, jacob_cz_inv, jacob_vx_inv, jacob_vy_inv, jacob_vz_inv],
       printf(fh, "  if (dir == ~a) { ~%", alpha_index_asym - 1),
       writeCIncrExprsCollect1(out, pb, clst_vol),
       printf(fh, "  } ~%"),

@@ -135,15 +135,22 @@ for bInd : 1 thru length(bName) do (
           close(fh),
 
           /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
-             No cubic (tensor p>1) representation. */
-          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+             No cubic (tensor p>1) representation. The linear rep carries the same
+             per-direction factors as the vel-Hamiltonian flavors: the test-function
+             and dH derivatives in the two transverse directions each pick up a
+             1/J_v of THAT direction, which against the total Jacobian on Jf leaves
+             a net factor J_v,Bdir. The 2x3v p2 and 3x3v combos are skipped: the
+             full-phase-space inner products are generation-prohibitive there and
+             the kernel tables carry NULL in those slots. */
+          if ((bName[bInd] = "tensor" and polyOrder > 1)
+              or (c + v >= 5 and (polyOrder > 1 or c + v > 5))) then (
             disp(printf(false,sconcat("Skipping Bz kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
             fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "none"),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "linear"),
             close(fh)
           )
         )
@@ -171,15 +178,22 @@ for bInd : 1 thru length(bName) do (
           close(fh),
 
           /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
-             No cubic (tensor p>1) representation. */
-          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+             No cubic (tensor p>1) representation. The linear rep carries the same
+             per-direction factors as the vel-Hamiltonian flavors: the test-function
+             and dH derivatives in the two transverse directions each pick up a
+             1/J_v of THAT direction, which against the total Jacobian on Jf leaves
+             a net factor J_v,Bdir. The 2x3v p2 and 3x3v combos are skipped: the
+             full-phase-space inner products are generation-prohibitive there and
+             the kernel tables carry NULL in those slots. */
+          if ((bName[bInd] = "tensor" and polyOrder > 1)
+              or (c + v >= 5 and (polyOrder > 1 or c + v > 5))) then (
             disp(printf(false,sconcat("Skipping Bx kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
             fname : sconcat("~/max-out/vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("vlasov_Bx_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 1, "none"),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 1, "linear"),
             close(fh)
           ),
 
@@ -207,15 +221,22 @@ for bInd : 1 thru length(bName) do (
           close(fh),
 
           /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
-             No cubic (tensor p>1) representation. */
-          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+             No cubic (tensor p>1) representation. The linear rep carries the same
+             per-direction factors as the vel-Hamiltonian flavors: the test-function
+             and dH derivatives in the two transverse directions each pick up a
+             1/J_v of THAT direction, which against the total Jacobian on Jf leaves
+             a net factor J_v,Bdir. The 2x3v p2 and 3x3v combos are skipped: the
+             full-phase-space inner products are generation-prohibitive there and
+             the kernel tables carry NULL in those slots. */
+          if ((bName[bInd] = "tensor" and polyOrder > 1)
+              or (c + v >= 5 and (polyOrder > 1 or c + v > 5))) then (
             disp(printf(false,sconcat("Skipping By kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
             fname : sconcat("~/max-out/vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("vlasov_By_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 2, "none"),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 2, "linear"),
             close(fh)
           ),
 
@@ -243,15 +264,22 @@ for bInd : 1 thru length(bName) do (
           close(fh),
 
           /* Phase-space Hamiltonian magnetic force (GR Vlasov-Maxwell coupling).
-             No cubic (tensor p>1) representation. */
-          if (bName[bInd] = "tensor" and polyOrder > 1) then (
+             No cubic (tensor p>1) representation. The linear rep carries the same
+             per-direction factors as the vel-Hamiltonian flavors: the test-function
+             and dH derivatives in the two transverse directions each pick up a
+             1/J_v of THAT direction, which against the total Jacobian on Jf leaves
+             a net factor J_v,Bdir. The 2x3v p2 and 3x3v combos are skipped: the
+             full-phase-space inner products are generation-prohibitive there and
+             the kernel tables carry NULL in those slots. */
+          if ((bName[bInd] = "tensor" and polyOrder > 1)
+              or (c + v >= 5 and (polyOrder > 1 or c + v > 5))) then (
             disp(printf(false,sconcat("Skipping Bz kernel for phase hamil ",bName[bInd]," ~ax~avP~a"),c,v,polyOrder))
           )
           else (
             fname : sconcat("~/max-out/vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder, ".c"),
             fh : openw(fname),
             funcName : sconcat("vlasov_Bz_hamil_phase_vol_", c, "x", v, "v_", bName[bInd], "_p", polyOrder),
-            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "none"),
+            calcBVol(fh, funcName, c, v, bName[bInd], polyOrder, "phase", 3, "linear"),
             close(fh)
           )
         ),

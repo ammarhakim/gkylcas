@@ -77,8 +77,14 @@ calcHamilPhaseVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
      Hamiltonian contraction in registers, dot with the dir-derivative of
      the outer shapes (CmD). */
   printf(fh, "GKYL_CU_DH double ~a_node(int i, int j, const double *w, const double *dxv,
+  const double *vmap, const double *jacob_pos, const double *jacob_vel_surf,
   const double *poisson_tensor_conf, const double *hamil) ~%{ ~%", funcNm),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
+  /* The -dH/dx_dir derivative picks up 1/J_x,dir -- the position-map (mesh)
+     Jacobian in the DIRECTION OF THE DERIVATIVE (cell-wise constant for the
+     C^0 linear map), not the total map Jacobian. */
+  printf(fh, "  const double *jacob_c~a = &jacob_pos[~a]; ~%", clabels[dir], (polyOrder+1)*(dir-1)),
+  printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_c~a[0]; ~%", clabels[dir], clabels[dir]),
   printf(fh, "  double G[~a]; ~%", NA),
   printf(fh, "  for (int a = 0; a < ~a; ++a) G[a] = 0.0; ~%", NA),
   printf(fh, "  for (int k = 0; k < ~a; ++k) { ~%", NB),
@@ -86,12 +92,13 @@ calcHamilPhaseVelSurfForce(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
   printf(fh, "  } ~%"),
   printf(fh, "  double dH_dx = 0.0; ~%"),
   printf(fh, "  for (int a = 0; a < ~a; ++a) dH_dx += ~a_CmD[i*~a + a]*G[a]; ~%", NA, tabP, NA),
-  printf(fh, "  return -dx1~a*dH_dx; ~%", dir-1),
+  printf(fh, "  return -dx1~a*jacob_c~a_inv*dH_dx; ~%", dir-1, clabels[dir]),
   printf(fh, "} ~%~%"),
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap,
+  const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf,
   const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm, cdim, vdim, basisFun, polyOrder),
   printf(fh, "  for (int i = 0; i < ~a; ++i) { ~%", num_nodes_conf),
-  printf(fh, "    for (int j = 0; j < ~a; ++j) alpha_quad[i*~a + j] += ~a_node(i, j, w, dxv, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
+  printf(fh, "    for (int j = 0; j < ~a; ++j) alpha_quad[i*~a + j] += ~a_node(i, j, w, dxv, vmap, jacob_pos, jacob_vel_surf, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
   printf(fh, "  } ~%"),
   printf(fh, "} ~%")
 )$
@@ -433,7 +440,7 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, rep
 
   /* Per-node function (Design A): one call per surface node. */
   laxEmitNodeFn(fh, funcNm, tabP, length(bP), sizesNA[1], sizesNA[2], num_nodes_vel,
-    (dir-1)*numNodes, " const double *jacob_vel_surf_r,", jacDecls, hasJac),
+    (dir-1)*numNodes, " const double *jacob_vel_surf_r,", jacDecls, hasJac, []),
 
   /* CFL finalizer: converts the node-loop's alpha_max reduction into the
      stable time-step estimate (kernel-specific jacobian handling). */

@@ -41,12 +41,14 @@ printPrototype(comp, deco, ci, vi, bStr, hStr, pi) := block([si],
   if (ci <= vi and pi < 3) then (
     if (comp = 0) then (
       printf(fh, "~avoid vlasov_nc_hamil_~a_vol_alpha_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
+        const double *vmap, const double *jacob_pos, const double *jacob_vel,
         const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT out); ~%", deco, hStr, ci, vi, bStr, pi)
     ),
     /* The hamil_gen comps are Hamiltonian-agnostic and shared across the
        flavors; emit their declarations once (on the vel_dense pass). */
     if (hStr = "vel_dense") then (
       printf(fh, "~avoid vlasov_nc_hamil_gen_vol_comp~a_~ax~av_~a_p~a(const double *w, const double *dxv, const int dir,
+        const double *jacob_pos, const double *jacob_vel,
         const double *alpha, double* GKYL_RESTRICT out); ~%", deco, comp, ci, vi, bStr, pi)
     )
   )

@@ -50,7 +50,7 @@ for bInd : 1 thru 2 do (
               printf(fh, "~adouble phi_~aalpha_quad_~a_~ax~av_~a_p~a_node(int i, int j, const double *dxv, const double *jacob_pos, const double *phi); ~%",
                 deco, si, vlabels[dir], c, v, bName[bInd], pi),
               if (bName[bInd] = "ser") then
-                printf(fh, "~adouble hamil_phase_~aalpha_quad_~a_~ax~av_~a_p~a_node(int i, int j, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+                printf(fh, "~adouble hamil_phase_~aalpha_quad_~a_~ax~av_~a_p~a_node(int i, int j, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
                   deco, si, vlabels[dir], c, v, bName[bInd], pi)
             ),
             for dir : 1 thru v do (
@@ -93,16 +93,16 @@ for c : 1 thru 3 do (
           si : if useHigherOrder then "ho_" else "",
           if not((pi = 1) and useHigherOrder) then (
             if (pi = 1) then si : "",
-            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_node(int i, int j, double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal); ~%",
+            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_node(int i, int j, const double *jacob_pos_l, const double *jacob_pos_c, double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal); ~%",
               deco, si, clabels[dir], c, v, pi),
-            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_cfl(const double *dxv, double alpha_max); ~%",
+            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_cfl(const double *dxv, const double *jacob_pos_c, double alpha_max); ~%",
               deco, si, clabels[dir], c, v, pi),
-            printf(fh, "~adouble hamil_vel_dense_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+            printf(fh, "~adouble hamil_vel_dense_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
               deco, si, clabels[dir], c, v, pi),
             if (v > 1) then
-              printf(fh, "~adouble hamil_vel_sparse_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+              printf(fh, "~adouble hamil_vel_sparse_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
                 deco, si, clabels[dir], c, v, pi),
-            printf(fh, "~adouble hamil_phase_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+            printf(fh, "~adouble hamil_phase_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
               deco, si, clabels[dir], c, v, pi)
           )
         )
@@ -125,7 +125,7 @@ for c : 1 thru 3 do (
           if not((pi = 1) and useHigherOrder) then (
             if (pi = 1) then si : "",
             for rep in (if v > 1 then ["vel_dense", "vel_sparse", "phase"] else ["vel_dense", "phase"]) do
-              printf(fh, "~adouble nc_hamil_~a_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int j, const double *w, const double *dxv, const double *poisson_tensor_conf, const double *hamil); ~%",
+              printf(fh, "~adouble nc_hamil_~a_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int j, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
                 deco, rep, si, vlabels[dir], c, v, pi)
           )
         )

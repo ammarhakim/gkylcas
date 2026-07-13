@@ -71,7 +71,12 @@ calcHamilVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   surfTabInclude(fh, cdim, vdim, basisFun, polyOrder),
 
+  /* Mesh maps: each derivative picks up the inverse Jacobian of ITS OWN
+     direction (dH/dx_c -> 1/J_x,c via jacob_pos, phase flavor only;
+     transverse dH/dv_k -> 1/J_v,k via jacob_vel_surf), and the omega = v.Pi
+     momentum factor evaluates physical velocity from the linear vmap. */
   printf(fh, "GKYL_CU_DH double ~a_node(int i, int j, const double *w, const double *dxv,
+  const double *vmap, const double *jacob_pos, const double *jacob_vel_surf,
   const double *poisson_tensor_conf, const double *hamil) ~%{ ~%", funcNm),
 
   if (vdim = 1) and not(hamil_rep = "phase") then (
@@ -133,6 +138,7 @@ calcHamilVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
        dH/dx_j. Row j of column dir lives at NC*((dir-1) + vdim*(j-1)). --- */
     if (hamil_rep = "phase") then (
       for c : 1 thru cdim do printf(fh, "  const double dx1~a = 2.0/dxv[~a]; ~%", c-1, c-1),
+      for c : 1 thru cdim do printf(fh, "  const double jacob_c~a_inv = 1.0/jacob_pos[~a]; ~%", clabels[c], (polyOrder+1)*(c-1)),
       for c : 1 thru cdim do block([ptxRow],
         ptxRow : (dir-1) + vdim*(c-1),
         printf(fh, "  const double *poisson_tensor_conf_x~a = &poisson_tensor_conf[~a]; ~%", ptxRow, NC*ptxRow)
@@ -152,16 +158,20 @@ calcHamilVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
        vel node j); v_dir sits at its -1 edge, transverse coordinates come
        from the shared node table. --- */
     if (vdim > 1) then (
-      for m : 1 thru vdim do printf(fh, "  const double wx~a = w[~a]; ~%", m, cdim+m-1),
-      for m : 1 thru vdim do printf(fh, "  const double dv~a = dxv[~a]; ~%", m-1, vid[m]),
+      for m : 1 thru vdim do printf(fh, "  const double *vmap_v~a = &vmap[~a]; ~%", m-1, 4*(m-1)),
       for k in transK do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", k-1, vid[k]),
+      for k in transK do printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_vel_surf[~a]; ~%", clabels[k], (polyOrder+2)*(k-1)),
+      /* Physical velocity at the node from the C^0 linear velocity map
+         (1D p1 modal evaluation of vmap slots [0],[1]); v_dir sits at its
+         -1 edge, transverse coordinates come from the shared node table. */
       for m : 1 thru vdim do (
         if (m = dir) then
-          printf(fh, "  const double vt~a = wx~a - 0.5*dv~a; ~%", m, m, m-1)
+          printf(fh, "  const double vt~a = ~a*vmap_v~a[0] - ~a*vmap_v~a[1]; ~%",
+            m, float(1/sqrt(2)), m-1, float(sqrt(3/2)), m-1)
         else block([p],
           p : if m < dir then m-1 else m-2,
-          printf(fh, "  const double vt~a = wx~a + 0.5*dv~a*vst_~a_vel_nodes_v~a[j*~a + ~a]; ~%",
-            m, m, m-1, tag, dir-1, vdim-1, p)
+          printf(fh, "  const double vt~a = ~a*vmap_v~a[0] + ~a*vmap_v~a[1]*vst_~a_vel_nodes_v~a[j*~a + ~a]; ~%",
+            m, float(1/sqrt(2)), m-1, float(sqrt(3/2)), m-1, tag, dir-1, vdim-1, p)
         )
       ),
       /* omega_ab and the Pi_pp rows (0-based, within the block offset
@@ -191,25 +201,26 @@ calcHamilVelSurfForceNonCanonical(dir, fh, funcNm, cdim, vdim, basisFun, polyOrd
     retTerms : [],
     if (hamil_rep = "phase") then
       retTerms : endcons(sconcat("-(",
-        simplode(makelist(sconcat("px", c-1, "_q*dH_dx", c-1, "*dx1", c-1), c, 1, cdim), " + "), ")"), retTerms),
+        simplode(makelist(sconcat("px", c-1, "_q*dH_dx", c-1, "*dx1", c-1, "*jacob_c", clabels[c], "_inv"), c, 1, cdim), " + "), ")"), retTerms),
     if (vdim = 2) then (
-      if (dir = 1) then retTerms : endcons("om12*dH_dv1*dv11", retTerms)
-      else retTerms : endcons("-om12*dH_dv0*dv10", retTerms)
+      if (dir = 1) then retTerms : endcons("om12*dH_dv1*dv11*jacob_vy_inv", retTerms)
+      else retTerms : endcons("-om12*dH_dv0*dv10*jacob_vx_inv", retTerms)
     )
     else if (vdim = 3) then (
-      if (dir = 1) then retTerms : append(retTerms, ["om12*dH_dv1*dv11", "om13*dH_dv2*dv12"])
-      else if (dir = 2) then retTerms : append(retTerms, ["-om12*dH_dv0*dv10", "om23*dH_dv2*dv12"])
-      else retTerms : append(retTerms, ["-om13*dH_dv0*dv10", "-om23*dH_dv1*dv11"])
+      if (dir = 1) then retTerms : append(retTerms, ["om12*dH_dv1*dv11*jacob_vy_inv", "om13*dH_dv2*dv12*jacob_vz_inv"])
+      else if (dir = 2) then retTerms : append(retTerms, ["-om12*dH_dv0*dv10*jacob_vx_inv", "om23*dH_dv2*dv12*jacob_vz_inv"])
+      else retTerms : append(retTerms, ["-om13*dH_dv0*dv10*jacob_vx_inv", "-om23*dH_dv1*dv11*jacob_vy_inv"])
     ),
     printf(fh, "  return ~a; ~%", simplode(retTerms, " + ")),
     printf(fh, "} ~%~%")
   ),
 
   /* Wrapper with the original ABI: loop the node function. */
-  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *poisson_tensor_conf,
+  printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const double *vmap,
+  const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf,
   const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
   printf(fh, "  for (int i = 0; i < ~a; ++i) { ~%", num_nodes_conf),
-  printf(fh, "    for (int j = 0; j < ~a; ++j) alpha_quad[i*~a + j] += ~a_node(i, j, w, dxv, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
+  printf(fh, "    for (int j = 0; j < ~a; ++j) alpha_quad[i*~a + j] += ~a_node(i, j, w, dxv, vmap, jacob_pos, jacob_vel_surf, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
   printf(fh, "  } ~%"),
   printf(fh, "} ~%")
 )$

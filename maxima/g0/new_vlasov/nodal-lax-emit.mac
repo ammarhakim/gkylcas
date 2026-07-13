@@ -114,8 +114,11 @@ laxAssertNodeOrder(surfNodes, nodesOuter, nodesInner) := block(
    jacDecls is a list of C lines computing `const double jac = ...;` from j
    (index arithmetic for the cubic map, cell constants for the linear map);
    an empty list means no jacobian factor (jac omitted). jacArgs is the
-   argument-declaration string for the jacobian inputs ("" if none). */
-laxEmitNodeFn(fh, funcNm, prefix, NB, NA, NMV, NI, outOff, jacArgs, jacDecls, hasJac) := block([ln],
+   argument-declaration string for the jacobian inputs ("" if none).
+   scaleLines is a list of C lines emitted after the stage-2 nodal
+   reconstruction (e.g. per-side `f_l_quad *= ...;` un-weighting on
+   configuration-direction surfaces); [] means none. */
+laxEmitNodeFn(fh, funcNm, prefix, NB, NA, NMV, NI, outOff, jacArgs, jacDecls, hasJac, scaleLines) := block([ln],
   printf(fh, "GKYL_CU_DH double ~a_node(int i, int j,~a
   double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm, jacArgs),
   printf(fh, "  double G_l[~a]; ~%", NA),
@@ -132,6 +135,7 @@ laxEmitNodeFn(fh, funcNm, prefix, NB, NA, NMV, NI, outOff, jacArgs, jacDecls, ha
   printf(fh, "    f_l_quad += ~a_Cm[i*~a + a]*G_l[a]; ~%", prefix, NA),
   printf(fh, "    f_r_quad += ~a_Cm[i*~a + a]*G_r[a]; ~%", prefix, NA),
   printf(fh, "  } ~%"),
+  for ln in scaleLines do printf(fh, "~a~%", ln),
   printf(fh, "  const int n = i*~a + j; ~%", NI),
   for ln in jacDecls do printf(fh, "~a~%", ln),
   if hasJac then

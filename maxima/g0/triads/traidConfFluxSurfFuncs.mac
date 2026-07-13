@@ -73,9 +73,14 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
      is n = i*NIv + m. Each cell owns its *lower* edge fluxes:
      hamil_pt_edge = -1 evaluates at cv = -1 (the r-edge tables), +1 at
      cv = +1 (the l-edge tables). */
+  /* vmap/jacob_pos: shared conf-producer ABI (mesh maps); alpha_dir here is
+     Pi . dH/dv only, so neither is used. Each dH/dv_j derivative picks up the
+     inverse velocity-map Jacobian of its own direction (cell constant). */
   printf(fh, "GKYL_CU_DH double ~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv,
+  const double *vmap, const double *jacob_pos, const double *jacob_vel_surf,
   const double *poisson_tensor_conf, const double *hamil) ~%{ ~%", funcNm),
   for j : 1 thru vdim do printf(fh, "  const double dv1~a = 2.0/dxv[~a]; ~%", j-1, vid[j]),
+  for j : 1 thru vdim do printf(fh, "  const double jacob_v~a_inv = 1.0/jacob_vel_surf[~a]; ~%", clabels[j], (polyOrder+2)*(j-1)),
   for j : 1 thru vdim do
     printf(fh, "  const double *poisson_tensor_conf_~a = &poisson_tensor_conf[~a]; ~%", j - 1, NC*(dir-1)*vdim + NC*(j-1)),
 
@@ -103,7 +108,7 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
         printf(fh, "    for (int a = 0; a < ~a; ++a) dH~a += ~a_Cm[i*~a + a]*G~a[a]; ~%", NA, j-1, tabP, NA, j-1)
       ),
       printf(fh, "    return ~a; ~%",
-        simplode(makelist(sconcat("P", j-1, "*dH", j-1, "*dv1", j-1), j, 1, vdim), " + ")),
+        simplode(makelist(sconcat("P", j-1, "*dH", j-1, "*dv1", j-1, "*jacob_v", clabels[j], "_inv"), j, 1, vdim), " + ")),
       printf(fh, "  } ~%")
     )
   )
@@ -135,7 +140,7 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
           NC, j-1, tag, dir-1, elbl, NC, j-1)
       ),
       printf(fh, "    return ~a; ~%",
-        simplode(makelist(sconcat("P", j-1, "*dH_dv", j-1, "*dv1", j-1), j, 1, vdim), " + ")),
+        simplode(makelist(sconcat("P", j-1, "*dH_dv", j-1, "*dv1", j-1, "*jacob_v", clabels[j], "_inv"), j, 1, vdim), " + ")),
       printf(fh, "  } ~%")
     )
   ),
@@ -144,9 +149,10 @@ calcHamilVelSurfForceFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, hami
 
   /* Wrapper with the original ABI: loop the node function. */
   printf(fh, "GKYL_CU_DH void ~a(const double *w, const double *dxv, const int hamil_pt_edge,
+    const double *vmap, const double *jacob_pos, const double *jacob_vel_surf,
     const double *poisson_tensor_conf, const double *hamil, double* GKYL_RESTRICT alpha_quad) ~%{ ~%", funcNm),
   printf(fh, "  for (int i = 0; i < ~a; ++i) { ~%", num_nodes_conf),
-  printf(fh, "    for (int m = 0; m < ~a; ++m) alpha_quad[i*~a + m] += ~a_node(i, m, hamil_pt_edge, w, dxv, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
+  printf(fh, "    for (int m = 0; m < ~a; ++m) alpha_quad[i*~a + m] += ~a_node(i, m, hamil_pt_edge, w, dxv, vmap, jacob_pos, jacob_vel_surf, poisson_tensor_conf, hamil); ~%", num_nodes_vel, num_nodes_vel, funcNm),
   printf(fh, "  } ~%"),
   printf(fh, "} ~%")
 )$
@@ -182,23 +188,30 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
   printf(fh, "#include <gkyl_vlasov_kernels.h> ~%"),
   surfTabInclude(fh, cdim, vdim, basisFun, polyOrder),
 
-  /* Per-node function (Design A): one call per surface node; no jacobian
-     factor on configuration-direction surfaces. */
+  /* Per-node function (Design A): one call per surface node. The stored f is
+     J_pos-weighted with a cell-constant Jacobian that jumps across the
+     interface, so each side is un-weighted by its OWN cell's Jacobian in the
+     surface direction before the Lax combination (l = lower neighbor,
+     c = current cell, which owns its lower-edge flux). */
   laxEmitNodeFn(fh, funcNm, tabP, length(bP), sizesNA[1], sizesNA[2], num_nodes_vel,
-    (dir-1)*numNodes, "", [], false),
+    (dir-1)*numNodes, " const double *jacob_pos_l, const double *jacob_pos_c,", [], false,
+    [printf(false, "  f_l_quad *= 1.0/jacob_pos_l[~a]; ", (polyOrder+1)*(dir-1)),
+     printf(false, "  f_r_quad *= 1.0/jacob_pos_c[~a]; ", (polyOrder+1)*(dir-1))]),
 
-  /* CFL finalizer for the node-loop's alpha_max reduction. */
+  /* CFL finalizer for the node-loop's alpha_max reduction: the physical cell
+     width in the surface direction is J_pos*dx, so the rate carries the
+     inverse position-map Jacobian of the current cell. */
   cid : cidx(cdim),
-  printf(fh, "GKYL_CU_DH double ~a_cfl(const double *dxv, double alpha_max) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a_cfl(const double *dxv, const double *jacob_pos_c, double alpha_max) ~%{ ~%", funcNm),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-  printf(fh, "  return ~a*~a*alpha_max;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),
+  printf(fh, "  return ~a*~a*alpha_max/jacob_pos_c[~a];~%", float(0.5*(2*polyOrder+1)), dx1[dir], (polyOrder+1)*(dir-1)),
   printf(fh, "} ~%~%"),
 
   /* Wrapper with the original ABI (minus the retired dead lax scratch). */
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_vel_surf,
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_pos_l, const double *jacob_pos_c,
   const double *alpha_quad, const double *f_l, const double *f_r,
   double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm),
-  laxEmitWrapperLoop(fh, funcNm, num_nodes_conf, num_nodes_vel, ""),
-  printf(fh, "  return ~a_cfl(dxv, alpha_max); ~%", funcNm),
+  laxEmitWrapperLoop(fh, funcNm, num_nodes_conf, num_nodes_vel, " jacob_pos_l, jacob_pos_c,"),
+  printf(fh, "  return ~a_cfl(dxv, jacob_pos_c, alpha_max); ~%", funcNm),
   printf(fh, "} ~%")
 )$

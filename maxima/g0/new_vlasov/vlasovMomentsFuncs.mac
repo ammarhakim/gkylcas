@@ -486,10 +486,11 @@ calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := bloc
   printf(fh, "} ~%")
 )$  
 
-/* Calculate M0 = <Jf>, M1i = < 1/J_vi dH/dv_i Jf >, and M2 = < H Jf > simultaneously 
-   where J is the velocity space Jacobian. 
-   Takes boolean input for whether Hamiltonian is a function of only velocity space 
-   or a function of the full phase space. */
+/* Calculate M0 = <Jf>, M1i = < (1/J_v,i) dH/dv_i Jf >, and M2 = < H Jf >
+   simultaneously. Jf carries the TOTAL velocity-map Jacobian; the 1/J_v,i on
+   M1i is the Jacobian in the i-th direction only, picked up by the dH/dv_i
+   derivative. Takes boolean input for whether Hamiltonian is a function of only
+   velocity space or a function of the full phase space. */
 calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
@@ -547,10 +548,11 @@ calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep)
   printf(fh, "} ~%")
 )$ 
 
-/* Calculate integrated M0 = <Jf>, M1i = < 1/J_vi dH/dv_i Jf >, and M2 = < H Jf > simultaneously 
-   where J is the velocity space Jacobian. 
-   Takes boolean input for whether Hamiltonian is a function of only velocity space 
-   or a function of the full phase space. */
+/* Calculate integrated M0 = <Jf>, M1i = < (1/J_v,i) dH/dv_i Jf >, and
+   M2 = < H Jf > simultaneously. Jf carries the TOTAL velocity-map Jacobian; the
+   1/J_v,i on M1i is the Jacobian in the i-th direction only, picked up by the
+   dH/dv_i derivative. Takes boolean input for whether Hamiltonian is a function
+   of only velocity space or a function of the full phase space. */
 calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, hamil_rep, rep) := block(
   [varsC,bC,varsV,bV,varsP,bP,hamil,fl,M],
 
@@ -690,8 +692,9 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, calcHamilPhase) := bloc
   calcM3i(fh, funcNm, cdim, vdim, basisFun, polyOrder, false),  */
   calcM2ij(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep),
   calcM3ijk(fh, funcNm, cdim, vdim, basisFun, polyOrder, rep),
-  /* Velocity-space Hamiltonian moments: both representations divide the
-     velocity-space Jacobian out of Jf for the M1i moment. */
+  /* Velocity-space Hamiltonian moments. M1i = < (1/J_v,i) dH/dv_i Jf >: the
+     dH/dv_i derivative picks up 1/J_v,i -- the velocity-map Jacobian in the
+     DIRECTION OF THE DERIVATIVE only; the total map Jacobian stays on Jf. */
   calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense", rep),
   calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "vel_dense"),
   /* The hamil_vel M3i energy flux is only in the Serendipity kernel tables. */
@@ -713,12 +716,15 @@ calcMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, calcHamilPhase) := bloc
     calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, true, rep),
     calcM0ReduceVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, false, rep) 
   ),
-  /* Phase-space Hamiltonian moments (canonical-PB/Triads): no velocity-map
-     Jacobian handling, matching the rest of those models. */
+  /* Phase-space Hamiltonian moments (canonical-PB/Triads): the Vmap variants
+     carry the same per-direction derivative factors as the vel-Hamiltonian
+     flavors -- M1i's dH/dv_i picks up 1/J_v,i (the Jacobian in the derivative's
+     direction, NOT the total Jacobian, which stays on Jf). Identity map =>
+     runtime factors of 1.0. M2 = <H Jf> has no derivative, so no factor. */
   if (basisFun = "ser" and calcHamilPhase) then (
-    calcM1i(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
-    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
-    calcFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"), 
-    calcIntFiveMoments(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase") 
+    calcM1iVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase", rep),
+    calcM2(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase"),
+    calcFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase", rep),
+    calcIntFiveMomentsVmap(fh, funcNm, cdim, vdim, basisFun, polyOrder, "phase", rep)
   )
 )$
