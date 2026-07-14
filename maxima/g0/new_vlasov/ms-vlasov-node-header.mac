@@ -93,9 +93,9 @@ for c : 1 thru 3 do (
           si : if useHigherOrder then "ho_" else "",
           if not((pi = 1) and useHigherOrder) then (
             if (pi = 1) then si : "",
-            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_node(int i, int j, const double *jacob_pos_l, const double *jacob_pos_c, double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal); ~%",
+            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_node(int i, int j, const double *jacob_pos_l, const double *jacob_pos_r, double alpha, const double *f_l, const double *f_r, double* GKYL_RESTRICT Fhat_nodal); ~%",
               deco, si, clabels[dir], c, v, pi),
-            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_cfl(const double *dxv, const double *jacob_pos_c, double alpha_max); ~%",
+            printf(fh, "~adouble ~alax_flux_nodal_~a_~ax~av_ser_p~a_cfl(const double *dxv, const double *jacob_pos_l, const double *jacob_pos_r, double alpha_max); ~%",
               deco, si, clabels[dir], c, v, pi),
             printf(fh, "~adouble hamil_vel_dense_~aalpha_quad_~a_~ax~av_ser_p~a_node(int i, int m, int hamil_pt_edge, const double *w, const double *dxv, const double *vmap, const double *jacob_pos, const double *jacob_vel_surf, const double *poisson_tensor_conf, const double *hamil); ~%",
               deco, si, clabels[dir], c, v, pi),

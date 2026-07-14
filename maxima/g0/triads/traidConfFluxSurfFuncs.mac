@@ -194,24 +194,26 @@ calcNodalLaxToModalVelFlux(dir, fh, funcNm, cdim, vdim, basisFun, polyOrder, use
      surface direction before the Lax combination (l = lower neighbor,
      c = current cell, which owns its lower-edge flux). */
   laxEmitNodeFn(fh, funcNm, tabP, length(bP), sizesNA[1], sizesNA[2], num_nodes_vel,
-    (dir-1)*numNodes, " const double *jacob_pos_l, const double *jacob_pos_c,", [], false,
+    (dir-1)*numNodes, " const double *jacob_pos_l, const double *jacob_pos_r,", [], false,
     [printf(false, "  f_l_quad *= 1.0/jacob_pos_l[~a]; ", (polyOrder+1)*(dir-1)),
-     printf(false, "  f_r_quad *= 1.0/jacob_pos_c[~a]; ", (polyOrder+1)*(dir-1))]),
+     printf(false, "  f_r_quad *= 1.0/jacob_pos_r[~a]; ", (polyOrder+1)*(dir-1))]),
 
   /* CFL finalizer for the node-loop's alpha_max reduction: the physical cell
      width in the surface direction is J_pos*dx, so the rate carries the
-     inverse position-map Jacobian of the current cell. */
+     inverse position-map Jacobian of the smaller of the two cells sharing
+     this interface (the most restrictive physical cell width). */
   cid : cidx(cdim),
-  printf(fh, "GKYL_CU_DH double ~a_cfl(const double *dxv, const double *jacob_pos_c, double alpha_max) ~%{ ~%", funcNm),
+  printf(fh, "GKYL_CU_DH double ~a_cfl(const double *dxv, const double *jacob_pos_l, const double *jacob_pos_r, double alpha_max) ~%{ ~%", funcNm),
   printf(fh, "  double dx1~a = 2.0/dxv[~a]; ~%", dir-1, cid[dir]),
-  printf(fh, "  return ~a*~a*alpha_max/jacob_pos_c[~a];~%", float(0.5*(2*polyOrder+1)), dx1[dir], (polyOrder+1)*(dir-1)),
+  printf(fh, "  const double jacob_pos_min = fmin(jacob_pos_l[~a], jacob_pos_r[~a]); ~%", (polyOrder+1)*(dir-1), (polyOrder+1)*(dir-1)),
+  printf(fh, "  return ~a*~a*alpha_max/jacob_pos_min;~%", float(0.5*(2*polyOrder+1)), dx1[dir]),
   printf(fh, "} ~%~%"),
 
   /* Wrapper with the original ABI (minus the retired dead lax scratch). */
-  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_pos_l, const double *jacob_pos_c,
+  printf(fh, "GKYL_CU_DH double ~a(const double *dxv, const double *jacob_pos_l, const double *jacob_pos_r,
   const double *alpha_quad, const double *f_l, const double *f_r,
   double* GKYL_RESTRICT Fhat_nodal) ~%{ ~%", funcNm),
-  laxEmitWrapperLoop(fh, funcNm, num_nodes_conf, num_nodes_vel, " jacob_pos_l, jacob_pos_c,"),
-  printf(fh, "  return ~a_cfl(dxv, jacob_pos_c, alpha_max); ~%", funcNm),
+  laxEmitWrapperLoop(fh, funcNm, num_nodes_conf, num_nodes_vel, " jacob_pos_l, jacob_pos_r,"),
+  printf(fh, "  return ~a_cfl(dxv, jacob_pos_l, jacob_pos_r, alpha_max); ~%", funcNm),
   printf(fh, "} ~%")
 )$
