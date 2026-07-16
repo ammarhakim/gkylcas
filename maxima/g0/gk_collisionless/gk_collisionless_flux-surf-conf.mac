@@ -206,14 +206,16 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
     ypotR_e : ypotR_e + vmap_e[2]*bmagSurf_e
   ),
 
-  /* Add volume contribution to Yushmanov field. */
-  if edge = true then (
-    ypot_der_vol_c : -rdx2vec[surfDir]*calcInnerProdList(varsP,1,diff(bP,surfVar),ypotL_e),
-    writeCIncrExprs1(ypotderL, ypot_der_vol_c)
-  ) else (
-    ypot_der_vol_c : -rdx2vec[surfDir]*calcInnerProdList(varsP,1,diff(bP,surfVar),ypotR_e),
-    writeCIncrExprs1(ypotderR, ypot_der_vol_c)
-  ), 
+  if edge = false then (
+    /* Add volume contribution to Yushmanov field. */
+    if edge = true then (
+      ypot_der_vol_c : -rdx2vec[surfDir]*calcInnerProdList(varsP,1,diff(bP,surfVar),ypotL_e),
+      writeCIncrExprs1(ypotderL, ypot_der_vol_c)
+    ) else (
+      ypot_der_vol_c : -rdx2vec[surfDir]*calcInnerProdList(varsP,1,diff(bP,surfVar),ypotR_e),
+      writeCIncrExprs1(ypotderR, ypot_der_vol_c)
+    ) 
+  ),
 
   /* Evaluate Yushmanov potential at nodes. */
   ypotSurfL_c : calcInnerProdList(surfIntVars, 1, bSurf, subst(surfVar=1,ypotL_e)),
@@ -319,7 +321,7 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
       printf(fh, "  ypotR_quad = ~a; ~%", ypotSurfR_n[jIdx1]),
       printf(fh, "  ypot_der_avg_quad = (ypotL_quad + ypotR_quad)/2.0; ~%"),
       printf(fh, "  ypot_der_jump_quad = (ypotR_quad - ypotL_quad)/2.0; ~%"),
-      printf(fh, "  ypot_der_surf_n[~a] = ypot_der_avg_quad + fabs(alpha_quad)*ypot_der_jump_quad; ~%", jIdx0)
+      printf(fh, "  ypot_der_surf_n[~a] = ypot_der_avg_quad + gsign(alpha_quad)*ypot_der_jump_quad; ~%", jIdx0)
     ),
     printf(fh, "~%")
   ),
@@ -328,8 +330,8 @@ buildGKFluxConfESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   ypot_der_surf_e : doExpand1(ypot_der_surf_n,basisNodal),
   ypot_der_surfL_c : fullratsimp(rdx2vec[surfDir]*calcInnerProdList(surfIntVars, 1, subst(surfVar=1,bP), ypot_der_surf_e)),
   ypot_der_surfR_c : fullratsimp(rdx2vec[surfDir]*calcInnerProdList(surfIntVars, -1, subst(surfVar=-1,bP), ypot_der_surf_e)),
-  writeCIncrExprs1(ypotderL, ypot_der_vol_c),
-  writeCIncrExprs1(ypotderR, ypot_der_vol_c),
+  writeCIncrExprs1(ypotderL, ypot_der_surfL_c),
+  writeCIncrExprs1(ypotderR, ypot_der_surfR_c),
   printf(fh, "~%"),
 
   /*Calculate the cfl*/

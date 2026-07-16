@@ -114,6 +114,8 @@ printf(fh, "#include <gkyl_util.h>~%")$
 printf(fh, "#include <gkyl_dg_geom.h>~%")$
 printf(fh, "#include <gkyl_gk_dg_geom.h>~%")$
 printf(fh, "~%")$
+printf(fh, "#define gsgn(x) (((x) > 0) - ((x) < 0));~%")$
+printf(fh, "~%")$
 printf(fh, "EXTERN_C_BEG~%")$
 printf(fh, "~%")$
 printPrototypes()$
