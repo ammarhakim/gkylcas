@@ -149,7 +149,7 @@ buildGKFluxVparESKernel(surfDir, fh, funcNm, cdim, vdim, basisFun, polyOrder, no
   vmap_prime_nodes : float(evAtNodes(vmap_prime_e[1],surfNodes,surfIntVars)),
 
   /* Yushmanov field. */
-  yfield_c : makelist( makelist(yfield[numP*(d-1)+k],k,1,numP) ,d,1,cdim),
+  yfield_c : makelist( makelist(yfield[numP*(d-1)+k-1],k,1,numP) ,d,1,cdim),
   yfield_e : makelist( doExpand(yfield_c[d],bP) ,d,1,cdim),
   yfieldSurf_e : makelist( subst(surfVar=-1,yfield_e[d]) ,d,1,cdim),
 
