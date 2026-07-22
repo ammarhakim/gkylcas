@@ -185,7 +185,7 @@ genGkSheathInputKer2x2v(fh, cdim, vdim, basisFun, polyOrder) := block(
       printf(fh, "    angle_n    = ~a; ~%", gcfac(float(fullratsimp(bimpactAngle_q[i])))),
       printf(fh, "    nn_inp_out[0+n_inp*~a] = (float)(angle_n*(180.0/GKYL_PI));~%", i-1),
       printf(fh, "    nn_inp_out[1+n_inp*~a] = (float)((1.0/bmag_n)*sqrt(GKYL_ELECTRON_MASS*fmax(0.0, dens_n)/GKYL_EPSILON0));~%", i-1),
-      printf(fh, "    nn_inp_out[2+n_inp*~a] = (float)((GKYL_ELEMENTARY_CHARGE*(phi_n-phi_wall_n))/temp_n);~%", i-1),
+      printf(fh, "    nn_inp_out[2+n_inp*~a] = (float)(fmax(0.0, (GKYL_ELEMENTARY_CHARGE*(phi_n-phi_wall_n))/temp_n));~%", i-1),
       /* Note: In the future we can easily extend this to more parameters by adding more nn_inp_out entries, like:
         nn_inp_out[3+n_inp*~a] = (float)(tperp/tpar);  // temperature anisotropy
       */
